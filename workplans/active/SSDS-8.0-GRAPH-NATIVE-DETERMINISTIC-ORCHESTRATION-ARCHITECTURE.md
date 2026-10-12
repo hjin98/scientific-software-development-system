@@ -1,14 +1,17 @@
 ---
 kind: ssds-major-architecture-workplan
 workplan_id: SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE
-protocol_version: 6.6.0
+protocol_version: 7.2.1
 target_system_version: 8.0.0
 status: proposed
 created_date: 2026-10-01
-revised_date: 2026-10-01
+revised_date: 2026-10-12
 design_revision: 4
-source_branch_basis: f96b7ccf90dede4150d0efa17264fff07ec12d0d
-source_branch: ssdp-7.0-scientific-epistemic-closure
+baseline_reconciliation: protocol-7.2.1 (2026-10-12; section 0.4)
+governing_version_adoption: 6.6.0 -> 7.2.1 by stakeholder instruction 2026-10-12 (section 0.4)
+source_branch_basis: af0455753e20ee54a969c844872e29e270007211
+source_branch: main
+prior_source_branch_basis: f96b7ccf90dede4150d0efa17264fff07ec12d0d (ssdp-7.0-scientific-epistemic-closure; design revisions 1-4 before the 2026-10-12 rebase)
 design_basis: befe6782e7c8fe038bf7cb764646d133ca167855
 prior_review: qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md
 prior_reviewed_candidate: 8a75346892852a719df41d7ba6f296bb376fe9cf
@@ -32,7 +35,8 @@ The workplan ID keeps the historical `GRAPH-NATIVE` lexeme for routing stability
 ## 0. Disposition
 
 ```text
-GOVERNING DESIGN PROTOCOL: SSDP 6.6.0 (accepted-current; identities owned by PROTOCOL-RELEASE-STATE.yaml)
+GOVERNING DESIGN PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12, §0.4;
+            release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0, the system-level successor to the document-controlled SSDP line
 THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 4; proposed, not accepted-current;
            not an Architecture Manual
@@ -43,10 +47,11 @@ PRIOR REVIEWS: f9d9de8 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F9
 SUPERSEDES: the consolidated Protocol 8 plan (archived byte-identically, with its nine-file lineage)
             and the befe678 graph-native hypothesis (archived byte-identically as ...-BEFE678-HYPOTHESIS.md)
 SERIOUS CHALLENGE: NONE (§1.3 records why the governing goals are judged consistent)
-PROTOCOL 7: active closure; inheritance NOT FINAL; §19 lists prospective inputs only
-INDEPENDENT D3 REVIEW: ready for a fresh independent falsification Review of design revision 4; this revision is
-            refinement, not acceptance, and awards itself nothing;
-            a PASS cannot authorize D4 before Phase A (Protocol 7 reconsolidation) and Phase C (accepted Architecture Manual)
+PROTOCOL 7: closed at 7.2.1 (accepted with conditions); inheritance RECONCILED (Phase A executed, §0.4, §19, §24);
+            the reconciliation is reviewed together with design revision 4
+INDEPENDENT D3 REVIEW: ready for a fresh independent falsification Review of design revision 4 and its 7.2.1
+            reconciliation; this revision is refinement, not acceptance, and awards itself nothing;
+            a PASS cannot authorize D4 before Phase C (accepted Architecture Manual)
 SSDS 8 D4: NOT AUTHORIZED
 ```
 
@@ -130,13 +135,13 @@ Design revision 1 (`f9d9de8`) re-derived the problem from the governing objectiv
 
 Revision 2's out-of-matrix and minimum-architecture passes (§27) repaired four further abstraction defects: carve-out cutover vs holistic legacy acceptance; completeness surviving scope-membership change; direct push to the ledger ref; challenge escape by re-scoping unchanged content (the ordinary-Admission path; revision 3 closed the foreign path).
 
-### 0.2 Protocol 7 Stage H routing (prospective)
+### 0.2 Protocol 7 Stage H routing (discharged)
 
-The active Protocol 7 consolidated workplan (Stage H) assigns its closeout "the Protocol 8 inheritance reconciliation" of `SSDP-8.0-DETERMINISTIC-CONTROL-PLANE-AND-MANDATORY-ORCHESTRATOR-CONSOLIDATED`, which this file supersedes. Neither this file nor the authority index amends that obligation. When Protocol 7's owning closeout executes Stage H, it is expected to reconcile or retarget the obligation, through its own authority process, to the then-current SSDS 8 handoff (presently this file: §19 inputs, §24 baseline). That reconciliation advances the pre-cutover baseline, selects no SSDS 8 architecture, authorizes no D4, and recommends (never self-adopts) a governing-version adoption.
+The Protocol 7 consolidated workplan (Stage H) assigned its closeout "the Protocol 8 inheritance reconciliation" of `SSDP-8.0-DETERMINISTIC-CONTROL-PLANE-AND-MANDATORY-ORCHESTRATOR-CONSOLIDATED`, which this file supersedes. Protocol 7 closed at 7.2.1 (stakeholder ratification 2026-10-12, `qualification/ssdp70/STAKEHOLDER-RATIFICATION-2026-10-12-PROTOCOL-7.2.1.md`) without authoring that reconciliation; its 7.2 cycle appended only an inputs list (§37.2a, workplan `SSDP-7X-SKILLS-ONLY-RELIABILITY-AND-QUALIFICATION-V2` O-10) to the then-active consolidated plan. On 2026-10-12 the stakeholder, who owns both lines, directed that this branch be rebased onto the accepted 7.2.1 base and this handoff aligned to it. §0.4 is that reconciliation, against the successor target the index already named. It advances the pre-cutover baseline, binds the final Protocol 7 inputs, adopts the governing version only because the stakeholder instructed it, selects no new architecture, and authorizes no D4. The closed Protocol 7 workplan is a historical handoff and is not rewritten; the authority index records the discharge.
 
 ### 0.3 Project Engineering Memory basis
 
-This is replacement/migration design for mature machinery, so the PEM predicate fires. Accepted/base memory: `PROJECT-ENGINEERING-MEMORY.md` on `main` at `2585b73f00420daca185a4fbb9ac42a79473eda1` (`reconciled_through` `23e46543c174a8451bbadc402df63538105eab10`), blob `1561797125622f355f84eb27319f87e8fa4227d9`; `main` has not advanced, and this branch carries no overlay (identical blob, re-verified for revision 3). Historical Applicability Set:
+This is replacement/migration design for mature machinery, so the PEM predicate fires. Accepted/base memory, re-resolved for the 7.2.1 reconciliation: `PROJECT-ENGINEERING-MEMORY.md` on `main` at `af0455753e20ee54a969c844872e29e270007211`, blob `1561797125622f355f84eb27319f87e8fa4227d9` (`memory_schema_version` 1, `reconciled_through` `23e46543c174a8451bbadc402df63538105eab10`). The blob is the one design revisions 1-4 used (then on `main` at `2585b73f00420daca185a4fbb9ac42a79473eda1`). `main` has since absorbed the 6.6 Stage F and the 7.0-7.2.1 cycles without a memory write, so that interval is uncovered: the absence of a 7.x entry proves nothing. The 7.x qualification lessons live in qualification evidence and enter this design as evidence-only inputs through §19, not as memory. This branch carries no overlay. Historical Applicability Set (unchanged):
 
 | Entry | Binding | Disposition for this design |
 |---|---|---|
@@ -145,6 +150,43 @@ This is replacement/migration design for mature machinery, so the PEM predicate 
 | FF-001 premature immutable publication | `EVIDENCE_ONLY` | Applicable to genesis, cutover, replacement lineages after a confidentiality incident, and SSDS release: no immutable identity is published before every required route and record validates (§12.5, §15.5, §23). Applicable by analogy to currentness: no ledger head is published or asserted current before the durability condition that makes the claim true holds (§15.3). |
 | DS-001 synthetic fixtures do not discriminate real-owner defects | `EVIDENCE_ONLY` | Applicable to qualification (§22) and to the routing regression test (N2): synthetic/string checks bound only mechanical properties. |
 | SP-001 repair canonical source, regenerate derivatives | `EVIDENCE_ONLY` | Applicable by analogy: derived views are regenerated from ledger and content, never patched (§6.6). |
+
+### 0.4 Protocol 7.2.1 inheritance reconciliation and governing-version adoption (2026-10-12)
+
+**Authority.** Stakeholder instruction, 2026-10-12: rebase SSDS 8.0 onto `main` after the 7.2.1 merge so that it points at the current SSDP 7.2.1 base, and align this workplan to that baseline. Under the versioning owner's binding-versus-adoption rule, that instruction is the authorized adoption request of the authority owning this workplan. The editing agent identified the bindings, reconciled the obligations and recorded the result; it adopted nothing on its own judgment.
+
+**Rebase.** The eight branch commits were replayed unchanged onto `main` at `af0455753e20ee54a969c844872e29e270007211`, whose `PROTOCOL-RELEASE-STATE.yaml` names 7.2.1 accepted-current. The replay was conflict-free, and branch-only content stays confined to this workplan, its archived predecessors, `qualification/ssds80/`, the authority index and the routing test. Rebasing rewrote commit identities but no reviewed bytes: at every replayed commit this workplan, the three Review records, the befe678 archive (`af9c005b…`), the index and the test are byte-identical to the original. The Review records and §0.1 keep citing the original identities, which map as follows:
+
+| Original | Rebased | Content |
+|---|---|---|
+| `befe678` | `513da27` | graph-native hypothesis (design basis) |
+| `f9d9de8` | `e62be2f` | design revision 1 (Reviewed: NO-PASS) |
+| `9d51f01` | `1cd2766` | f9d9de8 Review record |
+| `441cf5c` | `25ed4c3` | design revision 2 (Reviewed: NO-PASS) |
+| `d9720e1` | `c6bc328` | 441cf5c Review record |
+| `8a75346` | `6a3d03a` | design revision 3 (Reviewed: NO-PASS) |
+| `a88f270` | `0b3093d` | 8a75346 Review record |
+| `9475e8d` | `edf816a` | design revision 4 |
+
+The one tree difference is intended. The archived consolidated Protocol 8 plan is byte-identical to its last active version on `main` (blob `cc795f4058f99041c751c97ce46e7bcf5483ec9e`, previously `c229202f…`). That version adds §37.2a, the 7.2 inputs appended after the old basis, which §18.1 now dispositions.
+
+**Adoption, 6.6.0 to 7.2.1.** Protocol 7 keeps every accepted 6.6 capability. Between `22f4bdba` (6.6) and `aaeaf8b6` (7.2.1), the owners that a §0.1 repair was verified against either did not change (kernel, semantic-definition, Git) or changed only additively (workflow, evidence, concurrency, storage, security, versioning). The additions are scientific-inspectability routing, Channel C gate evidence, product-scope acceptance, bidirectional scientific Review, the realized-record/observation overlap with CHALLENGES inquiry status, inspection and export trust boundaries, weighing retention before loss, and the frozen 6.6-7.2 profiles. No repair basis is withdrawn, so `[6.6]` tags keep their meaning as doctrine carried unchanged into 7.2.1, and no design-revision-4 mechanism changes. The newly applicable obligations, and where each is met:
+
+| 7.x obligation (7.2.1 owner) | Why it applies here | Met at |
+|---|---|---|
+| D3 authority content (O1): realized record, intended reader, routine questions, visibly marked product inspectability surfaces (architecture, scientific-inspectability) | this is D3 authority for software that mediates retained evidence and human-gate evidence | §1.4 |
+| Channel C gate evidence: a separable non-narrative core first; disclosure for consequential decisions; tension assessments at D1/D2 revision gates; no unqualified closure when missing records could change the judgment; adequacy is semantic (workflow) | SSDS renders gate briefs | §9.4, §21 item 10 |
+| Product-scope acceptance only by the stakeholder or task authority, never technical D3 Review alone (workflow, scientific-inspectability O3) | SSDS records judgments that could accept a marked surface | §14, §2.1 S12 |
+| A tension's canonical home is an evidence record or native issue; one canonical home per finding; no universal discovery database (scientific-inspectability) | the ledger references findings and evidence | §2.1 S13, §10, §19 |
+| Realized-record/observation overlap; inquiry status (exploratory or confirmatory) as a separate attribute on `CHALLENGES` (evidence) | SSDS represents observations and challenges | §10, §21 items 3 and 11 |
+| Inspection and export surfaces, and tension or disposition homes that non-owners can write, are trust boundaries (security) | SSDS exposes derived views and references such homes | §15.7 |
+| Weigh later scientific judgment before irreversibly discarding or aggregating retained evidence (storage) | ledger purge and breach procedures, retention of referenced objects | §21 item 14 |
+| Profiles 6.6, 7.0, 7.1 and 7.2 frozen and independently testable (versioning, PC-001) | SSDS coexists with document-controlled profiles | §24, §2.9 B1 |
+| Search for recorded tensions before relying on accepted D1/D2 authority (entrypoint Tensions duty) | does not apply to this workplan, which relies on no accepted project D1/D2 authority; it applies to agents SSDS briefs, as an input to brief design | §19 |
+
+**Evidence re-evaluated.** The three NO-PASS Review records stay applicable as history, because their verification basis (the 6.6 owners at `22f4bdba`) means the same at 7.2.1. No executed SSDS evidence exists to go stale. The fresh independent Review covers design revision 4 and this reconciliation together.
+
+**Bound inputs and baseline.** The final Protocol 7 inputs are in §19. The pre-cutover baseline is in §24.
 
 ## 1. Problem, objective and allocation
 
@@ -184,9 +226,27 @@ Three residual limitations are real but not contradictions:
 
 The design bounds and discloses each; none weakens a stated invariant. No Serious Challenge is raised.
 
+### 1.4 Scientific inspectability (O1)
+
+SSDS 8 produces no scientific results of its own. It does decide which realized results count as current evidence, what human gates receive and what is retained, so the 7.2.1 authority-content duty applies to it. Stated proportionately:
+
+- **Material realized record (of SSDS itself).**
+  - *Contents:* admitted records and their bases (judgments; realizations with their execution basis; assessments; challenges with their inquiry status; gate decisions; risk overrides; loss boundaries and continuity attestations), publication outcomes, and intake and quarantine dispositions.
+  - *Retention and destructive boundaries:* the ledger is append-only except under the human-gated breach protocol (§15.5). Raw data, logs and narrative findings stay in native project homes, referenced by content identity (§10). An unavailable referenced artifact degrades binding health but erases no history.
+- **Intended readers.** Stakeholders and human-gate holders; independent reviewers; agents, only through briefs (§9).
+- **Routine questions.**
+  - What governs this subject, and at which revision?
+  - Is this result still current against its basis, and if not, what moved?
+  - Which evidence supports or challenges this claim, and which is stale or unavailable?
+  - What did a gate decide, on which evidence core, and with which findings and tensions visible?
+  - What is withheld by quarantine or a loss boundary, and why?
+- **Product inspectability surfaces (marked).**
+  - *Within the requested deliverable (this architecture):* S3 derived views and `ask`/`read` answers that name their qualified head (§6.6, §9.1, §9.3); task briefs with incompleteness notices (§9.2); gate briefs led by a separable non-narrative core (§9.4).
+  - *Beyond the requested deliverable:* None. Projection of project scientific records, exploration interfaces and discovery stores stay with project products. SSDS references their homes and adds no universal observation database (§10, §20).
+
 ## 2. Reconstructed invariants
 
-Source tags: **[6.6]** accepted-current SSDP doctrine; **[P8]** consolidated Protocol 8 proposal (reviewed under 6.1, never accepted-current); **[S8]** SSDS 8 objective from stakeholder/task authority; **[P7?]** prospective Protocol 7 input, not final. Tags show where a requirement comes from; they do not make P8 or P7? items accepted authority.
+Source tags: **[6.6]** accepted 6.6 SSDP doctrine, carried unchanged into accepted-current 7.2.1 (§0.4); **[7.x]** doctrine added by Protocol 7.0-7.2.1; **[7.x-E]** evidence from the 7.x qualification study (a design input, not doctrine); **[P8]** consolidated Protocol 8 proposal (reviewed under 6.1, never accepted-current); **[S8]** SSDS 8 objective from stakeholder/task authority. Tags show where a requirement comes from; they do not make P8 or 7.x-E items accepted authority.
 
 ### 2.1 Semantic
 
@@ -201,6 +261,8 @@ Source tags: **[6.6]** accepted-current SSDP doctrine; **[P8]** consolidated Pro
 - **S9** A machine-control vocabulary never converts a semantic judgment into a deterministic fact; agent PASS is a recommendation. [6.6][P8]
 - **S10** Acceptance attaches to an exact semantic subject, in one tenure, at an exact scope and revision. Content identity, scope identity, subject role and tenure, lineage, dependency coverage, semantic equivalence and acceptance are distinct facts; no mechanism infers a later one from an earlier one. [6.6, derived from S1, S3, S6]
 - **S11** Effective governance is admitted, never observed. Repository presence changes no ruleset, structural role, membership, scope, kind or coverage boundary, and promotes no acceptance; declarations found in content are proposals until admitted. An acceptance belongs to one subject tenure and never revives once that tenure ends; restoring old bytes or old declarations restores no validity. [6.6 workflow: repository presence promotes nothing; 6.6 evidence: restoration does not restore validity; derived from S3, S10]
+- **S12** Gate evidence is decision-sufficient, with a non-narrative core separable from agent interpretation, and its adequacy is a semantic judgment. A marked product inspectability surface beyond the requested deliverable is accepted only by the product-scope owner (stakeholder or task authority), never by technical D3 Review alone. [7.x workflow, scientific-inspectability]
+- **S13** A persisted finding has exactly one canonical home; a tension's home is a project evidence record or native issue, never accepted authority text. No universal discovery database exists. [7.x scientific-inspectability]
 
 ### 2.2 Control
 
@@ -233,6 +295,7 @@ Source tags: **[6.6]** accepted-current SSDP doctrine; **[P8]** consolidated Pro
 - **A1** Routine work never requires reading machine records, decoding history, maintaining edges or reconstructing Git topology. [S8]
 - **A2** Context is version-bound, explains why each item is present, labels its epistemic status, and states known incompleteness. [S8]
 - **A3** One logical task/result contract across harnesses and transports; a zero-context agent can locate its task from a minimal bootstrap. [P8]
+- **A4** A duty a task owes is either carried in that task's brief or enforced mechanically. Activation and selection are deterministic, never left to wording, and mandatory depth is never reached through conditional "read X when Y" routing. Briefs carry only the duties that are triggered, because surplus duty text causes narration nobody owed. [7.x-E, ratification lessons 1-4]
 
 ### 2.6 Repository and Git
 
@@ -262,7 +325,7 @@ Source tags: **[6.6]** accepted-current SSDP doctrine; **[P8]** consolidated Pro
 
 - **B1** Older version-bound work stays governed by its declared version and immutable source; frozen orchestration profiles stay independently testable (PC-001). [6.6]
 - **B2** Rollback is version rollback to an immutable baseline, never simultaneous dual authority. [P8]
-- **B3** Protocol 7 inheritance is not final and is not bound here. [task authority]
+- **B3** Protocol 7 inheritance is final at 7.2.1 and is bound in §0.4 and §19. The pre-cutover baseline is the 7.2.1 recovery (§24). [7.x][task authority]
 
 ### 2.10 Conveniences that had been masquerading as architecture
 
@@ -779,7 +842,7 @@ Each item also carries its acceptance status (valid, provisional, challenged, st
 
 ### 9.4 Human gates
 
-A gate brief presents the non-narrative evidence core first: identities, coverage, key data and trajectories, findings as data. Agent interpretation, alternatives, anomalies and unresolved findings follow separately. Gate-evidence adequacy is a semantic judgment, not a presence predicate: the human's decision records whether the evidence was adequate, and that record can itself be challenged. Agents and machinery may request a gate; they cannot synthesize a human judgment. A risk override is a distinct judgment kind that authorizes bounded continuation and leaves dependents provisional (S2, §6.6).
+A gate brief presents the non-narrative evidence core first: identities, coverage, key data and trajectories, findings as data. Agent interpretation, alternatives, anomalies, uncertainty, variant-search disclosure and unresolved findings follow separately. A gate accepting a D1/D2 revision also receives that revision's tension applicability assessments, including any marked inapplicable, with their asserters, and a gate cannot close unqualified while missing realized records could plausibly change its judgment (7.2.1 Channel C). Gate-evidence adequacy is a semantic judgment, not a presence predicate: the human's decision records whether the evidence was adequate, and that record can itself be challenged. Agents and machinery may request a gate; they cannot synthesize a human judgment. A risk override is a distinct judgment kind that authorizes bounded continuation and leaves dependents provisional (S2, §6.6).
 
 ### 9.5 Transports and harnesses
 
@@ -794,7 +857,7 @@ Transports expose the same logical operations. There are three: an MCP server; a
 | observation | the realization record's outcome plus references to native artifacts (logs, data) by content identity where possible |
 | assessment | judgment record; later reassessment supersedes, never rewrites |
 
-A realization supports a claim at revision `c` only while its execution basis is current and its target is `c`, or an equivalence judgment covers the change. An execution-dependency change triggers a rerun obligation; a target change triggers an assessment-review obligation. Stale passing evidence never discharges; stale failing evidence is not admissible against the current claim. Unavailable artifacts degrade binding health through availability observations: the historical record survives, and present use becomes `UNAVAILABLE`. Process exit or harness success is never evidence admissibility. A realization with incomplete or malformed evidence is recorded as such and cannot enter a PASS/FAIL assessment. Raw data stays in native stores; the ledger stores identities and bounded classifications.
+A realization supports a claim at revision `c` only while its execution basis is current and its target is `c`, or an equivalence judgment covers the change. An execution-dependency change triggers a rerun obligation; a target change triggers an assessment-review obligation. Stale passing evidence never discharges; stale failing evidence is not admissible against the current claim. Unavailable artifacts degrade binding health through availability observations: the historical record survives, and present use becomes `UNAVAILABLE`. Process exit or harness success is never evidence admissibility. A realization with incomplete or malformed evidence is recorded as such and cannot enter a PASS/FAIL assessment. Raw data stays in native stores; the ledger stores identities and bounded classifications. A realized-record item is an observation only when an evidence realization produced it; retaining it neither assesses nor re-identifies it. A challenge record carries the finding's inquiry status (exploratory or confirmatory) as its own attribute, separate from evidence strength, applicability and disposition (7.2.1 evidence owner). Findings and tensions keep their one canonical home in project evidence records or native issues; the ledger references that home by identity and never becomes it (S13, §15.5).
 
 **Who may realize evidence.** A realization can discharge an evidence obligation only in two cases: a runner that project trust policy designates for that specification executed it (normally Dispatcher-controlled execution on the exact candidate or merged tree), or a designated runner reproduced it. Results an agent reports from its own workspace are findings: useful for direction, never admissible for discharge. Policy may let expensive scientific realizations (long simulations, HPC campaigns) run under recorded custody outside the Dispatcher; the realization record then names the custody evidence.
 
@@ -1006,7 +1069,7 @@ Deterministic machinery prepares, but never decides:
 - how an ambiguous legacy region decomposes and what its upstream intent was;
 - whether an architectural change preserves its parent abstraction;
 - whether a Serious Challenge is warranted, how it is adjudicated, and whether a risk override is acceptable;
-- whether a marked product surface is accepted (product-scope owner, P7?);
+- whether a marked product surface is accepted (only by the product-scope owner, the stakeholder or task authority, at an existing gate; technical D3 Review alone never accepts it);
 - whether a confidentiality incident requires destructive remediation.
 
 For each, the machinery produces a **focused question**: the exact subject, scope and revisions; the distinctions already resolved; the evidence and its status; what the answer will change; and the allowed outcomes. The answer is a recorded judgment that then propagates mechanically.
@@ -1256,7 +1319,7 @@ Agents are not principals with authority. Their records are proposals attributed
 
 ### 15.7 Protected surfaces and untrusted input
 
-Agents cannot modify the ledger, rules registry, project policy, schemas, trust roots, witness configuration, unit governance state or issued task envelopes. Agents may propose structural declarations in the unit manifest as ordinary content; those take effect only through Admission (§6.8 step 4). Changes to rules, policy, schemas, trust roots and witnesses are their own governed changes requiring a human gate. Admission detects any touch of a protected surface. Agent branches and result envelopes are untrusted until validated. Malformed or adversarial records cannot inject actions, and agent-reported test results are never admissible evidence (§10). Unknown executable or binary content is classified statically and never executed or deserialized to classify it. Paths are repository-contained. Evidence, memory and external text are data.
+Agents cannot modify the ledger, rules registry, project policy, schemas, trust roots, witness configuration, unit governance state or issued task envelopes. Agents may propose structural declarations in the unit manifest as ordinary content; those take effect only through Admission (§6.8 step 4). Changes to rules, policy, schemas, trust roots and witnesses are their own governed changes requiring a human gate. Admission detects any touch of a protected surface. Agent branches and result envelopes are untrusted until validated. Malformed or adversarial records cannot inject actions, and agent-reported test results are never admissible evidence (§10). Unknown executable or binary content is classified statically and never executed or deserialized to classify it. Paths are repository-contained. Evidence, memory and external text are data. Inspection and export views over realized records, and tension or disposition homes that non-owners can write, are data-exposure and trust boundaries (7.2.1 security owner): views give the strongest safe aggregate and state the limitation, and content written to such a home stays a claim by its native asserter.
 
 ## 16. Components and ownership
 
@@ -1419,7 +1482,9 @@ Their historical inheritance dispositions (6.2-6.6 reconciled; D3 reopen require
 | §34 acceptance criteria | Carried into §25 |
 | §35 non-goals | Carried (§20) |
 | §36 final target: semantic artifacts carry meaning; agents investigate and reason; evidence supports or challenges governed claims; schemas communicate bounded control facts; rules validate legal transitions; the orchestrator alone commits workflow state; replay determinism is a control guarantee, not deterministic scientific reasoning | Carried without a new mechanism: meaning stays in content and authored relations (§6.1-§6.2, §20); agents reason and judge, never bookkeep (§1.2, §9); evidence supports or challenges through realizations, assessments and challenges (§10, §6.6 S1); the closed schema carries only control facts (§6.3, §15.5, C7); fixed predicate templates and Admission's validation order decide legal transitions (§6.6, §6.8); Admission is the sole canonical writer (C1, §6.8); C2/C8 make derivation, not reasoning, deterministic, and semantic judgment propagates only once admitted as a typed record (§6.6, §14) |
-| §37 version rebind, Protocol 7 inputs and reconciliation contract | Carried (§0.2, §19) |
+| §37 version rebind, Protocol 7 inputs and reconciliation contract | Carried and executed: the reconciliation contract is discharged by §0.4 under stakeholder instruction (§0.2) |
+| §37.2 known Protocol 7 inputs | Bound at their final 7.2.1 meaning (§19.1) |
+| §37.2a known Protocol 7.2 inputs (mandatory activation; event-triggered owner injection; typed delegation schema; mechanical write-scope and persistence-home enforcement; in-loop version routing and self-adoption guard; typed choice-provenance and claim records; exact package-access provenance) | Bound as design inputs with landing points (§19.2); none selects a mechanism by itself |
 | §38 handoff state | Replaced by §28 |
 
 ### 18.2 befe678 hypothesis capabilities
@@ -1447,19 +1512,46 @@ Their historical inheritance dispositions (6.2-6.6 reconciled; D3 reopen require
 | Atomic accepted-event publication, integrity, backup/restore, crash recovery | §15.3-§15.4 (quorum admission, successor-entry reconciliation, loss boundary), §13 |
 | Private control state and secrets kept out of repository transport | §15.1, §15.5 |
 
-## 19. Protocol 7 prospective inputs (not final)
+## 19. Protocol 7 inheritance (final at 7.2.1)
 
-Protocol 7 closure is active, and nothing here binds Protocol 7 semantics or selects an inheritance. The source snapshot is `f96b7cc`. At this revision the Protocol 7 branch has advanced by Stage 7 probe and evaluation-tooling commits (`7d7810f`, `d2feaa4`) without closing; its consolidated workplan blob is unchanged (`36e2da1`). Phase A binds the final identities. Known prospective inputs, and where they would land:
+Protocol 7 closed at 7.2.1, accepted with conditions on 2026-10-12 (`qualification/ssdp70/STAKEHOLDER-RATIFICATION-2026-10-12-PROTOCOL-7.2.1.md`). The stakeholder concluded the 7.x semantic line there, and stated as direction, not as a plan, that further reliability requires the deterministic machinery of SSDS 8.0+. The exact release identities are resolved from `PROTOCOL-RELEASE-STATE.yaml` (§24). The inputs below bind this design at their final 7.2.1 meaning. Doctrine inputs bind; evidence inputs inform. None selects a mechanism by itself, and each landing point remains open to the fresh independent Review.
 
-| Input | Landing point | Open question for Phase A |
+### 19.1 Doctrine inputs (accepted 7.2.1 owners; earlier prospective rows resolved)
+
+| Input | Landing point | Resolution |
 |---|---|---|
-| Gate-evidence adequacy is semantic, not a presence predicate; non-narrative evidence core separable and read first | §9.4 | final gate-brief obligations |
-| Realized scientific record and feedback persistence live in existing project artifacts; no universal discovery database | §10 (native artifacts referenced) | whether the ledger may be a project-designated canonical home for findings/tensions, or must only index external homes (the closed schema of §15.5 already forbids narrative content in the ledger) |
-| One canonical home per finding; tension binding to authority identity and earlier revisions; native attribution as asserter | §6.3, §11 | mapping of tension search to unit identity, scope identity and refinement lineage |
-| Marked product inspectability surfaces accepted by product-scope owner, never by technical D3 Review | §14 | judgment kind and actor qualification |
-| Claim-integrity floor on agent assertions | §9 report/submit | none expected at architecture level |
-| Stage F fail-closed evidence-state model separating transport success from evidence admissibility (evidence-only lesson) | §9.5, §10 | final portable execution-profile semantics for the Dispatcher |
-| Pre-cutover baseline advances to Protocol 7 recovery/public fallback (distinct) | §24 | exact identities from release state |
+| Gate-evidence adequacy is semantic, not a presence predicate; non-narrative core separable and read first | §9.4, S12 | Final Channel C contract adds consequential-decision disclosure, revision-gate tension assessments and the no-unqualified-closure rule; the gate template obligations are a Manual item (§21 item 10) |
+| Realized scientific record and feedback persistence live in existing project artifacts; no universal discovery database | §10, §1.4 | Resolved: the ledger is not a canonical home for findings or tensions. A tension's home is an evidence record or native issue; the ledger references it by identity, and the closed schema (§15.5) forbids narrative content |
+| One canonical home per finding; tension binding to authority identity and earlier revisions; native attribution as asserter | §6.3, §10, §11, S13 | Tension search keys (owner/path and heading, anchor or object ID, exact revision, earlier revisions, former names, recorded predecessors) map to unit identity, scope identity and refinement lineage. Mapping them exactly is a Manual item (§21 item 1) |
+| Marked product inspectability surfaces accepted only by the product-scope owner | §14, S12 | Resolved: the stakeholder or task authority, at an existing gate. An applicable D1/D2 human gate that considers the surface also accepts it, and technical D3 Review alone never does. A distinct judgment kind with that actor qualification (§21 item 3) |
+| Claim-integrity floor on agent assertions | §9 report/submit | unchanged; no architecture-level change |
+| Realized-record/observation overlap; `CHALLENGES` inquiry status | §10, §21 items 3 and 11 | new at 7.0; bound |
+| Inspection/export surfaces and writable tension homes are trust boundaries | §15.7 | new at 7.0; bound |
+| D3 O1 authority content | §1.4 | new at 7.0; met by this workplan |
+| Pre-cutover baseline advances to the Protocol 7 recovery and public fallback (distinct) | §24 | Resolved: 7.2.1 |
+
+### 19.2 The 7.2 inputs delegated to deterministic machinery (archived plan §37.2a; 7.2 design §7)
+
+Each input is a duty that 7.x could state only in prose, because prose cannot make an indeterministic executor comply.
+
+| Input | Landing point | Manual decision |
+|---|---|---|
+| Mandatory role activation and selection | §9.2 brief (obligation kind selects governing content), §9.5 bootstrap, A4 | how an obligation kind maps to the duties a brief carries; no wording-based activation |
+| Event-triggered injection of owner depth at the situations where it matters | §9.2 governing content inline, §9.3 | which observed events (judgment kind, gate, authority revision) add owner text to a brief |
+| Typed delegation request and return schema | §9.1 operations, §6.8 typed admission requests | the delegate-question schema and the rule that an unanswered part is reported as a gap |
+| Mechanical write-scope (O3) and persistence-home enforcement | §6.8 steps 3-4 and §8.1 admission-time write-set proof, §15.7 protected surfaces | how O3 product-change authority and the designated persistence homes become Admission checks |
+| In-loop version routing and self-adoption guard | §6.6 S0 ruleset in force, §12.1 `LEGACY(p)`, S7 | how a task's governing version is bound in the brief and checked at Admission |
+| Typed choice-provenance and claim records | §6.3 closed schemas, §9.1 submit | which choice and claim fields are typed control facts and which stay narrative in native homes |
+| Exact package-access provenance | §9.1 `read` recording, §8.4 | whether consumed-package accounting is needed beyond read recording (the 7.1 ledger was retired as more provenance than the decision needed) |
+
+### 19.3 Evidence inputs (7.x qualification study; inform, do not bind)
+
+From `qualification/ssdp70/PROTOCOL-7X-QUALIFICATION-STUDY-EVIDENCE-AND-LESSONS-2026-10-12.md`, as summarized in the ratification record:
+
+- Compliance with language-based duties is probabilistic and model-dependent at every layer: activation, loading further text, answering each owed question. Only text in context acts. Conditional "read the owner when …" instructions hit 37%, and inline structured checklists raised uptake from 28% to 92%. This supports inline governing content (§9.2) and A4.
+- Errors run in both directions: more inline duty text produced narration where none was owed. Briefs should carry only the duties that are triggered (A4).
+- Detection, claim integrity, unauthorized mutation and version ordering did not respond to protocol text in any arm, 6.6 included. These are the strongest cases for enforcement over instruction (§19.2 rows 4-6).
+- Measurement: absolute floors measure the model, and paired, calibrated comparisons measure the protocol. The LLM evaluator's unassessable tail set the power of both campaigns. Validate oracles and instruments before runs, and simulate operating characteristics before spending. Frozen rules, custody, blinding and independent review caught real defects. These bind the design of the §22 usability qualification.
 
 ## 20. Non-goals
 
@@ -1495,25 +1587,25 @@ The SSDS 8 Architecture Manual, independently reviewed and accepted, SHALL decid
 
 1. unit model: manifest and anchor declaration syntax (governance-affecting declarations confined to the manifest), content normalization and boundary-marker rules, scope identity, coverage partition and laminarity rules, single-definer rule; effective-structure fold, declaration keys, resolution of effective scopes against observed bytes (`ABSENT`, uncovered region), governance-affecting vs neutral classification algorithm, `aff(Q)`, governance signature and tenure;
 2. relation vocabulary with every type's direction, semantic role, cycle class, permitted classes, layer constraint and completeness eligibility; vocabulary adoption checks; SDG declaration syntax and rules; cycle legality and `well_formed`; boundary-completeness judgment semantics and analyzer completeness declarations;
-3. closed record schemas, judgment kinds and tiers, actor qualifications, outcome vocabularies, compatibility contract;
+3. closed record schemas, judgment kinds and tiers, actor qualifications (including product-scope acceptance of a marked surface), outcome vocabularies, the challenge inquiry-status attribute, compatibility contract;
 4. basis composition and mode assignment per judgment kind, including the subject-boundary rule (`content` inside the record's subject, `validity` across), consumption classes, equivalence-path composition, the widening chain and closure algorithm;
 5. derivation: strata S0-S3 (including `Σ`, `Q`, `aff`, `τ`, `well_formed`, `ok`, `E` and `pub` in S0, and `cont` in S1), the polarity classification of every record kind, the fixed predicate templates and the adoption-time stratification check, least-fixed-point evaluation, analyzer contract (deterministic vs recorded), derivation checkpoints and recovery-time bounds;
 6. Admission validation order including the structural-delta rule (author, realign, carry, adopt), source/destination challenge freeze, dependency well-formedness with re-routed support edges, request identity and idempotency, merge-queue serial order, single-ref append, quorum admission and the single provisional entry; the integration observation `obs`, the entry-shape rule, the equivalent-publication and reachability classification, the reconciliation procedure and its ABA policy;
 7. obligation rules, readiness, three-valued discharge, provisional propagation and risk-override scope, iteration/attempt identity;
 8. change-plan structure, plan acceptance, scoped amendment policy, plan invariants;
 9. serialization policy surfaces, generated-unit handling, joint invariants, residual-risk disclosure;
-10. interface operations, query classes, brief and gate templates, epistemic labels, read recording, transports, bootstrap locator;
-11. evidence realization basis fields for scientific regimes, stochastic replicates, environments and precision; trusted-runner designation and custody for expensive external realizations;
+10. interface operations, query classes, brief and gate templates (gate templates meeting the 7.2.1 Channel C contract; briefs realizing the §19.2 activation, injection and delegation-schema inputs), epistemic labels, read recording, transports, bootstrap locator;
+11. evidence realization basis fields for scientific regimes, stochastic replicates, environments and precision; the realized-record/observation boundary; trusted-runner designation and custody for expensive external realizations;
 12. intake detection, static classification, dispositions, trust/quarantine, structural quarantine views, adoption and realignment requests, policy for mechanical adoption of governance-neutral deltas;
 13. governance modes, legacy and external acceptance import scope, external consultation supersession, reconstruction status, structural refinement, subject promotion, demotion and restoration, carve-out, cutover, quiescence, genesis;
-14. ledger storage realization: Git entry format, referenced-object retention, durability (fsync) configuration, ledger location options, authentication scheme and key lifecycle, witness kinds, the witness model `(N, q_a, r, f)` and its deployment classes, checkpoint and retirement-statement formats, read repair, the qualification procedure and its states, fresh-clone procedure, replica and witness-set redesignation, the non-admission bound, `LEDGER_LOSS` contents and re-established global control facts, the recovery procedure, continuity-attestation grammar, actor designation and evidence, confidentiality breach procedure and the closed-schema secret checks; operator-state boundary; derived index;
+14. ledger storage realization: Git entry format, referenced-object retention, durability (fsync) configuration, ledger location options, authentication scheme and key lifecycle, witness kinds, the witness model `(N, q_a, r, f)` and its deployment classes, checkpoint and retirement-statement formats, read repair, the qualification procedure and its states, fresh-clone procedure, replica and witness-set redesignation, the non-admission bound, `LEDGER_LOSS` contents and re-established global control facts, the recovery procedure, continuity-attestation grammar, actor designation and evidence, confidentiality breach procedure and the closed-schema secret checks, with retention weighed before any irreversible purge (7.2.1 storage owner); operator-state boundary; derived index;
 15. actor identity and human authentication trust roots;
 16. protected surfaces and SSDS self-governance of rules, schemas, trust roots and witnesses;
 17. component boundaries and dependency direction; Dispatcher/Admission separation; executed supersession of Architecture 1.6.0 resolving every **Deferred** row of §16.2;
 18. ruleset/schema evolution and SSDS-to-successor migration;
 19. versioning: system, schema, ruleset, interface and profile versions kept distinct;
 20. external units, external acceptance import and the cross-repository boundary (§11.4);
-21. final Protocol 7 inheritance (§19) and the pre-cutover baseline;
+21. the Manual decisions that §19.1 and §19.2 assign, under the 7.2.1 inheritance bound in §0.4 and the pre-cutover baseline of §24;
 22. a minimum-justified-architecture reassessment against the then-current accepted baseline, including whether every primitive in §5, component in §16.1 and persistent surface in §15.1 is still needed.
 
 ## 22. Qualification program
@@ -1658,13 +1750,13 @@ Qualification binds every claim to the property its method can discriminate (DS-
 - **Cross-repository.** A pinned external unit never goes stale by external movement; a pin change derives local impact; reliance without external acceptance is provisional; a producer-then-consumer admission sequence leaves visible intermediate states; a consulted external ledger is never written; a later consultation finding the pinned triple no longer accepted supersedes the earlier consultation and makes reliant imports non-current.
 - **Semantic and adversarial.** A coherent-D3 D4 defect stays D4. A downstream observation can challenge D3, D2 or D1 and blocks dependent closure. Machinery never auto-resolves scientific ambiguity. A missing required check never becomes PASS. Documents' lifecycle fields enact nothing. Historical reasoning remains reachable. No second authority emerges.
 - **Security and privacy.** No secrets or private telemetry in the ledger or repository by default; adversarial records cannot inject actions; human decisions require the declared trust mechanism.
-- **Usability.** Live trajectories on real tasks, in shadow mode, showing that agents complete bounded work without reading machine records and with less context than the document-controlled baseline. Claims stay bounded to the trajectories, harnesses and models actually exercised, consistent with the Protocol 6.6 stochastic robustness boundary.
+- **Usability.** Live trajectories on real tasks, in shadow mode, showing that agents complete bounded work without reading machine records and with less context than the document-controlled baseline. Claims stay bounded to the trajectories, harnesses and models actually exercised, consistent with the Protocol 6.6 stochastic robustness boundary. Following the 7.x lessons (§19.3), comparisons are paired against the document-controlled 7.2.1 baseline on the same executors and fixtures, gates are calibrated from simulated operating characteristics before any spend, evaluator and oracle instruments are validated first, and rules, custody and blinding are frozen before runs.
 - **Repository acceptance.** The inherited repository workflow (regression, PEM checks, package build/validation, distribution parity, whitespace, frozen-resource integrity, Orchestrator Core snapshot/tests) for every affected surface.
 
 ## 23. Development sequence
 
-- **Phase A — Protocol 7 reconsolidation.** After Protocol 7 closes, bind its exact identities and inputs (§19), advance the pre-cutover baseline, and recommend (not self-adopt) a governing-version adoption for this family.
-- **Phase B — independent D3 falsification of this architecture.** May begin before Phase A as hypothesis testing; its PASS cannot authorize D4 until Phase A and Phase C close.
+- **Phase A — Protocol 7 reconsolidation.** Executed 2026-10-12 (§0.4): the exact identities and inputs are bound (§19), the pre-cutover baseline is advanced (§24), and the governing version is adopted by stakeholder instruction. Phase A closes when the Phase B Review passes it.
+- **Phase B — independent D3 falsification of this architecture**, including the Phase A reconciliation. Its PASS cannot authorize D4 until Phase C closes.
 - **Phase C — SSDS 8 Architecture Manual** resolving §21, independently reviewed, with explicit stakeholder acceptance of this major change.
 - **Phase D — read-only kernel (shadow, no authority).** Content Model, Analyzers, ledger schema and Derivation over this repository, with a shadow genesis from existing history. Value: currency, impact and "what governs" answers with no control change.
 - **Phase E — read-only interface.** `open/ask/read` offered to agents working under the document-controlled baseline; measure burden reduction by live trajectories.
@@ -1675,8 +1767,8 @@ Qualification binds every claim to the property its method can discriminate (DS-
 
 ## 24. Cutover, rollback and versioning
 
-- The pre-cutover baseline is the accepted document-controlled protocol resolved from `PROTOCOL-RELEASE-STATE.yaml`: currently Protocol 6.6, with recovery `384666764da4c55b282e6b1595ab97e2f86e1dc4` and public fallback `22f4bdba53795da3a6f13f162529f3a843fc37ae`, kept distinct. It advances only by an explicit inheritance reconciliation (Phase A).
-- Older version-bound work stays under its declared version and immutable source; every supported orchestration profile stays frozen and independently testable (PC-001); migration never reinterprets old records as authored under SSDS 8.
+- The pre-cutover baseline is the accepted document-controlled protocol resolved from `PROTOCOL-RELEASE-STATE.yaml`: currently Protocol 7.2.1 (resolved 2026-10-12), with recovery `efdd1b59a7592b1cecef0a0013c35b54a7a6315d` and public fallback `aaeaf8b6b2121b9fb8aba31917c8265649c43954`, kept distinct. It advances only by an explicit inheritance reconciliation. Protocol 6.6 (recovery `384666764da4c55b282e6b1595ab97e2f86e1dc4`, public fallback `22f4bdba53795da3a6f13f162529f3a843fc37ae`) and older versions are historical baselines under `historical` in the release state.
+- Older version-bound work stays under its declared version and immutable source; every supported orchestration profile, through `ssdp-protocol-7.2`, stays frozen and independently testable (PC-001); migration never reinterprets old records as authored under SSDS 8.
 - Native cutover is per subject; after cutover no document-controlled process governs that subject. Shadow comparison is permitted only while one side is explicitly non-authoritative.
 - Orchestrator unavailability yields truthful non-closure for native scopes, never implicit document-control fallback. Exploratory or report-only work may proceed but claims no canonical closure until admitted.
 - Rollback is version rollback to the immutable pre-cutover baseline: stop Admission for the affected scope, resume the pinned baseline process there, repair SSDS separately. The mode change ends each affected subject's tenure, so pre-cutover legacy acceptance imports never revive; a fresh import is needed (§12.1). Ledger rollback (§15.4) is an integrity incident, not a version rollback; an unrecoverable admitted loss adds a continuity boundary, which composes with a later version rollback because the mode change ends tenure and the boundary withholds every pre-loss import independently.
@@ -1686,7 +1778,7 @@ Qualification binds every claim to the property its method can discriminate (DS-
 
 D4 handoff is possible only when:
 
-1. Protocol 7 inheritance is reconciled (Phase A);
+1. the Protocol 7 inheritance reconciliation (Phase A, §0.4) has passed independent Review;
 2. one accepted Architecture Manual resolves every §21 obligation;
 3. exactly one canonical writer exists per ledger, and no document, profile, tracker, scheduler, index or derived view can enact a transition;
 4. the four primitives and their derived semantics are fully specified, including subjects, scope identity, effective structure, quarantine and tenure, relation roles and cycle legality, the four strata, loss-boundary continuity, currency, validity, three-valued discharge and provisional propagation, with the uniqueness argument of §6.6 independently checked;
@@ -1714,13 +1806,14 @@ Reopen this architecture if:
 - requalification after a loss boundary proves too costly in practice, so that a mechanical narrowing (for example authenticated per-entry scope commitments held outside the ledger's failure domain) becomes worth its ordinary-path and witness-privacy cost, or continuity attestations prove to be used as routine shortcuts rather than accountable exceptions;
 - integration-head reconciliation proves unworkable on a target host (for example repeated foreign resets producing ABA contention);
 - the fixed predicate templates cannot express a required project policy without breaking stratification;
-- Protocol 7 finalizes semantics that require the ledger to be, or forbid it from being, a canonical home for findings;
+- a later accepted protocol version requires the ledger to be a canonical home for findings or tensions (7.2.1 resolves this as reference-only, §19.1);
+- an accepted successor protocol version changes doctrine that §19.1 binds, until its own inheritance reconciliation is done;
 - live trajectories show agents still doing bookkeeping;
 - any inherited guarantee proves unpreservable under §6.
 
 Uncertainties that cannot close by design work alone:
 
-- **Protocol 7 dependent:** gate-brief obligations; finding/tension canonical home; product-surface acceptance actor; final pre-cutover baseline; execution-profile semantics from Stage F portability.
+- **Formerly Protocol 7 dependent (resolved at 7.2.1, §19.1):** finding and tension canonical home; product-surface acceptance actor; pre-cutover baseline. **Still open, for the Manual:** exact gate-template obligations; the mapping of tension search keys to unit identity; the §19.2 decisions. The Stage F portable execution-profile semantics did not become 7.x doctrine (7.2 replaced them with the consolidated qualification harness); the Dispatcher keeps only its evidence-only lesson that transport success is not evidence admissibility (§9.5, §10).
 - **Empirical:** rate of false staleness under conservative widening and part-to-subject routing; frequency and cost of promotion judgments in Case B; analyzer completeness for real Python and C++ scientific code; feasibility of read recording per harness; practical unit granularity; derivation cost and checkpoint sizing on large repositories; ledger growth over years; witness availability and admission latency in practice; frequency of structural quarantine and of SDG declarations; agent context and success compared with the document-controlled baseline.
 
 ## 27. Adequacy and minimum-architecture passes (rounds 2-4)
@@ -1873,7 +1966,7 @@ Rounds 2-3 minimum-justified-architecture record (superseded by §27.2, which ca
 ## 28. Handoff state
 
 ```text
-GOVERNING DESIGN PROTOCOL: SSDP 6.6.0
+GOVERNING DESIGN PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12, §0.4)
 TARGET: SSDS 8.0.0
 ARCHITECTURE: basis-stamped judgments over content-addressed units grouped into acceptance subjects;
               stratified pure derivation (S0 observed content, admitted effective structure and publication
@@ -1884,15 +1977,18 @@ ARCHITECTURE: basis-stamped judgments over content-addressed units grouped into 
               integration observation; known admitted loss as a continuity boundary; Git-replicated ledger;
               optimistic concurrency; one intake route with structural quarantine; refinement plus qualified
               promotion for migration
-SOURCE SNAPSHOT: f96b7ccf90dede4150d0efa17264fff07ec12d0d (ssdp-7.0-scientific-epistemic-closure)
+SOURCE BASIS: main af0455753e20ee54a969c844872e29e270007211 (7.2.1 accepted-current); rebased 2026-10-12 from
+             f96b7ccf90dede4150d0efa17264fff07ec12d0d with reviewed bytes unchanged (§0.4 commit map)
 DESIGN BASIS: befe6782e7c8fe038bf7cb764646d133ca167855 (befe678 hypothesis archived byte-identically)
 PRIOR REVIEWS: f9d9de8 NO-PASS (repaired by revision 2); 441cf5c NO-PASS (repaired by revision 3);
                8a75346 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md); repaired here (§0.1)
-THIS WORKPLAN: design revision 4; proposed; not accepted-current; not an Architecture Manual; no self-awarded PASS
-SSDP 7: active closure; inheritance NOT FINAL; Stage H retargeting belongs to Protocol 7's own closeout (§0.2)
-D3: ready for fresh independent falsification Review; D4 handoff requires Phases A and C
+THIS WORKPLAN: design revision 4 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
+             not an Architecture Manual; no self-awarded PASS
+SSDP 7: closed at 7.2.1; inheritance RECONCILED (§0.4, §19); Stage H obligation discharged under stakeholder
+        instruction (§0.2); pre-cutover baseline Protocol 7.2.1 recovery (§24)
+D3: ready for fresh independent falsification Review (Phase B, covering Phase A); D4 handoff requires that PASS and Phase C
 D4: NOT AUTHORIZED
 SERIOUS CHALLENGE: none
-NEXT ACTION: fresh independent D3 Review of design revision 4 by a context that authored neither it nor its
-             predecessors; preserve the branch while Protocol 7 closes; then Phase A.
+NEXT ACTION: fresh independent D3 Review of design revision 4 and its 7.2.1 reconciliation by a context that
+             authored neither; then Phase C.
 ```

@@ -42,7 +42,7 @@ class Protocol80OrchestratorConsolidationTests(unittest.TestCase):
     def test_single_proposed_unauthorized_ssds8_handoff(self) -> None:
         meta = frontmatter(ACTIVE / SSDS8)
         self.assertEqual(meta["workplan_id"], Path(SSDS8).stem)
-        self.assertEqual(meta["protocol_version"], "6.6.0")
+        self.assertEqual(meta["protocol_version"], "7.2.1")
         self.assertEqual(meta["target_system_version"], "8.0.0")
         self.assertEqual(meta["status"], "proposed")
         self.assertEqual(meta["d3_architecture_state"], "proposed")

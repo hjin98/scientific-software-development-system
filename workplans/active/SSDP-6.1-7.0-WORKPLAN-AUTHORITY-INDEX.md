@@ -4,7 +4,7 @@ workplan_id: SSDP-6.1-7.0-WORKPLAN-AUTHORITY-INDEX
 protocol_version: 6.6.0
 status: active
 created_date: 2026-09-09
-reviewed_date: 2026-10-01
+reviewed_date: 2026-10-12
 active_serious_challenge: none
 current_handoffs:
   protocol-7.0: workplans/active/SSDP-7.0-SCIENTIFIC-EPISTEMIC-CLOSURE-AND-DISCOVERY-CONSOLIDATED.md
@@ -199,7 +199,7 @@ The deterministic control-plane / mandatory-orchestrator line (Protocol 8.0) is 
 
 - `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`
 
-The workplan ID keeps the historical `GRAPH-NATIVE` lexeme. The 2026-10-01 first-principles redesign replaced the graph-native hypothesis with an architecture of basis-stamped judgments over content-addressed units: ledger plus stratified pure derivation, single Admission writer, optimistic concurrency, one intake route, and refinement plus qualified promotion for migration. Its first revision (`f9d9de8`) received an independent D3 **NO-PASS** (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F9D9DE8-NO-PASS.md`); design revision 2 (`441cf5c`) received a second independent D3 **NO-PASS** with three blockers (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-441CF5C-NO-PASS.md`); design revision 3 (`8a75346`) received a third independent D3 **NO-PASS** with two persistence/recovery blockers (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md`). The handoff's design revision 4 addresses them and awaits a fresh independent Review. That handoff supersedes these archived byte-identical records, and its §18 dispositions every guarantee and capability of them:
+The workplan ID keeps the historical `GRAPH-NATIVE` lexeme. The 2026-10-01 first-principles redesign replaced the graph-native hypothesis with an architecture of basis-stamped judgments over content-addressed units: ledger plus stratified pure derivation, single Admission writer, optimistic concurrency, one intake route, and refinement plus qualified promotion for migration. Its first revision (`f9d9de8`) received an independent D3 **NO-PASS** (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F9D9DE8-NO-PASS.md`); design revision 2 (`441cf5c`) received a second independent D3 **NO-PASS** with three blockers (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-441CF5C-NO-PASS.md`); design revision 3 (`8a75346`) received a third independent D3 **NO-PASS** with two persistence/recovery blockers (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md`). The handoff's design revision 4 addresses them. On 2026-10-12, by stakeholder instruction, the branch was rebased onto `main` after the Protocol 7.2.1 merge, and the handoff adopted 7.2.1 as its governing version and reconciled the Protocol 7 inheritance (its §0.4; the commit map there keeps the Review records' original candidate identities resolvable). Design revision 4 and that reconciliation await one fresh independent Review together. That handoff supersedes these archived byte-identical records, and its §18 dispositions every guarantee and capability of them:
 
 1. `workplans/archive/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE-BEFE678-HYPOTHESIS.md` (the `befe678` graph-native hypothesis)
 2. `workplans/archive/SSDP-8.0-DETERMINISTIC-CONTROL-PLANE-AND-MANDATORY-ORCHESTRATOR-CONSOLIDATED.md` (the consolidated Protocol 8 plan), which itself carried as one composition:
@@ -220,7 +220,9 @@ Current disposition:
 ```text
 SERIOUS CHALLENGE: NONE
 SSDS 8 ARCHITECTURE: PROPOSED (2026-10-01 first-principles redesign, design revision 4; not accepted-current)
-SOURCE SNAPSHOT: f96b7ccf90dede4150d0efa17264fff07ec12d0d; DESIGN BASIS: befe6782e7c8fe038bf7cb764646d133ca167855
+GOVERNING PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12; handoff §0.4)
+SOURCE BASIS: main af0455753e20ee54a969c844872e29e270007211 (rebased from f96b7ccf90dede4150d0efa17264fff07ec12d0d);
+  DESIGN BASIS: befe6782e7c8fe038bf7cb764646d133ca167855
 PROTOCOL 6.1 HISTORICAL COMPLETION/RECOVERY: SATISFIED
 PROTOCOL 6.2 COMPLETION/QUALIFICATION/RECOVERY PREREQUISITE: SATISFIED
 PROTOCOL 6.2 REPRESENTATION-INHERITANCE RECONCILIATION: SATISFIED
@@ -232,16 +234,18 @@ PROTOCOL 6.5 COMPLETION/REVIEW/RATIFICATION/RECOVERY PREREQUISITE: SATISFIED
 PROTOCOL 6.5 INHERITANCE RECONCILIATION: SATISFIED
 PROTOCOL 6.6 COMPLETION/REVIEW/RATIFICATION/RECOVERY PREREQUISITE: SATISFIED
 PROTOCOL 6.6 INHERITANCE/REASSESSMENT INPUT: CARRIED in SSDS 8 handoff §18.1, §24; adequacy under independent D3 Review
-CURRENT PRE-CUTOVER FALLBACK/ROLLBACK BASELINE: Protocol 6.6 recovery 384666764da4c55b282e6b1595ab97e2f86e1dc4
-PROTOCOL 7 INHERITANCE: NOT FINAL — Protocol 7 closure is still active; prospective inputs only (handoff §19)
-INDEPENDENT D3 REVIEW: f9d9de8, 441cf5c and 8a75346 NO-PASS (records above); design revision 4 READY for fresh independent falsification;
-  a PASS cannot authorize D4 before Protocol 7 reconsolidation (Phase A) and the SSDS 8 Architecture Manual (Phase C)
+PROTOCOL 7 COMPLETION/RATIFICATION/RECOVERY PREREQUISITE: SATISFIED at 7.2.1 (accepted with conditions, 2026-10-12)
+PROTOCOL 7 INHERITANCE RECONCILIATION: EXECUTED (Phase A; handoff §0.4, §19, §24); adequacy under the same independent D3 Review
+CURRENT PRE-CUTOVER FALLBACK/ROLLBACK BASELINE: Protocol 7.2.1 recovery efdd1b59a7592b1cecef0a0013c35b54a7a6315d
+  (resolved from PROTOCOL-RELEASE-STATE.yaml on 2026-10-12; that file remains the owner)
+INDEPENDENT D3 REVIEW: f9d9de8, 441cf5c and 8a75346 NO-PASS (records above); design revision 4 with its 7.2.1
+  reconciliation READY for fresh independent falsification; a PASS cannot authorize D4 before the SSDS 8 Architecture Manual (Phase C)
 SSDS 8 D4: NOT AUTHORIZED
 ```
 
-The Protocol 7 consolidated workplan's Stage H assigns its closeout the Protocol 8 inheritance reconciliation of the consolidated Protocol 8 plan, which is now archived and superseded. This index does not reassign that obligation. The expected successor target is the then-current SSDS 8 handoff (presently its §0.2, §19 and §24). When Protocol 7's owning closeout executes Stage H, that closeout reconciles or retargets the obligation through Protocol 7's own authority process. The reconciliation advances the pre-cutover baseline to the Protocol 7 recovery and public fallback (kept distinct), binds Protocol 7 inputs to the SSDS 8 D3 reassessment, selects no architecture, authorizes no D4, and recommends, never self-adopts, a governing-version adoption.
+The Protocol 7 consolidated workplan's Stage H assigned its closeout the Protocol 8 inheritance reconciliation of the consolidated Protocol 8 plan, which is archived and superseded. Protocol 7 closed at 7.2.1 without authoring it; its 7.2 cycle appended only the §37.2a inputs list to that plan. The stakeholder, who owns both lines, then directed the reconciliation into the SSDS 8 handoff, and the handoff's §0.4 discharges the obligation there (its §0.2 records the routing). The reconciliation advances the pre-cutover baseline to the 7.2.1 recovery and public fallback (kept distinct), binds the final Protocol 7 inputs to the SSDS 8 D3 reassessment, selects no new architecture and authorizes no D4. The closed Protocol 7 workplan is not rewritten.
 
-SSDP 7.0 remains the active scientific inspectability/epistemic-initiative closure line and the latest manual/document-driven fallback. This SSDS 8 branch is intentionally isolated and implies no cutover, merge to `main`, or implementation authorization.
+SSDP 7.2.1 is the accepted document-driven protocol and the pre-cutover fallback. The SSDS 8 branch implies no cutover, no merge to `main` and no implementation authorization.
 
 ## Protocol 6.5 completed handoff
 
@@ -272,9 +276,9 @@ Protocol 6.5 was accepted-current at its closed cycle boundary. Mutable current 
 There is exactly one mutable repository release-state owner: `PROTOCOL-RELEASE-STATE.yaml`.
 
 - Repository default/latest is never a protocol-version oracle.
-- Protocol 6.6 is accepted-current with exact public fallback `22f4bdba53795da3a6f13f162529f3a843fc37ae` and recovery `384666764da4c55b282e6b1595ab97e2f86e1dc4`.
-- Protocol 7 is the proposed scientific inspectability/epistemic-initiative/feedback-loop revision governed by its single consolidated workplan above; select its artifacts by exact ID, never by `SSDP-7.0*` globs, because the historical deterministic-orchestrator family shares that prefix.
-- SSDS 8.0 is the proposed deterministic orchestration successor through its single prospective architectural workplan. It is currently based on the active Protocol 7 branch snapshot and MUST be re-consolidated against final accepted Protocol 7 inheritance before D4; it does not authorize implementation or cutover. Select its artifacts by exact ID.
+- Resolve the accepted-current version and its exact public fallback and recovery from `PROTOCOL-RELEASE-STATE.yaml`. At the 2026-10-12 reconciliation that file named Protocol 7.2.1; Protocol 6.6 (public fallback `22f4bdba53795da3a6f13f162529f3a843fc37ae`, recovery `384666764da4c55b282e6b1595ab97e2f86e1dc4`) is historical.
+- Protocol 7 (scientific inspectability, epistemic initiative and the feedback loop) closed at 7.2.1, accepted with conditions, under its consolidated workplan above as amended by `SSDP-7X-SKILLS-ONLY-RELIABILITY-AND-QUALIFICATION-V2`; select its artifacts by exact ID, never by `SSDP-7.0*` globs, because the historical deterministic-orchestrator family shares that prefix.
+- SSDS 8.0 is the proposed deterministic orchestration successor through its single prospective architectural workplan. It is based on `main` at the accepted 7.2.1 merge and binds the final Protocol 7 inheritance (handoff §0.4); that reconciliation, like the architecture, needs independent Review before D4 can follow the Architecture Manual. It does not authorize implementation or cutover. Select its artifacts by exact ID.
 - Under future SSDS 8 per-unit native cutover, a single Admission writer would serialize canonical state into an append-only ledger and all lifecycle state would be derived; authority documents and change plans remain semantic artifacts, D4 code remains executable authority, and agents/humans retain semantic judgment according to their owning gates.
 - Shadow comparison is permitted only while one side remains explicitly non-authoritative.
 - No `main` merge or Protocol 7/8 D4 cutover is authorized merely by these active design workplans.
