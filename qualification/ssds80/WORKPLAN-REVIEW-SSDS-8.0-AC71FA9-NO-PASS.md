@@ -309,4 +309,3 @@ Remaining dependencies include the author-written hand-off’s framing, shared c
 **SSDS 8 D4 remains NOT AUTHORIZED.** This NO-PASS leaves Phase B open. Repair A–C at their D3 owners, retain the closed report/gate/polarity/amendment repairs, and submit a replacement immutable candidate for independent review.
 
 A future Phase B PASS satisfies only §25 criterion 11. G2 still requires an accepted Architecture Manual, an independently reviewed bounded shadow workplan and explicit stakeholder authorization. G3 needs implementation/production-owner qualification; G4 needs subject-specific cutover and rollback conditions. This record supplies no ratification, release, recovery, cutover or accepted-current identity.
-
