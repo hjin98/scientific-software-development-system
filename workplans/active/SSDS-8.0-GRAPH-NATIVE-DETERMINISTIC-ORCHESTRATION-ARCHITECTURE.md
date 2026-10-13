@@ -6,7 +6,7 @@ target_system_version: 8.0.0
 status: proposed
 created_date: 2026-10-01
 revised_date: 2026-10-13
-design_revision: 6
+design_revision: 7
 baseline_reconciliation: protocol-7.2.1 (2026-10-12; section 0.4)
 governing_version_adoption: 6.6.0 -> 7.2.1 by stakeholder instruction 2026-10-12 (section 0.4)
 stakeholder_direction: workflow execution and verification layer, 2026-10-13 (section 0.1; qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md)
@@ -14,13 +14,14 @@ source_branch_basis: af0455753e20ee54a969c844872e29e270007211
 source_branch: main
 prior_source_branch_basis: f96b7ccf90dede4150d0efa17264fff07ec12d0d (ssdp-7.0-scientific-epistemic-closure; design revisions 1-4 before the 2026-10-12 rebase)
 design_basis: befe6782e7c8fe038bf7cb764646d133ca167855
-prior_review: qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FFBAD17-NO-PASS.md
-prior_reviewed_candidate: ffbad17df806d92e2214eafd7e9bdeff448a5694
+prior_review: qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F3608F5-NO-PASS.md
+prior_reviewed_candidate: f3608f586ab7bb13faec4f0a174aa4ae5123a172
 review_history:
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F9D9DE8-NO-PASS.md
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-441CF5C-NO-PASS.md
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FFBAD17-NO-PASS.md
+  - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F3608F5-NO-PASS.md
 design_review_state: pending-fresh-independent-d3-review
 d3_architecture_state: proposed
 implementation_handoff: not-authorized
@@ -40,9 +41,10 @@ The workplan ID keeps the historical `GRAPH-NATIVE` lexeme for routing stability
 GOVERNING DESIGN PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12, §0.4;
             release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0, the system-level successor to the document-controlled SSDP line
-THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 6; proposed, not accepted-current;
+THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 7; proposed, not accepted-current;
            not an Architecture Manual
-REVISION 6: repairs the ffbad17 Review's blockers A-D and findings N1-N6 at their owners (§0.1); N7 dispositioned
+REVISION 7: repairs the f3608f5 Review's blockers A-D and finding N2 at their owners (§0.1); N1 recorded as partial
+REVISION 6: repaired the ffbad17 Review's blockers A-D and findings N1-N6 at their owners; N7 dispositioned
 REVISION 5: added the workflow execution and verification layer (workflow roles and decision classes, work contracts,
            conformance verification, report routing and non-droppable escalation; §7.5-§7.10, §9.6-§9.8) and the
            doctrine-realization objective (§1.1), by stakeholder direction 2026-10-13, whose principles the stakeholder
@@ -51,16 +53,19 @@ PRIOR REVIEWS: f9d9de8 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F9
            441cf5c NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-441CF5C-NO-PASS.md), repaired by revision 3;
            8a75346 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md), repaired by revision 4;
            ffbad17 NO-PASS, four blockers A-D and findings N1-N7, covering revisions 4-5 and Phase A
-           (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FFBAD17-NO-PASS.md), repaired here
+           (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FFBAD17-NO-PASS.md), repaired by revision 6;
+           f3608f5 NO-PASS (GPT-6/Codex), four blockers A-D and findings N1-N2
+           (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F3608F5-NO-PASS.md), repaired here
 SUPERSEDES: the consolidated Protocol 8 plan (archived byte-identically, with its nine-file lineage)
             and the befe678 graph-native hypothesis (archived byte-identically as ...-BEFE678-HYPOTHESIS.md)
 SERIOUS CHALLENGE: NONE (§1.3 records why the governing goals are judged consistent)
 PROTOCOL 7: closed at 7.2.1 (accepted with conditions); inheritance RECONCILED (Phase A executed, §0.4, §19, §24);
-            the ffbad17 Review found its bindings correct (subject to N3-N4, repaired here)
-INDEPENDENT D3 REVIEW: ready for a fresh independent falsification Review of design revision 6, by a different model
-            family (stakeholder SD-7; handoff qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-6.md); this
-            revision is refinement, not acceptance, and awards itself nothing; a PASS cannot authorize D4 before
-            Phase C (accepted Architecture Manual)
+            the ffbad17 and f3608f5 Reviews found its bindings correct; the 2026-10-12 adoption instruction
+            remains paraphrase-only (f3608f5 N1, partial; routed to stakeholder restatement)
+INDEPENDENT D3 REVIEW: ready for a fresh independent falsification Review of design revision 7, by a different model
+            family (stakeholder SD-7; handoff qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-7.md); this
+            revision is refinement, not acceptance, and awards itself nothing; a PASS authorizes nothing by itself:
+            shadow D4 needs gate G2 (accepted Manual, reviewed shadow workplan, stakeholder authorization; §25)
 SSDS 8 D4: NOT AUTHORIZED
 ```
 
@@ -82,7 +87,24 @@ SSDS 8 D4: NOT AUTHORIZED
 | authority envelope vs instruction | a workflow role, bound to each request by an authenticated task envelope, constrains which proposals Admission considers; brief text only informs (A5, §7.5) | on authenticated bindings within the declared trust model (§15.6): an agent mutating plans, contracts, verifiers or out-of-scope content because a prompt was misread, ignored or absent |
 | mechanical conformance vs semantic acceptance | verification is necessary, never sufficient; heuristic checks only point (A7, §7.7) | a passing check, a keyword lint or an agent's own claim standing in for a reviewer's judgment |
 
-### 0.1 Revision 6: what changed and why
+### 0.1 Revision 7: what changed and why
+
+The `f3608f5` Review (GPT-6/Codex, a different model family; `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F3608F5-NO-PASS.md`) returned NO-PASS with four blockers and two findings. It recorded the revision-6 repairs of the S1 revocation defect and the self-certified plan equivalence as closed. Each new blocker was re-derived from the cited text before repair, and all four were confirmed: step 6 checked reports' currency before step 7 could exempt them; a review of an unmerged candidate had no frame in which its basis could be current; one host's log was trusted about every host; and §25 required shadow evidence before authorizing the shadow build.
+
+| Finding | Repair (earliest owner) |
+|---|---|
+| **A** a report submitted after its context moved was rejected at step 6 before it could be routed | Reports and challenges are **exempt from step 6**. Their basis is provenance, never consumed by any rule. The entry that rejects a stale request still admits the reports it carries (§6.8 steps 6-7) |
+| **B** no currency frame for reviewing an unmerged candidate, so result → review → integration deadlocked | **Candidate frames** (new §6.9). Records about a candidate are evaluated in `D_n[C]`, the same derivation over the deterministic merge of `C` onto the observed tree. Integration admits exactly that tree, so the review is current after integration. Rebase and conflict rules follow (§6.4, §6.6, §7.7, §7.8) |
+| **C** a non-publishing host's intact no-attempt log could re-publish after a deliberate reset | **Exclusive publication.** Each entry's publisher is the Admission host that appended it (per-host keys). It attempts at most once, behind a write-ahead intent, and checks the ledger head first. Every other `L = B_n` is ambiguous and goes to the human (§15.3, §15.6, §8.2, §13) |
+| **D** §25 required shadow evidence before the D4 handoff that builds the shadow system | **Staged gates G1-G4** (§25, §23). Architecture accepted; shadow D4 authorized; implementation functionally accepted; per-subject cutover. Every criterion is kept and assigned to the boundary where its evidence can exist; criteria 13-16 are added |
+| N1 adoption provenance partial | Recorded as partial in §0 and above. The 2026-10-12 instruction still needs the stakeholder's restatement; nothing claims the adoption sequence is independently verified |
+| N2 compound conformance | Conformance is a set of classes; every routing applies; the Manual defines aggregation (§7.7, §21 item 25) |
+| Strata note (§4 of the Review) | §6.6 uniqueness now states the two evaluations: polarity by earlier targets, force and continuity by later resolvers |
+
+§22 adds discriminators that run through real Admission and production paths, for report ingress, candidate frames end to end, two-host ABA, and a non-runtime gate-dependency review. Round 7 (§27.8-§27.9) re-ran the Review's trajectories and attacked the repairs. It adds no primitive, store or component.
+
+#### Revision 6 (prior) record
+
 
 The `ffbad17` Review (fresh-context agent of the author's model family) returned NO-PASS with four blockers and seven findings. Each was re-derived against the owner it cites, not adopted as stated. All four blockers were confirmed: Blocker A by evaluating the S1 formula on the Review's trajectory, B-D by reading the cited text against itself. The stakeholder answered N3 and N1 on 2026-10-13. Their verbatim instructions, with acceptance of the revision-5 design principles and the aspirational reading of the doctrine-realization objective, are now in `qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md`.
 
@@ -591,7 +613,7 @@ Machinery checks *declared* relations. Circular reasoning stated only in prose, 
 
 ### 6.3 Record and ledger
 
-The **ledger** is the single canonical store of everything that cannot be derived from content. It is append-only, totally ordered, authenticated (§15.4), and serialized in a canonical versioned **closed schema** (§15.5). Every record carries: identity, kind, actor and actor class, subject, basis, outcome, schema and ruleset version, provenance, and content-identity references to any substantive report artifact. A record submitted for a task also carries its task binding: the issued envelope's fields and signature, and the lineage class of the execution (§7.5), so the binding is replayable from the ledger alone. Records contain no free text, essays, equations, patches or raw logs (C7).
+The **ledger** is the single canonical store of everything that cannot be derived from content. It is append-only, totally ordered, authenticated (§15.4), and serialized in a canonical versioned **closed schema** (§15.5). Every record carries: identity, kind, actor and actor class, subject, basis, outcome, schema and ruleset version, provenance, and content-identity references to any substantive report artifact. A record submitted for a task also carries its task binding: the issued envelope's fields and signature, and the lineage class of the execution (§7.5), so the binding is replayable from the ledger alone. It also declares its evaluation frame: the admitted state, or a candidate (§6.9). Records contain no free text, essays, equations, patches or raw logs (C7).
 
 | Record kind | Produced by | Examples |
 |---|---|---|
@@ -611,7 +633,7 @@ A **basis entry** is `(mode, target, consumption class)`. The mode is fixed by t
 
 | Mode | Target | Satisfied when (§6.6) | Used for |
 |---|---|---|---|
-| `content` | unit revision `(u, r)` | `cur(u) = r`, or an equivalence path from `r` to `cur(u)` for the entry's consumption class, or, for the plan-acceptance class `PLAN_CONTROL` only, `cur(u)` reached from `r` by the rule-defined control-tightening order (§7.9) | everything the actor saw: the judged revision, context supplied or read, change base, content behind evidence; governing or warrant prerequisites inside the record's own subject (below) |
+| `content` | unit revision `(u, r)` | evaluated in the record's frame (§6.9): `cur(u) = r`, or an equivalence path from `r` to `cur(u)` for the entry's consumption class, or, for the plan-acceptance class `PLAN_CONTROL` only, `cur(u)` reached from `r` by the rule-defined control-tightening order (§7.9) | everything the actor saw: the judged revision, context supplied or read, change base, content behind evidence; governing or warrant prerequisites inside the record's own subject (below) |
 | `validity` | unit revision `(u, r)` | the content condition holds and `subj(u)` is valid | **direct** governing or warrant prerequisites in **another** acceptance subject only, as the rule names them by relation role; never a `NEUTRAL` relation (§6.2) |
 | `record` | an earlier record `x` | `x` is current | premises that are themselves judgments: completeness, evidence realization/assessment, plan acceptance |
 | `identity` | a record, or `(subject, scope_id, rev)` | always (immutable fact) | targets of challenge-tier records and supersession; equivalence endpoints |
@@ -719,7 +741,7 @@ status1(z) = REVOKED      if ∃ c : c.target = z ∧ upheld(c)
              CLEAR        otherwise
 ```
 
-*Uniqueness.* Every right-hand side refers only to records whose position is strictly greater than the record on the left (a resolver is later than what it resolves; a challenge is later than its target; a loss boundary is later than every record it covers, and an attestation is later than its boundary). The definitions are therefore a recursion on a finite, strictly increasing chain of positions, evaluated once in decreasing ledger order. Each value is unique even though negation appears; no negative cycle can exist. Non-blocking challenges have no S1 effect while open; they create S3 obligations. Effects are conservative in both directions:
+*Uniqueness.* Polarity (`restrictive`, `counter`, `relaxer`) is computed first, by recursion on strictly *earlier* target records. It is purely syntactic and finite. The force and continuity predicates are then evaluated. In them, every right-hand side refers only to records whose position is strictly greater than the record on the left (a resolver is later than what it resolves; a challenge is later than its target; a loss boundary is later than every record it covers, and an attestation is later than its boundary). The definitions are therefore a recursion on a finite, strictly increasing chain of positions, evaluated once in decreasing ledger order. Each value is unique even though negation appears; no negative cycle can exist. Non-blocking challenges have no S1 effect while open; they create S3 obligations. Effects are conservative in both directions:
 
 - An open blocking challenge against any relaxer (a dismissal, an override, an attestation, a successful counter-challenge's upholding) suspends it while open, and an upheld one removes its force permanently. An open blocking challenge against a dismissal therefore restores the original block.
 - A counter-challenge has no effect while open, whatever its `blocking` flag. A revocation ends only when a counter-challenge is *upheld*, and that upholding is a relaxer: challengeable, suspended by an open blocking challenge, and withheld by a later loss boundary. Repair of a revoked triple therefore requires a successful challenge to the upholding, as the supersession paragraph below states, and never merely a filed one.
@@ -765,7 +787,7 @@ Admission maintains the stronger invariant that the **support dependency graph**
 
 **S3 — consequence tier.** Non-monotone functions of S0-S2 that nothing below reads: open obligations (including intake of each quarantined delta, revalidation of each `OVERTAKEN` admission, and requalification of each record or relaxer withheld by a loss boundary that was in effect at the retained head), discharge (§7.4), readiness (§7.3), blockers, drift (`cur(s)` differs from `acc(s)`, the latest revision with a passing acceptance judgment, which is a display view only), impact sets for hypothetical changes, context answers, briefs, graph, diff and history views, and integrity findings. Provisional values and risk-override scopes are interpreted here. The requalification set is computed by comparing derivation at the retained head with derivation now; with no loss boundary it is empty. S3 explains and schedules quarantine and ill-formedness; it never enforces them, because S2 already did.
 
-**Determinism claim.** For every authenticated `(L_n, content)`, S0 is a function, S1 is a well-founded recursion, S2 is the unique least fixed point, and S3 is a function. `D_n` is therefore single-valued and independent of evaluation order, wall clock, live refs, witness reachability, operator state and search indexes (C2, C3, C8). Qualification is in §22.
+**Determinism claim.** For every authenticated `(L_n, content)`, S0 is a function, S1 is a well-founded recursion, S2 is the unique least fixed point, and S3 is a function. The same holds for each candidate frame `D_n[C]` (§6.9), which is the same derivation over one hypothetical tree. `D_n` is therefore single-valued and independent of evaluation order, wall clock, live refs, witness reachability, operator state and search indexes (C2, C3, C8). Qualification is in §22.
 
 **Supersession and risk override.** Supersession is purely syntactic (S0). A superseded record never becomes current again, even if its superseder later goes stale. Supersession withdraws a record; it does not reverse its admitted history. A risk override never resolves a challenge. It turns `BLOCKED` into `PROVISIONAL` for the challenged target; `P` then propagates by `min`, and S3 permits provisional discharge only inside the override's declared scope. An upheld challenge on a subject revision revokes that revision permanently. Repair requires a new revision and acceptance, or a successful challenge to the upholding adjudication.
 
@@ -802,7 +824,7 @@ Admission validates against the admitted head it holds, after reconciling the in
    - *(b) challenge freeze.* No change to the signature, scope, regions or membership of any subject is admitted, whether that subject would lose or gain units, while its current revision carries an unresolved blocking challenge (overridden or not) or is `REVOKED`. A challenge therefore cannot be escaped by re-scoping unchanged content at the source subject or at the destination subject.
    - *(c) semantic structure.* Known relation types of `ρ_n`, relation direction and layer order, cycle legality and the SDG rules (§6.2), and single definer;
 5. **dependency well-formedness** — challenge-tier targets strictly earlier and of permitted kinds; no `validity` entry naming the record's own subject or a part of it (prerequisites inside it are `content`-mode, §6.4); after the request's edges are added — basis entries, equivalence coverage, and the edges of existing records whose `validity` endpoints the request's structural changes re-route through `subj` — the support dependency graph remains acyclic (§6.6);
-6. **currency** — every basis entry of every submitted record is satisfied at the current admitted ledger head (optimistic concurrency; Admission holds that head by compare-and-swap, and it is admitted because at most one provisional entry exists, §15.3), except that entries naming content the request itself changes are checked against its merged tree; otherwise the request is classified stale and routed to revalidation rather than admitted;
+6. **currency** — every basis entry of every submitted support-tier record other than a report is satisfied in that record's frame at the current admitted ledger head. That is the admitted state for a record about admitted content, or the candidate frame `D_n[C]` for a record about a candidate `C` (§6.9). Entries naming content the request itself changes are checked against its merged tree. (Optimistic concurrency: Admission holds that head by compare-and-swap, and it is admitted because at most one provisional entry exists, §15.3.) Otherwise the record is classified stale and routed to revalidation rather than admitted. **Reports and challenges are exempt** (`f3608f5` Blocker A). Their basis records what the raiser saw, as provenance; it is never checked for currency and never consumed by any rule, since resolving records reference reports by identity (§7.9). A report raised after its context moved is therefore still admitted and routed. When a request is routed to revalidation, the admission record that rejects it still admits the report and challenge records it carries, bound to the same task, so nothing reported is lost with the rejected work;
 7. **legality** — the bound obligation exists at the current head. A task result or discharge claim bound to an obligation already discharged, or to a contract revision that is no longer current, is recorded with that classification and routed to revalidation; it is not admitted as current work. Reports and challenges are admitted whatever the state of their task, so nothing reported is lost. Each obligation whose *discharge* the request claims is undischarged at the current head (a duplicate discharge is rejected and recorded), and its discharge predicate (§7.4) holds after the request's own records, including affected evidence rerun on the merged tree. Requests that claim no discharge (a task result, a mid-task report) are subject only to the binding checks. For a claimed task obligation carrying a work contract, the derived conformance of the exact candidate commit has no `VIOLATION`, `INCOMPLETE` or `DISCREPANCY` (§7.7), and an integrating request claims it only together with its current review judgments (§7.8);
 8. **no collateral regression** — every obligation discharged at the current head and affected by the merged tree stays discharged, with affected evidence rerun. The only legal way to reopen others' closures is an accepted change to a prerequisite authority, whose derived impact obligations are the intended consequence. A D4 change that breaks another closure is a regression and is not admitted;
 9. **commit and admit** — Admission reads the live integration head `obs`. The request is appended only if `obs` is the head entry's expected head `E` (or an equivalent publication of it, §15.3); otherwise Admission first appends an absorption of `obs` and revalidates the request at the new head. One ledger entry carrying `obs` and all records is appended by single-ref compare-and-swap (§15.3); it also reconciles the publication of the previous admission if that was pending. The appended entry is *provisional*. It is *admitted* when a witness quorum holds its exact checkpoint (§15.4), and that is the commit point for every external effect. Only then is the request reported admitted, the integration ref published as an effect, work dispatched from the new state, and the next entry appended; the next entry records this publication's outcome.
@@ -818,6 +840,18 @@ All three take effect in S0 and S2. The S3 obligations that follow — intake, d
 **Self-reference.** Records reference the candidate commit; they are never stored inside it. Task and result envelopes on run branches are transport, ingested into the ledger, never merged (G2, G3).
 
 **Agent PASS is a proposal.** An admitted PASS judgment is a recorded fact about what the actor concluded; closure is a derived discharge (§7.4).
+
+### 6.9 Candidate frames
+
+Work is judged before it is integrated, so records about an unmerged candidate need a defined currency. A **candidate frame** supplies it without adding state (`f3608f5` Blocker B).
+
+- **Candidate.** An immutable commit `C` on an isolated ref, with a recorded base `B` (an admitted integration commit).
+- **Frame tree.** At admitted head `n`, `M_n(C)` is the deterministic three-way merge of `C`'s changes since `B` onto the observed tree `T_n`. The merge algorithm is fixed by the system version. When the merge is not clean, `M_n(C)` is undefined and no record in frame `C` is current: machinery never resolves a conflict (K3), and §7.8 routes a new iteration.
+- **Frame derivation.** `D_n[C]` is `derive` (§6.6) over the same ledger prefix `L_n` with `T_n` replaced by `M_n(C)`. It is the same pure function with one hypothetical tree, so it is single-valued. It is never presented as current state, and nothing in `D_n` reads it. It generalizes two things revision 4 already had: the merged-tree check of Admission steps 4 and 6, and the hypothetical-change impact sets of S3.
+- **Declared frame.** A task result, a check-execution observation, and a review, conformance or assessment judgment of a candidate declare frame `C`. Every other record declares the admitted frame. All of a record's basis entries are evaluated in its frame: `cur(u)` is `rev(u, M_n(C))`, and `validity`, `record`, challenge-tier and loss-boundary facts come from the live ledger prefix. Upstream change, an invalid prerequisite, a withheld record, and a head that moved a unit the record relied on all still make a frame record stale. A unit both sides changed is judged at its merged revision, so a clean textual merge never stands in for review of the combined content.
+- **What frames decide.** The conformance of `C` (§7.7), the readiness and discharge of the review obligation on `C`, and Admission step 6 for frame-`C` records are all evaluated in `D_n[C]`. Nothing evaluated in a frame changes the admitted state. In `D_n`, a review of `C` is admitted but not current, because the admitted tree does not carry `C`'s revisions.
+- **Integration closes the frame.** The integration request admits exactly `M_n(C)` as the new observed tree. Its discharge predicate (step 7) is evaluated in the post-admission state, where `T_{n+1} = M_n(C)`, so every frame-`C` record current in `D_n[C]` is current in `D_{n+1}`. No record changes meaning: its basis named `C`'s revisions all along, and only the tree in which they hold has moved.
+- **Rebase.** A rebase produces a new candidate `C'` and frame. A frame-`C` record counts for `C'` only if its basis is satisfied in `D_n[C']`. A rebase that leaves the judged units' revisions unchanged keeps the review; one that changes them requires re-review (§7.8, §6.7). Records never move between frames by assertion.
 
 ## 7. Work: obligations, change plans, roles and verification
 
@@ -931,7 +965,7 @@ contract(item @ revision)
 
 ### 7.7 Conformance verification
 
-**Conformance** of a task result is an S3 classification: a pure function of the contract at the task's basis, the base and candidate trees, the result record, and the observations recorded for that exact candidate. It is not stored; like every derived view it is recomputed, and it is shown as the result's **conformance view**. Expensive or nondeterministic checks (test execution, mutation testing, static analyzers with recorded versions) are executed by a designated runner on the exact candidate and recorded as observations (§6.3, §10). Deterministic checks are memoized like analyzers (§6.6). No component is added: Derivation evaluates, the Dispatcher executes, Admission enforces (§6.8 steps 3 and 7).
+**Conformance** of a task result is an S3 classification, evaluated in the candidate's frame (§6.9): a pure function of the contract at the task's basis, the base and candidate trees, the result record, and the observations recorded for that exact candidate. It is not stored; like every derived view it is recomputed, and it is shown as the result's **conformance view**. Expensive or nondeterministic checks (test execution, mutation testing, static analyzers with recorded versions) are executed by a designated runner on the exact candidate and recorded as observations (§6.3, §10). Deterministic checks are memoized like analyzers (§6.6). No component is added: Derivation evaluates, the Dispatcher executes, Admission enforces (§6.8 steps 3 and 7).
 
 **Check templates** are fixed, versioned functions of the ruleset `ρ_n`. A contract only parameterizes them and can never carry executable check code, just as project policy carries no rule language (§6.6). A project-specific template enters only by human-gated ruleset adoption after the qualification of §22. Each template declares one **force**, fixed by the template and never by a contract:
 
@@ -957,6 +991,8 @@ contract(item @ revision)
 | `SIGNAL` | a `HEURISTIC` hit | attached to the review brief as a pointer; changes no disposition |
 | `CLEAN` | none of the first three (signals may be present) | the review obligation on that candidate becomes ready (§7.8) |
 
+**Compound outcomes.** Conformance is a set of classes, not one class. Every failed `HARD` template contributes its class with its own finding, and every routing of every contributed class applies; no class takes precedence over another. An undisclosed breach, for example, is both `VIOLATION` and `DISCREPANCY`, and both its rejection and its integrity finding follow (`f3608f5` N2).
+
 **A clean conformance view discharges nothing.** Obligations whose verifier is `REVIEW` stay open until a current review judgment, and every task obligation still requires the review its kind requires (A7, §7.4). Removing every `HEURISTIC` template from the ruleset must leave every admission decision and every discharge unchanged; §22 qualifies that property.
 
 **Disclosed and undisclosed breaches.** The result's deviation slot is compared with the detected breaches. A disclosed breach is a legitimate request for more scope, decided by the principal. An undisclosed one is a faithfulness failure. Neither is integrated; only the second is a finding against the route that produced it.
@@ -979,7 +1015,7 @@ The realization map is a design artifact of the Manual, not a runtime registry m
 Implementation work enters canonical state through two ordinary admissions. No new path exists.
 
 1. **Result.** `submit` by an implementer or investigator produces a records-only request, bound to its task and claiming no discharge: a task result record (an outcome from the task's allowed set, typed slots, claim references, reports) naming the candidate commit on its isolated ref and the contract revision in its basis. Machinery, not the agent, attaches the factual part: the diff mapped to units, touched relations, reads (A6). The request is admitted as records; the candidate is not merged. The Dispatcher then runs the contract's required executions on the exact candidate through a designated runner and submits them as observations. Conformance is derived (§7.7).
-2. **Review.** Once conformance is `CLEAN`, the review obligation on that exact candidate becomes ready (R0). A reviewer task (§9.6) submits its review and conformance judgments as a records-only request bound to the review task, claiming discharge of the review obligation only.
+2. **Review.** Once conformance is `CLEAN`, the review obligation on that exact candidate becomes ready (R0). Result, executions, review and conformance judgments all declare the candidate frame, so their currency is defined before integration (§6.9). A reviewer task (§9.6) submits its review and conformance judgments as a records-only request bound to the review task, claiming discharge of the review obligation only.
 3. **Integration.** Once the claimed obligation's discharge predicate would hold on the candidate — clean conformance, current review judgments, required gates — the Dispatcher submits an **integration request**: the candidate commit plus references to those admitted records, bound to the task that produced the candidate (through its result record) and claiming that task's obligation. It carries no new judgment. Admission validates it through steps 1-9 like any request. If the head has moved, the candidate is rebased. A rebase that does not apply cleanly is never resolved by machinery (K3): it routes to a new implementer iteration. A clean rebase has its conformance re-derived on the rebased candidate, and review is re-requested only where the review's basis no longer holds (§8.2, §6.7).
 
 Every other request follows the same split. A mid-task report is bound to its task and claims nothing; a blocking report suspends that task (§7.9). A coordination task's request is bound to its `COORDINATE` obligation and claims discharge of the decision obligations for the reports it resolves; its plan-unit changes follow §7.9.
@@ -1072,7 +1108,7 @@ Lint checks all three. Each task's contract is the item contract restricted mech
 
 ### 8.2 Optimistic admission (serializable by validation)
 
-Concurrent tasks work from recorded bases in isolated workspaces. Admission applies requests one at a time to the admitted head, as a merge queue. Speculative batching is delegated to D4 and must preserve this serial order. A request whose basis was overtaken is revalidated — rebased, re-derived, affected judgments re-requested. It is not rejected outright and never silently admitted. Two requests conflict when one modifies a unit or record in the other's basis. This catches write-skew among recorded reliances, including across disjoint files. A losing compare-and-swap between two Admission hosts is the same case. So is a race between hosts reconciling one pending publication: the publication compare-and-swap is idempotent, and the ledger compare-and-swap admits exactly one reconciling successor (§15.3).
+Concurrent tasks work from recorded bases in isolated workspaces. Admission applies requests one at a time to the admitted head, as a merge queue. Speculative batching is delegated to D4 and must preserve this serial order. A request whose basis was overtaken is revalidated — rebased, re-derived, affected judgments re-requested. It is not rejected outright and never silently admitted. Two requests conflict when one modifies a unit or record in the other's basis. This catches write-skew among recorded reliances, including across disjoint files. A losing compare-and-swap between two Admission hosts is the same case. So is a race between hosts reconciling one pending publication: only the entry's publisher ever performs the publication compare-and-swap, and the ledger compare-and-swap admits exactly one reconciling successor (§15.3).
 
 A very late result whose basis is still current is admissible regardless of age; a fresh result with a stale basis is not. Lease expiry affects scheduling, never correctness.
 
@@ -1374,7 +1410,7 @@ Change plans and authority documents remain semantic artifacts. In natively gove
 | Ledger and product restored together to one stale snapshot after a later admitted head existed | `ROLLBACK` from the witnessed later checkpoint, although the restored tree agrees with the retained ledger (`Q` empty) | as above; if the suffix is unrecoverable, `LEDGER_LOSS`: the boundary withholds every pre-loss acceptance, support and relief regardless of the agreement, and `LEDGER_LOSS` re-establishes witness model, trust roots and ruleset (§15.4) |
 | Ledger fork, or witnesses holding checkpoints on conflicting chains | qualification | fail closed (`FORK`); human-gated fork resolution choosing one lineage and naming the abandoned head; key rotation if compromise is suspected; never auto-merged |
 | Crash after append, before admission | provisional entry on the ledger ref | on restart Admission completes anchoring of the surviving entry (idempotent; nothing else could append in between). If no copy survives, the witness count decides (§15.4): when the non-admission bound proves it never reached `q_a`, a human-gated fork resolution abandons it with no boundary, nothing admitted is lost, and its request is resubmitted by identity; otherwise it may have been admitted, and abandoning it is a `LEDGER_LOSS` |
-| Crash after admission, before publication | admitted head entry; publication `PENDING` (no later entry carries `obs`) | §15.3: any Admission host reads the integration head, performs the idempotent compare-and-swap if it still shows `B_n`, and the next entry records the outcome |
+| Crash after admission, before publication | admitted head entry; publication `PENDING` (no later entry carries `obs`) | §15.3: the entry's publisher performs the compare-and-swap once, behind a write-ahead intent, if the head still shows `B_n`; every other host, or a publisher whose log holds an intent or is lost, treats `B_n` as ambiguous (`OVERTAKEN` plus human attention); the next entry records the outcome |
 | Crash after the publication compare-and-swap, before any later entry | admitted head; integration ref shows `C_n` or has moved on | restart reads the head: `C_n` or an equivalent publication gives a consistent successor (`PUBLISHED`), ordinarily the next admission; later foreign movement gives an absorption (`PUBLISHED` if `C_n` is still reachable, else `OVERTAKEN`); a reset to exactly `B_n` is the ABA case (§15.3) |
 | Reconciling entry appended, not admitted | provisional successor | complete its anchoring; if it vanished (and was provably never admitted), re-read the integration head and append a new successor |
 | Witnesses below read quorum (unreachable or lost) | qualification cannot complete | `UNQUALIFIED`: historical views only, no current assertion, Admission halted, production continues; permanent loss beyond the fault bound needs human-gated witness-set redesignation (§15.4) |
@@ -1488,11 +1524,20 @@ The **observed outcome** enters through a field every entry carries: `obs`, the 
 
 The same shape rule governs every entry, so foreign movement after any entry is absorbed the same way. In the consistent row nothing in S0-S2 changes (`E` keeps its tree, so `T` is unchanged) and no S3 fact that validation reads changes, so a request validated at head `n` stays valid when its own entry also reconciles `n`. An entry whose `obs` differs from `E` and that carries submitted records is rejected by Admission and is an integrity defect in derivation. An `OVERTAKEN` admission keeps `C_n` recorded and reachable; its records are re-evaluated against the absorbed tree; an obligation to revalidate its request is derived (§8.2). Its structural changes are already in `Σ` but absent from the absorbed tree, so they appear as quarantine until the revalidated request publishes and realigns the repository (§6.8 step 4).
 
-**Admission's procedure** at an admitted head `n` whose publication is `PENDING` (any Admission host; it reads only the qualified ledger and the live ref):
+**Exclusive publication (`f3608f5` Blocker C).** Each admission entry `n` has exactly one **publisher**: the Admission host whose per-host key authenticated `n` (Admission keys are per host, §15.6). Only the publisher ever performs the effect `B_n -> C_n`, and it performs it at most once. Before the compare-and-swap, it durably writes an intent record for `n` to its own write-ahead attempt log. A positive "no attempt" is then a statement by the only host that could have attempted, about itself, so it is warranted. No other host ever performs the effect. Other hosts only observe, and when they find `L = B_n`, the case is ambiguous for them (below). The publisher checks immediately before its compare-and-swap that the ledger head is still `n`. If it has lost the race to a successor appended by a takeover host, it does not publish.
+
+**Admission's procedure** at an admitted head `n` whose publication is `PENDING` (it reads only the qualified ledger, the live ref and, for the publisher only, its own attempt log):
 
 ```text
 read L
-L = B_n                       -> compare-and-swap B_n -> C_n (idempotent), then read L again
+L = B_n, this host is n's publisher, its attempt log is intact and holds no intent for n
+                              -> write intent for n durably; check the ledger head is still n;
+                                 compare-and-swap B_n -> C_n; read L again
+L = B_n, any other case       -> ambiguous (another host; the publisher's log holds an intent for n; the
+                                 publisher's log is lost): a non-publisher first waits while the publisher
+                                 is live (operational policy); on takeover, or for the publisher itself,
+                                 append an absorption of B_n (OVERTAKEN), raise human attention (§7.9) and
+                                 hold revalidation until a human disposition: re-apply, or keep B_n
 L = C_n, or an equivalent publication equal to L
                               -> append the next entry with obs = L: the next ordinary admission if one is
                                  ready, otherwise an absorption with obs = L (records PUBLISHED; E keeps its tree)
@@ -1504,15 +1549,16 @@ Recording an idle outcome is optional. A canonical `PENDING` with no successor i
 
 **Every failure point.**
 
-- *Crash before the compare-and-swap:* restart reads `L = B_n` and performs it.
+- *Crash before the compare-and-swap:* the publisher restarts and reads `L = B_n`. If its log holds no intent for `n`, it performs the effect. If the log holds an intent, it cannot tell a failed attempt from a success followed by a reset, so the case is ambiguous and goes to the human. If the publisher never returns, a takeover host also finds it ambiguous.
 - *The compare-and-swap loses to a foreign push:* `L` is foreign; the next entry is its absorption; `OVERTAKEN` unless the foreign history contains `C_n` or an equivalent publication.
 - *The compare-and-swap succeeds, then a crash before any successor:* restart reads `L`; `L = C_n` gives a consistent successor (`PUBLISHED`), ordinarily the next admission; later foreign movement gives an absorption, `PUBLISHED` if `C_n` is still reachable, else `OVERTAKEN` (an immediate force-push removed it from the product).
 - *The successor is appended but not admitted:* it is the single provisional entry; restart completes its anchoring. If it vanished and is provably never admitted, nothing relied on it: read `L` again and append a new successor.
 - *The successor is admitted but the response is lost:* `submit` by request identity returns the recorded decision.
 - *Foreign movement between the compare-and-swap and the read:* the successor records what is live; classification is by reachability.
 - *Repeated or replayed reconciliation:* only the first later entry carrying `obs` classifies `n`; any later observation concerns the then-expected head. Two hosts racing are serialized by the ledger compare-and-swap; the loser re-derives from the winner's entry, whose `obs` is canonical even if the loser read a different value.
-- *Restart on another Admission host:* the procedure needs no operator state.
-- *ABA:* a foreign reset of the integration ref to exactly `B_n` after a successful compare-and-swap is indistinguishable, from the ref alone, from a publication not yet applied. The reset may be a deliberate remediation, and C4 requires ambiguity to be reconciled before retry, so the default fails closed. Admission performs the compare-and-swap only when its own publication-attempt log positively shows that no attempt was made. In every other case it absorbs `B_n`, which records `OVERTAKEN` and honours the reset: the log shows an earlier success, or the log is absent (another Admission host, a lost local store). That `OVERTAKEN` raises human attention (§7.9) and holds the admission's revalidation until a human disposition decides: re-apply it, or keep the reset. Either path is a recorded, replayable entry; the log informs the choice and never derivation. Revisions 4-5 allowed silent re-application without the log, which could reverse a deliberate reset (`ffbad17` N2).
+- *Restart on another Admission host:* the procedure needs no operator state. Without the publisher's log, the only outcomes are observation and the ambiguous route; another host never publishes.
+- *Publisher slow, takeover appends first:* the takeover's absorption records `OVERTAKEN` with human attention. The publisher's head check then prevents its compare-and-swap. If the publisher's compare-and-swap lands inside the residual window between that check and the swap, the ref moves to `C_n` after the absorption. The next entry absorbs that as foreign movement, and the human attention item is already open. That reflects at most one attempt by the only authorized host, and it is never a silent reversal of a reset.
+- *ABA:* a foreign reset of the integration ref to exactly `B_n` after a successful compare-and-swap is indistinguishable, from the ref alone, from a publication not yet applied. The reset may be a deliberate remediation, and C4 requires ambiguity to be reconciled before retry. Because only the publisher may attempt, and only once behind a write-ahead intent, a second compare-and-swap after any reset is impossible: every `L = B_n` that is not the publisher's first attempt is ambiguous and goes to the human. Every path is a recorded, replayable entry; the attempt log informs only the publisher's own choice and never derivation. Revisions 4-5 allowed silent re-application without the log (`ffbad17` N2). Revision 6 trusted one host's log about every host (`f3608f5` Blocker C), so another host could reverse a deliberate reset.
 
 **Idempotency.** The effect identity `(ledger id, n, B_n, C_n)` is fixed by entry `n`; a compare-and-swap from the exact expected predecessor is idempotent and never overwrites foreign work. The reconciliation is identified by its position `n+1`, made unique by the ledger compare-and-swap. Request identity keeps `submit` idempotent.
 
@@ -1669,7 +1715,7 @@ A new logical lineage alone never removes leaked data, and SSDS never claims it 
 
 ### 15.6 Actors and authentication
 
-Agents are not principals with authority. Their records are proposals attributed to an execution identity (harness, route, model, task, attempt) observed by the Dispatcher, and bound to the issued task envelope that the Dispatcher's issue key signs (§7.5). Issue keys are trust roots of the same kind as Admission keys. A compromised issue key or harness adapter can forge bindings and lineage; that is outside the declared trust model and its remedy is key rotation through the human-gated lifecycle record. Humans are authenticated through a trust mechanism declared in genesis and changeable only by a human-gated lifecycle record — for example signed records with registered keys, or an explicitly declared single-user local trust. Admission keys are trust roots of the same kind. No guarantee beyond the implemented mechanism is claimed.
+Agents are not principals with authority. Their records are proposals attributed to an execution identity (harness, route, model, task, attempt) observed by the Dispatcher, and bound to the issued task envelope that the Dispatcher's issue key signs (§7.5). Issue keys are trust roots of the same kind as Admission keys. A compromised issue key or harness adapter can forge bindings and lineage; that is outside the declared trust model and its remedy is key rotation through the human-gated lifecycle record. Admission keys are per host, so every entry names the host that appended it and therefore its publisher (§15.3). Humans are authenticated through a trust mechanism declared in genesis and changeable only by a human-gated lifecycle record — for example signed records with registered keys, or an explicitly declared single-user local trust. Admission keys are trust roots of the same kind. No guarantee beyond the implemented mechanism is claimed.
 
 ### 15.7 Protected surfaces and untrusted input
 
@@ -1949,8 +1995,8 @@ The SSDS 8 Architecture Manual, independently reviewed and accepted, SHALL decid
 2. relation vocabulary with every type's direction, semantic role, cycle class, permitted classes, layer constraint and completeness eligibility; vocabulary adoption checks; SDG declaration syntax and rules; cycle legality and `well_formed`; boundary-completeness judgment semantics and analyzer completeness declarations;
 3. closed record schemas, judgment kinds and tiers, actor qualifications (including product-scope acceptance of a marked surface), outcome vocabularies, the challenge inquiry-status attribute, compatibility contract;
 4. basis composition and mode assignment per judgment kind, including the subject-boundary rule (`content` inside the record's subject, `validity` across), consumption classes, equivalence-path composition, the widening chain and closure algorithm;
-5. derivation: strata S0-S3 (including `Σ`, `Q`, `aff`, `τ`, `well_formed`, `ok`, `E` and `pub` in S0, and `cont` in S1), the polarity classification of every record kind, the fixed predicate templates and the adoption-time stratification check, least-fixed-point evaluation, analyzer contract (deterministic vs recorded), derivation checkpoints and recovery-time bounds;
-6. Admission validation order including the structural-delta rule (author, realign, carry, adopt), source/destination challenge freeze, dependency well-formedness with re-routed support edges, request identity and idempotency, merge-queue serial order, single-ref append, quorum admission and the single provisional entry; the integration observation `obs`, the entry-shape rule, the equivalent-publication and reachability classification, the reconciliation procedure and its ABA policy;
+5. derivation: strata S0-S3 (including `Σ`, `Q`, `aff`, `τ`, `well_formed`, `ok`, `E` and `pub` in S0, and `cont` in S1), the polarity classification of every record kind, the fixed predicate templates and the adoption-time stratification check, least-fixed-point evaluation, candidate frames with the fixed three-way merge algorithm and each record kind's declared frame (§6.9), analyzer contract (deterministic vs recorded), derivation checkpoints and recovery-time bounds;
+6. Admission validation order including the structural-delta rule (author, realign, carry, adopt), source/destination challenge freeze, dependency well-formedness with re-routed support edges, request identity and idempotency, merge-queue serial order, single-ref append, quorum admission and the single provisional entry; the integration observation `obs`, the entry-shape rule, the equivalent-publication and reachability classification, the reconciliation procedure, exclusive per-entry publication with its write-ahead intent and takeover policy, and its ABA policy;
 7. obligation rules, readiness, three-valued discharge, provisional propagation and risk-override scope, iteration/attempt identity;
 8. change-plan structure, plan acceptance, scoped amendment policy, plan invariants;
 9. serialization policy surfaces, generated-unit handling, joint invariants, residual-risk disclosure;
@@ -1969,7 +2015,7 @@ The SSDS 8 Architecture Manual, independently reviewed and accepted, SHALL decid
 22. a minimum-justified-architecture reassessment against the then-current accepted baseline, including whether every primitive in §5, component in §16.1 and persistent surface in §15.1 is still needed;
 23. workflow roles: the system role templates, their obligation kinds, record kinds, outcomes and write-scope rules, separation constraints and context-lineage provenance, the limits on policy extension, and the standing-plan designation for obligations outside any plan (§7.5);
 24. work contracts: schema, lint rules, minimum verifier coverage per item kind, the closed control-tightening whitelist and its order for every field, task-partition checks, budgets, and the system contracts of obligation kinds that belong to no item (§7.6, §7.9);
-25. the check-template library: families, parameters and force, the language analyzers for Python and C++ (diff-to-unit mapping, public interface, test-to-code), mutation-testing configuration and thresholds, unit-annotation conventions, and the qualification thresholds that admit a template as `HARD` (§7.7, §22);
+25. the check-template library: families, parameters and force, the set-valued aggregation of conformance outcomes, the language analyzers for Python and C++ (diff-to-unit mapping, public interface, test-to-code), mutation-testing configuration and thresholds, unit-annotation conventions, and the qualification thresholds that admit a template as `HARD` (§7.7, §22);
 26. reports and escalation: report kinds, reasons and materiality vocabulary, the routing table, escalation floors, the outcome table for coordination decisions, materiality reclassification, and the review, decision and inspector templates, digest and impact ranking (§7.9, §9.6-§9.8);
 27. the doctrine-realization map: every duty of the SSDP 7.2.1 role and specialist entrypoints assigned E0-E3 with its mechanism, slot or review route, and a disclosed list of duties that stay E3 (§7.7).
 
@@ -2048,11 +2094,11 @@ Qualification binds every claim to the property its method can discriminate (DS-
   - *Compare-and-swap loses to a foreign push:* the successor is an absorption; `OVERTAKEN`; a revalidation obligation; `n`'s structural changes quarantined against the absorbed tree; the foreign commit intact.
   - *Successor appended but lacking quorum:* it stays `PROVISIONAL`; no further append; current answers stay at `n` with `pub(n) = PENDING`; restart completes anchoring; if the provisional successor is lost and provably never admitted, a new successor is appended after a fresh read.
   - *Successor admitted, response lost:* resubmission by request identity returns the recorded decision; no second entry.
-  - *Restart on another Admission host* without the first host's operator state reaches the same ledger.
+  - *Restart on another Admission host* without the first host's operator state reaches a replayable ledger and never performs the earlier entry's publication.
   - *Duplicate reconciliation:* two hosts race with different reads; exactly one successor is admitted; the loser's append fails the ledger compare-and-swap; classification follows the winner's `obs`.
   - *Foreign movement after the compare-and-swap:* a foreign descendant of `C_n` gives an absorption with `PUBLISHED`; a force-push that drops `C_n` gives `OVERTAKEN`.
   - *Overtaken under structural quarantine:* `n` carried a structural change and the foreign tree both lacks it and declares a foreign delta; both are quarantined, `aff(Q)` is invalid, and the revalidated request publishes and realigns.
-  - *ABA:* a reset to exactly `B_n` after a successful compare-and-swap, run with the attempt log showing success, with it absent, and with it showing no attempt. Only the last performs the compare-and-swap; the others absorb as `OVERTAKEN`, raise human attention and do not revalidate before the human disposition. Every variant yields a replayable ledger.
+  - *ABA, two hosts (`f3608f5` Blocker C):* hosts H1 (publisher of `n`) and H2 with intact, different logs. H1 publishes and crashes before any successor; a human resets the ref to `B_n`; H2's log truthfully shows no attempt by H2. H2 never performs the compare-and-swap: it absorbs `B_n` as `OVERTAKEN` with human attention. H1 restarting with its intent record also routes to the human. Further variants: the publisher's first attempt with an intact log and no intent publishes; a lost publisher log routes to the human; a takeover absorption appended before a slow publisher's head check prevents that publisher's compare-and-swap. In every variant at most one compare-and-swap per admitted entry occurs, and every ledger is replayable.
   - *Barrier discriminators:* an ordinary admission whose `obs` differs from `E` is rejected; an absorption carrying submitted records is rejected; a fixture-injected ledger containing either is an integrity defect in derivation; an absorption changes no effective structure, ruleset, acceptance or obligation discharge except through `T`.
   - *Recovery entries:* a `LEDGER_LOSS` or witness-set redesignation appended while a publication is pending carries no `obs` and leaves `pub = PENDING`; the next entry carrying `obs` reconciles it.
 - **Currentness qualification and recovery** (witness model `(N, q_a, r, f)` with `q_a + r > N + f`, exercised at least with `N = 3, q_a = 2, r = 2, f = 0` and the local-trust instance):
@@ -2122,21 +2168,24 @@ Qualification binds every claim to the property its method can discriminate (DS-
 - **Work contracts.** Lint rejects an obligation without a verifier, a `HEURISTIC` primary verifier, a write scope containing a protected surface, a plan unit or an unnamed evidence specification, missing triggered slots and missing minimum coverage. Control-tightening classification on generated diffs over every contract field (`ffbad17` Blocker D): each field moved in its tightening direction stays covered by the existing plan acceptance; each field moved against it, every added or removed obligation, every statement or primary-verifier change, and every field outside the whitelist (including a field injected by a newer schema) is R2. In particular, `scientific` `APPLIES` to `NOT_APPLIES`, a removed escalation trigger, an unfrozen interface and a widened `evidence_specs` are R2. Tightening then loosening is R2 against the accepted revision. A task partition whose obligation sets do not partition the item's, or whose write scopes overlap or leave the item's, is rejected; an accepted partition moves no acceptance and discharges the item only when every part, and any required item-level review, is discharged. An amendment makes running tasks on its item non-current, and their late results are routed to revalidation.
 - **Conformance verification (DS-001: mechanics only).** Each `HARD` template is qualified on seeded violations inserted into real trajectories (detection rate) and on clean real trajectories (false-positive rate), against thresholds frozen before the runs; a template that misses either stays `HEURISTIC`. *Signal inertness:* replaying a corpus with every `HEURISTIC` template removed yields identical admission decisions and discharges. *Never sufficient:* a candidate with clean conformance and no current review judgment is never integrated, and no `REVIEW` obligation is discharged by any check. *Disclosure:* the same breach disclosed and undisclosed yields an amendment request and a `DISCREPANCY` respectively, and neither is integrated. *Faithfulness:* fixture results claiming completion with an unmet obligation, or citing a failing realization as passing, yield `DISCREPANCY`. *Test integrity:* deleting, skipping or expected-failure-marking a test, and editing an unnamed acceptance test, yield `VIOLATION`; a weakened assertion yields `SIGNAL` and a mutation-strength shortfall `INCOMPLETE`. *Advisory pre-flight:* `ask(verify)` results never enter discharge. *Determinism:* identical contract, trees and observations give identical conformance on every host.
 - **Escalation and inspector flow.** *Persistence (`ffbad17` Blocker B):* after a report's target is amended or edited, after its basis goes stale, and after a loss boundary, its human-attention, coordination and adjudication obligations stay open and are annotated, never closed; a raiser's withdrawal of a floor item leaves human attention open; a principal reclassification moves a non-floor item to the digest without a human discharge record and returns it if challenged and upheld. For every floor kind, every principal operation (decline, resolve locally, merge, downgrade) leaves the human-attention obligation open until an authenticated human judgment; a merged item lists every member. A raiser's `ROUTINE` report targeting a D1 or D2 unit is raised to `MATERIAL`. A downgrade of a non-floor item appears in the digest and an upheld challenge restores it. An authority-defect request cannot be resolved locally. A blocking report suspends exactly the raising task and resumption follows the decision. Inspector ranking is a deterministic function of derived impact. The 7.2.1 delegate floor: a material finding in an E2 slot of a `scientific = APPLIES` task reaches the inspector view through any number of intermediate roles.
+- **Report ingress (`f3608f5` Blocker A), through real Admission.** A `HUMAN_QUESTION` and a material finding are submitted *after* the raising task's item was amended and after a context unit changed. Both are admitted and appear in the inspector view without resubmission. A stale task result that carries a report is routed to revalidation while its report is admitted from the same rejecting entry. A report whose record-mode premise is withheld by a loss boundary is admitted.
+- **Candidate frames (`f3608f5` Blocker B), production path end to end.** A substantive change of unit `u` from `r0` to `r1` runs result -> designated-runner executions -> independent review -> integration while the product ref stays at `r0` until integration, with no seeded current judgments. The review is admitted, current in `D_n[C]` and not current in `D_n`. After integration it is current, and the task obligation is discharged. Variants: the head moves a unit the review read (stale, re-review); a rebase leaving `u`'s revision unchanged (review kept); a rebase changing it (re-review); a non-clean merge (new iteration, no frame); a unit changed on both sides that merges cleanly (judged at the merged revision).
 - **Iteration and recurrence.** `INCOMPLETE` within budget re-issues mechanically; exhaustion, out-of-scope findings and discrepancies create coordination decisions; repeated template failures and repeated finding families are detected; operational retries spend no budget.
 - **Usability.** Live trajectories on real tasks, in shadow mode, showing that agents complete bounded work without reading machine records and with less context than the document-controlled baseline. Claims stay bounded to the trajectories, harnesses and models actually exercised, consistent with the Protocol 6.6 stochastic robustness boundary. Following the 7.x lessons (§19.3), comparisons are paired against the document-controlled 7.2.1 baseline on the same executors and fixtures, gates are calibrated from simulated operating characteristics before any spend, evaluator and oracle instruments are validated first, and rules, custody and blinding are frozen before runs. **Doctrine realization** is measured the same way: the 7.x qualification panel, rerun with SSDS role briefs, contracts, conformance verification and escalation in shadow against the 7.2.1 baseline, for unauthorized mutation, claim integrity, owed-duty presence, narration where none was owed, and survival of material delegated findings to the human. Claims stay bounded to the duties and models exercised, and detection is reported separately, because enforcement is not expected to improve it.
+- **Authorization boundaries (`f3608f5` Blocker D).** Not a runtime test. Before each gate, a review of §23-§25 confirms that every criterion of that gate is satisfiable by work the earlier gates authorize, and that no gate can be passed by evidence from fixtures or the existing Core standing in for SSDS owners.
 - **Repository acceptance.** The inherited repository workflow (regression, PEM checks, package build/validation, distribution parity, whitespace, frozen-resource integrity, Orchestrator Core snapshot/tests) for every affected surface.
 
 ## 23. Development sequence
 
 - **Phase A — Protocol 7 reconsolidation.** Executed 2026-10-12 (§0.4): the exact identities and inputs are bound (§19), the pre-cutover baseline is advanced (§24), and the governing version is adopted by stakeholder instruction. Phase A closes when the Phase B Review passes it.
-- **Phase B — independent D3 falsification of this architecture**, including the Phase A reconciliation. Its PASS cannot authorize D4 until Phase C closes.
-- **Phase C — SSDS 8 Architecture Manual** resolving §21, independently reviewed, with explicit stakeholder acceptance of this major change.
+- **Phase B — independent D3 falsification of this architecture**, including the Phase A reconciliation. Its PASS authorizes nothing by itself (§25).
+- **Phase C — SSDS 8 Architecture Manual** resolving §21, independently reviewed, with explicit stakeholder acceptance of this major change. Closing Phases B and C is gate G1; the shadow D4 workplan and the stakeholder's authorization of shadow implementation are gate G2, which opens Phases D-H (§25).
 - **Phase D — read-only kernel (shadow, no authority).** Content Model, Analyzers, ledger schema and Derivation over this repository, with a shadow genesis from existing history. Value: currency, impact and "what governs" answers with no control change.
 - **Phase E — read-only interface and workflow layer in shadow.** `open/ask/read` offered to agents working under the document-controlled baseline; role briefs, contract lint, conformance views, report routing, decision briefs and the inspector view computed beside document control with no authority. Measure burden reduction and doctrine realization by live trajectories on the 7.x panel (§22). This is the earliest point at which the stakeholder's reliability question gets evidence, and it needs neither Admission nor witnesses.
 - **Phase F — Admission and Dispatcher in shadow.** Compute admission decisions beside document control. Classify every material difference as an SSDS defect, a baseline ambiguity or defect, a deliberate stronger rule, or an unresolved semantic judgment, and independently review each.
 - **Phase G — intake and migration pilot.** This repository's legacy documents (Case B) and one external scientific repository (Case C/D) without disturbing production.
 - **Phase H — adversarial and fault qualification** (§22).
-- **Phase I — scope-local native cutover** after accepted architecture, implementation acceptance, shadow qualification, independent Review, required human/project approval and demonstrated rollback.
+- **Phase I — scope-local native cutover** after accepted architecture, implementation acceptance, shadow qualification, independent Review, required human/project approval and demonstrated rollback: gate G3 for the system, then G4 for each subject (§25).
 
 ## 24. Cutover, rollback and versioning
 
@@ -2147,9 +2196,9 @@ Qualification binds every claim to the property its method can discriminate (DS-
 - Rollback is version rollback to the immutable pre-cutover baseline: stop Admission for the affected scope, resume the pinned baseline process there, repair SSDS separately. The mode change ends each affected subject's tenure, so pre-cutover legacy acceptance imports never revive; a fresh import is needed (§12.1). Ledger rollback (§15.4) is an integrity incident, not a version rollback; an unrecoverable admitted loss adds a continuity boundary, which composes with a later version rollback because the mode change ends tenure and the boundary withholds every pre-loss import independently.
 - System, schema, ruleset, interface and profile versions are distinct and never conflated with protocol semantic version.
 
-## 25. Acceptance criteria for the architecture cycle
+## 25. Acceptance criteria and authorization boundaries
 
-D4 handoff is possible only when:
+Each criterion is assigned to the earliest boundary at which its evidence can exist. No criterion is dropped, and none requires the implementation it would authorize (`f3608f5` Blocker D: revisions 4-6 required shadow-mode evidence before the D4 handoff that builds the shadow system). Each gate includes every earlier gate.
 
 1. the Protocol 7 inheritance reconciliation (Phase A, §0.4) has passed independent Review;
 2. one accepted Architecture Manual resolves every §21 obligation;
@@ -2162,7 +2211,20 @@ D4 handoff is possible only when:
 9. the agent interface meets the minimum-semantic-burden invariant, demonstrated by live trajectories in shadow mode;
 10. the workflow execution and verification layer (§7.5-§7.10, §9.6-§9.8) is specified by the Manual; every `HARD` template is qualified; signal inertness, never-sufficient verification and non-droppable escalation are demonstrated; and doctrine realization on the 7.x panel is reported against the 7.2.1 baseline, with its limits stated;
 11. independent D3 Review/Challenge finds no blocker or active governing Serious Challenge;
-12. stakeholder acceptance of this major architectural change is explicit.
+12. stakeholder acceptance of this major architectural change is explicit;
+13. a D3->D4 workplan for the shadow phases, derived from the accepted Manual and independently reviewed, bounds its scope to shadow operation: no SSDS authority over any subject, no cutover, and the document-controlled baseline keeps governing (§24);
+14. the stakeholder explicitly authorizes that shadow implementation;
+15. an independent implementation Review of the shadow components passes, with the §22 groups executed against the production owners, not fixtures alone (DS-001);
+16. for each subject, the cutover conditions of §12.4, demonstrated rollback (§24) and the required human and project approval hold.
+
+| Gate | Effect | Criteria |
+|---|---|---|
+| **G1** architecture accepted | closes Phases B and C | 1-8, 11, 12 (criterion 2 includes the workflow-layer Manual items 23-27) |
+| **G2** shadow D4 authorized | opens Phases D-H, shadow only | G1, 13, 14 |
+| **G3** implementation functionally accepted | closes Phases D-H | G2, 9, 10, 15 |
+| **G4** native cutover of a subject | Phase I, one subject at a time | G3, 16 |
+
+A Phase B PASS satisfies criterion 11 only and authorizes nothing. No D4 work of any kind is authorized before G2, and SSDS holds no authority over any subject before G4 for that subject.
 
 ## 26. Reopen triggers and open uncertainties
 
@@ -2195,9 +2257,9 @@ Uncertainties that cannot close by design work alone:
 - **Formerly Protocol 7 dependent (resolved at 7.2.1, §19.1):** finding and tension canonical home; product-surface acceptance actor; pre-cutover baseline. **Still open, for the Manual:** exact gate-template obligations; the mapping of tension search keys to unit identity; the §19.2 decisions. The Stage F portable execution-profile semantics did not become 7.x doctrine (7.2 replaced them with the consolidated qualification harness); the Dispatcher keeps only its evidence-only lesson that transport success is not evidence admissibility (§9.5, §10).
 - **Empirical:** rate of false staleness under conservative widening and part-to-subject routing; frequency and cost of promotion judgments in Case B; analyzer completeness for real Python and C++ scientific code; feasibility of read recording per harness; practical unit granularity; derivation cost and checkpoint sizing on large repositories; ledger growth over years; witness availability and admission latency in practice; frequency of structural quarantine and of SDG declarations; agent context and success compared with the document-controlled baseline; contract authoring cost; detection and false-positive rates of check templates on real Python and C++ scientific code; amendment, escalation and downgrade rates; human-attention load per unit of work; whether doctrine realization on the 7.x panel improves over 7.2.1 on the behaviours that did not respond to text.
 
-## 27. Adequacy and minimum-architecture passes (rounds 2-6)
+## 27. Adequacy and minimum-architecture passes (rounds 2-7)
 
-These passes are design rationale, not evidence of adequacy. The next Review must falsify independently, and nothing here awards a PASS. Round 5 (§27.4-§27.5) covers the revision-5 workflow layer; the `ffbad17` Review falsified parts of it, and round 6 (§27.6-§27.7) records the repairs and governs where the two disagree. Round 4 (§27.1-§27.2) still governs the rest, except where §27.6 repairs it (S1 counter-challenges, ABA).
+These passes are design rationale, not evidence of adequacy. The next Review must falsify independently, and nothing here awards a PASS. Round 5 (§27.4-§27.5) covers the revision-5 workflow layer; the `ffbad17` Review falsified parts of it, and round 6 (§27.6-§27.7) records the repairs and governs where the two disagree. The `f3608f5` Review falsified parts of revision 6; round 7 (§27.8-§27.9) records those repairs and governs over round 6 where they disagree. Round 4 (§27.1-§27.2) still governs the rest, except where §27.6 and §27.8 repair it (S1 counter-challenges, publication and ABA).
 
 ### 27.1 Round 4: fresh out-of-matrix pass against revision 4
 
@@ -2440,6 +2502,50 @@ Residuals carried: those of §27.4, plus forged bindings under a compromised iss
   - making every challenge against an upholding inert, including after it is upheld: that would make revocations unrepairable, which §6.6 rejects;
   - letting a human-attested lineage be inferred from route metadata alone.
 
+### 27.8 Round 7: repair verification against the `f3608f5` Review
+
+| Trajectory | Result (revision 7) |
+|---|---|
+| Blocker A: a `HUMAN_QUESTION` submitted after the item was amended | Holds: reports are exempt from step 6 and admitted; existence-keyed routing then applies (§6.8, §7.9) |
+| A stale task result that carries a material finding | Holds: the result is routed to revalidation, and the rejecting entry admits the finding |
+| Blocker B: changed candidate `r1`, product at `r0`, review before integration | Holds: the review declares frame `C` and is current in `D_n[C]`; the integration's discharge predicate holds in the post-state where `T = M_n(C)` (§6.9) |
+| Head moves a unit the review read | Holds: stale in `D_n[C']`, re-review |
+| Unit changed on both sides with a clean textual merge | Holds: judged at the merged revision, so a review of `C`'s revision is stale (K3) |
+| Blocker C: H1 publishes and crashes, human reset, H2 with an intact no-attempt log | Holds: H2 is not the publisher and never performs the effect; ambiguous route (§15.3) |
+| Publisher restart after intent logged | Holds: ambiguous route; at most one attempt per entry |
+| Blocker D: building the first shadow kernel | Holds: G2 needs only design acceptance, a reviewed shadow workplan and stakeholder authorization; shadow evidence belongs to G3 (§25) |
+| N2: undisclosed breach | Holds: conformance is a set; rejection and integrity finding both follow (§7.7) |
+
+**Attacks on the repairs.**
+
+| Attack | Result |
+|---|---|
+| Use the report exemption to smuggle support: file a "report" whose stale basis is later cited | No rule consumes a report's basis or currency; resolving records reference reports by identity; a report supports nothing (§6.8 step 6, §7.9) |
+| Flood reports from a stale task to bypass suspension or budgets | Reports are admitted but only create obligations; they cannot discharge or integrate anything. Volume is the §26 human-load trigger |
+| Make frame records current in the admitted state | Impossible by construction: the frame's tree is hypothetical, and nothing in `D_n` reads `D_n[C]`. Only integration makes `M_n(C)` the admitted tree |
+| Choose a favourable merge to get a frame | The merge algorithm is fixed by the system version, and a non-clean merge has no frame |
+| A frame record citing records from another candidate's frame | Its `record` entries are evaluated in its own frame; another frame's records are current there only if their bases hold in `M_n(C)`. Nothing transfers by assertion |
+| Two candidates both current in their frames, integrated in sequence | The second integration is evaluated at the new head: its frame is recomputed on the new `T`, and stale records go to re-review (§8.2) |
+| Publisher host permanently lost while publication is pending | Liveness only: a takeover host records `OVERTAKEN` with human attention, and the human re-applies or keeps `B_n` |
+| Slow publisher races a takeover | Bounded residual: at most one compare-and-swap by the only authorized host, which, if it lands after the takeover absorption, is absorbed as foreign movement while human attention is already open (§15.3) |
+| Gate-skipping: start Phase D work under a Phase B PASS | §25: no D4 work before G2 |
+
+Residuals carried: those of §27.6, plus the slow-publisher window and the liveness cost of a lost publisher.
+
+### 27.9 Minimum-justified-architecture pass (round 7)
+
+- **Primitives:** four, unchanged. A candidate frame is a derivation over a hypothetical tree, not a new kind of state.
+- **Record categories:** five, unchanged. Records gain a declared frame field.
+- **Persistent surfaces:** six, unchanged. The publisher's write-ahead attempt log is the existing operator-state log, now required for the publisher's own attempt and never read by derivation.
+- **Components:** seven, unchanged. Admission keys become per host.
+- **Gates:** §25 gains a staged structure, G1-G4, and four criteria (13-16), so the authorizing evidence is never produced after the authorization it needs.
+- **Removed in revision 7:** the step-6 currency check on reports; the unscoped "no attempt" exception for any host; the single D4 gate.
+- **Rejected additions:**
+  - a candidate ledger or staging ledger: frames give currency without a second store;
+  - a publication-lease record in the ledger: the per-entry publisher already names the only executor, and a lease adds a quorum round per publication;
+  - automatic re-application by takeover hosts: it would reintroduce Blocker C;
+  - admitting frame records as current in the admitted state: it would let unintegrated work count as governing (P4, S11).
+
 ## 28. Handoff state
 
 ```text
@@ -2457,7 +2563,8 @@ ARCHITECTURE: basis-stamped judgments over content-addressed units grouped into 
               enforced on authenticated task envelopes, machine-readable work contracts with a closed
               control-tightening order, derived conformance verification (necessary, never sufficient), typed
               reports with existence-keyed routing and non-droppable escalation to an inspector view, fail-closed
-              reviewer independence; syntactic challenge polarity with inert open counter-challenges
+              reviewer independence; syntactic challenge polarity with inert open counter-challenges;
+              candidate frames for pre-integration review; exclusive per-entry publication; staged gates G1-G4
 OBJECTIVE: §1.1, including the doctrine-realization objective, held by the stakeholder as a tested aspiration
            (STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md SD-5, SD-6)
 SOURCE BASIS: main af0455753e20ee54a969c844872e29e270007211 (7.2.1 accepted-current); rebased 2026-10-12 from
@@ -2465,14 +2572,16 @@ SOURCE BASIS: main af0455753e20ee54a969c844872e29e270007211 (7.2.1 accepted-curr
 DESIGN BASIS: befe6782e7c8fe038bf7cb764646d133ca167855 (befe678 hypothesis archived byte-identically)
 PRIOR REVIEWS: f9d9de8 NO-PASS (repaired by revision 2); 441cf5c NO-PASS (repaired by revision 3);
                8a75346 NO-PASS (repaired by revision 4); ffbad17 NO-PASS covering revisions 4-5 and Phase A
-               (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FFBAD17-NO-PASS.md); repaired here (§0.1)
-THIS WORKPLAN: design revision 6 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
+               (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FFBAD17-NO-PASS.md), repaired by revision 6;
+               f3608f5 NO-PASS by a different model family
+               (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F3608F5-NO-PASS.md); repaired here (§0.1)
+THIS WORKPLAN: design revision 7 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
              not an Architecture Manual; no self-awarded PASS
 SSDP 7: closed at 7.2.1; inheritance RECONCILED (§0.4, §19); Stage H obligation discharged under stakeholder
         instruction (§0.2); pre-cutover baseline Protocol 7.2.1 recovery (§24)
-D3: ready for fresh independent falsification Review (Phase B, covering Phase A); D4 handoff requires that PASS and Phase C
+D3: ready for fresh independent falsification Review (Phase B, covering Phase A); D4 (shadow only) requires gate G2 (§25)
 D4: NOT AUTHORIZED
 SERIOUS CHALLENGE: none
-NEXT ACTION: fresh independent D3 Review of design revision 6 by a different model family (ChatGPT, stakeholder SD-7),
-             from qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-6.md; then Phase C.
+NEXT ACTION: fresh independent D3 Review of design revision 7 by a different model family (ChatGPT, stakeholder SD-7),
+             from qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-7.md; then Phase C.
 ```
