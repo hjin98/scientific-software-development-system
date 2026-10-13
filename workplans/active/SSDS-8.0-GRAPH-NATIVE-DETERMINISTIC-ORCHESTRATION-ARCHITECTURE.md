@@ -153,7 +153,7 @@ The `a414588` Review (a fresh-context sub-agent of the author's model family, un
 | N8 the convergence owner miscited | §27.26 corrected; revision 17 is the mandated simplification |
 | N9 the model check's mode label | The default mode is now `REV17` |
 
-The model check now encodes no lapse: no move of any kind ends a failing assessment. At depth 4 it checks 76,366 transitions with no failures (depth-5 run pending), with all named discriminators as expected. `REV16=1` (content-based lapse, revisions 15-16) fails Q, the property that an undisposed failing assessment caps the evidence term, and the earlier modes fail as before. `about`, `counts`, frames and Admission remain outside the model; §22 carries their cases.
+The model check now encodes no lapse: no move of any kind ends a failing assessment. At depth 5 it checks 1,879,651 transitions with no failures (76,366 at depth 4), with all named discriminators as expected. `REV16=1` (content-based lapse, revisions 15-16) fails Q, the property that an undisposed failing assessment caps the evidence term, and the earlier modes fail as before. `about`, `counts`, frames and Admission remain outside the model; §22 carries their cases.
 
 #### Revision 16 (prior) record
 
@@ -3274,7 +3274,7 @@ The convergence owner says: "Active simplification/re-derivation is mandatory be
 | Genuine code fix | A configuration rerun passes; its independent assessment supersedes the failing assessment; the qualification lifts |
 | Every earlier trajectory | Holds; each was an instance of a lapse that no longer exists |
 
-**Deterministic check.** The model now treats every move as unable to end a failing assessment. Its property Q (an undisposed failing assessment caps the evidence term) no longer depends on any presence test. At depth 4 it checks 76,366 transitions with no failures (depth-5 run pending). `REV16=1` reproduces revisions 15-16's content-based lapse and fails Q; earlier modes fail as before. The check can falsify the equations' stated properties, never establish adequacy (DS-001).
+**Deterministic check.** The model now treats every move as unable to end a failing assessment. Its property Q (an undisposed failing assessment caps the evidence term) no longer depends on any presence test. At depth 5 it checks 1,879,651 transitions with no failures (76,366 at depth 4). `REV16=1` reproduces revisions 15-16's content-based lapse and fails Q; earlier modes fail as before. The check can falsify the equations' stated properties, never establish adequacy (DS-001).
 
 **Attacks on the re-derivation.**
 
