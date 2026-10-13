@@ -197,7 +197,7 @@ The model check (§22) now separates mechanical from assessor-read failures, wit
 - Q2: a failure that the current content yields, or that proved nondeterministic, with no judgment, keeps the term at most `P`;
 - Q: excludes only failures that the owner-stated test shows stale.
 
-P10 is read on the undisputed term, and P11's "another outcome" means "does not yield the failure". Building the model this way found and fixed two polarity errors in the first draft: a loss boundary or an open challenge could hide an observation that yields the failure (§27.36). At depth 4 it checks 1,378,642 transitions with no failures and 67/67 discriminators, and every sensitivity mode fails owner-grounded properties (§27.36); depth 5: pending. `REV20=1` now fails P10 and P13: W1 and W2 are visible.
+P10 is read on the undisputed term, and P11's "another outcome" means "does not yield the failure". Building the model this way found and fixed two polarity errors in the first draft: a loss boundary or an open challenge could hide an observation that yields the failure (§27.36). At depth 4 it checks 1,378,642 transitions and at depth 5 81,511,449, with no failures, and 68/68 discriminators; every sensitivity mode fails owner-grounded properties (§27.36). The depth-5 run first found two more defects that depth 4 cannot reach, both repaired: a risk override on a challenged observation let it make a failure stale, and P5 needed restating for accepted relaxations (§27.36). `REV20=1` now fails P10 and P13: W1 and W2 are visible.
 
 #### Revision 20 (prior) record
 
@@ -3741,13 +3741,13 @@ Residuals carried: those of §27.32; whole-tree fallback cost; reading pairs re-
 - four outcome values;
 - the owner-stated `owner_stale`, used by P13, Q and Q2, and P10 read on the undisputed term.
 
-Revision 20 is kept as `REV20=1`. At depth 4 it checks 1,378,642 transitions with no failures and 67/67 named discriminators. At depth 4 every sensitivity mode fails owner-grounded properties, not only the oracle:
+Revision 20 is kept as `REV20=1`. At depth 4 it checks 1,378,642 transitions and at depth 5 81,511,449 (`--jobs 4`, 49 min), with no failures, and its 68 named discriminators give their expected values. At depth 4 every sensitivity mode fails owner-grounded properties, not only the oracle:
 
 | Mode | Failures | Owner-grounded properties failing |
 |---|---|---|
 | `REV20=1` | 5,357 | P10 1,467, P13 3,890: W1 and W2 visible |
-| `REV19=1` | 11,004 | P10 130, P13 10,834, P14 40 |
-| `REV18=1` | 13,184 | P10, P11, P12, P13 |
+| `REV19=1` | 11,001 | P10 130, P13 10,831, P14 40 |
+| `REV18=1` | 13,181 | P10, P11, P12, P13 |
 | `REV17=1` | 106,061 | P9, P10, P11, P12, P13 |
 | `REV16=1` | 116,171 | P7, P9, P10, P12, P13, Q, Q2 (and O) |
 | `REV14=1` | 126,747 | P7, P8, P9, P10, P12, P13, Q, Q2 (and O) |
@@ -3756,7 +3756,12 @@ Revision 20 is kept as `REV20=1`. At depth 4 it checks 1,378,642 transitions wit
 | `REV11=1` | 311,152 | P7, P9, P10, P11, P12, P13, Q, Q2 (and O) |
 | `REV10=1` | 312,058 | P1, P7, P9, P10, P11, P12, P13, Q, Q2 (and O) |
 
-Depth 5: pending. Frames other than the admitted state, lineages, Admission, custody, decision classes, absent outputs and the floor are outside the model; §22 carries their cases (DS-001).
+The first depth-5 run found 90 failures that depth 4 cannot reach:
+
+- **Oracle disagreements (54).** An observation whose realization was under a blocking challenge softened by a risk override still made a failure stale. The oracle was right: a risk override never resolves a challenge. Permissive use now requires no upheld or open blocking challenge, overridden or not (§6.6), and a discriminator covers it.
+- **P5 (36).** Each was the deliberate behaviour: an admitted relaxation made a mechanical failure stale, with the obligation retired. P5 now permits exactly that, through the owner-stated test.
+
+The rerun is green. Frames other than the admitted state, lineages, Admission, custody, decision classes, absent outputs and the floor are outside the model; §22 carries their cases (DS-001).
 
 **Attacks on the simplification.**
 
