@@ -16,8 +16,8 @@ Constraints:
 - Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, design revision 19.
 - Candidate under review: `ba7f738065237c26d15e4b7bdaf8e28543c61289` (workplan blob `d38c942d803506a27a835ee2da79a96d8db900d4`).
 - Review handoff: `qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-19.md`.
-- Review of revision 19: see "Latest Review" below.
-- Previous Reviews, all NO-PASS: F9D9DE8 … 6FE1000, 4EC0024 (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-*-NO-PASS.md`).
+- Review of revision 19: NO-PASS (see "Latest Review" below).
+- Reviews, all NO-PASS: F9D9DE8 … 6FE1000, 4EC0024, BA7F738 (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-*-NO-PASS.md`).
 - Open non-blocking item: N1 (the 2026-10-12 governing-version adoption instruction is paraphrase-only; needs the stakeholder's restatement).
 
 ### What revision 19 did (the recurring blocker family)
@@ -43,4 +43,11 @@ Every blocker since revision 10 has been one family: "what a failing assessment'
 
 ## Latest Review
 
-Pending: the revision-19 Review was launched from `REVIEW-HANDOFF-SSDS-8.0-REVISION-19.md`; its record had not arrived when this file was written. If no `WORKPLAN-REVIEW-SSDS-8.0-BA7F738-*.md` is committed, relaunch it (step 5).
+`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-BA7F738-NO-PASS.md` (revision 19, candidate `ba7f738`): **NO-PASS**, two blockers, seven non-blocking findings (N1-N7), no Serious Challenge. The authoring session checked both blockers against the candidate text and found them to hold. Read the record in full before repairing.
+
+- **U1 — "the same content" is judged by named evidentiary premises, not by what a run executed.** Condition 4, the rerun trigger and `here` compare only the claim, the specification unit and the code the specification names; condition 5 and the withdrawal latch inherit that. Content outside them (runtime parameter files, data read by path, plugins, build flags) breaks both directions: a candidate failure caused by it counts in the admitted state with no possible pair (U1a), and a candidate run differing through it withdraws a pair permanently (U1b). Review direction: decide stops, standing and withdrawal on what the run actually executed (the whole tree where that record is incomplete), or make `here` negative-only.
+- **U2 — never-admitted interpretive changes reach the admitted state.** The start latch keys on obligation identity, which is unit-granular, so a frame that tightens an existing check's tolerance, or revises or adds claim text inside an existing evidenced unit, yields a failure that counts in the admitted state at once; the outcome on admitted content is identical, so no pair forms, and only an owner judgment (R3 for D1/D2) lifts it. Review direction: extend the never-admitted-revision exception to tightened checks and claim revisions, read under the admitted revisions.
+
+The Review routes both as one family: revision 19 uses three different notions of what a failure is about (obligation identity for start, named premises for stop and standing, specification and claim revisions for the reading). Per the convergence owner, the next revision (20) should unify these into one notion of "the content a failure is about" (executed content, recorded completely or fail-closed to the whole tree, plus the interpretive revisions it applied) and re-derive `starts`, the pair conditions, `here` and withdrawal from it, rather than adding exceptions. The model check cannot represent U1 or U2 (one forward-only content counter, binary outcomes, no frames); extend it or state the gap in §22.
+
+Next action: revision 20 per the loop procedure above, then `REVIEW-HANDOFF-SSDS-8.0-REVISION-20.md` (previous candidate `ba7f738065237c26d15e4b7bdaf8e28543c61289`, previous record `WORKPLAN-REVIEW-SSDS-8.0-BA7F738-NO-PASS.md`, add `REV19=1` to the sensitivity modes).
