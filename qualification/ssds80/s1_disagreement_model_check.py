@@ -1,5 +1,5 @@
 """Bounded model check of SSDS 8.0 workplan §6.6 S1 polarity and assessment
-disagreement (design revision 14 and later).
+disagreement (design revision 15 and later).
 
 This is a diagnostic transcription of the workplan's equations, not an SSDS
 implementation and not an adequacy oracle (DS-001): it can show that the
@@ -16,6 +16,9 @@ assessment of its own realization. Premises move by events:
   GMOVE  the governing subject an IMMATERIALITY judgment relies on moves;
   COMPL  a completeness judgment; each assessment relies on the latest one
          before it (provenance, record mode);
+  REPART the claim unit's scope changes with no content byte changed (a
+         boundary move, merge or adopted governance-neutral delta): its unit
+         revision changes, the evaluated content does not;
   RETIRE the evidence obligation stops being required (a specification
          change accepted on its own merits).
 An equivalence-covered MOVE is itself the equivalence judgment: it can be
@@ -38,6 +41,7 @@ Properties, for every ledger L and every appended record r:
       evidence term;
   P7  retiring the evidence obligation never makes the evidence term T while
       a bearing failing assessment has nothing recorded against it;
+  P8  a structural-only change (REPART) never raises the evidence term;
   Q   a failing assessment whose execution still bears (every later MOVE is
       equivalence-covered) and that has no superseder, no challenge against
       it or its realization and no IMMATERIALITY judgment keeps the evidence
@@ -49,7 +53,7 @@ Properties, for every ledger L and every appended record r:
 Named discriminators (the 97e753f and 4c35d92 Reviews' trajectories and
 their contrasts) are evaluated separately and printed.
 
-Sensitivity: REV13=1, REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
+Sensitivity: REV14=1, REV13=1, REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
 must report failures on P1-P6 or Q, not only on O; a run that stays green
 there means the check is blind.
 
@@ -63,7 +67,7 @@ import os
 from dataclasses import dataclass, field
 
 F, P, T = 0, 1, 2
-MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13") if os.environ.get(m)), "REV14")
+MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13", "REV14") if os.environ.get(m)), "REV15")
 
 
 @dataclass(frozen=True)
@@ -112,9 +116,16 @@ class Ledger:
         return bool(self.superseders(x))
 
     def exec_bears(self, x: int) -> bool:
+        """The evaluated content is still present: every later content MOVE is equivalence-covered."""
         return all(self.r[y].equiv for y in self.later(x, "MOVE"))
 
+    def unit_bears(self, x: int) -> bool:
+        """Revisions 13-14: a scope change of the claim unit also ends bearing."""
+        return self.exec_bears(x) and not self.later(x, "REPART")
+
     def exec_current(self, x: int) -> int:
+        if self.later(x, "REPART"):  # currency follows the unit revision, which a scope change moves
+            return F
         return min([T] + [self.base(m) if self.r[m].equiv else F for m in self.later(x, "MOVE")])
 
     def retired(self) -> bool:
@@ -258,7 +269,9 @@ class Ledger:
                 and not self.later(a, "ORACLE")
                 and not (self.r[a].reads and self.later(a, "CTX"))
             )
-        return self.exec_bears(a)  # evidentiary premises only
+        if MODE in ("REV13", "REV14"):
+            return self.unit_bears(a)
+        return self.exec_bears(a)  # evaluated content of the evidentiary premises
 
     def disposers(self, am: int) -> list[int]:
         out = self.supersession_closure(am) + self.upholdings(self.challenges_on(am))
@@ -270,7 +283,7 @@ class Ledger:
         return out
 
     def eff(self, d: int) -> int:
-        if self.kind(d) == "ASSESS" and not self.r[d].indep and MODE == "REV14":
+        if self.kind(d) == "ASSESS" and not self.r[d].indep and MODE in ("REV14", "REV15"):
             return F
         if self.kind(d) in ("ASSESS", "IMMAT"):
             return self.current(d)
@@ -318,7 +331,7 @@ class Ledger:
     def V(self) -> int:
         """The claim's evidence conjunct."""
         required = T if self.retired() else self.ev()
-        if MODE == "REV14":
+        if MODE in ("REV14", "REV15"):
             return min(required, self.undisputed())
         return required
 
@@ -348,7 +361,7 @@ def oracle_unqualified(L: Ledger) -> bool:
             return not after(x, "GMOVE")
         if not standing_s1(x, on_real=True):
             return False
-        if any(not (recs[m].equiv and fully_current(m)) for m in after(x, "MOVE")) or after(x, "ORACLE"):
+        if any(not (recs[m].equiv and fully_current(m)) for m in after(x, "MOVE")) or after(x, "ORACLE") or after(x, "REPART"):
             return False
         if rx.reads and after(x, "CTX"):
             return False
@@ -415,6 +428,7 @@ def candidates(prefix: tuple[R, ...]) -> list[R]:
         R("CTX"),
         R("GMOVE"),
         R("COMPL"),
+        R("REPART"),
     ]
     if not any(r.kind == "RETIRE" for r in prefix):
         out.append(R("RETIRE"))
@@ -477,6 +491,8 @@ DISCRIMINATORS = [
     ("644eb72 B contrast: disposition, then retirement", (PASS_, FAIL_, R("IMMAT", target=1), R("RETIRE")), T),
     ("644eb72 N3: non-independent superseder disposes of nothing",
      (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1, indep=False)), P),
+    ("62c0b24 A: boundary move of the claim unit, passing rerun", (PASS_, FAIL_, R("REPART"), PASS_), P),
+    ("62c0b24 A contrast: content edit without equivalence, passing rerun", (PASS_, FAIL_, R("MOVE"), PASS_), T),
     ("challenged equivalence: failing evidence still bears, passing support provisional at most",
      (FAIL_, R("MOVE", equiv=True), PASS_, BCH(1)), P),
 ]
@@ -488,13 +504,13 @@ def run_discriminators() -> int:
         got = Ledger(recs).V()
         ok = got == want
         bad += 0 if ok else 1
-        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 14 expects {'FPT'[want]})")
+        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 15 expects {'FPT'[want]})")
     return bad
 
 
 def check(depth: int) -> int:
     seen = 0
-    counts = dict.fromkeys(("P1", "P2", "P3", "P4", "P5", "P6", "P7", "Q", "O"), 0)
+    counts = dict.fromkeys(("P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "Q", "O"), 0)
     frontier = [()]
     for _ in range(depth):
         nxt = []
@@ -520,6 +536,8 @@ def check(depth: int) -> int:
                 if (rec.kind == "ADJ" and rec.outcome == "UPHELD" and prefix[rec.target].kind == "CHALLENGE"
                         and prefix[prefix[rec.target].target].kind == "COMPL" and raised):
                     counts["P6"] += 1
+                if rec.kind == "REPART" and raised:
+                    counts["P8"] += 1
                 if rec.kind == "RETIRE" and e1 == T and untouched_bearing_failure(L0):
                     counts["P7"] += 1
                 if untouched_bearing_failure(L1) and e1 == T:
