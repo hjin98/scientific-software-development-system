@@ -6,7 +6,7 @@ target_system_version: 8.0.0
 status: proposed
 created_date: 2026-10-01
 revised_date: 2026-10-13
-design_revision: 9
+design_revision: 10
 baseline_reconciliation: protocol-7.2.1 (2026-10-12; section 0.4)
 governing_version_adoption: 6.6.0 -> 7.2.1 by stakeholder instruction 2026-10-12 (section 0.4)
 stakeholder_direction: workflow execution and verification layer, 2026-10-13 (section 0.1; qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md)
@@ -14,8 +14,8 @@ source_branch_basis: af0455753e20ee54a969c844872e29e270007211
 source_branch: main
 prior_source_branch_basis: f96b7ccf90dede4150d0efa17264fff07ec12d0d (ssdp-7.0-scientific-epistemic-closure; design revisions 1-4 before the 2026-10-12 rebase)
 design_basis: befe6782e7c8fe038bf7cb764646d133ca167855
-prior_review: qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-730490D-NO-PASS.md
-prior_reviewed_candidate: 730490db881fa78d6bfd31ba11406e28dc2399ac
+prior_review: qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FB3E542-NO-PASS.md
+prior_reviewed_candidate: fb3e542a4430b50efba0b7674d75c93c11fd7d55
 review_history:
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F9D9DE8-NO-PASS.md
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-441CF5C-NO-PASS.md
@@ -24,6 +24,7 @@ review_history:
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F3608F5-NO-PASS.md
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-AC71FA9-NO-PASS.md
   - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-730490D-NO-PASS.md
+  - qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FB3E542-NO-PASS.md
 design_review_state: pending-fresh-independent-d3-review
 d3_architecture_state: proposed
 implementation_handoff: not-authorized
@@ -43,10 +44,11 @@ The workplan ID keeps the historical `GRAPH-NATIVE` lexeme for routing stability
 GOVERNING DESIGN PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12, §0.4;
             release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0, the system-level successor to the document-controlled SSDP line
-THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 9; proposed, not accepted-current;
+THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 10; proposed, not accepted-current;
            not an Architecture Manual
-REVISION 9: completes the transformation contract after the 730490d Review (blockers A-B: identity, and inspection
-           vs enactment; N2-N3 publication oracle and settlement; §0.1); N1 remains partial
+REVISION 10: binds prospective acceptances to one enactment and realizes assessment disagreement in S2 after the
+           fb3e542 Review (blockers A-B; §0.1); S2 uniqueness now rests on graph acyclicity; N1 remains partial
+REVISION 9: completed the transformation contract after the 730490d Review
 REVISION 8: re-derived the candidate-currency and publication contracts after the ac71fa9 Review, per the
            convergence owner's simplification trigger
 REVISION 7: repaired the f3608f5 Review's blockers A-D and finding N2; N1 recorded as partial
@@ -65,15 +67,17 @@ PRIOR REVIEWS: f9d9de8 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F9
            ac71fa9 NO-PASS (GPT-6/Codex, fresh context), three blockers A-C and findings N1-N2
            (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-AC71FA9-NO-PASS.md), re-derived by revision 8;
            730490d NO-PASS (GPT-6/Codex, fresh context), two blockers A-B and findings N1-N4
-           (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-730490D-NO-PASS.md), repaired here
+           (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-730490D-NO-PASS.md), repaired by revision 9;
+           fb3e542 NO-PASS (GPT-6/Codex, fresh context), two blockers A-B and findings N1-N2
+           (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FB3E542-NO-PASS.md), repaired here
 SUPERSEDES: the consolidated Protocol 8 plan (archived byte-identically, with its nine-file lineage)
             and the befe678 graph-native hypothesis (archived byte-identically as ...-BEFE678-HYPOTHESIS.md)
 SERIOUS CHALLENGE: NONE (§1.3 records why the governing goals are judged consistent)
 PROTOCOL 7: closed at 7.2.1 (accepted with conditions); inheritance RECONCILED (Phase A executed, §0.4, §19, §24);
-            the ffbad17, f3608f5, ac71fa9 and 730490d Reviews found its bindings correct; the 2026-10-12 adoption instruction
+            the ffbad17, f3608f5, ac71fa9, 730490d and fb3e542 Reviews found its bindings correct; the 2026-10-12 adoption instruction
             remains paraphrase-only (f3608f5 N1, partial; routed to stakeholder restatement)
-INDEPENDENT D3 REVIEW: ready for a fresh independent falsification Review of design revision 9, by a different model
-            family (stakeholder SD-7; handoff qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-9.md); this
+INDEPENDENT D3 REVIEW: ready for a fresh independent falsification Review of design revision 10, by a different model
+            family (stakeholder SD-7; handoff qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-10.md); this
             revision is refinement, not acceptance, and awards itself nothing; a PASS authorizes nothing by itself:
             shadow D4 needs gate G2 (accepted Manual, reviewed shadow workplan, stakeholder authorization; §25)
 SSDS 8 D4: NOT AUTHORIZED
@@ -97,7 +101,21 @@ SSDS 8 D4: NOT AUTHORIZED
 | authority envelope vs instruction | a workflow role, bound to each request by an authenticated task envelope, constrains which proposals Admission considers; brief text only informs (A5, §7.5) | on authenticated bindings within the declared trust model (§15.6): an agent mutating plans, contracts, verifiers or out-of-scope content because a prompt was misread, ignored or absent |
 | mechanical conformance vs semantic acceptance | verification is necessary, never sufficient; heuristic checks only point (A7, §7.7) | a passing check, a keyword lint or an agent's own claim standing in for a reviewer's judgment |
 
-### 0.1 Revision 9: what changed and why
+### 0.1 Revision 10: what changed and why
+
+The `fb3e542` Review (GPT-6/Codex in a fresh context, the fourth consecutive review from that family; `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FB3E542-NO-PASS.md`) returned NO-PASS with two blockers and two findings. It recorded the revision-9 bootstrap, identity, settlement and oracle repairs as closed. Both blockers were confirmed: the §6.9 counting rule never limited an acceptance to its first enactment, and S2 and discharge chose an existing pass without regard to a live competent fail, contrary to the 7.2.1 evidence owner.
+
+| Finding | Repair (earliest owner) |
+|---|---|
+| **A** a prospective acceptance could count again after demotion and identical restoration | **One-enactment binding** (§6.9, `ACC` §6.6). It counts only for work produced for the same bound obligation, with equal structure and a holding basis, and only for the first tenure it starts (`bind(j)`); afterwards it leaves `ACC` permanently. Rebase reuse before enactment is preserved |
+| **B** a current pass could be selected while a current competent fail of the same evidence was live | **Assessment disagreement in S2** (§6.6, §7.4, §10, §9.3). A live conflict on an assessment key caps the evidence term at `P`, so validity and discharge stay visibly provisional. Resolution is only by the owner's authorized supersession or an `IMMATERIALITY` judgment. An adjudication obligation is derived, with human attention for D1/D2 claims. **Material change:** S2 uniqueness now rests on acyclicity of the combined support-and-inhibition graph that Admission maintains (step 5), not on monotonicity alone |
+| N1 adoption provenance | Unchanged; still partial |
+| N2 `D_n[C]` spelling in §22 | Fixed to `D_n[X]` |
+
+§22 adds the Review's discriminators for both blockers and the uniqueness change. Round 10 (§27.14-§27.15) records the pass.
+
+#### Revision 9 (prior) record
+
 
 The `730490d` Review (GPT-6/Codex in a fresh context; `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-730490D-NO-PASS.md`) returned NO-PASS with two blockers and four findings. It recorded the revision-8 re-derivation as closing the input-read and paused-publisher trajectories. Both blockers are at the transformation owner and were confirmed from the text: step 4's promotion condition was a precondition of the frame that the acceptance needed, and frames were named by commit alone.
 
@@ -813,24 +831,39 @@ valid(s) = base((s, scope_id(s), cur(s))) ∧ ok(s)
            ∧ ⋁_{j ∈ ACC(s)} ( current(j)
                               ∧ ⋀_{required kind/actor q of ρ_n for s} ⋁_{j' passing, by q, on the same triple} current(j')
                               ∧ ⋀_{required human gate g} ⋁_{authenticated human judgment h for g} current(h)
-                              ∧ ⋀_{required evidence obligation e} ⋁_{admissible assessment a for e at cur(s)} current(a) )
+                              ∧ ⋀_{required evidence obligation e} ( ⋁_{passing admissible assessment a for e at cur(s)} current(a)
+                                                                     ∧ undisputed(e) ) )
   where ACC(s) = admitted passing acceptance judgments on exactly (s, scope_id(s), cur(s)),
-                 admitted at or after τ(s), or prospective acceptances that count for the tenure τ(s)
-                 starts under §6.9 (same structural delta, basis holding at τ(s)), by actors qualified
-                 for them (checked at admission)
+                 admitted at or after τ(s), or prospective acceptances j with bind(j) = τ(s) under §6.9
+                 (same enactment lineage and structural delta, basis holding, first enactment only),
+                 by actors qualified for them (checked at admission)
 
 valid(part u) is not a variable: every use routes to valid(subj(u))
+
+undisputed(e) = P  if ∃ a- : a- is a failing admissible assessment for e's assessment key, current(a-) = T or P,
+                     and no current IMMATERIALITY judgment covers a-
+              = T  otherwise
+  assessment key = (claim unit and revision, evidence specification, regime and parameter instance)
 ```
 
-The right-hand sides are built from `min` and `max` over S2 variables and constants, so the system is monotone on a finite lattice and has exactly one **least fixed point**. That fixed point is the S2 state. An ungrounded cycle evaluates to `F`: no acceptance can support itself. For the f9d9de8 review's counterexample (`current(j_a)` ← `valid(b)` ← `current(j_b)` ← `valid(a)` ← `current(j_a)`), the least fixed point is all-`F`, never all-`T`. The configuration is also inadmissible on two independent grounds. Mutual validity reliance between subjects is a support cycle (below). Mutual authored warrant between `a` and `b` is an illegal relation cycle (§6.2) whether or not `a` and `b` share a subject. The two checks are distinct because they guard different graphs: the support graph guards record currentness, and cycle legality guards declared semantic warrant (441cf5c Blocker A).
+**Assessment disagreement (`fb3e542` Blocker B).** The 7.2.1 evidence owner requires that "an unresolved material disagreement keeps dependent present guidance/closure visibly qualified". It also forbids resolving the disagreement by vote, count or serialized record position. A passing assessment therefore supports a claim fully only when no current failing assessment of the same assessment key is live beside it.
+
+- **Conflict.** A conflict is a current failing assessment beside a passing one for the same key, where neither supersedes the other. It caps the evidence term at `P`: support stays visibly provisional and is never silently `T`.
+- **Resolution** is explicit, never positional, and takes one of two forms:
+  - *Supersession* of one assessment by a record the claim's owner authorizes: an adjudication, or a new assessment based on discriminating evidence. Supersession is checked at Admission like any other (§6.6 S0), and it removes the superseded record from support or conflict.
+  - An `IMMATERIALITY` judgment by an actor qualified for the claim's owning domain, naming the failing assessment and stating that the disagreement does not bear on this claim. It is challengeable like any judgment.
+- **What does not conflict.** A stale failing assessment is not current, so it does not conflict; stale failing evidence never refutes (S4). Assessments of different regimes or parameter instances have different keys. The order of the two records in the ledger changes nothing.
+- **Where the effects go.** S3 derives an adjudication obligation for each live conflict, routed to the qualified owner of the claim. Where the claim unit is D1 or D2 authority, the domain floor gives it human attention (§7.9). Briefs and gate views label the evidence `disputed` (§9.3).
+
+**Uniqueness.** The right-hand sides are built from `min` and `max` over S2 variables and constants. They are monotone in every support term and antitone in exactly one place: the *inhibitory* dependence of `undisputed(e)` on the currency of failing assessments and of `IMMATERIALITY` judgments. Revision 10 states the consequence plainly. Uniqueness no longer rests on monotonicity alone. It rests on the acyclicity of the combined support-and-inhibition graph, which Admission maintains (below and §6.8 step 5). On an acyclic graph, evaluation in topological order assigns each variable exactly one value, inhibitory terms included. Without inhibitory edges, that value is also the least fixed point. That is the S2 state. An ungrounded cycle evaluates to `F`: no acceptance can support itself. For the f9d9de8 review's counterexample (`current(j_a)` ← `valid(b)` ← `current(j_b)` ← `valid(a)` ← `current(j_a)`), the least fixed point is all-`F`, never all-`T`. The configuration is also inadmissible on two independent grounds. Mutual validity reliance between subjects is a support cycle (below). Mutual authored warrant between `a` and `b` is an illegal relation cycle (§6.2) whether or not `a` and `b` share a subject. The two checks are distinct because they guard different graphs: the support graph guards record currentness, and cycle legality guards declared semantic warrant (441cf5c Blocker A).
 
 `ok(s)`, `τ(s)` and `cont` are how lower-stratum governance constrains S2 without reading S3. A subject touched by an unadmitted governance-affecting declaration, or carrying an illegal relation structure, cannot be valid. An acceptance from an earlier tenure cannot count. A record from before a loss boundary cannot count unless held. All three are functions of the ledger and the observed tree; `cont` adds no S2 variable, no support edge and no fixed-point interaction.
 
-Admission maintains the stronger invariant that the **support dependency graph** is acyclic. Its nodes are `valid(s)` and `current(x)`. Its edges come from three sources: each basis entry; each subject to every acceptance, gate and assessment judgment naming it; and the static over-approximation of equivalence coverage, in which `x` depends on every equivalence judgment on `u` reachable from `r` for each `content` entry `(u, r)`. Edges change only when admitted records are added. Absorption adds none. A one-pass topological evaluation therefore computes the least fixed point. A cycle found at derivation can arise only from corrupted input; it still evaluates to `F` and raises an integrity obligation.
+Admission maintains the stronger invariant that the **support dependency graph** is acyclic. Its nodes are `valid(s)` and `current(x)`. Its edges come from three sources: each basis entry; each subject to every acceptance, gate and assessment judgment naming it; and the static over-approximation of equivalence coverage, in which `x` depends on every equivalence judgment on `u` reachable from `r` for each `content` entry `(u, r)`. Since revision 10 the graph also has **inhibition edges**: from `valid(s)` to `current(a-)` for every failing assessment sharing a key with an evidence obligation of `s`, and to `current(i)` for every `IMMATERIALITY` judgment `i` that could cover one. The acyclicity invariant covers the combined graph. Edges change only when admitted records are added. Absorption adds none. A one-pass topological evaluation therefore computes the unique S2 state. A cycle found at derivation can arise only from corrupted input. Every variable on it evaluates to `F` and raises an integrity obligation; that rule is explicit rather than a consequence of a least fixed point, because inhibition edges break monotonicity.
 
 **S3 — consequence tier.** Non-monotone functions of S0-S2 that nothing below reads: open obligations (including intake of each quarantined delta, revalidation of each `OVERTAKEN` admission, and requalification of each record or relaxer withheld by a loss boundary that was in effect at the retained head), discharge (§7.4), readiness (§7.3), blockers, drift (`cur(s)` differs from `acc(s)`, the latest revision with a passing acceptance judgment, which is a display view only), impact sets for hypothetical changes, context answers, briefs, graph, diff and history views, and integrity findings. Provisional values and risk-override scopes are interpreted here. The requalification set is computed by comparing derivation at the retained head with derivation now; with no loss boundary it is empty. S3 explains and schedules quarantine and ill-formedness; it never enforces them, because S2 already did.
 
-**Determinism claim.** For every authenticated `(L_n, content)`, S0 is a function, S1 is a well-founded recursion, S2 is the unique least fixed point, and S3 is a function. The same holds for each transformation frame `D_n[X]` (§6.9), which is the same derivation over a hypothetical tree and structure fixed by the transformation's identity `(B, C, A)`. `D_n` is therefore single-valued and independent of evaluation order, wall clock, live refs, witness reachability, operator state and search indexes (C2, C3, C8). Qualification is in §22.
+**Determinism claim.** For every authenticated `(L_n, content)`, S0 is a function, S1 is a well-founded recursion, S2 is the unique value of topological evaluation over the acyclic support-and-inhibition graph (the least fixed point wherever no inhibition edge applies), and S3 is a function. The same holds for each transformation frame `D_n[X]` (§6.9), which is the same derivation over a hypothetical tree and structure fixed by the transformation's identity `(B, C, A)`. `D_n` is therefore single-valued and independent of evaluation order, wall clock, live refs, witness reachability, operator state and search indexes (C2, C3, C8). Qualification is in §22.
 
 **Supersession and risk override.** Supersession is purely syntactic (S0). A superseded record never becomes current again, even if its superseder later goes stale. Supersession withdraws a record; it does not reverse its admitted history. A risk override never resolves a challenge. It turns `BLOCKED` into `PROVISIONAL` for the challenged target; `P` then propagates by `min`, and S3 permits provisional discharge only inside the override's declared scope. An upheld challenge on a subject revision revokes that revision permanently. Repair requires a new revision and acceptance, or a successful challenge to the upholding adjudication.
 
@@ -866,7 +899,7 @@ Admission validates against the admitted head it holds, after reconciling the in
      Authored and adopted changes are validated together: leaf coverage partition, laminar composites, scope conservation for refinement, no membership change that mixes governance modes without the mode-transition record (§12.1), SDG members never separated, and no change of a unit's kind or owning domain without a judgment by an actor qualified for its *current* domain (a unit never leaves its owner's authority by redeclaration). These are the **well-formedness** checks. An admission that integrates a transformation must also meet the **enactment condition**: every promotion or restoration carries a prospective acceptance that counts for the tenure it starts (§6.9, §12.2). A frame for inspection needs well-formedness only, so a promotion can be reviewed before it is accepted, but it can never be enacted unaccepted. Admission never creates new quarantine, and repository presence never enters `Σ` except through an adopting disposition.
    - *(b) challenge freeze.* No change to the signature, scope, regions or membership of any subject is admitted, whether that subject would lose or gain units, while its current revision carries an unresolved blocking challenge (overridden or not) or is `REVOKED`. A challenge therefore cannot be escaped by re-scoping unchanged content at the source subject or at the destination subject.
    - *(c) semantic structure.* Known relation types of `ρ_n`, relation direction and layer order, cycle legality and the SDG rules (§6.2), and single definer;
-5. **dependency well-formedness** — challenge-tier targets strictly earlier and of permitted kinds; no `validity` entry naming the record's own subject or a part of it (prerequisites inside it are `content`-mode, §6.4); after the request's edges are added — basis entries, equivalence coverage, and the edges of existing records whose `validity` endpoints the request's structural changes re-route through `subj` — the support dependency graph remains acyclic (§6.6);
+5. **dependency well-formedness** — challenge-tier targets strictly earlier and of permitted kinds; no `validity` entry naming the record's own subject or a part of it (prerequisites inside it are `content`-mode, §6.4); after the request's edges are added — basis entries, equivalence coverage, inhibition edges from failing assessments and `IMMATERIALITY` judgments, and the edges of existing records whose `validity` endpoints the request's structural changes re-route through `subj` — the combined support-and-inhibition graph remains acyclic (§6.6);
 6. **currency** — every basis entry of every submitted support-tier record other than a report is satisfied, in its role, in that record's frame at the current admitted ledger head. That is the admitted state for a record about admitted content, or the transformation frame `D_n[X]` for a record about a transformation `X`, with before-image, output and context roles (§6.9). A request that itself carries content or structural changes (an integration, a principal's plan-unit change) is evaluated as a frame record of its own transformation, so revision 4's merged-tree exception is now the same rule. (Optimistic concurrency: Admission holds that head by compare-and-swap, and it is admitted because at most one provisional entry exists, §15.3.) Otherwise the record is classified stale and routed to revalidation rather than admitted. **Reports and challenges are exempt** (`f3608f5` Blocker A). Their basis records what the raiser saw, as provenance; it is never checked for currency and never consumed by any rule, since resolving records reference reports by identity (§7.9). A report raised after its context moved is therefore still admitted and routed. When a request is routed to revalidation, the admission record that rejects it still admits the report and challenge records it carries, bound to the same task, so nothing reported is lost with the rejected work;
 7. **legality** — the bound obligation exists at the current head. A task result or discharge claim bound to an obligation already discharged, or to a contract revision that is no longer current, is recorded with that classification and routed to revalidation; it is not admitted as current work. Reports and challenges are admitted whatever the state of their task, so nothing reported is lost. A human decision on a fenced admission is admissible only once that admission is settled: a later `obs` shows the ref away from its base (§15.3). Each obligation whose *discharge* the request claims is undischarged at the current head (a duplicate discharge is rejected and recorded), and its discharge predicate (§7.4) holds after the request's own records, including affected evidence rerun on the merged tree. Requests that claim no discharge (a task result, a mid-task report) are subject only to the binding checks. For a claimed task obligation carrying a work contract, the derived conformance of the exact candidate commit has no `VIOLATION`, `INCOMPLETE` or `DISCREPANCY` (§7.7), and an integrating request claims it only together with its current review judgments (§7.8);
 8. **no collateral regression** — every obligation discharged at the current head and affected by the merged tree stays discharged, with affected evidence rerun. The only legal way to reopen others' closures is an accepted change to a prerequisite authority, whose derived impact obligations are the intended consequence. A D4 change that breaks another closure is a regression and is not admitted;
@@ -929,9 +962,15 @@ Revision 9 keeps one idea: **a transformation is a proposed change, identified c
 
   Nothing evaluated in a frame changes the admitted state. In `D_n`, a review or prospective acceptance of `X` is admitted but not current, and a proposed promotion is still a quarantined proposal.
 - **Integration enacts the frame.** The integrating admission `k` of transformation `X` admits exactly `M_n(X)` as the observed tree and `Σ_n ⊕ Δ_Σ(X)` as the effective structure, in one entry. It checks the full step-4 validation including the enactment condition, so a promotion without a current prospective acceptance is rejected (§6.8 step 4, §12.2). Its discharge predicate (step 7) is evaluated in the post-admission state. There, before-image entries are fixed facts, and output and context entries hold exactly as they held in the frame.
-  - **Prospective-acceptance rule.** A prospective acceptance made in the frame of `X0` counts for a tenure that admission `k` starts exactly when two conditions hold. First, `k` integrates a transformation `X` with `Δ_Σ(X) = Δ_Σ(X0)`; this is satisfied by `X0` itself or by a rebase that preserves the structural delta. Second, the acceptance's basis holds, in its roles, in `D_n[X]` at `k`.
+  - **Prospective-acceptance rule (`fb3e542` Blocker A).** A prospective acceptance `j` made in the frame of `X0` counts for the tenure that admission `k` starts exactly when all four conditions hold:
+    1. **Same enactment lineage.** `k` integrates a transformation `X` produced for the same bound obligation as `X0`, as recorded in the signed task envelopes of their results (§7.5). That is `X0` itself or a later iteration or rebase of the same work. A restoration after a demotion is new work under a new obligation, so it is never the same lineage.
+    2. **Same structure.** `Δ_Σ(X) = Δ_Σ(X0)`.
+    3. **Basis holds.** `j`'s basis holds, in its roles, in `D_n[X]` at `k`.
+    4. **First enactment.** `j` has not counted for any earlier tenure. `bind(j)`, the first admission at which conditions 1-3 held and that started a tenure, is a function of the ledger.
+
+    `j` therefore counts for at most one tenure, the one starting at `bind(j)`. When that tenure ends, `j` leaves `ACC` permanently, as §12.2 states for every acceptance, and no later restoration can reuse it. Equal structure plus a holding basis is necessary for reuse across a rebase, but never sufficient for lifecycle continuity.
   - Promotion and acceptance therefore take effect together in `k`, although the acceptance was recorded earlier by an independent reviewer. The integration request carries no new judgment.
-- **Rebase.** A rebase produces a new transformation `X' = (B', C', A')`. A frame-`X` record counts for `X'` only if every one of its entries holds, in its role, in `D_n[X']`. A record that concerns structure, such as a prospective acceptance or a structural review, counts for `X'` only if, in addition, `Δ_Σ(X') = Δ_Σ(X)`. Records never move between frames by assertion.
+- **Rebase.** A rebase produces a new transformation `X' = (B', C', A')` for the same bound obligation. A frame-`X` record counts for `X'` only if every one of its entries holds, in its role, in `D_n[X']`. A record that concerns structure, such as a prospective acceptance or a structural review, counts for `X'` only if, in addition, `Δ_Σ(X') = Δ_Σ(X)`. Records never move between frames by assertion.
 
 ## 7. Work: obligations, change plans, roles and verification
 
@@ -970,7 +1009,8 @@ discharged(o) <=> exists current judgment j of kind(o) on subject(o)
                    by an actor qualified for kind(o), with outcome in passing(o)
               AND status1 of subject(o)'s current revision is not BLOCKED or REVOKED
               AND every evidence obligation of o has a current admissible realization
-                  assessed for the current claim revision
+                  assessed passing for the current claim revision, and is undisputed
+                  (a live conflict makes that input P, §6.6 Assessment disagreement)
               AND every human gate of o is discharged by a current authenticated human judgment
 result is DISCHARGED_PROVISIONAL when any input above is P; that value is permitted only
   inside the declared scope of an in-force risk override or where policy permits provisional
@@ -1247,7 +1287,7 @@ Every context item is labeled:
 | `HISTORICAL` | PEM entries and Git history; offered only when the PEM predicate fires or on explicit request |
 | `CANDIDATE` | search or embedding hits and unaccepted proposals; never authority, never closure support |
 
-Each item also carries its acceptance status (valid, provisional, challenged, stale, drift, quarantined, ill-formed, loss-withheld, unclassified) and its inclusion path. Every answer names the qualified ledger head it was derived at (§15.4); with no qualified head, answers are labeled historical (`UNQUALIFIED`) and claim no currentness. Answers are deterministic for identical basis, query and policy version. Search indexes record their versions, and nondeterministic search contributes only `CANDIDATE` items outside the determinism guarantee. A search hit can lead to a proposed relation, but never by itself to an accepted one.
+Each item also carries its acceptance status (valid, provisional, disputed, challenged, stale, drift, quarantined, ill-formed, loss-withheld, unclassified) and its inclusion path. Every answer names the qualified ledger head it was derived at (§15.4); with no qualified head, answers are labeled historical (`UNQUALIFIED`) and claim no currentness. Answers are deterministic for identical basis, query and policy version. Search indexes record their versions, and nondeterministic search contributes only `CANDIDATE` items outside the determinism guarantee. A search hit can lead to a proposed relation, but never by itself to an accepted one.
 
 ### 9.4 Human gates
 
@@ -1319,7 +1359,7 @@ The view is an inspection surface and a trust boundary (§15.7): where content i
 | specification | evidence unit with `EVIDENCES` -> claim unit and declared or derived `EXECUTION_DEPENDS_ON` |
 | realization | observation record whose basis has two parts: **target** (claim unit revision) and **execution** (code units, data identity, environment, backend, precision, configuration, parameter instance, regime, seed and replicate identity) |
 | observation | the realization record's outcome plus references to native artifacts (logs, data) by content identity where possible |
-| assessment | judgment record; later reassessment supersedes, never rewrites |
+| assessment | judgment record. A reassessment replaces an earlier one only by explicit, authorized supersession, never by being later; two current assessments of one key with opposite outcomes are a disagreement, resolved only by the owner's supersession or an `IMMATERIALITY` judgment (§6.6) |
 
 A realization supports a claim at revision `c` only while its execution basis is current and its target is `c`, or an equivalence judgment covers the change. An execution-dependency change triggers a rerun obligation; a target change triggers an assessment-review obligation. Stale passing evidence never discharges; stale failing evidence is not admissible against the current claim. Unavailable artifacts degrade binding health through availability observations: the historical record survives, and present use becomes `UNAVAILABLE`. Process exit or harness success is never evidence admissibility. A realization with incomplete or malformed evidence is recorded as such and cannot enter a PASS/FAIL assessment. Raw data stays in native stores; the ledger stores identities and bounded classifications. A realized-record item is an observation only when an evidence realization produced it; retaining it neither assesses nor re-identifies it. A challenge record carries the finding's inquiry status (exploratory or confirmatory) as its own attribute, separate from evidence strength, applicability and disposition (7.2.1 evidence owner). Findings and tensions keep their one canonical home in project evidence records or native issues; the ledger references that home by identity and never becomes it (S13, §15.5).
 
@@ -2075,9 +2115,9 @@ The SSDS 8 Architecture Manual, independently reviewed and accepted, SHALL decid
 
 1. unit model: manifest and anchor declaration syntax (governance-affecting declarations confined to the manifest), content normalization and boundary-marker rules, scope identity, coverage partition and laminarity rules, single-definer rule; effective-structure fold, declaration keys, resolution of effective scopes against observed bytes (`ABSENT`, uncovered region), governance-affecting vs neutral classification algorithm, `aff(Q)`, governance signature and tenure;
 2. relation vocabulary with every type's direction, semantic role, cycle class, permitted classes, layer constraint and completeness eligibility; vocabulary adoption checks; SDG declaration syntax and rules; cycle legality and `well_formed`; boundary-completeness judgment semantics and analyzer completeness declarations;
-3. closed record schemas, judgment kinds and tiers, actor qualifications (including product-scope acceptance of a marked surface), outcome vocabularies, the challenge inquiry-status attribute, compatibility contract;
+3. closed record schemas, judgment kinds and tiers (including `IMMATERIALITY` and the assessment key: claim revision, evidence specification, regime and parameter instance), actor qualifications (including product-scope acceptance of a marked surface), outcome vocabularies, the challenge inquiry-status attribute, compatibility contract;
 4. basis composition and mode assignment per judgment kind, including the subject-boundary rule (`content` inside the record's subject, `validity` across), consumption classes, equivalence-path composition, the widening chain and closure algorithm;
-5. derivation: strata S0-S3 (including `Σ`, `Q`, `aff`, `τ`, `well_formed`, `ok`, `E` and `pub` in S0, and `cont` in S1), the polarity classification of every record kind, the fixed predicate templates and the adoption-time stratification check, least-fixed-point evaluation, transformation identity and frames with the fixed three-way merge algorithm, prospective structure, the well-formedness/enactment split, basis-entry roles, prospective tenure, the prospective-acceptance rule and each record kind's declared frame (§6.9), fence settlement across fence chains (§15.3), analyzer contract (deterministic vs recorded), derivation checkpoints and recovery-time bounds;
+5. derivation: the inhibition edges of assessment disagreement and the acyclicity-based uniqueness argument for S2; strata S0-S3 (including `Σ`, `Q`, `aff`, `τ`, `well_formed`, `ok`, `E` and `pub` in S0, and `cont` in S1), the polarity classification of every record kind, the fixed predicate templates and the adoption-time stratification check, least-fixed-point evaluation, transformation identity and frames with the fixed three-way merge algorithm, prospective structure, the well-formedness/enactment split, basis-entry roles, prospective tenure, the prospective-acceptance rule and each record kind's declared frame (§6.9), fence settlement across fence chains (§15.3), analyzer contract (deterministic vs recorded), derivation checkpoints and recovery-time bounds;
 6. Admission validation order including the structural-delta rule (author, realign, carry, adopt), source/destination challenge freeze, dependency well-formedness with re-routed support edges, request identity and idempotency, merge-queue serial order, single-ref append, quorum admission and the single provisional entry; the integration observation `obs`, the entry-shape rule, the equivalent-publication and reachability classification, the reconciliation procedure, exclusive per-entry publication with its write-ahead intent, fencing absorptions and fence commits, late-publication detection, and the operational takeover wait, and its ABA policy;
 7. obligation rules, readiness, three-valued discharge, provisional propagation and risk-override scope, iteration/attempt identity;
 8. change-plan structure, plan acceptance, scoped amendment policy, plan invariants;
@@ -2259,8 +2299,15 @@ Qualification binds every claim to the property its method can discriminate (DS-
 - **Work contracts.** Lint rejects an obligation without a verifier, a `HEURISTIC` primary verifier, a write scope containing a protected surface, a plan unit or an unnamed evidence specification, missing triggered slots and missing minimum coverage. Control-tightening classification on generated diffs over every contract field (`ffbad17` Blocker D): each field moved in its tightening direction stays covered by the existing plan acceptance; each field moved against it, every added or removed obligation, every statement or primary-verifier change, and every field outside the whitelist (including a field injected by a newer schema) is R2. In particular, `scientific` `APPLIES` to `NOT_APPLIES`, a removed escalation trigger, an unfrozen interface and a widened `evidence_specs` are R2. Tightening then loosening is R2 against the accepted revision. A task partition whose obligation sets do not partition the item's, or whose write scopes overlap or leave the item's, is rejected; an accepted partition moves no acceptance and discharges the item only when every part, and any required item-level review, is discharged. An amendment makes running tasks on its item non-current, and their late results are routed to revalidation.
 - **Conformance verification (DS-001: mechanics only).** Each `HARD` template is qualified on seeded violations inserted into real trajectories (detection rate) and on clean real trajectories (false-positive rate), against thresholds frozen before the runs; a template that misses either stays `HEURISTIC`. *Signal inertness:* replaying a corpus with every `HEURISTIC` template removed yields identical admission decisions and discharges. *Never sufficient:* a candidate with clean conformance and no current review judgment is never integrated, and no `REVIEW` obligation is discharged by any check. *Disclosure:* the same breach disclosed and undisclosed yields an amendment request and a `DISCREPANCY` respectively, and neither is integrated. *Faithfulness:* fixture results claiming completion with an unmet obligation, or citing a failing realization as passing, yield `DISCREPANCY`. *Test integrity:* deleting, skipping or expected-failure-marking a test, and editing an unnamed acceptance test, yield `VIOLATION`; a weakened assertion yields `SIGNAL` and a mutation-strength shortfall `INCOMPLETE`. *Advisory pre-flight:* `ask(verify)` results never enter discharge. *Determinism:* identical contract, trees and observations give identical conformance on every host.
 - **Escalation and inspector flow.** *Persistence (`ffbad17` Blocker B):* after a report's target is amended or edited, after its basis goes stale, and after a loss boundary, its human-attention, coordination and adjudication obligations stay open and are annotated, never closed; a raiser's withdrawal of a floor item leaves human attention open; a principal reclassification moves a non-floor item to the digest without a human discharge record and returns it if challenged and upheld. For every floor kind, every principal operation (decline, resolve locally, merge, downgrade) leaves the human-attention obligation open until an authenticated human judgment; a merged item lists every member. A raiser's `ROUTINE` report targeting a D1 or D2 unit is raised to `MATERIAL`. A downgrade of a non-floor item appears in the digest and an upheld challenge restores it. An authority-defect request cannot be resolved locally. A blocking report suspends exactly the raising task and resumption follows the decision. Inspector ranking is a deterministic function of derived impact. The 7.2.1 delegate floor: a material finding in an E2 slot of a `scientific = APPLIES` task reaches the inspector view through any number of intermediate roles.
+- **Prospective-acceptance lifecycle (`fb3e542` Blocker A), through real owners.** Part -> prospective acceptance `j` -> integration (tenure `τ1`, `bind(j)`) -> lawful demotion -> identical restoration with new work. Reusing `j` for the restoration is rejected at the enactment condition, and a fresh, independently qualified acceptance succeeds. Contrasts: a clean rebase of the original work *before* enactment keeps `j` usable; a structural-only promotion and a quarantined-adoption restoration behave the same way; `ACC` never contains `j` for any tenure but `τ1`.
+- **Assessment disagreement (`fb3e542` Blocker B), through real Admission, Derivation and inspection consumers.** A current passing and a current failing assessment of the same key: `valid` is at most `P`, discharge is `OPEN` (or `DISCHARGED_PROVISIONAL` only inside a risk override), the evidence is labelled `disputed`, and an adjudication obligation goes to the claim's owner (human attention for D1/D2 claims). The same with the ledger order reversed gives the same result. Contrasts:
+  - a stale failing assessment, or one of a different regime, does not qualify the claim;
+  - an authorized superseding adjudication, a discriminating new assessment that supersedes, or an `IMMATERIALITY` judgment removes the qualification;
+  - an upheld challenge against that `IMMATERIALITY` judgment restores the qualification.
+
+  Nothing is seeded resolved. *Uniqueness:* an inhibition edge that would close a cycle with support edges is rejected at Admission; a fixture-injected inhibitory cycle evaluates its variables to `F` with an integrity obligation; evaluation order never changes the result.
 - **Report ingress (`f3608f5` Blocker A), through real Admission.** A `HUMAN_QUESTION` and a material finding are submitted *after* the raising task's item was amended and after a context unit changed. Both are admitted and appear in the inspector view without resubmission. A stale task result that carries a report is routed to revalidation while its report is admitted from the same rejecting entry. A report whose record-mode premise is withheld by a loss boundary is admitted.
-- **Candidate frames (`f3608f5` Blocker B; `ac71fa9` Blockers A-B), production path end to end.** The implementer genuinely calls `read(u@r0)` through the interface, so the read is recorded in its basis, and then substantively edits `u` to `r1`. The run goes result -> designated-runner executions -> independent review -> integration while the product ref stays at `r0` until integration, with no seeded current judgments and the read retained. The read is a before-image entry: satisfied in the frame, and a fixed fact after integration. Sibling cases: widened context that contains the edited unit (before-image again); a concurrent change to an external prerequisite (stale context, re-review); a concurrent change to the edited unit (stale before-image, rebase). *Prospective structure:* an effective part `A` becomes a newly accepted subject through the ordinary pipeline. The candidate changes only its role declaration; the reviewer records a prospective acceptance in the frame, where `A` is a subject in prospective tenure; the integration carries no new judgment; promotion and acceptance take effect in that one admission. Before integration, `A` is still a part and quarantined in `D_n`. The same path runs for restoration of a demoted subject and for adoption of a quarantined foreign promotion. Negative cases: a prospective acceptance never counts if its transformation is not integrated, or if a transformation with a different structural delta starts the tenure; a frame whose structural delta violates a challenge freeze does not exist. *Bootstrap (`730490d` Blocker A):* the positive promotion path must start from an effective part with **no** prospective acceptance. The first result is admitted in a frame that exists (the delta is well-formed); trusted executions run; the independent reviewer then records the prospective acceptance in that existing frame; integration enacts both. Integration without the acceptance is rejected. The case runs through real owners, with nothing seeded, for promotion, for restoration, for adoption of a foreign promotion, and for an SDG promoted as one composite. *Identity (`730490d` Blocker B):* the same candidate commit offered by two requests, one adopting a quarantined promotion and one carrying it, yields two transformation identities with different frames. An acceptance in one never counts for the other's promotion. An unrelated clean rebase that preserves the structural delta and the promoted subject's bytes and scope keeps the prospective acceptance; a rebase that changes the structural delta does not. The review is admitted, current in `D_n[C]` and not current in `D_n`. After integration it is current, and the task obligation is discharged. Variants: the head moves a unit the review read (stale, re-review); a rebase leaving `u`'s revision unchanged (review kept); a rebase changing it (re-review); a non-clean merge (new iteration, no frame); a unit changed on both sides that merges cleanly (judged at the merged revision).
+- **Candidate frames (`f3608f5` Blocker B; `ac71fa9` Blockers A-B), production path end to end.** The implementer genuinely calls `read(u@r0)` through the interface, so the read is recorded in its basis, and then substantively edits `u` to `r1`. The run goes result -> designated-runner executions -> independent review -> integration while the product ref stays at `r0` until integration, with no seeded current judgments and the read retained. The read is a before-image entry: satisfied in the frame, and a fixed fact after integration. Sibling cases: widened context that contains the edited unit (before-image again); a concurrent change to an external prerequisite (stale context, re-review); a concurrent change to the edited unit (stale before-image, rebase). *Prospective structure:* an effective part `A` becomes a newly accepted subject through the ordinary pipeline. The candidate changes only its role declaration; the reviewer records a prospective acceptance in the frame, where `A` is a subject in prospective tenure; the integration carries no new judgment; promotion and acceptance take effect in that one admission. Before integration, `A` is still a part and quarantined in `D_n`. The same path runs for restoration of a demoted subject and for adoption of a quarantined foreign promotion. Negative cases: a prospective acceptance never counts if its transformation is not integrated, or if a transformation with a different structural delta starts the tenure; a frame whose structural delta violates a challenge freeze does not exist. *Bootstrap (`730490d` Blocker A):* the positive promotion path must start from an effective part with **no** prospective acceptance. The first result is admitted in a frame that exists (the delta is well-formed); trusted executions run; the independent reviewer then records the prospective acceptance in that existing frame; integration enacts both. Integration without the acceptance is rejected. The case runs through real owners, with nothing seeded, for promotion, for restoration, for adoption of a foreign promotion, and for an SDG promoted as one composite. *Identity (`730490d` Blocker B):* the same candidate commit offered by two requests, one adopting a quarantined promotion and one carrying it, yields two transformation identities with different frames. An acceptance in one never counts for the other's promotion. An unrelated clean rebase that preserves the structural delta and the promoted subject's bytes and scope keeps the prospective acceptance; a rebase that changes the structural delta does not. The review is admitted, current in `D_n[X]` and not current in `D_n`. After integration it is current, and the task obligation is discharged. Variants: the head moves a unit the review read (stale, re-review); a rebase leaving `u`'s revision unchanged (review kept); a rebase changing it (re-review); a non-clean merge (new iteration, no frame); a unit changed on both sides that merges cleanly (judged at the merged revision).
 - **Iteration and recurrence.** `INCOMPLETE` within budget re-issues mechanically; exhaustion, out-of-scope findings and discrepancies create coordination decisions; repeated template failures and repeated finding families are detected; operational retries spend no budget.
 - **Usability.** Live trajectories on real tasks, in shadow mode, showing that agents complete bounded work without reading machine records and with less context than the document-controlled baseline. Claims stay bounded to the trajectories, harnesses and models actually exercised, consistent with the Protocol 6.6 stochastic robustness boundary. Following the 7.x lessons (§19.3), comparisons are paired against the document-controlled 7.2.1 baseline on the same executors and fixtures, gates are calibrated from simulated operating characteristics before any spend, evaluator and oracle instruments are validated first, and rules, custody and blinding are frozen before runs. **Doctrine realization** is measured the same way: the 7.x qualification panel, rerun with SSDS role briefs, contracts, conformance verification and escalation in shadow against the 7.2.1 baseline, for unauthorized mutation, claim integrity, owed-duty presence, narration where none was owed, and survival of material delegated findings to the human. Claims stay bounded to the duties and models exercised, and detection is reported separately, because enforcement is not expected to improve it.
 - **Authorization boundaries (`f3608f5` Blocker D).** Not a runtime test. Before each gate, a review of §23-§25 confirms that every criterion of that gate is satisfiable by work the earlier gates authorize, and that no gate can be passed by evidence from fixtures or the existing Core standing in for SSDS owners.
@@ -2348,9 +2395,9 @@ Uncertainties that cannot close by design work alone:
 - **Formerly Protocol 7 dependent (resolved at 7.2.1, §19.1):** finding and tension canonical home; product-surface acceptance actor; pre-cutover baseline. **Still open, for the Manual:** exact gate-template obligations; the mapping of tension search keys to unit identity; the §19.2 decisions. The Stage F portable execution-profile semantics did not become 7.x doctrine (7.2 replaced them with the consolidated qualification harness); the Dispatcher keeps only its evidence-only lesson that transport success is not evidence admissibility (§9.5, §10).
 - **Empirical:** rate of false staleness under conservative widening and part-to-subject routing; frequency and cost of promotion judgments in Case B; analyzer completeness for real Python and C++ scientific code; feasibility of read recording per harness; practical unit granularity; derivation cost and checkpoint sizing on large repositories; ledger growth over years; witness availability and admission latency in practice; frequency of structural quarantine and of SDG declarations; agent context and success compared with the document-controlled baseline; contract authoring cost; detection and false-positive rates of check templates on real Python and C++ scientific code; amendment, escalation and downgrade rates; human-attention load per unit of work; whether doctrine realization on the 7.x panel improves over 7.2.1 on the behaviours that did not respond to text.
 
-## 27. Adequacy and minimum-architecture passes (rounds 2-9)
+## 27. Adequacy and minimum-architecture passes (rounds 2-10)
 
-These passes are design rationale, not evidence of adequacy. The next Review must falsify independently, and nothing here awards a PASS. Round 5 (§27.4-§27.5) covers the revision-5 workflow layer; the `ffbad17` Review falsified parts of it, and round 6 (§27.6-§27.7) records the repairs and governs where the two disagree. The `f3608f5` Review falsified parts of revision 6; round 7 (§27.8-§27.9) records those repairs and governs over round 6 where they disagree. The `ac71fa9` Review falsified the candidate-frame and publication contracts again; round 8 (§27.10-§27.11) records their re-derivation and governs over earlier rounds on those two contracts. Round 9 (§27.12-§27.13) completes the transformation contract after the `730490d` Review and governs on it. Round 4 (§27.1-§27.2) still governs the rest, except where §27.6, §27.8 and §27.10 repair it (S1 counter-challenges, candidate currency, publication and ABA).
+These passes are design rationale, not evidence of adequacy. The next Review must falsify independently, and nothing here awards a PASS. Round 5 (§27.4-§27.5) covers the revision-5 workflow layer; the `ffbad17` Review falsified parts of it, and round 6 (§27.6-§27.7) records the repairs and governs where the two disagree. The `f3608f5` Review falsified parts of revision 6; round 7 (§27.8-§27.9) records those repairs and governs over round 6 where they disagree. The `ac71fa9` Review falsified the candidate-frame and publication contracts again; round 8 (§27.10-§27.11) records their re-derivation and governs over earlier rounds on those two contracts. Round 9 (§27.12-§27.13) completes the transformation contract after the `730490d` Review and governs on it. Round 10 (§27.14-§27.15) binds prospective acceptances to one enactment and realizes assessment disagreement in S2; it governs on both. Round 4 (§27.1-§27.2) still governs the rest, except where §27.6, §27.8 and §27.10 repair it (S1 counter-challenges, candidate currency, publication and ABA).
 
 ### 27.1 Round 4: fresh out-of-matrix pass against revision 4
 
@@ -2720,6 +2767,43 @@ Residuals carried: those of §27.10.
   - a frame registry: identity is derived from the result;
   - making the proposed subject effective early for review.
 
+### 27.14 Round 10: lifecycle binding and assessment disagreement against the `fb3e542` Review
+
+| Trajectory | Result (revision 10) |
+|---|---|
+| Blocker A: promote, demote, identically restore, reuse the first prospective acceptance | Holds: the restoration is new work, so not the same lineage, and `j` already counted for `τ1`; rejected at enactment (§6.9) |
+| A rebase of the original work before enactment | `j` stays usable: same lineage, same structure, basis holds, not yet bound |
+| A purported "rebase" by unrelated work with equal structure | Not the same bound obligation, so not the same lineage |
+| Blocker B: current pass and current fail of one key, either order | Holds: `undisputed = P`; validity and discharge are visibly provisional; adjudication obligation to the claim's owner (§6.6, §7.4) |
+| Stale failing assessment; different regime | No conflict |
+| Owner supersession or `IMMATERIALITY` judgment | Conflict resolved; an upheld challenge to the `IMMATERIALITY` judgment restores it |
+
+**Attacks on the repairs.**
+
+| Attack | Result |
+|---|---|
+| Suppress a pass by filing a failing assessment | Not possible: only an admissible assessment by an actor qualified for that evidence kind counts; the effect is a provisional cap, not a block; the conflict goes to the owner. Spurious adverse filing is an R2 abuse handled by challenge |
+| Declare immateriality to clear an awkward fail | Only an actor qualified for the claim's owning domain may; the judgment is challengeable and visible; D1/D2 claims also get human attention |
+| Create a cycle through inhibition edges | Rejected at Admission (step 5); a corrupted one evaluates to `F` with an integrity obligation |
+| Resolve by posting a later pass | A later pass is not supersession unless authorized as such; the conflict stays |
+| Bind `j` twice by racing two integrations of the same lineage | The ledger orders admissions; only the first starts a tenure, and the second is stale (its obligation is discharged) |
+
+Residuals carried: those of §27.12.
+
+### 27.15 Minimum-justified-architecture pass (round 10)
+
+- **Primitives, record categories, persistent surfaces and components:** four, five, six and seven, unchanged.
+- **Added:**
+  - one support-tier judgment kind (`IMMATERIALITY`), because a non-positional resolution must be accountable;
+  - inhibition edges in the acyclicity check, which are the price of realizing the inherited disagreement rule inside S2;
+  - `bind(j)`, which is derived from the ledger, not stored.
+- **Changed:** S2 uniqueness now rests on graph acyclicity, not monotonicity alone. This is the material change of this revision, and it is stated for independent attack.
+- **Rejected alternatives:**
+  - qualifying only discharge in S3, which would leave dependents seeing `T`;
+  - computing conflicts from S0/S1 facts, which would let stale failing evidence qualify claims and so violate S4;
+  - latest-record selection;
+  - requiring every disagreement to become a Serious Challenge.
+
 ## 28. Handoff state
 
 ```text
@@ -2739,7 +2823,8 @@ ARCHITECTURE: basis-stamped judgments over content-addressed units grouped into 
               reports with existence-keyed routing and non-droppable escalation to an inspector view, fail-closed
               reviewer independence; syntactic challenge polarity with inert open counter-challenges;
               transformation frames keyed by full identity (B, C, A), with before-image, output and context roles,
-              prospective structure and acceptance, and inspection separated from enactment
+              prospective structure, one-enactment prospective acceptance, and inspection separated from enactment;
+              assessment disagreement keeps support provisional until owner resolution (S2 unique by acyclicity)
               for pre-integration review; single-publisher effects revoked by ref fencing; staged gates G1-G4
 OBJECTIVE: §1.1, including the doctrine-realization objective, held by the stakeholder as a tested aspiration
            (STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md SD-5, SD-6)
@@ -2752,14 +2837,15 @@ PRIOR REVIEWS: f9d9de8 NO-PASS (repaired by revision 2); 441cf5c NO-PASS (repair
                f3608f5 NO-PASS by a different model family
                (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F3608F5-NO-PASS.md), repaired by revision 7;
                ac71fa9 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-AC71FA9-NO-PASS.md), re-derived by revision 8;
-               730490d NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-730490D-NO-PASS.md); repaired here (§0.1)
-THIS WORKPLAN: design revision 9 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
+               730490d NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-730490D-NO-PASS.md), repaired by revision 9;
+               fb3e542 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-FB3E542-NO-PASS.md); repaired here (§0.1)
+THIS WORKPLAN: design revision 10 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
              not an Architecture Manual; no self-awarded PASS
 SSDP 7: closed at 7.2.1; inheritance RECONCILED (§0.4, §19); Stage H obligation discharged under stakeholder
         instruction (§0.2); pre-cutover baseline Protocol 7.2.1 recovery (§24)
 D3: ready for fresh independent falsification Review (Phase B, covering Phase A); D4 (shadow only) requires gate G2 (§25)
 D4: NOT AUTHORIZED
 SERIOUS CHALLENGE: none
-NEXT ACTION: fresh independent D3 Review of design revision 9 by a different model family (stakeholder SD-7),
-             from qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-9.md; then Phase C.
+NEXT ACTION: fresh independent D3 Review of design revision 10 by a different model family (stakeholder SD-7),
+             from qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-10.md; then Phase C.
 ```
