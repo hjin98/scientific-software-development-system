@@ -66,7 +66,7 @@ This is the twelfth consecutive NO-PASS on the §6.6 disagreement family. This t
 Requested checks:
 
 - The four routing tests pass, and `git diff --check` is clean.
-- The model check is green at depth 4 (1,378,642 transitions, 68/68 discriminators) and at depth 5 (DEPTH5_RESULT).
+- The model check is green at depth 4 (1,378,642 transitions, 68/68 discriminators) and at depth 5 (81,511,449 transitions, 0 failures, 68/68 discriminators).
 - Every sensitivity mode is red on properties other than the oracle. `REV20=1` is red only on P10 and P13, both restated in revision 21 (§6).
 - A bounded probe shows that the model returns `T` on X1, X2 and X3, and that its “owner-stated” `owner_stale` agrees, because it compares assessor-read outcomes by identity just as the candidate does.
 
@@ -380,7 +380,7 @@ The four consolidation tests establish frontmatter and routing only. HARD-templa
   | `REV10=1` | 312,058 | P1 3,352, P7 14,724, P9 23,833, P10 68,977, P11 216, P12 5,887, P13 2,954, Q 61,618, Q2 12,121, O 118,376 | 31 | 1 |
 
   Every mode fails properties other than the oracle, and the totals match §27.36.
-- **Model check**, depth 5, default mode, `--jobs 4`: DEPTH5_RESULT.
+- **Model check**, depth 5, default mode, `--jobs 4`: **81,511,449 transitions, 0 failures, 68/68 discriminators, exit 0** (74 min 4 s on a shared host), matching §0.1 and §27.36.
 - **Probe.** The candidate's own `Ledger`, `owner_stale`, `reproduced_now` and `oracle_unqualified`, loaded unmodified from the archive (§1). The probe script lives in a scratch subdirectory and is not part of the record.
 - **Identities.** Verified the predecessor blobs, the release-state identities, the PEM blob at the candidate and at `af04557`, the stakeholder-record blob `edbf40da…`, the test blob, and the changed-path list, at both `947370d` and the candidate.
 - **Repository untouched.** No candidate, source, distribution, index, release state, PEM or frozen resource was changed. The only repository output is this record. Nothing was committed or pushed.
