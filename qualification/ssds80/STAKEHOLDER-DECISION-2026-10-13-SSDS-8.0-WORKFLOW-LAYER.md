@@ -40,6 +40,10 @@ The "permission classification system" is the decision-class classification R0 (
 
 Earlier the same day, on looking for a third reviewer family: "Anthropic and OpenAI holds the most capable models and I cannot find a competent third option."
 
+**7. Role and convergence (2026-10-13, during the revision-20 Review).**
+
+> "Read the protocol version 7.2.1 and use the software-design role for your revision and reviews. You should be aware of convergence and the active simplification rule when issues don't converge or exposes repeatedly."
+
 ## Decisions adopted
 
 | # | Decision | Realized in (workplan) |
@@ -52,6 +56,7 @@ Earlier the same day, on looking for a third reviewer family: "Anthropic and Ope
 | SD-6 | **The doctrine-realization objective is an aspiration whose machine limits must be tested (N1).** Perfection is not expected soon. The target is progress as challenges are discovered, measured rather than claimed. Every realization claim stays bounded to its mechanism and its evidence | §1.1, §7.7 (realization levels), §22 (doctrine-realization measurement), §26 |
 | SD-7 | Repair the `ffbad17` Review's findings (design revision 6). The next independent D3 Review is by ChatGPT, a different model family, from a handoff prompt written at the end of the revision | workplan revision 6; `REVIEW-HANDOFF-SSDS-8.0-REVISION-6.md` |
 | SD-8 | From revision 11, the author runs the remaining revise/review cycle itself, with fresh-context sub-agent Reviews, until no blocker remains. The sub-agents share the author's model family; every record states that as a common-mode dependency | workplan §0.1 (revision 11 onward); `REVIEW-HANDOFF-SSDS-8.0-REVISION-11.md` and later |
+| SD-9 | Revisions and Reviews are done in the software-design (D3) role under the governing 7.2.1 owners, applying the convergence owner, including its active simplification rule, when issues do not converge or keep resurfacing | workplan §0.1 (revision 21 onward), §27.36; `REVIEW-HANDOFF-SSDS-8.0-REVISION-21.md` and later (method step 5) |
 
 ## Not covered
 
