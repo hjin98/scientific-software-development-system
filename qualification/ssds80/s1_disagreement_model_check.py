@@ -1,5 +1,5 @@
 """Bounded model check of SSDS 8.0 workplan §6.6 S1 polarity and assessment
-disagreement (design revision 15 and later).
+disagreement (design revision 17 and later).
 
 This is a diagnostic transcription of the workplan's equations, not an SSDS
 implementation and not an adequacy oracle (DS-001): it can show that the
@@ -30,6 +30,10 @@ The checked value is V, the claim's evidence conjunct: ev while the
 obligation is required, and in every case qual, the undisputed term over
 every obligation an admitted failing assessment names (revision 14).
 
+Revision 17 has no mechanical lapse: no move of any kind ends a failing
+assessment; only a disposition does (a superseder, typically the assessment
+of a configuration rerun, an upheld challenge, or IMMATERIALITY).
+
 Properties, for every ledger L and every appended record r:
   P1  appending any challenge never raises the evidence term;
   P2  appending a LEDGER_LOSS never raises the evidence term;
@@ -42,10 +46,9 @@ Properties, for every ledger L and every appended record r:
   P7  retiring the evidence obligation never makes the evidence term T while
       a bearing failing assessment has nothing recorded against it;
   P8  a structural-only change (REPART) never raises the evidence term;
-  Q   a failing assessment whose execution still bears (every later MOVE is
-      equivalence-covered) and that has no superseder, no challenge against
-      it or its realization and no IMMATERIALITY judgment keeps the evidence
-      term at most P (stated syntactically, from the evidence owner);
+  Q   a failing assessment that has no superseder, no challenge against it
+      or its realization and no IMMATERIALITY judgment keeps the evidence term
+      at most P, whatever moved (stated syntactically);
   O   the evidence term is T exactly when an oracle says the claim is
       unqualified. The oracle is written separately and does not call the
       bearing, disposer or effectiveness predicates it checks.
@@ -53,7 +56,7 @@ Properties, for every ledger L and every appended record r:
 Named discriminators (the 97e753f and 4c35d92 Reviews' trajectories and
 their contrasts) are evaluated separately and printed.
 
-Sensitivity: REV14=1, REV13=1, REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
+Sensitivity: REV16=1 (content-based lapse, revisions 15-16), REV14=1, REV13=1, REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
 must report failures on P1-P6 or Q, not only on O; a run that stays green
 there means the check is blind.
 
@@ -67,7 +70,7 @@ import os
 from dataclasses import dataclass, field
 
 F, P, T = 0, 1, 2
-MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13", "REV14") if os.environ.get(m)), "REV15")
+MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13", "REV14", "REV16") if os.environ.get(m)), "REV17")
 
 
 @dataclass(frozen=True)
@@ -271,7 +274,9 @@ class Ledger:
             )
         if MODE in ("REV13", "REV14"):
             return self.unit_bears(a)
-        return self.exec_bears(a)  # evaluated content of the evidentiary premises
+        if MODE == "REV16":
+            return self.exec_bears(a)  # revisions 15-16: lapse when evaluated content changes
+        return True  # revision 17: no mechanical lapse
 
     def disposers(self, am: int) -> list[int]:
         out = self.supersession_closure(am) + self.upholdings(self.challenges_on(am))
@@ -283,7 +288,7 @@ class Ledger:
         return out
 
     def eff(self, d: int) -> int:
-        if self.kind(d) == "ASSESS" and not self.r[d].indep and MODE in ("REV14", "REV15"):
+        if self.kind(d) == "ASSESS" and not self.r[d].indep and MODE in ("REV14", "REV16", "REV17"):
             return F
         if self.kind(d) in ("ASSESS", "IMMAT"):
             return self.current(d)
@@ -331,7 +336,7 @@ class Ledger:
     def V(self) -> int:
         """The claim's evidence conjunct."""
         required = T if self.retired() else self.ev()
-        if MODE in ("REV14", "REV15"):
+        if MODE in ("REV14", "REV16", "REV17"):
             return min(required, self.undisputed())
         return required
 
@@ -398,16 +403,15 @@ def oracle_unqualified(L: Ledger) -> bool:
         return False
     for f in range(n):
         if recs[f].kind == "ASSESS" and recs[f].outcome == "FAIL":
-            still_bears = all(recs[m].equiv for m in after(f, "MOVE"))
-            if still_bears and not settled(f):
+            if not settled(f):  # nothing but a disposition ends a failing assessment
                 return False
     return True
 
 
 def untouched_bearing_failure(L: Ledger) -> bool:
-    """Q's premise: a failing assessment that still bears, with nothing recorded against it."""
+    """Q's premise: a failing assessment with nothing recorded against it."""
     for f in L.assessments("FAIL"):
-        if not L.exec_bears(f) or L.superseded(f) or L.immat_on(f):
+        if L.superseded(f) or L.immat_on(f):
             continue
         if L.challenges_on(f) or L.challenges_on(f, on_real=True):
             continue
@@ -465,7 +469,8 @@ BCH = lambda t: R("CHALLENGE", target=t, blocking=True)
 DISCRIMINATORS = [
     ("base: live pass and fail", (PASS_, FAIL_), P),
     ("97e753f A: equivalence move, passing rerun", (PASS_, FAIL_, R("MOVE", equiv=True), PASS_), P),
-    ("97e753f A contrast: non-equivalent move, passing rerun", (PASS_, FAIL_, R("MOVE", equiv=False), PASS_), T),
+    ("97e753f A contrast (revision 17): non-equivalent move, passing rerun of another realization", (PASS_, FAIL_, R("MOVE", equiv=False), PASS_), P),
+    ("configuration rerun passes and supersedes the failing assessment", (PASS_, FAIL_, R("MOVE", equiv=False), R("ASSESS", outcome="PASS", supersedes=1)), T),
     ("97e753f B1: IMMATERIALITY whose prerequisite moved", (PASS_, FAIL_, R("IMMAT", target=1), R("GMOVE")), P),
     ("97e753f B1 contrast: prerequisite unchanged", (PASS_, FAIL_, R("IMMAT", target=1)), T),
     ("97e753f B2: open blocking counter-challenge on the upholding", (PASS_, FAIL_, BCH(1), UPHOLD(2), BCH(3)), P),
@@ -492,7 +497,7 @@ DISCRIMINATORS = [
     ("644eb72 N3: non-independent superseder disposes of nothing",
      (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1, indep=False)), P),
     ("62c0b24 A: boundary move of the claim unit, passing rerun", (PASS_, FAIL_, R("REPART"), PASS_), P),
-    ("62c0b24 A contrast: content edit without equivalence, passing rerun", (PASS_, FAIL_, R("MOVE"), PASS_), T),
+    ("62c0b24 A contrast (revision 17): content edit, passing rerun of another realization", (PASS_, FAIL_, R("MOVE"), PASS_), P),
     ("challenged equivalence: failing evidence still bears, passing support provisional at most",
      (FAIL_, R("MOVE", equiv=True), PASS_, BCH(1)), P),
 ]
@@ -504,7 +509,7 @@ def run_discriminators() -> int:
         got = Ledger(recs).V()
         ok = got == want
         bad += 0 if ok else 1
-        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 15 expects {'FPT'[want]})")
+        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 17 expects {'FPT'[want]})")
     return bad
 
 
