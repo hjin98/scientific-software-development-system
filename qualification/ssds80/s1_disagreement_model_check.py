@@ -1,32 +1,46 @@
 """Bounded model check of SSDS 8.0 workplan §6.6 S1 polarity and assessment
-disagreement (design revision 12 and later).
+disagreement (design revision 13 and later).
 
 This is a diagnostic transcription of the workplan's equations, not an SSDS
 implementation and not an adequacy oracle (DS-001): it can show that the
 written predicates contradict their own stated properties on small ledgers,
 never that the design is right.
 
-The model has one claim and one evidence obligation. Execution content moves
-by MOVE events, each with or without an admitted equivalence judgment; the
-governing subject that an IMMATERIALITY judgment relies on moves by GMOVE
-events. Equivalence judgments are taken as current.
+The model has one claim and one evidence obligation. Each ASSESS record is an
+assessment of its own realization. Premises move by events:
+  MOVE   execution content moves (an evidentiary premise), with or without an
+         admitted equivalence judgment;
+  ORACLE the oracle/specification moves (an interpretive premise);
+  CTX    a context unit moves, read only by assessments with reads=True
+         (provenance);
+  GMOVE  the governing subject an IMMATERIALITY judgment relies on moves;
+  COMPL  a completeness judgment; each assessment relies on the latest one
+         before it (provenance, record mode).
+Equivalence judgments are taken as current.
 
-Checked properties, for every ledger L and every appended record r:
+Properties, for every ledger L and every appended record r:
   P1  appending any challenge never raises the evidence term;
   P2  appending a LEDGER_LOSS never raises the evidence term;
   P3  appending an open counter-challenge never lifts a revocation;
   P4  appending a LEDGER_LOSS never lifts a revocation;
-  O   the evidence term is T exactly when the plain-language rule says the
-      claim is unqualified: a current passing assessment exists, and every
-      failing assessment that may still apply has a disposition that stands
-      (current, uncontested, not withheld).
+  P5  moving a premise that is not evidentiary (ORACLE, CTX, GMOVE) never
+      raises the evidence term;
+  P6  upholding a challenge against a completeness judgment never raises the
+      evidence term;
+  Q   a failing assessment whose execution still bears (every later MOVE is
+      equivalence-covered) and that has no superseder, no challenge against
+      it or its realization and no IMMATERIALITY judgment keeps the evidence
+      term at most P (stated syntactically, from the evidence owner);
+  O   the evidence term is T exactly when an oracle says the claim is
+      unqualified. The oracle is written separately and does not call the
+      bearing, disposer or effectiveness predicates it checks.
 
-Named discriminators (the 97e753f Review's A, B1 and B2, and their contrasts)
-are evaluated separately and printed.
+Named discriminators (the 97e753f and 4c35d92 Reviews' trajectories and
+their contrasts) are evaluated separately and printed.
 
-Sensitivity: REV11=1 evaluates revision 11's keyed, currency-blind form and
-REV10=1 revision 10's currency-based form. Each must report failures; a run
-that stays green under either means the check is blind.
+Sensitivity: REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
+must report failures on P1-P6 or Q, not only on O; a run that stays green
+there means the check is blind.
 
 Run: python3 qualification/ssds80/s1_disagreement_model_check.py [--depth N]
 """
@@ -38,18 +52,20 @@ import os
 from dataclasses import dataclass, field
 
 F, P, T = 0, 1, 2
-MODE = "REV10" if os.environ.get("REV10") else "REV11" if os.environ.get("REV11") else "REV12"
+MODE = next((m for m in ("REV10", "REV11", "REV12") if os.environ.get(m)), "REV13")
 
 
 @dataclass(frozen=True)
 class R:
-    kind: str  # ASSESS, CHALLENGE, ADJ, WITHDRAW, OVERRIDE, IMMAT, LOSS, ATTEST, MOVE, GMOVE
+    kind: str  # ASSESS CHALLENGE ADJ WITHDRAW OVERRIDE IMMAT LOSS ATTEST MOVE ORACLE CTX GMOVE COMPL
     target: int | None = None
     outcome: str | None = None  # PASS/FAIL for ASSESS; UPHELD/DISMISSED for ADJ
     blocking: bool = False
     supersedes: int | None = None
-    equiv: bool = False  # MOVE: an admitted equivalence judgment covers the move
-    holds: frozenset = field(default_factory=frozenset)  # ATTEST: positions held
+    equiv: bool = False  # MOVE: covered by an admitted equivalence judgment
+    reads: bool = False  # ASSESS: the assessor read the context unit
+    on_real: bool = False  # CHALLENGE: targets the realization of ASSESS `target`
+    holds: frozenset = field(default_factory=frozenset)  # ATTEST
 
 
 def memo(fn):
@@ -73,6 +89,9 @@ class Ledger:
     def kind(self, x: int) -> str:
         return self.r[x].kind
 
+    def later(self, x: int, kind: str) -> list[int]:
+        return [y for y in range(x + 1, self.n) if self.kind(y) == kind]
+
     # ---- S0 -----------------------------------------------------------------
     def superseders(self, x: int) -> list[int]:
         return [y for y in range(x + 1, self.n) if self.r[y].supersedes == x]
@@ -80,15 +99,15 @@ class Ledger:
     def superseded(self, x: int) -> bool:
         return bool(self.superseders(x))
 
+    def exec_bears(self, x: int) -> bool:
+        return all(self.r[y].equiv for y in self.later(x, "MOVE"))
+
     def exec_rev(self, x: int) -> int:
         return sum(1 for y in range(x) if self.kind(y) == "MOVE")
 
-    def applicable(self, x: int) -> bool:
-        """S0: every later execution move is linked by an admitted equivalence."""
-        return all(self.r[y].equiv for y in range(x + 1, self.n) if self.kind(y) == "MOVE")
-
-    def gov_moved(self, x: int) -> bool:
-        return any(self.kind(y) == "GMOVE" for y in range(x + 1, self.n))
+    def compl_of(self, x: int) -> int | None:
+        cs = [c for c in range(x) if self.kind(c) == "COMPL"]
+        return cs[-1] if cs else None
 
     # ---- S1 polarity (strictly earlier targets) -----------------------------
     @memo
@@ -99,7 +118,7 @@ class Ledger:
     @memo
     def counter(self, c: int) -> bool:
         rc = self.r[c]
-        return rc.kind == "CHALLENGE" and self.restrictive(rc.target)
+        return rc.kind == "CHALLENGE" and not rc.on_real and self.restrictive(rc.target)
 
     @memo
     def relaxer(self, y: int) -> bool:
@@ -116,27 +135,27 @@ class Ledger:
     @memo
     def held(self, x: int, b: int) -> bool:
         return any(
-            self.kind(a) == "ATTEST" and self.r[a].target == b and self.in_force(a) and x in self.r[a].holds
-            for a in range(b + 1, self.n)
+            self.r[a].target == b and self.in_force(a) and x in self.r[a].holds for a in self.later(b, "ATTEST")
         )
 
     @memo
     def cont(self, x: int) -> bool:
-        return all(self.held(x, b) for b in range(x + 1, self.n) if self.kind(b) == "LOSS")
+        return all(self.held(x, b) for b in self.later(x, "LOSS"))
 
     def gate(self, y: int) -> bool:
         return self.cont(y) if self.relaxer(y) else True
+
+    def challenges_on(self, z: int, on_real: bool = False) -> list[int]:
+        return [c for c in self.later(z, "CHALLENGE") if self.r[c].target == z and self.r[c].on_real == on_real]
 
     @memo
     def in_force(self, y: int) -> bool:
         assert self.kind(y) in ("ADJ", "WITHDRAW", "OVERRIDE", "ATTEST")
         if not self.gate(y):
             return False
-        for c in range(y + 1, self.n):
-            rc = self.r[c]
-            if rc.kind == "CHALLENGE" and rc.target == y:
-                if self.upheld(c) or (rc.blocking and self.open(c) and not self.counter(c)):
-                    return False
+        for c in self.challenges_on(y):
+            if self.upheld(c) or (self.r[c].blocking and self.open(c) and not self.counter(c)):
+                return False
         return True
 
     @memo
@@ -149,61 +168,58 @@ class Ledger:
     @memo
     def upheld(self, c: int) -> bool:
         return any(
-            self.kind(a) == "ADJ" and self.r[a].target == c and self.r[a].outcome == "UPHELD" and self.in_force(a)
-            for a in range(c + 1, self.n)
+            self.r[a].target == c and self.r[a].outcome == "UPHELD" and self.in_force(a) for a in self.later(c, "ADJ")
         )
 
     def overridden(self, c: int) -> bool:
-        return self.open(c) and any(
-            self.kind(o) == "OVERRIDE" and self.r[o].target == c and self.in_force(o) for o in range(c + 1, self.n)
-        )
-
-    def challenges_on(self, z: int) -> list[int]:
-        return [c for c in range(z + 1, self.n) if self.kind(c) == "CHALLENGE" and self.r[c].target == z]
+        return self.open(c) and any(self.r[o].target == c and self.in_force(o) for o in self.later(c, "OVERRIDE"))
 
     @memo
-    def status1(self, z: int) -> str:
-        chs = self.challenges_on(z)
+    def status1(self, z: int, on_real: bool = False) -> str:  # positional args only (memo)
+        chs = self.challenges_on(z, on_real)
         if any(self.upheld(c) for c in chs):
             return "REVOKED"
         live = [c for c in chs if self.r[c].blocking and self.open(c)]
         if any(not self.overridden(c) for c in live):
             return "BLOCKED"
-        if live:
-            return "PROVISIONAL"
-        return "CLEAR"
+        return "PROVISIONAL" if live else "CLEAR"
 
     def contested(self, d: int) -> bool:
-        """An open blocking challenge against d, counter-challenge or not."""
         return any(self.r[c].blocking and self.open(c) for c in self.challenges_on(d))
 
     # ---- S2 (no cycles in the model, so direct evaluation is the LFP) -------
-    def base(self, z: int) -> int:
-        if self.superseded(z) or self.status1(z) in ("REVOKED", "BLOCKED") or not self.cont(z):
-            return F
-        return P if self.status1(z) == "PROVISIONAL" else T
+    @staticmethod
+    def lvl(status: str) -> int:
+        return F if status in ("REVOKED", "BLOCKED") else P if status == "PROVISIONAL" else T
 
-    def basis(self, z: int) -> int:
-        if self.kind(z) == "ASSESS":
-            return T if self.applicable(z) else F
-        if self.kind(z) == "IMMAT":
-            return F if self.gov_moved(z) else T
-        raise AssertionError(z)
+    def base(self, z: int) -> int:
+        if self.superseded(z) or not self.cont(z):
+            return F
+        return self.lvl(self.status1(z))
 
     @memo
     def current(self, z: int) -> int:
-        return min(self.base(z), self.basis(z))
+        b = self.base(z)
+        k = self.kind(z)
+        if k == "COMPL":
+            return b
+        if k == "IMMAT":
+            return F if self.later(z, "GMOVE") else b
+        assert k == "ASSESS"
+        parts = [b, self.lvl(self.status1(z, True))]
+        parts.append(T if self.exec_bears(z) else F)
+        parts.append(F if self.later(z, "ORACLE") else T)
+        parts.append(F if (self.r[z].reads and self.later(z, "CTX")) else T)
+        c = self.compl_of(z)
+        if c is not None:
+            parts.append(self.current(c))
+        return min(parts)
 
     def assessments(self, outcome: str) -> list[int]:
         return [i for i in range(self.n) if self.kind(i) == "ASSESS" and self.r[i].outcome == outcome]
 
-    def upholdings_on(self, x: int) -> list[int]:
-        return [
-            d
-            for c in self.challenges_on(x)
-            for d in range(c + 1, self.n)
-            if self.kind(d) == "ADJ" and self.r[d].target == c and self.r[d].outcome == "UPHELD"
-        ]
+    def upholdings(self, challenges: list[int]) -> list[int]:
+        return [d for c in challenges for d in self.later(c, "ADJ") if self.r[d].target == c and self.r[d].outcome == "UPHELD"]
 
     def supersession_closure(self, x: int) -> list[int]:
         out, todo = [], list(self.superseders(x))
@@ -213,25 +229,36 @@ class Ledger:
             todo += self.superseders(y)
         return out
 
-    # ---- revision 12 ---------------------------------------------------------
+    def immat_on(self, x: int) -> list[int]:
+        return [d for d in self.later(x, "IMMAT") if self.r[d].target == x]
+
+    # ---- revision 13 ---------------------------------------------------------
+    def bears(self, a: int) -> bool:
+        if MODE == "REV12":  # revision 12: every basis entry, context and interpretive ones included
+            return (
+                self.exec_bears(a)
+                and not self.later(a, "ORACLE")
+                and not (self.r[a].reads and self.later(a, "CTX"))
+            )
+        return self.exec_bears(a)  # evidentiary premises only
+
+    def disposers(self, am: int) -> list[int]:
+        out = self.supersession_closure(am) + self.upholdings(self.challenges_on(am))
+        out += self.upholdings(self.challenges_on(am, on_real=True)) + self.immat_on(am)
+        if MODE == "REV12":  # revision 12: an upheld challenge against any record premise disposes
+            c = self.compl_of(am)
+            if c is not None:
+                out += self.upholdings(self.challenges_on(c))
+        return out
+
     def eff(self, d: int) -> int:
         if self.kind(d) in ("ASSESS", "IMMAT"):
             return self.current(d)
         return T if (self.in_force(d) and self.cont(d) and not self.contested(d)) else F
 
-    def disposers(self, am: int) -> list[int]:
-        return (
-            self.supersession_closure(am)
-            + self.upholdings_on(am)
-            + [d for d in range(am + 1, self.n) if self.kind(d) == "IMMAT" and self.r[d].target == am]
-        )
-
-    def disp(self, am: int) -> int:
-        return max([F] + [self.eff(d) for d in self.disposers(am)])
-
     def undisputed(self) -> int:
-        adverse = [a for a in self.assessments("FAIL") if self.applicable(a)]
-        return min([T] + [max(P, self.disp(a)) for a in adverse])
+        adverse = [a for a in self.assessments("FAIL") if self.bears(a)]
+        return min([T] + [max([P] + [self.eff(d) for d in self.disposers(a)]) for a in adverse])
 
     # ---- revision 11 (sensitivity) -------------------------------------------
     def in_effect11(self, d: int) -> bool:
@@ -241,16 +268,15 @@ class Ledger:
             return self.in_force(d)
         return (not self.superseded(d)) and self.status1(d) == "CLEAR"
 
-    def disposed11(self, am: int) -> bool:
-        direct = self.superseders(am) + self.upholdings_on(am)
-        direct += [d for d in range(am + 1, self.n) if self.kind(d) == "IMMAT" and self.r[d].target == am]
-        return any(self.in_effect11(d) for d in direct)
-
     def disputed11(self, key: int) -> bool:
         ass = [i for i in range(self.n) if self.kind(i) == "ASSESS" and self.exec_rev(i) == key]
-        fails = [i for i in ass if self.r[i].outcome == "FAIL"]
         has_pass = any(self.r[i].outcome == "PASS" for i in ass)
-        return has_pass and any(not self.disposed11(i) for i in fails)
+
+        def disposed(am: int) -> bool:
+            direct = self.superseders(am) + self.upholdings(self.challenges_on(am)) + self.immat_on(am)
+            return any(self.in_effect11(d) for d in direct)
+
+        return has_pass and any(not disposed(i) for i in ass if self.r[i].outcome == "FAIL")
 
     # ---- revision 10 (sensitivity) -------------------------------------------
     def disputed10(self) -> bool:
@@ -259,52 +285,116 @@ class Ledger:
 
     # ---- the evidence term ---------------------------------------------------
     def ev(self) -> int:
-        passes = self.assessments("PASS")
-        if MODE == "REV12":
-            return min(max([F] + [self.current(a) for a in passes]), self.undisputed())
+        best = max([F] + [self.current(a) for a in self.assessments("PASS")])
         if MODE == "REV11":
-            return max([F] + [min(self.current(a), P if self.disputed11(self.exec_rev(a)) else T) for a in passes])
-        return min(max([F] + [self.current(a) for a in passes]), P if self.disputed10() else T)
+            return max(
+                [F]
+                + [min(self.current(a), P if self.disputed11(self.exec_rev(a)) else T) for a in self.assessments("PASS")]
+            )
+        if MODE == "REV10":
+            return min(best, P if self.disputed10() else T)
+        return min(best, self.undisputed())
 
-    # ---- plain-language oracle (written independently of the lattice) --------
-    def stands(self, d: int) -> bool:
-        if self.kind(d) == "ADJ":
-            return self.in_force(d) and self.cont(d) and not self.contested(d)
-        return (
-            not self.superseded(d)
-            and self.status1(d) == "CLEAR"
-            and self.cont(d)
-            and not (self.kind(d) == "ASSESS" and not self.applicable(d))
-            and not (self.kind(d) == "IMMAT" and self.gov_moved(d))
-        )
 
-    def oracle_unqualified(self) -> bool:
-        fully_current_pass = any(
-            not self.superseded(a) and self.status1(a) == "CLEAR" and self.cont(a) and self.applicable(a)
-            for a in self.assessments("PASS")
-        )
-        if not fully_current_pass:
-            return False
-        for am in self.assessments("FAIL"):
-            if self.applicable(am) and not any(self.stands(d) for d in self.disposers(am)):
-                return False
+# ---- independent oracle: plain loops over the raw records ---------------------
+def oracle_unqualified(L: Ledger) -> bool:
+    recs, n = L.r, L.n
+
+    def after(x, kind):
+        return [y for y in range(x + 1, n) if recs[y].kind == kind]
+
+    def standing_s1(x, on_real=False):
+        """No upheld challenge and no open blocking challenge (overridden or not) on x."""
+        for c in after(x, "CHALLENGE"):
+            if recs[c].target == x and recs[c].on_real == on_real:
+                if L.upheld(c) or (recs[c].blocking and L.open(c)):
+                    return False
         return True
+
+    def fully_current(x):
+        rx = recs[x]
+        if any(recs[y].supersedes == x for y in range(n)) or not L.cont(x) or not standing_s1(x):
+            return False
+        if rx.kind == "COMPL":
+            return True
+        if rx.kind == "IMMAT":
+            return not after(x, "GMOVE")
+        if not standing_s1(x, on_real=True):
+            return False
+        if any(not recs[m].equiv for m in after(x, "MOVE")) or after(x, "ORACLE"):
+            return False
+        if rx.reads and after(x, "CTX"):
+            return False
+        cs = [c for c in range(x) if recs[c].kind == "COMPL"]
+        return fully_current(cs[-1]) if cs else True
+
+    def descends_from(y, x):
+        while recs[y].supersedes is not None:
+            if recs[y].supersedes == x:
+                return True
+            y = recs[y].supersedes
+        return False
+
+    def settled(f):
+        for y in range(f + 1, n):
+            ry = recs[y]
+            if ry.kind == "ASSESS" and descends_from(y, f) and fully_current(y):
+                return True
+            if ry.kind == "IMMAT" and ry.target == f and fully_current(y):
+                return True
+            if ry.kind == "ADJ" and ry.outcome == "UPHELD":
+                c = recs[ry.target]
+                if c.kind == "CHALLENGE" and c.target == f:  # the failing assessment or its realization
+                    if L.in_force(y) and L.cont(y) and not any(
+                        recs[k].target == y and recs[k].blocking and L.open(k) for k in after(y, "CHALLENGE")
+                    ):
+                        return True
+        return False
+
+    if not any(fully_current(a) for a in range(n) if recs[a].kind == "ASSESS" and recs[a].outcome == "PASS"):
+        return False
+    for f in range(n):
+        if recs[f].kind == "ASSESS" and recs[f].outcome == "FAIL":
+            still_bears = all(recs[m].equiv for m in after(f, "MOVE"))
+            if still_bears and not settled(f):
+                return False
+    return True
+
+
+def untouched_bearing_failure(L: Ledger) -> bool:
+    """Q's premise: a failing assessment that still bears, with nothing recorded against it."""
+    for f in L.assessments("FAIL"):
+        if not L.exec_bears(f) or L.superseded(f) or L.immat_on(f):
+            continue
+        if L.challenges_on(f) or L.challenges_on(f, on_real=True):
+            continue
+        return True
+    return False
 
 
 def candidates(prefix: tuple[R, ...]) -> list[R]:
-    n = len(prefix)
     out = [
         R("ASSESS", outcome="PASS"),
         R("ASSESS", outcome="FAIL"),
+        R("ASSESS", outcome="PASS", reads=True),
+        R("ASSESS", outcome="FAIL", reads=True),
         R("LOSS"),
         R("MOVE", equiv=True),
         R("MOVE", equiv=False),
+        R("ORACLE"),
+        R("CTX"),
         R("GMOVE"),
+        R("COMPL"),
     ]
-    for t in range(n):
-        k = prefix[t].kind
-        if k in ("ASSESS", "ADJ", "OVERRIDE", "ATTEST", "IMMAT", "WITHDRAW"):
+    for t, rt in enumerate(prefix):
+        k = rt.kind
+        if k in ("ASSESS", "ADJ", "OVERRIDE", "ATTEST", "IMMAT", "WITHDRAW", "COMPL"):
             out += [R("CHALLENGE", target=t, blocking=True), R("CHALLENGE", target=t, blocking=False)]
+        if k == "ASSESS":
+            out.append(R("CHALLENGE", target=t, blocking=True, on_real=True))
+            out.append(R("ASSESS", outcome="PASS", supersedes=t))
+            if rt.outcome == "FAIL":
+                out.append(R("IMMAT", target=t))
         if k == "CHALLENGE":
             out += [
                 R("ADJ", target=t, outcome="UPHELD"),
@@ -312,10 +402,6 @@ def candidates(prefix: tuple[R, ...]) -> list[R]:
                 R("WITHDRAW", target=t),
                 R("OVERRIDE", target=t),
             ]
-        if k == "ASSESS":
-            out.append(R("ASSESS", outcome="PASS", supersedes=t))
-            if prefix[t].outcome == "FAIL":
-                out.append(R("IMMAT", target=t))
         if k == "LOSS":
             out.append(R("ATTEST", target=t, holds=frozenset(range(t))))
     return out
@@ -325,43 +411,35 @@ def revoked_any(L: Ledger) -> set:
     return {z for z in range(L.n) if L.kind(z) == "ASSESS" and L.status1(z) == "REVOKED"}
 
 
-def is_challenge_append(L1: Ledger) -> bool:
-    return L1.kind(L1.n - 1) == "CHALLENGE"
-
-
-# ---- named discriminators: (name, ledger, expected ev under revision 12) ----
 PASS_, FAIL_ = R("ASSESS", outcome="PASS"), R("ASSESS", outcome="FAIL")
+FAIL_READS, PASS_READS = R("ASSESS", outcome="FAIL", reads=True), R("ASSESS", outcome="PASS", reads=True)
+UPHOLD = lambda t: R("ADJ", target=t, outcome="UPHELD")
+BCH = lambda t: R("CHALLENGE", target=t, blocking=True)
 DISCRIMINATORS = [
     ("base: live pass and fail", (PASS_, FAIL_), P),
-    ("A: equivalence move, passing rerun in new execution", (PASS_, FAIL_, R("MOVE", equiv=True), PASS_), P),
-    ("A contrast: non-equivalent move, passing rerun", (PASS_, FAIL_, R("MOVE", equiv=False), PASS_), T),
-    ("B1: IMMATERIALITY whose prerequisite moved", (PASS_, FAIL_, R("IMMAT", target=1), R("GMOVE")), P),
-    ("B1 contrast: IMMATERIALITY, prerequisite unchanged", (PASS_, FAIL_, R("IMMAT", target=1)), T),
-    (
-        "B2: open blocking counter-challenge against the upholding",
-        (PASS_, FAIL_, R("CHALLENGE", target=1, blocking=True), R("ADJ", target=2, outcome="UPHELD"),
-         R("CHALLENGE", target=3, blocking=True)),
-        P,
-    ),
-    (
-        "B2 contrast: counter-challenge dismissed",
-        (PASS_, FAIL_, R("CHALLENGE", target=1, blocking=True), R("ADJ", target=2, outcome="UPHELD"),
-         R("CHALLENGE", target=3, blocking=True), R("ADJ", target=4, outcome="DISMISSED")),
-        T,
-    ),
-    (
-        "B2 contrast: non-blocking counter-challenge, open",
-        (PASS_, FAIL_, R("CHALLENGE", target=1, blocking=True), R("ADJ", target=2, outcome="UPHELD"),
-         R("CHALLENGE", target=3, blocking=False)),
-        T,
-    ),
-    ("open challenge against the failing assessment", (PASS_, FAIL_, R("CHALLENGE", target=1, blocking=True)), P),
+    ("97e753f A: equivalence move, passing rerun", (PASS_, FAIL_, R("MOVE", equiv=True), PASS_), P),
+    ("97e753f A contrast: non-equivalent move, passing rerun", (PASS_, FAIL_, R("MOVE", equiv=False), PASS_), T),
+    ("97e753f B1: IMMATERIALITY whose prerequisite moved", (PASS_, FAIL_, R("IMMAT", target=1), R("GMOVE")), P),
+    ("97e753f B1 contrast: prerequisite unchanged", (PASS_, FAIL_, R("IMMAT", target=1)), T),
+    ("97e753f B2: open blocking counter-challenge on the upholding", (PASS_, FAIL_, BCH(1), UPHOLD(2), BCH(3)), P),
+    ("97e753f B2 contrast: counter-challenge dismissed",
+     (PASS_, FAIL_, BCH(1), UPHOLD(2), BCH(3), R("ADJ", target=4, outcome="DISMISSED")), T),
+    ("97e753f B2 contrast: non-blocking counter-challenge", (PASS_, FAIL_, BCH(1), UPHOLD(2),
+                                                            R("CHALLENGE", target=3)), T),
+    ("open challenge against the failing assessment", (PASS_, FAIL_, BCH(1)), P),
     ("loss with both assessments retained", (PASS_, FAIL_, R("LOSS"), PASS_), P),
-    (
-        "superseder chain disposes",
-        (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1), R("ASSESS", outcome="PASS", supersedes=2)),
-        T,
-    ),
+    ("superseder chain disposes", (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1),
+                                   R("ASSESS", outcome="PASS", supersedes=2)), T),
+    ("4c35d92 A1: unit read only by the failing assessor moves", (PASS_, FAIL_READS, R("CTX")), P),
+    ("4c35d92 A1 contrast: unit read only by the passing assessor moves", (PASS_READS, FAIL_, R("CTX")), F),
+    ("4c35d92 oracle move, passing realization reassessed first",
+     (PASS_, FAIL_, R("ORACLE"), R("ASSESS", outcome="PASS", supersedes=0)), P),
+    ("4c35d92 oracle move, failing realization then reassessed",
+     (PASS_, FAIL_, R("ORACLE"), R("ASSESS", outcome="PASS", supersedes=0), R("ASSESS", outcome="PASS", supersedes=1)), T),
+    ("4c35d92 A2: upheld challenge against a completeness premise",
+     (R("COMPL"), PASS_, FAIL_, BCH(0), UPHOLD(3), R("COMPL"), PASS_), P),
+    ("4c35d92 A2 contrast: upheld challenge against the failing realization",
+     (PASS_, FAIL_, R("CHALLENGE", target=1, blocking=True, on_real=True), UPHOLD(2)), T),
 ]
 
 
@@ -371,15 +449,14 @@ def run_discriminators() -> int:
         got = Ledger(recs).ev()
         ok = got == want
         bad += 0 if ok else 1
-        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 12 expects {'FPT'[want]})")
+        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 13 expects {'FPT'[want]})")
     return bad
 
 
 def check(depth: int) -> int:
     seen = 0
-    failures = 0
+    counts = dict.fromkeys(("P1", "P2", "P3", "P4", "P5", "P6", "Q", "O"), 0)
     frontier = [()]
-    counts = {"P1": 0, "P2": 0, "P3": 0, "P4": 0, "O": 0}
     for _ in range(depth):
         nxt = []
         for prefix in frontier:
@@ -389,16 +466,24 @@ def check(depth: int) -> int:
                 L1 = Ledger(prefix + (rec,))
                 seen += 1
                 e1 = L1.ev()
-                if rec.kind == "CHALLENGE" and e1 > e0:
+                raised = e1 > e0
+                if rec.kind == "CHALLENGE" and raised:
                     counts["P1"] += 1
-                if rec.kind == "LOSS" and e1 > e0:
+                if rec.kind == "LOSS" and raised:
                     counts["P2"] += 1
                 lost = rv0 - revoked_any(L1)
                 if lost and rec.kind == "CHALLENGE" and L1.counter(L1.n - 1):
                     counts["P3"] += 1
                 if lost and rec.kind == "LOSS":
                     counts["P4"] += 1
-                if (e1 == T) != L1.oracle_unqualified():
+                if rec.kind in ("ORACLE", "CTX", "GMOVE") and raised:
+                    counts["P5"] += 1
+                if (rec.kind == "ADJ" and rec.outcome == "UPHELD" and prefix[rec.target].kind == "CHALLENGE"
+                        and prefix[prefix[rec.target].target].kind == "COMPL" and raised):
+                    counts["P6"] += 1
+                if untouched_bearing_failure(L1) and e1 == T:
+                    counts["Q"] += 1
+                if (e1 == T) != oracle_unqualified(L1):
                     counts["O"] += 1
                 nxt.append(prefix + (rec,))
         frontier = nxt
@@ -409,7 +494,7 @@ def check(depth: int) -> int:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--depth", type=int, default=5)
+    ap.add_argument("--depth", type=int, default=4)
     print(f"named discriminators (mode {MODE}):")
     d = run_discriminators()
     f = check(ap.parse_args().depth)
