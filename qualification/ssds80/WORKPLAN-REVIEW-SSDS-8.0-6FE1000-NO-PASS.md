@@ -28,7 +28,7 @@
            decisions "when does a failing assessment start counting" and "what may stop it";
            prior-finding re-derivation; exact-candidate structural tests, whitespace check and
            bounded model check in every requested mode
-    REVIEWER: Claude Opus 5.5 (model id claude-opus-5-5), a fresh-context sub-agent launched
+    REVIEWER: Claude (same model family as the author), a fresh-context sub-agent launched
            by the authoring session from REVIEW-HANDOFF-SSDS-8.0-REVISION-17.md (stakeholder
            SD-8); same model family as the author
     RECORD FILE: WORKPLAN-REVIEW-SSDS-8.0-6FE1000-NO-PASS.md

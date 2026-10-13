@@ -25,7 +25,7 @@
            loss interaction attacks; prior-finding re-derivation; qualification-method
            challenge; exact-candidate structural tests and bounded model check, with a
            scratch extension of the model's own ledger class
-    REVIEWER: Claude Opus 5.5 (model id claude-opus-5-5), a fresh-context sub-agent launched
+    REVIEWER: Claude (same model family as the author), a fresh-context sub-agent launched
            by the authoring session from REVIEW-HANDOFF-SSDS-8.0-REVISION-12.md (stakeholder
            SD-8); same model family as the author
     RECORD FILE: WORKPLAN-REVIEW-SSDS-8.0-4C35D92-NO-PASS.md

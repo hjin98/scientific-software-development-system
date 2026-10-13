@@ -27,7 +27,7 @@
            admitted record class was checked for permissive fields; prior-finding
            re-derivation; exact-candidate structural tests, whitespace check and bounded
            model check in all requested modes
-    REVIEWER: Claude Opus 5.5 (model id claude-opus-5-5), a fresh-context sub-agent launched
+    REVIEWER: Claude (same model family as the author), a fresh-context sub-agent launched
            by the authoring session from REVIEW-HANDOFF-SSDS-8.0-REVISION-15.md (stakeholder
            SD-8); same model family as the author
     RECORD FILE: WORKPLAN-REVIEW-SSDS-8.0-203A42B-NO-PASS.md
