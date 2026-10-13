@@ -66,7 +66,7 @@ Revision 20 closes `ba7f738` U1 (U1a, U1b, U1c) and U2 on their trajectories, an
 
 This is the eleventh consecutive NO-PASS on the §6.6 disagreement family since revision 10, and the fourth since revision 17's declared simplification. Per the convergence owner, and as the mid-review instruction asks, **W is routed as one family**: post-simplification recurrence that calls for bounded reconsideration of the §6.6 disposition abstraction before any further additive repair (§5). Two narrow local fixes are available and are recorded under W. This Review does not hold that applying only them would close the family.
 
-Requested checks: the four routing tests pass and `git diff --check` is clean. The model check is green at depth 4 (814,450 transitions, 64/64 discriminators) and at depth 5 (DEPTH5_RESULT). Every sensitivity mode is red on owner-grounded properties. `REV19=1` is red only on the two properties revision 20 added (P13, P14); see §6. A bounded probe shows the model reproduces W1 and P13 does not flag it, because P13's “owner's sense” predicate reuses the candidate's “never admitted” test. W2 is unrepresentable in the model, which has no mechanical verdict function. None of these checks establishes semantic adequacy.
+Requested checks: the four routing tests pass and `git diff --check` is clean. The model check is green at depth 4 (814,450 transitions, 64/64 discriminators) and at depth 5 (41,742,261 transitions, 0 failures, 64/64 discriminators). Every sensitivity mode is red on owner-grounded properties. `REV19=1` is red only on the two properties revision 20 added (P13, P14); see §6. A bounded probe shows the model reproduces W1 and P13 does not flag it, because P13's “owner's sense” predicate reuses the candidate's “never admitted” test. W2 is unrepresentable in the model, which has no mechanical verdict function. None of these checks establishes semantic adequacy.
 
 ## 1. Blockers by earliest owner
 
@@ -372,7 +372,7 @@ The four consolidation tests establish frontmatter and routing only. HARD-templa
   | `REV10=1` | 225,673 | P1 1,974, P7 9,486, P9 15,137, P10 50,938, P11 84, P12 3,717, P13 6, Q 39,438, Q2 28,243, O 76,650 | 30 | 1 |
 
   Every mode fails properties other than the oracle; for `REV19` those are only P13 and P14 (§6).
-- **Model check**, depth 5, default mode: DEPTH5_RESULT.
+- **Model check**, depth 5, default mode: **41,742,261 transitions, 0 failures, 64/64 discriminators, exit 0** (61 min 36 s), matching §0.1.
 - **W1 probe.** The candidate's own `Ledger`, `discriminates` and `oracle_unqualified`, imported unmodified from the archive:
   - `(ORACLE tight, ORACLE, PASS, FAIL tight, PAIR(ro=1, to=1), PASS)`: pair `authorized = False`, P13's `discriminates = False`, `V = P`, oracle not unqualified;
   - the same with the first record a plain `ORACLE` (reading never admitted): `authorized = True`, `discriminates = True`, `V = T`.
