@@ -197,7 +197,7 @@ The model check (§22) now separates mechanical from assessor-read failures, wit
 - Q2: a failure that the current content yields, or that proved nondeterministic, with no judgment, keeps the term at most `P`;
 - Q: excludes only failures that the owner-stated test shows stale.
 
-P10 is read on the undisputed term, and P11's "another outcome" means "does not yield the failure". Building the model this way found and fixed two polarity errors in the first draft: a loss boundary or an open challenge could hide an observation that yields the failure (§27.36). At depth 4 it checks 1,378,642 transitions with no failures and 67/67 discriminators; the sensitivity figures and depth 5 are in §27.36. `REV20=1` now fails P10 and P13: W1 and W2 are visible.
+P10 is read on the undisputed term, and P11's "another outcome" means "does not yield the failure". Building the model this way found and fixed two polarity errors in the first draft: a loss boundary or an open challenge could hide an observation that yields the failure (§27.36). At depth 4 it checks 1,378,642 transitions with no failures and 67/67 discriminators, and every sensitivity mode fails owner-grounded properties (§27.36); depth 5: pending. `REV20=1` now fails P10 and P13: W1 and W2 are visible.
 
 #### Revision 20 (prior) record
 
@@ -3740,7 +3740,22 @@ Residuals carried: those of §27.32; whole-tree fallback cost; reading pairs re-
 - four outcome values;
 - the owner-stated `owner_stale`, used by P13, Q and Q2, and P10 read on the undisputed term.
 
-Revision 20 is kept as `REV20=1`. At depth 4 it checks 1,378,642 transitions with no failures and 67/67 named discriminators. Sensitivity figures and depth 5 follow in the depth-5 commit. Frames other than the admitted state, lineages, Admission, custody, decision classes, absent outputs and the floor are outside the model; §22 carries their cases (DS-001).
+Revision 20 is kept as `REV20=1`. At depth 4 it checks 1,378,642 transitions with no failures and 67/67 named discriminators. At depth 4 every sensitivity mode fails owner-grounded properties, not only the oracle:
+
+| Mode | Failures | Owner-grounded properties failing |
+|---|---|---|
+| `REV20=1` | 5,357 | P10 1,467, P13 3,890: W1 and W2 visible |
+| `REV19=1` | 11,004 | P10 130, P13 10,834, P14 40 |
+| `REV18=1` | 13,184 | P10, P11, P12, P13 |
+| `REV17=1` | 106,061 | P9, P10, P11, P12, P13 |
+| `REV16=1` | 116,171 | P7, P9, P10, P12, P13, Q, Q2 (and O) |
+| `REV14=1` | 126,747 | P7, P8, P9, P10, P12, P13, Q, Q2 (and O) |
+| `REV13=1` | 294,863 | P7, P9, P10, P12, P13, Q, Q2 (and O) |
+| `REV12=1` | 300,356 | P5, P7, P9, P10, P12, P13, Q, Q2 (and O) |
+| `REV11=1` | 311,152 | P7, P9, P10, P11, P12, P13, Q, Q2 (and O) |
+| `REV10=1` | 312,058 | P1, P7, P9, P10, P11, P12, P13, Q, Q2 (and O) |
+
+Depth 5: pending. Frames other than the admitted state, lineages, Admission, custody, decision classes, absent outputs and the floor are outside the model; §22 carries their cases (DS-001).
 
 **Attacks on the simplification.**
 
