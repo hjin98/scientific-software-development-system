@@ -1,5 +1,5 @@
 """Bounded model check of SSDS 8.0 workplan §6.6 S1 polarity and assessment
-disagreement (design revision 13 and later).
+disagreement (design revision 14 and later).
 
 This is a diagnostic transcription of the workplan's equations, not an SSDS
 implementation and not an adequacy oracle (DS-001): it can show that the
@@ -15,8 +15,17 @@ assessment of its own realization. Premises move by events:
          (provenance);
   GMOVE  the governing subject an IMMATERIALITY judgment relies on moves;
   COMPL  a completeness judgment; each assessment relies on the latest one
-         before it (provenance, record mode).
-Equivalence judgments are taken as current.
+         before it (provenance, record mode);
+  RETIRE the evidence obligation stops being required (a specification
+         change accepted on its own merits).
+An equivalence-covered MOVE is itself the equivalence judgment: it can be
+challenged, and it supports currency only while it stands, but it counts for
+bearing once admitted. A superseder may be non-independent of the claim's
+author (indep=False).
+
+The checked value is V, the claim's evidence conjunct: ev while the
+obligation is required, and in every case qual, the undisputed term over
+every obligation an admitted failing assessment names (revision 14).
 
 Properties, for every ledger L and every appended record r:
   P1  appending any challenge never raises the evidence term;
@@ -27,6 +36,8 @@ Properties, for every ledger L and every appended record r:
       raises the evidence term;
   P6  upholding a challenge against a completeness judgment never raises the
       evidence term;
+  P7  retiring the evidence obligation never makes the evidence term T while
+      a bearing failing assessment has nothing recorded against it;
   Q   a failing assessment whose execution still bears (every later MOVE is
       equivalence-covered) and that has no superseder, no challenge against
       it or its realization and no IMMATERIALITY judgment keeps the evidence
@@ -38,7 +49,7 @@ Properties, for every ledger L and every appended record r:
 Named discriminators (the 97e753f and 4c35d92 Reviews' trajectories and
 their contrasts) are evaluated separately and printed.
 
-Sensitivity: REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
+Sensitivity: REV13=1, REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
 must report failures on P1-P6 or Q, not only on O; a run that stays green
 there means the check is blind.
 
@@ -52,7 +63,7 @@ import os
 from dataclasses import dataclass, field
 
 F, P, T = 0, 1, 2
-MODE = next((m for m in ("REV10", "REV11", "REV12") if os.environ.get(m)), "REV13")
+MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13") if os.environ.get(m)), "REV14")
 
 
 @dataclass(frozen=True)
@@ -66,6 +77,7 @@ class R:
     reads: bool = False  # ASSESS: the assessor read the context unit
     on_real: bool = False  # CHALLENGE: targets the realization of ASSESS `target`
     holds: frozenset = field(default_factory=frozenset)  # ATTEST
+    indep: bool = True  # superseder: independent of the claim's author
 
 
 def memo(fn):
@@ -101,6 +113,12 @@ class Ledger:
 
     def exec_bears(self, x: int) -> bool:
         return all(self.r[y].equiv for y in self.later(x, "MOVE"))
+
+    def exec_current(self, x: int) -> int:
+        return min([T] + [self.base(m) if self.r[m].equiv else F for m in self.later(x, "MOVE")])
+
+    def retired(self) -> bool:
+        return any(self.kind(y) == "RETIRE" for y in range(self.n))
 
     def exec_rev(self, x: int) -> int:
         return sum(1 for y in range(x) if self.kind(y) == "MOVE")
@@ -201,13 +219,13 @@ class Ledger:
     def current(self, z: int) -> int:
         b = self.base(z)
         k = self.kind(z)
-        if k == "COMPL":
+        if k in ("COMPL", "MOVE"):
             return b
         if k == "IMMAT":
             return F if self.later(z, "GMOVE") else b
         assert k == "ASSESS"
         parts = [b, self.lvl(self.status1(z, True))]
-        parts.append(T if self.exec_bears(z) else F)
+        parts.append(self.exec_current(z))
         parts.append(F if self.later(z, "ORACLE") else T)
         parts.append(F if (self.r[z].reads and self.later(z, "CTX")) else T)
         c = self.compl_of(z)
@@ -252,6 +270,8 @@ class Ledger:
         return out
 
     def eff(self, d: int) -> int:
+        if self.kind(d) == "ASSESS" and not self.r[d].indep and MODE == "REV14":
+            return F
         if self.kind(d) in ("ASSESS", "IMMAT"):
             return self.current(d)
         return T if (self.in_force(d) and self.cont(d) and not self.contested(d)) else F
@@ -295,6 +315,13 @@ class Ledger:
             return min(best, P if self.disputed10() else T)
         return min(best, self.undisputed())
 
+    def V(self) -> int:
+        """The claim's evidence conjunct."""
+        required = T if self.retired() else self.ev()
+        if MODE == "REV14":
+            return min(required, self.undisputed())
+        return required
+
 
 # ---- independent oracle: plain loops over the raw records ---------------------
 def oracle_unqualified(L: Ledger) -> bool:
@@ -315,13 +342,13 @@ def oracle_unqualified(L: Ledger) -> bool:
         rx = recs[x]
         if any(recs[y].supersedes == x for y in range(n)) or not L.cont(x) or not standing_s1(x):
             return False
-        if rx.kind == "COMPL":
+        if rx.kind in ("COMPL", "MOVE"):
             return True
         if rx.kind == "IMMAT":
             return not after(x, "GMOVE")
         if not standing_s1(x, on_real=True):
             return False
-        if any(not recs[m].equiv for m in after(x, "MOVE")) or after(x, "ORACLE"):
+        if any(not (recs[m].equiv and fully_current(m)) for m in after(x, "MOVE")) or after(x, "ORACLE"):
             return False
         if rx.reads and after(x, "CTX"):
             return False
@@ -338,7 +365,7 @@ def oracle_unqualified(L: Ledger) -> bool:
     def settled(f):
         for y in range(f + 1, n):
             ry = recs[y]
-            if ry.kind == "ASSESS" and descends_from(y, f) and fully_current(y):
+            if ry.kind == "ASSESS" and ry.indep and descends_from(y, f) and fully_current(y):
                 return True
             if ry.kind == "IMMAT" and ry.target == f and fully_current(y):
                 return True
@@ -351,7 +378,10 @@ def oracle_unqualified(L: Ledger) -> bool:
                         return True
         return False
 
-    if not any(fully_current(a) for a in range(n) if recs[a].kind == "ASSESS" and recs[a].outcome == "PASS"):
+    retired = any(r.kind == "RETIRE" for r in recs)
+    if not retired and not any(
+        fully_current(a) for a in range(n) if recs[a].kind == "ASSESS" and recs[a].outcome == "PASS"
+    ):
         return False
     for f in range(n):
         if recs[f].kind == "ASSESS" and recs[f].outcome == "FAIL":
@@ -386,13 +416,16 @@ def candidates(prefix: tuple[R, ...]) -> list[R]:
         R("GMOVE"),
         R("COMPL"),
     ]
+    if not any(r.kind == "RETIRE" for r in prefix):
+        out.append(R("RETIRE"))
     for t, rt in enumerate(prefix):
         k = rt.kind
-        if k in ("ASSESS", "ADJ", "OVERRIDE", "ATTEST", "IMMAT", "WITHDRAW", "COMPL"):
+        if k in ("ASSESS", "ADJ", "OVERRIDE", "ATTEST", "IMMAT", "WITHDRAW", "COMPL") or (k == "MOVE" and rt.equiv):
             out += [R("CHALLENGE", target=t, blocking=True), R("CHALLENGE", target=t, blocking=False)]
         if k == "ASSESS":
             out.append(R("CHALLENGE", target=t, blocking=True, on_real=True))
             out.append(R("ASSESS", outcome="PASS", supersedes=t))
+            out.append(R("ASSESS", outcome="PASS", supersedes=t, indep=False))
             if rt.outcome == "FAIL":
                 out.append(R("IMMAT", target=t))
         if k == "CHALLENGE":
@@ -440,32 +473,38 @@ DISCRIMINATORS = [
      (R("COMPL"), PASS_, FAIL_, BCH(0), UPHOLD(3), R("COMPL"), PASS_), P),
     ("4c35d92 A2 contrast: upheld challenge against the failing realization",
      (PASS_, FAIL_, R("CHALLENGE", target=1, blocking=True, on_real=True), UPHOLD(2)), T),
+    ("644eb72 B: obligation retired with a live disagreement", (PASS_, FAIL_, R("RETIRE")), P),
+    ("644eb72 B contrast: disposition, then retirement", (PASS_, FAIL_, R("IMMAT", target=1), R("RETIRE")), T),
+    ("644eb72 N3: non-independent superseder disposes of nothing",
+     (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1, indep=False)), P),
+    ("challenged equivalence: failing evidence still bears, passing support provisional at most",
+     (FAIL_, R("MOVE", equiv=True), PASS_, BCH(1)), P),
 ]
 
 
 def run_discriminators() -> int:
     bad = 0
     for name, recs, want in DISCRIMINATORS:
-        got = Ledger(recs).ev()
+        got = Ledger(recs).V()
         ok = got == want
         bad += 0 if ok else 1
-        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 13 expects {'FPT'[want]})")
+        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 14 expects {'FPT'[want]})")
     return bad
 
 
 def check(depth: int) -> int:
     seen = 0
-    counts = dict.fromkeys(("P1", "P2", "P3", "P4", "P5", "P6", "Q", "O"), 0)
+    counts = dict.fromkeys(("P1", "P2", "P3", "P4", "P5", "P6", "P7", "Q", "O"), 0)
     frontier = [()]
     for _ in range(depth):
         nxt = []
         for prefix in frontier:
             L0 = Ledger(prefix)
-            e0, rv0 = L0.ev(), revoked_any(L0)
+            e0, rv0 = L0.V(), revoked_any(L0)
             for rec in candidates(prefix):
                 L1 = Ledger(prefix + (rec,))
                 seen += 1
-                e1 = L1.ev()
+                e1 = L1.V()
                 raised = e1 > e0
                 if rec.kind == "CHALLENGE" and raised:
                     counts["P1"] += 1
@@ -481,6 +520,8 @@ def check(depth: int) -> int:
                 if (rec.kind == "ADJ" and rec.outcome == "UPHELD" and prefix[rec.target].kind == "CHALLENGE"
                         and prefix[prefix[rec.target].target].kind == "COMPL" and raised):
                     counts["P6"] += 1
+                if rec.kind == "RETIRE" and e1 == T and untouched_bearing_failure(L0):
+                    counts["P7"] += 1
                 if untouched_bearing_failure(L1) and e1 == T:
                     counts["Q"] += 1
                 if (e1 == T) != oracle_unqualified(L1):
