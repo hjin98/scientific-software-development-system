@@ -34,6 +34,12 @@ The "permission classification system" is the decision-class classification R0 (
 
 > "N3: I've accepted your design principles so record it. N1: Yes my proposed "reliably achieve all doctrine" is a hope and realistically the limit to what a machine can do must be tested. I do not expect perfection any time soon, but working toward it as we discover challenges and I'm hopeful we will approach the goal with some success. Now proceed to fix the findings. Write a reviewer prompt in the end and I will let ChatGPT handle it."
 
+**6. Review cycle (2026-10-13).** After five consecutive ChatGPT (GPT-6/Codex) Reviews:
+
+> "Perform the remaining revise / review cycle yourself through the revision and sub-agent review cycle until all remaining blocking issues are closed."
+
+Earlier the same day, on looking for a third reviewer family: "Anthropic and OpenAI holds the most capable models and I cannot find a competent third option."
+
 ## Decisions adopted
 
 | # | Decision | Realized in (workplan) |
@@ -45,6 +51,7 @@ The "permission classification system" is the decision-class classification R0 (
 | SD-5 | **The design principles of revision 5 are accepted (N3).** This includes the interpretations the Review named as needing stakeholder acceptance: keyword and prose checks are non-blocking `HEURISTIC` signals; the objective is read as bounded by what machinery can enforce, with agents doing semantic analysis, concept handling and routine decisions | §0, §1.1-§1.3, §2.5 (A5-A9), §7.7 |
 | SD-6 | **The doctrine-realization objective is an aspiration whose machine limits must be tested (N1).** Perfection is not expected soon. The target is progress as challenges are discovered, measured rather than claimed. Every realization claim stays bounded to its mechanism and its evidence | §1.1, §7.7 (realization levels), §22 (doctrine-realization measurement), §26 |
 | SD-7 | Repair the `ffbad17` Review's findings (design revision 6). The next independent D3 Review is by ChatGPT, a different model family, from a handoff prompt written at the end of the revision | workplan revision 6; `REVIEW-HANDOFF-SSDS-8.0-REVISION-6.md` |
+| SD-8 | From revision 11, the author runs the remaining revise/review cycle itself, with fresh-context sub-agent Reviews, until no blocker remains. The sub-agents share the author's model family; every record states that as a common-mode dependency | workplan §0.1 (revision 11 onward); `REVIEW-HANDOFF-SSDS-8.0-REVISION-11.md` and later |
 
 ## Not covered
 
