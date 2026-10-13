@@ -177,7 +177,7 @@ The model check gives each execution an evaluated outcome and computes pair auth
 - P12: a failing assessment on a never-admitted obligation never lowers the admitted evidence term;
 - Q2: pairs that are contradicted, or reproduced on the current content, dispose of nothing.
 
-At depth 4 it checks 317,340 transitions with no failures, and all 41 named discriminators give their expected values (depth 5: §27.32). `REV18=1` fails P10, P11, P12 and Q2. Frames other than the admitted state, lineages and decision classes remain outside the model; §22 carries their cases.
+At depth 4 it checks 317,340 transitions with no failures, and all 41 named discriminators give their expected values (at depth 5, 13,039,519 transitions with no failures). `REV18=1` fails P10, P11, P12 and Q2. Frames other than the admitted state, lineages and decision classes remain outside the model; §22 carries their cases.
 
 #### Revision 18 (prior) record
 
@@ -3505,7 +3505,7 @@ The convergence owner routes a post-simplification recurrence to "bounded recons
 | Rejected content later merged by a human (`6fe1000` A1) | Counts from the absorption that admits its obligation; at once if the obligation was already admitted |
 | Editorial frame change, failure from admitted code (`6fe1000` A2) | Counts at once; the trial on admitted content reproduces the outcome, so no pair forms |
 
-**Deterministic check.** The model computes pair authorization from per-execution evaluated outcomes, models the withdrawal latch, supersession standing with `here`, and a frame-only obligation with an admission event, and adds P10-P12 and Q2. At depth 4 it checks 317,340 transitions with no failures, and its 41 named discriminators give their expected values. `REV18=1` fails P10, P11, P12 and Q2, and every earlier mode fails at least P9 or P10. Depth 5: run pending at this commit. Frames other than the admitted state, lineages, custody and decision classes are outside the model; §22 carries their cases (DS-001).
+**Deterministic check.** The model computes pair authorization from per-execution evaluated outcomes, models the withdrawal latch, supersession standing with `here`, and a frame-only obligation with an admission event, and adds P10-P12 and Q2. At depth 4 it checks 317,340 transitions with no failures, and its 41 named discriminators give their expected values. `REV18=1` fails P10, P11, P12 and Q2, and every earlier mode fails at least P9 or P10. At depth 5 it checks 13,039,519 transitions with no failures. Frames other than the admitted state, lineages, custody and decision classes are outside the model; §22 carries their cases (DS-001).
 
 **Attacks on the repair.**
 
