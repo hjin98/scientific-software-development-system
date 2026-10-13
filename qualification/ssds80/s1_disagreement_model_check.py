@@ -83,8 +83,8 @@ plus the reading the assessment applied. A pair may therefore be formed against
 admitted content whenever a failure's assessed content differs from it, and a
 failure under a never-admitted reading forms a reading pair whose trial is read
 under the admitted reading; while the admitted reading is the one its trial was
-read under, any observation on the current content shows another assessed
-value. Revision 19 compared the named content only
+read under, the trial's own outcome on the current content is another assessed
+value too. Revision 19 compared the named content only
 (p), and is kept as REV19=1.
 
 Properties, for every ledger L and every appended record r:
@@ -289,7 +289,8 @@ class Ledger:
         if ry.ro != self.r[f].ob():
             return False
         if self.reading_pair(y):  # revision 20: the reading differs; the outcome need not
-            pass
+            if key(self.xc(f)) == key(self.content(y)) and ry.to != ry.ro:
+                return False  # one executed content, two outcomes: nondeterministic in fact
         elif key(self.xc(f)) == key(self.content(y)):  # no assessed content changed
             return False
         elif MODE in STRICT and ry.to == ry.ro:
@@ -491,14 +492,15 @@ class Ledger:
         """Revision 19: on the current content, an admitted observation of the configuration has an
         outcome other than the failing one, and none has the failing one. Revision 20: compared on the
         executed content; for a reading pair, while the admitted reading is the one its trial was read
-        under, every outcome is another assessed value."""
+        under, the trial's own outcome is also another assessed value."""
         f = self.r[d].supersedes
         cur, fo = key(self.content(self.n)), self.r[f].ob()
         outs = [o for _, c, o in self.observations(f) if key(c) == cur]
         if key(self.xc(f)) == cur:
             outs.append(fo)
         if self.reading_pair(d) and self.reading(self.n) == self.reading(d):
-            return bool(outs)  # under the trial's reading, no outcome is the failing assessed value
+            to = self.r[d].to  # the admitted reading was shown to pass the trial's outcome
+            return bool(outs) and all(o != fo or o == to for o in outs)
         return bool(outs) and all(o != fo for o in outs)
 
     def chain_withdrawn(self, d: int, am: int) -> bool:
@@ -660,6 +662,8 @@ def oracle_unqualified(L: Ledger) -> bool:
                 return False
             if rev19 and r.to == r.ro:
                 return False
+        elif executed(f) == revision(y) and r.to != r.ro:
+            return False
         return not disagrees(y, y)
 
     def present(x):
@@ -697,13 +701,14 @@ def oracle_unqualified(L: Ledger) -> bool:
 
     def here(z):
         """An observation of the configuration on the current content differs from the failing
-        outcome, and none equals it; under a reading pair's own admitted reading, any observed outcome."""
+        outcome, and none equals it; under a reading pair's own admitted reading, the trial's outcome
+        is another assessed value too."""
         f, cur = recs[z].supersedes, revision(n)
         outs = [o for _, c, o in obs_list(f) if c == cur]
         if executed(f) == cur:
             outs.append(outcome_of(f))
         if by_reading(z) and reading_at(n) == reading_at(z):
-            return len(outs) > 0
+            return len(outs) > 0 and all(o != outcome_of(f) or o == recs[z].to for o in outs)
         return len(outs) > 0 and outcome_of(f) not in outs
 
     def stands(y):
@@ -937,6 +942,11 @@ DISCRIMINATORS = [
      (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), UMOVE, PASS_), P),
     ("ba7f738 U2: reading pair, execution-basis change, rerun with the same outcome",
      (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), UMOVE, EXEC(1, 1), PASS_), T),
+    ("ba7f738 U2: reading pair whose trial also changed the outcome", (PASS_, FAIL_TIGHT, UMOVE, PAIR(1, ro=1, to=0), PASS_), T),
+    ("ba7f738 U2: that fix reverted, the failing outcome observed again",
+     (PASS_, FAIL_TIGHT, UMOVE, PAIR(1, ro=1, to=0), UMOVE, EXEC(1, 1), PASS_), P),
+    ("ba7f738 U2: a reading pair on one executed content with two outcomes is refused",
+     (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=0), PASS_), P),
     ("ba7f738 U2 contrast: the tightened reading is later admitted", (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), ADMIT_TIGHT, PASS_), P),
     ("ba7f738 U2 contrast: admitted after the pair, then fixed with an outcome flip",
      (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), ADMIT_TIGHT, MOVE, PAIR(1, ro=1, to=0), PASS_), T),
@@ -977,6 +987,8 @@ def discriminates(L: Ledger, y: int) -> bool:
     if ry.ro != fo:
         return False
     if not unadmitted and (ry.to == ry.ro or old == here(y)):
+        return False
+    if old == here(y) and ry.to != ry.ro:
         return False
     for i in range(L.n):
         r = recs[i]
