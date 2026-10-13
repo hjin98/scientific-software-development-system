@@ -5,10 +5,11 @@ protocol_version: 7.2.1
 target_system_version: 8.0.0
 status: proposed
 created_date: 2026-10-01
-revised_date: 2026-10-12
-design_revision: 4
+revised_date: 2026-10-13
+design_revision: 5
 baseline_reconciliation: protocol-7.2.1 (2026-10-12; section 0.4)
 governing_version_adoption: 6.6.0 -> 7.2.1 by stakeholder instruction 2026-10-12 (section 0.4)
+stakeholder_direction: workflow execution and verification layer, 2026-10-13 (section 0.1)
 source_branch_basis: af0455753e20ee54a969c844872e29e270007211
 source_branch: main
 prior_source_branch_basis: f96b7ccf90dede4150d0efa17264fff07ec12d0d (ssdp-7.0-scientific-epistemic-closure; design revisions 1-4 before the 2026-10-12 rebase)
@@ -38,20 +39,25 @@ The workplan ID keeps the historical `GRAPH-NATIVE` lexeme for routing stability
 GOVERNING DESIGN PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12, §0.4;
             release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0, the system-level successor to the document-controlled SSDP line
-THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 4; proposed, not accepted-current;
+THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 5; proposed, not accepted-current;
            not an Architecture Manual
+REVISION 5: adds the workflow execution and verification layer (workflow roles and decision classes, work contracts,
+           conformance verification, report routing and non-droppable escalation; §7.5-§7.10, §9.6-§9.8) and the
+           doctrine-realization objective (§1.1), by stakeholder direction 2026-10-13 (§0.1); the revision-4 persistence,
+           derivation and migration design is unchanged
 PRIOR REVIEWS: f9d9de8 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-F9D9DE8-NO-PASS.md), repaired by revision 2;
            441cf5c NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-441CF5C-NO-PASS.md), repaired by revision 3;
            8a75346 NO-PASS, two blockers A-B and findings N1-N5
-           (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md), repaired here at their owners (§0.1)
+           (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md), repaired by revision 4 at their owners
+           (§0.1, revision 4 record); revision 4 was never Reviewed
 SUPERSEDES: the consolidated Protocol 8 plan (archived byte-identically, with its nine-file lineage)
             and the befe678 graph-native hypothesis (archived byte-identically as ...-BEFE678-HYPOTHESIS.md)
 SERIOUS CHALLENGE: NONE (§1.3 records why the governing goals are judged consistent)
 PROTOCOL 7: closed at 7.2.1 (accepted with conditions); inheritance RECONCILED (Phase A executed, §0.4, §19, §24);
-            the reconciliation is reviewed together with design revision 4
-INDEPENDENT D3 REVIEW: ready for a fresh independent falsification Review of design revision 4 and its 7.2.1
-            reconciliation; this revision is refinement, not acceptance, and awards itself nothing;
-            a PASS cannot authorize D4 before Phase C (accepted Architecture Manual)
+            the reconciliation is reviewed together with design revision 5
+INDEPENDENT D3 REVIEW: ready for a fresh independent falsification Review of design revision 5 (including the
+            unreviewed revision-4 repairs) and its 7.2.1 reconciliation; this revision is refinement, not acceptance,
+            and awards itself nothing; a PASS cannot authorize D4 before Phase C (accepted Architecture Manual)
 SSDS 8 D4: NOT AUTHORIZED
 ```
 
@@ -66,7 +72,44 @@ SSDS 8 D4: NOT AUTHORIZED
 | appended ledger state vs current-qualified state | an append is provisional until a witness quorum holds its exact head; only admitted state is ever asserted current (P4, §15.3-§15.4) | a historical prefix or an unwitnessed append presented as the current head |
 | retained history vs known-lost admitted history | abandoning admitted history is a recorded loss boundary; effects recorded before it that could only add support or relax a block are withheld after it until requalified or attested unaffected; restrictive effects survive (P5, §15.4) | authority, support or relief reviving across admitted history known to be lost, even when ledger and product are restored to the same stale snapshot |
 
-### 0.1 Revision 4: what changed and why
+**How agents work on top of it (revision 5).** Every task is executed in one **workflow role** (principal, implementer, reviewer, investigator) whose contract — what it may write, submit and decide — is enforced by Admission, never by instruction text. Each plan item carries a machine-readable **work contract**: boundaries, obligations, and how each obligation is verified. The machine produces every factual part of a result; the agent supplies only judgment, in typed slots. **Conformance verification** is a derived classification over the contract, the candidate and recorded executions: it can reject, return or point, but never pass anything a reviewer must judge. Reports route deterministically; material findings reach the human through obligations that no agent can discharge (§7.5-§7.10, §9.6-§9.8). Two further separations carry this layer:
+
+| Separation | Rule | Failure class it makes impossible |
+|---|---|---|
+| authority envelope vs instruction | a workflow role constrains which proposals Admission considers; brief text only informs (A5, §7.5) | an agent mutating plans, contracts, verifiers or out-of-scope content because a prompt was misread, ignored or absent |
+| mechanical conformance vs semantic acceptance | verification is necessary, never sufficient; heuristic checks only point (A7, §7.7) | a passing check, a keyword lint or an agent's own claim standing in for a reviewer's judgment |
+
+### 0.1 Revision 5: what changed and why
+
+**Authority.** Stakeholder direction, 2026-10-13, given while this revision-4 handoff awaited Review. The stakeholder, who owns this line, observed that real execution never follows the initial plan; proposed role-based workflow execution with a principal executor that holds authority over the workflow and offloads work to other roles, implementers without authority to modify or redefine the workplan, and reviewers handed a clean context; required a deterministic flow of important discoveries and decisions to the human inspector; and directed:
+
+> "the deterministic machinery should be the backbone for all the doctrine and functionality claimed by SSDP, and provide the deterministic machinery to reliably achieve them, as the latest qualification evidence already suggests that pure-language driven SSDP cannot reliably achieve all the functionality and improvements it claims. [...] Offload as much work as possible to deterministic machinery and let agent only handle things only it can handle, like semantic analysis, concept handling, and routine decision-making."
+
+> "Work obligations, boundaries, and expectations be written by agents into machine-readable form. Then the implementer would implement, but the deterministic verification machine would verify whether all job obligations are complete and any over-stepping of boundaries. The machine should basically add an additional layer of check to make sure that each agents are within it's authorized boundaries, executed obligations, and reported as faithful. Complex semantic and logic are the job of the reviewer, but basic domain and keyword checks, and basic logic and mechanical verification should be achievable by the machines."
+
+The stakeholder then accepted the decision-class classification (R0-R3, §7.5) as the design direction and instructed this revision to be drafted. That direction adds the doctrine-realization objective to §1.1; the editing agent added no objective on its own judgment. Everything else here is design under that direction and is open to the fresh independent Review.
+
+**Diagnosis of revision 4 against the direction.** The revision-4 substrate (ledger, basis, derived obligations, item-level plan amendment, deterministic briefs, Admission authorization) could carry the direction without a new primitive, but the layer itself was absent or deferred: (1) no actor was qualified to reshape a plan, and §9.1 only forbade agents from declaring plan patches; (2) actor qualification was per judgment kind, with no per-task authority envelope, so "implementers may not edit the plan" had no enforcement point, and write scope was a §19.2 Manual decision while §8.1 treated intended affected units as an advisory prediction; (3) `report` had no routing, suspension or decision semantics; (4) a review brief could carry the author's own findings, contrary to the 7.2.1 workflow owner's independence rule; (5) nothing kept a material delegated finding alive on its way to the human, which the 7.2.1 scientific-inspectability owner requires and the 7.x study showed language cannot secure; (6) rigor was concentrated on ledger durability while the agent-facing workflow, where every 7.x failure occurred, was specified in about fifty lines. None of these is a Serious Challenge: the goals were consistent; the handoff was inadequate for them.
+
+| Change | Where | Why |
+|---|---|---|
+| Doctrine-realization objective; allocation lines for routine coordination and mechanical conformance; two apparent conflicts dissolved | §1.1-§1.3 | stakeholder direction; §1.3 records why the new objective does not conflict with the others |
+| Invariants A5-A9: typed role authority, machine-produced facts, verification necessary but never sufficient, non-droppable escalation, constructed reviewer independence | §2.5 | earliest owner for the new guarantees |
+| Workflow roles, decision classes R0-R3, the principal as an obligation holder (not a daemon) | §7.5 | gaps 1-2 |
+| Work contracts: typed plan-item sections with total verifier assignment, lint, adequacy by plan acceptance, frozen at issue; write scope as enforced authorization, separate from the advisory footprint | §7.6, §8.1 | gaps 1-2; stakeholder: obligations, boundaries, expectations in machine-readable form |
+| Conformance verification: fixed check templates with declared force; four outcome classes; derived, not stored; executions by trusted runners | §7.7 | stakeholder: boundaries, obligations, faithful reporting checked by machine |
+| Result handling in two ordinary admissions: result records first, integration after review | §7.8, §6.8, §9.1 | revision 4 left the order of implementation result, review and integration implicit |
+| Typed reports, amendment requests, principal decisions with kind-restricted outcomes, monotone amendment and decomposition rules, escalation floors, recorded downgrades | §7.9 | gaps 3 and 5 |
+| Iteration budgets and mechanical recurrence detection | §7.10 | convergence-and-cycle-economy owner: detection is mechanical, the response is judgment |
+| Role briefs, reviewer-brief independence, decision brief, inspector view | §9.2, §9.4, §9.6-§9.8 | gaps 4-5; A4 activation without wording |
+| Admission step 3 (role and write scope) and step 7 (contract conformance) | §6.8 | enforcement points |
+| Record kinds named; protected surfaces extended; components unchanged | §6.3, §15.7, §16.1 | minimum architecture (§27.5) |
+| §19.2 inputs decided at D3 where they are architecture; doctrine-realization levels E0-E3 | §19.2, §7.7 | 7.x lesson 5 |
+| Non-goals, Manual items 23-27, qualification groups, Phase E scope, acceptance criterion, reopen triggers, round-5 passes | §20-§23, §25-§27 | — |
+
+**Defects found by this revision's own pass (§27.4) and repaired before handoff:** an authority-defect request could be "resolved locally" by the principal (decision outcomes are now restricted by request kind and target domain, §7.9); a raiser could escape escalation by under-declaring materiality (a domain floor now makes every report targeting D1/D2 authority at least `MATERIAL`, §7.9); two concurrent coordination tasks could amend one plan from different bases (a change plan is a serialization surface for coordination, §7.5); an implementer could weaken the acceptance tests that verify its own work (evidence-specification units outside the contract are outside its write scope, and test-integrity checks are `HARD`, §7.6-§7.7).
+
+#### Revision 4 (prior) record
 
 The 8a75346 Review returned NO-PASS with two blockers. Both were treated as falsification hypotheses and reconstructed independently from the accepted 6.6 owners at the public-source commit named by `PROTOCOL-RELEASE-STATE.yaml` (`22f4bdba…`), in particular the concurrency owner (publication and retry are idempotent or transactionally reconciled; completion is never inferred from ref presence) and the storage owner (recovery must distinguish current, stale and historical state and must not make an older state look current). Both were confirmed. Neither repair adopts the Review's suggested mechanism as stated; each was re-derived for the smallest abstraction that closes the whole failure family.
 
@@ -184,7 +227,7 @@ The one tree difference is intended. The archived consolidated Protocol 8 plan i
 | Profiles 6.6, 7.0, 7.1 and 7.2 frozen and independently testable (versioning, PC-001) | SSDS coexists with document-controlled profiles | §24, §2.9 B1 |
 | Search for recorded tensions before relying on accepted D1/D2 authority (entrypoint Tensions duty) | does not apply to this workplan, which relies on no accepted project D1/D2 authority; it applies to agents SSDS briefs, as an input to brief design | §19 |
 
-**Evidence re-evaluated.** The three NO-PASS Review records stay applicable as history, because their verification basis (the 6.6 owners at `22f4bdba`) means the same at 7.2.1. No executed SSDS evidence exists to go stale. The fresh independent Review covers design revision 4 and this reconciliation together.
+**Evidence re-evaluated.** The three NO-PASS Review records stay applicable as history, because their verification basis (the 6.6 owners at `22f4bdba`) means the same at 7.2.1. No executed SSDS evidence exists to go stale. The fresh independent Review covers design revision 4 and this reconciliation together; since 2026-10-13 it covers design revision 5, which carries revision 4 unchanged and adds the workflow layer (§0.1).
 
 **Bound inputs and baseline.** The final Protocol 7 inputs are in §19. The pre-cutover baseline is in §24.
 
@@ -194,6 +237,8 @@ The one tree difference is intended. The archived consolidated Protocol 8 plan i
 
 SSDS 8 coordinates stochastic reasoning agents and humans over evolving scientific software while preserving SSDP's hierarchy of semantic authority. Wherever an answer is mechanically decidable, it must answer mechanically: what is authoritative; what depends on what; what changed; what is stale; what work is legal now; what may proceed concurrently; what context a task needs; what an agent modified; whether a result still applies to the state it was produced against; and what genuinely needs semantic judgment or human authority. It must absorb manual, external and legacy change without corrupting canonical state. It must let an old repository become governed progressively without stopping production. It must let history be reconstructed after failures, migrations, rollback attempts and schema evolution.
 
+**Doctrine realization (stakeholder objective, 2026-10-13).** The deterministic machinery is the backbone through which SSDP's doctrine and claimed functionality are realized reliably, not a bookkeeping aid beside a language protocol whose compliance is probabilistic (§19.3). Every SSDP duty is therefore assigned a realization level (§7.7): enforced mechanically, detected mechanically and routed to judgment, carried as a required typed answer whose presence is checked, or left to judgment and Review. Work proceeds by typed roles whose authority is enforced (§7.5); obligations, boundaries and expectations are machine-readable and mechanically verified (§7.6-§7.7); material discoveries and decisions reach the human inspector through a deterministic route that no agent can interrupt (§7.9, §9.8). Agents do what only they can do: semantic analysis, concept handling, creative concretization and routine decisions. SSDS claims no more than this: machinery can guarantee that a duty's mechanical part was performed and that its outcome survives; it cannot guarantee that a judgment was good or that an agent noticed what it did not report (§8.4, §27.4).
+
 ### 1.2 Allocation principle
 
 ```text
@@ -202,7 +247,9 @@ mechanically decidable only conservatively       -> deterministic machinery, ans
                                                     over-approximation (never under-approximation)
 precision beyond the conservative answer         -> a focused semantic judgment that narrows it
 judgment already made, basis still current       -> reused mechanically; never re-asked
-unresolved semantic question                     -> agent
+mechanically checkable conformance               -> verification; necessary, never sufficient (§7.7)
+unresolved semantic question                     -> agent, in the role the obligation kind selects (§7.5)
+routine coordination decision                    -> principal role; recorded and challengeable (§7.5, §7.9)
 designated authority decision                    -> human gate
 canonical state change                           -> single serialized admission
 ```
@@ -211,18 +258,21 @@ canonical state change                           -> single serialized admission
 
 ### 1.3 Consistency of the governing goals (Serious Challenge check)
 
-Four apparent conflicts dissolve under the architecture rather than being engineered around:
+Six apparent conflicts dissolve under the architecture rather than being engineered around:
 
 - *Mandatory deterministic control vs never stopping production.* Production commits remain ordinary Git; non-closure blocks canonical governance status, not execution (§11, §12).
 - *Minimal agent context vs "absence of an edge is not independence".* Context is minimal only within judged-complete scopes; elsewhere the basis widens conservatively and the brief says so (§6.5, §9).
 - *Single canonical writer vs multi-host teams.* One writer per ledger is enforced by compare-and-swap on one authoritative ref (§15.3).
 - *Append-only audit vs confidentiality.* Prevention makes sensitive ledger content structurally unlikely. When confidentiality and append-only continuity truly conflict, a human-gated breach protocol lets confidentiality win and states which audit guarantees yield (§15.5).
+- *Autonomous agent execution vs human control of what matters.* Decision classes are fixed by system semantics and policy, never chosen by the agent (§7.5): agents settle routine decisions, and the human sees exactly the decisions and discoveries the escalation floors route, plus a digest of the rest (§7.9, §9.8).
+- *Mechanical verification vs semantic adequacy (S9).* Verification can reject, return or point, but no mechanical outcome discharges an obligation a judgment must discharge (A7, §7.7). The machine removes the checkable part of the reviewer's burden; it never replaces the review.
 
-Three residual limitations are real but not contradictions:
+Four residual limitations are real but not contradictions:
 
 - Semantic dependencies an agent uses without the machinery observing them cannot be captured by any read-set scheme (§8.4).
 - Circular reasoning stated only in prose, without declared relations, can be found only by semantic review (§6.2).
 - No architecture can infer the existence of a state whose every copy and checkpoint has been destroyed, or reconstruct the content of admitted history known to be lost. SSDS therefore asserts currentness only for durably witnessed state, under a declared witness model, and makes a known loss a boundary that retained authority cannot silently cross (§15.4).
+- Machinery cannot make an agent notice what it did not notice, nor make a judgment good. The 7.x study found that detection did not respond to protocol text in any arm (§19.3), and enforcement does not change that. SSDS guarantees instead that whatever is detected, by agent or check, survives to its owner, and that the review step is never skipped (§7.9, §27.4).
 
 The design bounds and discloses each; none weakens a stated invariant. No Serious Challenge is raised.
 
@@ -240,8 +290,9 @@ SSDS 8 produces no scientific results of its own. It does decide which realized 
   - Which evidence supports or challenges this claim, and which is stale or unavailable?
   - What did a gate decide, on which evidence core, and with which findings and tensions visible?
   - What is withheld by quarantine or a loss boundary, and why?
+  - What did each agent do, in which role and within which boundaries; what did verification find; and which reported findings were escalated, merged or downgraded, by whom?
 - **Product inspectability surfaces (marked).**
-  - *Within the requested deliverable (this architecture):* S3 derived views and `ask`/`read` answers that name their qualified head (§6.6, §9.1, §9.3); task briefs with incompleteness notices (§9.2); gate briefs led by a separable non-narrative core (§9.4).
+  - *Within the requested deliverable (this architecture):* S3 derived views and `ask`/`read` answers that name their qualified head (§6.6, §9.1, §9.3); task briefs with incompleteness notices (§9.2); gate briefs led by a separable non-narrative core (§9.4); the conformance view of each result (§7.7); the inspector view and its digest (§9.8).
   - *Beyond the requested deliverable:* None. Projection of project scientific records, exploration interfaces and discovery stores stay with project products. SSDS references their homes and adds no universal observation database (§10, §20).
 
 ## 2. Reconstructed invariants
@@ -296,6 +347,11 @@ Source tags: **[6.6]** accepted 6.6 SSDP doctrine, carried unchanged into accept
 - **A2** Context is version-bound, explains why each item is present, labels its epistemic status, and states known incompleteness. [S8]
 - **A3** One logical task/result contract across harnesses and transports; a zero-context agent can locate its task from a minimal bootstrap. [P8]
 - **A4** A duty a task owes is either carried in that task's brief or enforced mechanically. Activation and selection are deterministic, never left to wording, and mandatory depth is never reached through conditional "read X when Y" routing. Briefs carry only the duties that are triggered, because surplus duty text causes narration nobody owed. [7.x-E, ratification lessons 1-4]
+- **A5** Every execution acts in exactly one workflow role for exactly one task. What it may write, which record kinds and outcomes it may submit, and which decisions it may make are fixed by the role and the task's work contract and are checked at Admission; a role confers no authority, it bounds which proposals are considered. No agent role other than the principal of a plan may change that plan's items or contracts, no agent role may change verification rules, and no actor reviews or accepts its own work. [S8; 6.6 workflow: independence; derived from T1, S9]
+- **A6** The factual content of a result (what changed, what ran, what it returned, what was read) is produced by machinery. An agent supplies judgment in typed slots, and any factual claim it still makes cites the record that establishes it. [S8; 7.x-E lesson 5; P8 §17]
+- **A7** Verification is necessary, never sufficient. A mechanical check can reject, return work or point a reviewer at something; it never discharges an obligation that a judgment must discharge, and a heuristic check never changes a disposition. No control decision depends on parsing prose. [S9; P8 §17; derived here]
+- **A8** A material finding survives to its owner. Escalation to the human is a derived obligation that only an authenticated human judgment discharges; an intermediate role may annotate, merge or upgrade it, and may downgrade it only by a recorded, visible and challengeable judgment, never below a system floor. [7.x scientific-inspectability: material delegated findings survive to the human; S8]
+- **A9** Reviewer independence is constructed, not requested: a review brief excludes the author's narrative and conclusions, the reviewing execution differs from the author's, and material common-mode dependencies are recorded. [6.6 workflow: a subagent that receives the author's conclusions is not independent]
 
 ### 2.6 Repository and Git
 
@@ -514,9 +570,9 @@ The **ledger** is the single canonical store of everything that cannot be derive
 
 | Record kind | Produced by | Examples |
 |---|---|---|
-| **Judgment** (support tier) | agent, human, or semantic-role tool | acceptance; conformance; equivalence; completeness; evidence assessment; plan acceptance; intake classification and disposition, including adoption of a quarantined structural delta; legacy or external acceptance import; reconstruction proposal |
+| **Judgment** (support tier) | agent, human, or semantic-role tool | acceptance; conformance; equivalence; completeness; evidence assessment; plan acceptance; intake classification and disposition, including adoption of a quarantined structural delta; legacy or external acceptance import; reconstruction proposal; task result (outcome classification, typed slots, claim references, §7.8); report (amendment request, blocker, scope deviation, human question, §7.9); coordination decision and materiality reclassification (§7.9); human acknowledgment (§9.8) |
 | **Judgment** (challenge tier) | qualified actors per policy | finding or challenge (blocking or not); Serious Challenge; adjudication; withdrawal; risk override; continuity attestation after a loss boundary (human-gated, §15.4) |
-| **Observation** | machinery | evidence realization from a trusted runner (§10); consultation of an external ledger's qualified head (§11.4); analyzer output recorded because the analyzer is nondeterministic or expensive; artifact availability |
+| **Observation** | machinery | evidence realization from a trusted runner (§10); consultation of an external ledger's qualified head (§11.4); analyzer output recorded because the analyzer is nondeterministic or expensive; artifact availability; check execution by a trusted runner (test runs, mutation testing, static analysis over a candidate, §7.7) |
 | **Admission** | Admission only | accept or reject of an admission request with reason codes, validated basis, ruleset version, request identity, base commit (its `obs`), resulting admitted (merged) commit and adopted structural deltas; absorption of an observed integration head (§15.3) |
 | **Lifecycle** | Admission, human-gated where required | genesis (project identity, ledger location, authoritative replica, trust roots, witness set and quorums, initial effective structure, baseline commit); ruleset adoption; schema migration; governance-mode transition; project fork; replica redesignation; witness-set redesignation; ledger loss (a continuity boundary, §15.4); ledger fork resolution; confidentiality-incident lineage migration and old-lineage retirement; redaction notice |
 
@@ -692,7 +748,7 @@ Admission validates against the admitted head it holds, after reconciling the in
 
 1. **schema** — records well-formed under the closed schema; bounded secret/sensitive-value checks (§15.5); unknown required semantics fail closed (C5);
 2. **reference** — every identity, revision, task, obligation and target exists and matches;
-3. **authorization** — actor class qualified for each judgment kind; acceptance judgments only on effective subjects in their current tenure (after the request's own structural changes), never on parts, never on a `REVOKED` triple and never on an ill-formed revision; independence requirements for equivalence/completeness about the request's own change; protected surfaces untouched without their own authority (§15.7);
+3. **authorization** — actor class qualified for each judgment kind; acceptance judgments only on effective subjects in their current tenure (after the request's own structural changes), never on parts, never on a `REVOKED` triple and never on an ill-formed revision; independence requirements for equivalence/completeness about the request's own change, and for every review, acceptance and plan-acceptance judgment about work or contracts authored by the same execution or within its context lineage (A9, §9.6); the submitting task's workflow role permits each record kind and outcome (§7.5); the request's write set lies within the task's work-contract write scope, and plan units, contracts and verification rules lie outside every role's scope except as §7.5 assigns them (§7.6); protected surfaces untouched without their own authority (§15.7);
 4. **structure** — on the merged tree `M`, in three parts:
    - *(a) effective-structure delta.* For every declaration key `k`:
      - if `k ∉ Q_n`, then `Σ_{n+1}[k] := decl(M)[k]`: an authored change, or no change;
@@ -706,7 +762,7 @@ Admission validates against the admitted head it holds, after reconciling the in
    - *(c) semantic structure.* Known relation types of `ρ_n`, relation direction and layer order, cycle legality and the SDG rules (§6.2), and single definer;
 5. **dependency well-formedness** — challenge-tier targets strictly earlier and of permitted kinds; no `validity` entry naming the record's own subject or a part of it (prerequisites inside it are `content`-mode, §6.4); after the request's edges are added — basis entries, equivalence coverage, and the edges of existing records whose `validity` endpoints the request's structural changes re-route through `subj` — the support dependency graph remains acyclic (§6.6);
 6. **currency** — every basis entry of every submitted record is satisfied at the current admitted ledger head (optimistic concurrency; Admission holds that head by compare-and-swap, and it is admitted because at most one provisional entry exists, §15.3), except that entries naming content the request itself changes are checked against its merged tree; otherwise the request is classified stale and routed to revalidation rather than admitted;
-7. **legality** — each obligation the request claims exists and is undischarged at the current head (a duplicate discharge is rejected and recorded), and its discharge predicate (§7.4) holds after the request's own records, including affected evidence rerun on the merged tree;
+7. **legality** — each obligation the request claims exists and is undischarged at the current head (a duplicate discharge is rejected and recorded), and its discharge predicate (§7.4) holds after the request's own records, including affected evidence rerun on the merged tree; for a task obligation carrying a work contract, the derived conformance of the exact candidate commit has no `VIOLATION`, `INCOMPLETE` or `DISCREPANCY` (§7.7), and an integrating request claims it only together with its current review judgments (§7.8);
 8. **no collateral regression** — every obligation discharged at the current head and affected by the merged tree stays discharged, with affected evidence rerun. The only legal way to reopen others' closures is an accepted change to a prerequisite authority, whose derived impact obligations are the intended consequence. A D4 change that breaks another closure is a regression and is not admitted;
 9. **commit and admit** — Admission reads the live integration head `obs`. The request is appended only if `obs` is the head entry's expected head `E` (or an equivalent publication of it, §15.3); otherwise Admission first appends an absorption of `obs` and revalidates the request at the new head. One ledger entry carrying `obs` and all records is appended by single-ref compare-and-swap (§15.3); it also reconciles the publication of the previous admission if that was pending. The appended entry is *provisional*. It is *admitted* when a witness quorum holds its exact checkpoint (§15.4), and that is the commit point for every external effect. Only then is the request reported admitted, the integration ref published as an effect, work dispatched from the new state, and the next entry appended; the next entry records this publication's outcome.
 
@@ -722,21 +778,23 @@ All three take effect in S0 and S2. The S3 obligations that follow — intake, d
 
 **Agent PASS is a proposal.** An admitted PASS judgment is a recorded fact about what the actor concluded; closure is a derived discharge (§7.4).
 
-## 7. Work: obligations and change plans
+## 7. Work: obligations, change plans, roles and verification
 
 ### 7.1 Two sources of work
 
 The befe678 WorkGraph conflated two different things.
 
 - **Derived obligations** follow from rules and state: a subject without a valid acceptance; a judgment no longer current; an evidence specification without a current admissible realization for its claim; an open challenge awaiting adjudication; a pending human gate; a foreign change awaiting intake, including each quarantined structural delta; a scope deviation awaiting disposition; an admitted change overtaken before publication (§15.3); a record or relaxer withheld by a loss boundary and awaiting requalification (§15.4); an integrity finding. They are never authored; they appear and disappear as derivation changes (S3). Their deterministic identities are derived from `(rule, subject)`.
-- **Authored intents** carry creative direction: implement this, investigate that, migrate this region. They live in **change plans**: plan units (documents) whose sections are **items**. Each item has an objective, governing units, acceptance criteria, intended affected units, required gates and dependencies on other items or units.
+- **Authored intents** carry creative direction: implement this, investigate that, migrate this region. They live in **change plans**: plan units (documents) whose sections are **items**. Each item has an objective, governing units, acceptance criteria, intended affected units, required gates and dependencies on other items or units. Before it can be issued, the item also carries a **work contract** (§7.6) that types these fields and adds boundaries, verifiers, expectations and a budget.
 
 ### 7.2 Plan acceptance and local amendment
 
 A `PLAN_ACCEPTANCE` judgment (independent where policy requires) names in its basis the plan's objective section and the item revisions it accepts. An item is issuable only while some current plan-acceptance judgment covers its current revision. Item-level revisions give locality:
 
 - an amendment is an ordinary change to the plan unit; tasks whose basis names a changed item become non-current; tasks on unchanged items continue;
-- whole-plan invariants are rechecked mechanically on every amendment: referenced units exist, dependencies are acyclic and respect authority order, gates required by policy are present, acceptance criteria name resolvable evidence;
+- the plan's principal (§7.5) is the only agent role whose write scope includes the plan's units; a human may also edit a plan, as ordinary content that enacts nothing until accepted;
+- whole-plan invariants are rechecked mechanically on every amendment: referenced units exist, dependencies are acyclic and respect authority order, gates required by policy are present, acceptance criteria name resolvable evidence, and every changed contract passes lint (§7.6);
+- an amendment's acceptance class is decided mechanically from the plan diff: a monotone amendment or decomposition keeps the existing plan acceptance current through a principal's scoped equivalence judgment where policy permits; every other amendment needs independent plan acceptance (§7.9);
 - the plan's policy states whether an amendment may be accepted by a scoped review of the changed items plus their derived impact set, or needs whole-plan review. Changes to the plan objective, acceptance criteria, topology or gates always need whole-plan review. A scoped reviewer always receives the whole-plan objective and may escalate;
 - running tasks remain bound to their basis; no revision pretends an old task saw new requirements.
 
@@ -766,6 +824,172 @@ result is DISCHARGED_PROVISIONAL when any input above is P; that value is permit
 
 The impact a change triggers on *other* subjects is not a discharge condition: those are separate obligations on the dependents, and Admission step 8 forbids collateral regression. A missing required check is an undischarged obligation; no rule can turn it into PASS.
 
+### 7.5 Workflow roles and decision classes
+
+A **workflow role** is an authority envelope: what an execution may write, which record kinds and outcomes it may submit, and which decisions it may make. It is distinct from SSDP's D1-D4 domain roles (scientific formulation, numerical algorithm design, software design, software implementation), which are *content*: the epistemic procedure a brief carries for its subject's domain (§9.2, §12.6). A brief composes the two. The principal *role* is not a principal in the authentication sense of §15.6: like every agent role, its records are proposals attributed to an execution identity.
+
+Role templates are fixed by the SSDS system version and parameterized by project policy, like judgment kinds (§6.6): obligation kinds held, operations, record kinds and outcomes, write-scope rule, decision class, brief template and context policy, separation constraints. The obligation kind determines the role, so Admission checks a submitted record against `role(kind(o))` under `ρ_n` for the obligation `o` the request claims; no task-issue record is needed in the ledger.
+
+| Role | Holds | May | May not |
+|---|---|---|---|
+| **Principal** | coordination obligations of one change plan (`COORDINATE`, below) | author and amend the plan's items and contracts (its plan units are its only write scope); decide reports routed to it, within the outcomes their kind allows (§7.9); decompose items; submit the scoped `PLAN_STRENGTHENING` equivalence for its own monotone amendments and decompositions (§7.9); frame human questions; annotate, merge and upgrade escalations; downgrade non-floor materiality by recorded judgment | write product, authority or evidence units; submit review, conformance, acceptance or plan-acceptance judgments; accept its own non-monotone amendment; discharge human attention; change verification rules |
+| **Implementer** | realization obligations of one item (implement, repair, migrate) | write within its contract's write scope; submit a task result with typed slots (§7.8); report (§7.9); run advisory verification (`ask(verify)`, §7.7) | edit plan units, contracts, evidence specifications its contract does not name, verification rules or protected surfaces; submit any judgment about its own work |
+| **Reviewer** | review, conformance and acceptance-recommendation obligations; plan-acceptance reviews of contracts | records only: judgments on the exact target, findings, challenges | write content; judge work or a contract its own execution authored; receive the author's narrative or conclusions (A9, §9.6) |
+| **Investigator** | investigation obligations: diagnosis, reconstruction proposals, intake classification, exploratory analysis | write only to scratch workspaces and to the native finding or evidence homes its contract designates; submit findings, proposals and reports | write product or authority units; submit acceptance |
+| **Human** | gates and every decision R3 owns, including human attention (§7.9) | `decide` (§9.4, §9.8); edit any content, plans included, as ordinary change that enacts nothing until admitted or accepted | — |
+
+Project policy may add roles and narrow any role. It may not widen a role beyond its system template, combine principal and reviewer in one execution, or give an agent role an R3 decision. Every execution is launched by the Dispatcher in a fresh context for one task; the context lineage is part of the execution provenance carried in submitted records, which is how Admission enforces the separation constraints (A9, §6.8 step 3).
+
+**Decision classes.** The class of every decision is a function of its kind, its target's domain and policy. No agent selects it. An agent may move a decision up by escalating; it can never move one down.
+
+| Class | Decided by | Decisions | Recorded as |
+|---|---|---|---|
+| **R0** | machinery | readiness; dispatch, suspension and resumption; staleness; evidence and check executions; iteration retry within budget (§7.10); report routing (§7.9); integration requests (§7.8); recurrence detection | derived state or operator journal; never a judgment |
+| **R1** | principal | decomposition and ordering within the plan; responses to findings inside an item's scope; local resolutions inside delegated space; monotone amendments and decompositions where policy permits; merging, upgrading, framing; downgrading non-floor materiality | coordination decision or plan-unit change; challengeable; never acceptance |
+| **R2** | an independent agent or human reviewer (A9) | plan acceptance of new contracts and non-monotone amendments; review, conformance and acceptance judgments; adjudications that policy assigns to agents | support- or challenge-tier judgment |
+| **R3** | authenticated human | gates; D1/D2 acceptance where policy requires it; Serious Challenge adjudication; risk overrides; product-scope acceptance (S12); continuity attestations; human attention | authenticated human judgment |
+
+**The principal is an obligation holder, not a daemon.** `COORDINATE(plan)` obligations are derived (S3) whenever a decision is owed on a plan: a report routed to it (§7.9); an exhausted budget, an out-of-scope NO-PASS finding or detected recurrence (§7.10); an item awaiting a contract; an `OVERTAKEN` admission or a stale result that needs re-planning. Each coordination task is a fresh execution whose decision brief (§9.7) is rendered from derived state. Nothing a principal execution remembers is canonical, so any execution can replace it at any decision point, and context compaction cannot lose workflow state. Each change plan is a serialization surface for coordination (§8.3): at most one coordination task per plan runs at a time, so two principal executions never amend one plan from different bases; the Dispatcher batches the plan's pending decisions into it. Obligations that belong to no plan (intake, integrity, requalification) are held by the roles their kinds name; a decision owed on them goes to the principal of the plan that policy designates as standing, or to the human where policy names none.
+
+### 7.6 Work contracts
+
+A **work contract** is the typed, machine-readable section of a plan item. It is plan content: authored by the plan's principal, revisioned with the item, accepted by the item's `PLAN_ACCEPTANCE` judgment, and bound into every task's basis through the item revision. It adds no primitive, store or record category. Obligations that belong to no item (review, rerun, intake, requalification) receive the system contract of their obligation kind, so every task has exactly one contract.
+
+```text
+contract(item @ revision)
+  objective, governing      the item's fields (prose objective for judgment; governing units at revisions)
+  scientific                Protocol 7 obligation predicate: APPLIES | NOT_APPLIES, judged at plan acceptance
+  boundaries
+    write_scope             units or path patterns resolved in Σ       -- authorization (§6.8 step 3)
+    frozen                  interfaces and symbols that must not change (by language analyzer)
+    dependencies            permitted additions to declared dependency manifests
+    evidence_specs          evidence-specification units the item may change (default: none)
+  obligations               id, statement, verifier
+    verifier                CHECK(template, parameters) | EVIDENCE(specification, runner class) | REVIEW
+  expectations              required artifacts; required evidence; required result slots (§7.8)
+  escalation                triggers that route a report to the principal or the human (§7.9)
+  budget                    iterations before mechanical retry yields to the principal (§7.10)
+```
+
+1. **Total verifier assignment.** Every obligation names exactly one primary verifier. `REVIEW` is a legitimate and explicit choice. An obligation without a verifier fails lint, so what the machine checks is decided where the work is defined and is visible to the reviewer of the contract.
+2. **Lint is mechanical and runs at every contract admission,** with the plan invariants of §7.2:
+   - fields typed under the schema; units and patterns resolve in `Σ_n`;
+   - the write scope lies within the item's intended affected units and contains no protected surface, no plan unit and no evidence-specification unit outside `evidence_specs`;
+   - every `CHECK` names a `HARD` template of `ρ_n` with valid parameters (a `HEURISTIC` template cannot be a primary verifier, §7.7); every `EVIDENCE` names an existing specification and a designated runner class;
+   - the required slots include every slot the obligation kind, the subject domain and the `scientific` flag trigger (§9.2);
+   - policy-declared minimum verifier coverage holds (for example, an item that changes D4 code carries at least one `EVIDENCE` obligation);
+   - a budget is present.
+3. **Adequacy is judged.** Lint establishes form only. Whether the contract captures the item — the right obligations, a sufficient verifier for each, a boundary neither too narrow nor too loose, the right `scientific` flag — is part of `PLAN_ACCEPTANCE`, an R2 judgment by an execution other than the contract's author. A strong verifier over a weak contract proves only what the contract asked.
+4. **Frozen at issue.** A task's basis names its item revision, so the contract it executes is fixed. An amendment makes running tasks on that item non-current (§7.2); it never changes what a running task was asked.
+5. **Write scope is authorization; footprint is prediction.** The write scope is enforced at Admission (§6.8 step 3) and in conformance (§7.7). The Dispatcher's footprint prediction (§8.1) may be computed from the same field but stays advisory. K4 holds unchanged: correctness rests on enforced authorization and admission-time proof, never on a prediction being complete. Work that needs more scope requests an amendment (§7.9) instead of taking it.
+6. **No implementer grades its own exam.** Evidence-specification units not named in `evidence_specs` are outside the write scope, so acceptance tests cannot be edited by the work they judge. Tests an implementer writes to meet an obligation are authored artifacts like any other: their adequacy is reviewed and their strength measured (§7.7). A change to a named evidence specification raises its owner's specification-review obligation (§10).
+
+### 7.7 Conformance verification
+
+**Conformance** of a task result is an S3 classification: a pure function of the contract at the task's basis, the base and candidate trees, the result record, and the observations recorded for that exact candidate. It is not stored; like every derived view it is recomputed, and it is shown as the result's **conformance view**. Expensive or nondeterministic checks (test execution, mutation testing, static analyzers with recorded versions) are executed by a designated runner on the exact candidate and recorded as observations (§6.3, §10). Deterministic checks are memoized like analyzers (§6.6). No component is added: Derivation evaluates, the Dispatcher executes, Admission enforces (§6.8 steps 3 and 7).
+
+**Check templates** are fixed, versioned functions of the ruleset `ρ_n`. A contract only parameterizes them and can never carry executable check code, just as project policy carries no rule language (§6.6). A project-specific template enters only by human-gated ruleset adoption after the qualification of §22. Each template declares one **force**, fixed by the template and never by a contract:
+
+- `HARD` templates may yield `VIOLATION`, `INCOMPLETE` or `DISCREPANCY`. A template is adopted as `HARD` only with qualified detection and false-positive rates on real trajectories (§22).
+- `HEURISTIC` templates yield `SIGNAL` only. Every check that reads prose is `HEURISTIC` by system rule, so no control decision depends on parsing prose (A7).
+
+| Family | Checks | Force |
+|---|---|---|
+| Boundary | candidate diff mapped to units, against the write scope; protected surfaces; frozen interfaces by language analyzer (public symbols and signatures); dependency-manifest additions against the allowance; hand edits to generated units; credential-like values in content | `HARD` |
+| Test integrity | tests deleted, skipped or marked expected-to-fail; evidence specifications changed outside `evidence_specs` | `HARD` |
+| | fewer assertions; widened tolerances or loosened comparisons in tests | `HEURISTIC` |
+| Obligation | required artifact present and linked to its target by a derived test-to-code relation; required evidence realized by the designated runner on the exact candidate with a passing outcome; evidence basis fields (regime, precision, backend, seed, replicate) matching the specification (§10); required slots filled, or empty with a typed reason; new stub markers (placeholder bodies, `NotImplementedError`) in written units; test strength by seeded mutation testing over changed lines at the contract's threshold | `HARD` |
+| Faithfulness | outcome classification consistent with the derived facts (a `COMPLETE` outcome with an unmet obligation); declared deviations equal to detected boundary breaches; every cited record exists and supports the slot citing it (a failing realization cited as passing); cited governing units at their basis revisions | `HARD` |
+| | numbers or factual phrasing in prose that disagree with records; certainty vocabulary ("verified", "proven", "equivalent") without a cited record | `HEURISTIC` |
+| Domain | dimensional consistency where quantities carry machine-readable units; declared tolerance and precision for numerical claims; declared references respecting layer direction | `HARD` where annotations exist, otherwise `HEURISTIC` |
+
+| Class | Meaning | Routing (R0) |
+|---|---|---|
+| `VIOLATION` | a `HARD` boundary or test-integrity check failed | the candidate can never be integrated (§6.8 steps 3 and 7); a breach the result disclosed becomes an amendment request (§7.9); an undisclosed breach is also an integrity finding to the principal, shown to the reviewer of any later attempt |
+| `INCOMPLETE` | a `HARD` obligation check failed, or a required execution is missing | a new implementer iteration within the budget; beyond it, the principal (§7.10) |
+| `DISCREPANCY` | a `HARD` faithfulness check failed: the result says something the records contradict | integrity finding to the principal and the reviewer; repetition by one route or model is recurrence (§7.10) and appears in the digest (§9.8) |
+| `SIGNAL` | a `HEURISTIC` hit | attached to the review brief as a pointer; changes no disposition |
+| `CLEAN` | none of the first three (signals may be present) | the review obligation on that candidate becomes ready (§7.8) |
+
+**A clean conformance view discharges nothing.** Obligations whose verifier is `REVIEW` stay open until a current review judgment, and every task obligation still requires the review its kind requires (A7, §7.4). Removing every `HEURISTIC` template from the ruleset must leave every admission decision and every discharge unchanged; §22 qualifies that property.
+
+**Disclosed and undisclosed breaches.** The result's deviation slot is compared with the detected breaches. A disclosed breach is a legitimate request for more scope, decided by the principal. An undisclosed one is a faithfulness failure. Neither is integrated; only the second is a finding against the route that produced it.
+
+**Advisory pre-flight.** `ask(verify)` runs the pure templates, and any executions the workspace itself can perform, inside the implementer's workspace before submission. The answer is labeled advisory. It never stands in for the designated runner, and an agent's report of it is a finding, never evidence (§10).
+
+**Doctrine-realization levels.** Every duty SSDP 7.2.1 places on an agent is realized at one level, assigned in the Manual's realization map (§21 item 27):
+
+| Level | Realization | Examples |
+|---|---|---|
+| **E0** | enforced mechanically; no agent action | write scope and protected surfaces; version binding and the self-adoption guard (S7, §19.2); agent PASS never canonical; stale evidence never confirms; facts produced by machinery (A6) |
+| **E1** | detected mechanically, routed to judgment | drift; quarantine; recurrence; test-weakening signals; discrepancies; analyzer conflicts |
+| **E2** | a required typed slot whose presence is checked and whose content is judged | owed delegate returns (material findings, variant-search disclosure, null envelope); the tension-search envelope; consequential-choice provenance; claims with their record references |
+| **E3** | judgment only, covered by review and challenge | adequacy; equivalence; scientific interpretation; whether a finding is material; detection itself |
+
+The realization map is a design artifact of the Manual, not a runtime registry mirroring doctrine (§20). An E2 slot makes an answer's presence nearly certain, not its quality. The 7.x evidence that inline structured checklists raised uptake from 28% to 92% is why typed slots are the default form for owed questions; the reviewer still judges what they say.
+
+### 7.8 Results, review and integration
+
+Implementation work enters canonical state through two ordinary admissions. No new path exists.
+
+1. **Result.** `submit` by an implementer or investigator produces a records-only request: a task result record (an outcome from the task's allowed set, typed slots, claim references, reports) naming the candidate commit on its isolated ref and the contract revision in its basis. Machinery, not the agent, attaches the factual part: the diff mapped to units, touched relations, reads (A6). The request is admitted as records; the candidate is not merged. The Dispatcher then runs the contract's required executions on the exact candidate through a designated runner and submits them as observations. Conformance is derived (§7.7).
+2. **Review.** Once conformance is `CLEAN`, the review obligation on that exact candidate becomes ready (R0). A reviewer task (§9.6) submits its review and conformance judgments as a records-only request.
+3. **Integration.** Once the claimed obligation's discharge predicate would hold on the candidate — clean conformance, current review judgments, required gates — the Dispatcher submits an **integration request**: the candidate commit plus references to those admitted records, claiming the task obligation. It carries no new judgment. Admission validates it through steps 1-9 like any request, applying the role and write-scope checks of the task that produced the candidate. If the head has moved, the candidate is rebased, conformance is re-derived on the rebased candidate, and review is re-requested only where the review's basis no longer holds (§8.2, §6.7).
+
+A rejected candidate stays recorded with its conformance view and its reports, so nothing an agent reported is lost because its work was rejected. Records-only work (reviews, investigations whose output is findings) has no integration step.
+
+### 7.9 Reports, amendment requests and escalation
+
+Every communication from an agent that can change what happens next is a typed **report** record, not a message. Narrative stays in its canonical home: the project evidence record or native issue for a finding or tension (S13), the result envelope for a task report (§9.5). The record carries the report kind, its subject (target units or records), raiser and role, declared materiality, a blocking flag, inquiry status for a challenge (§10), and a content-identity reference to the home.
+
+- **Kinds:** `FINDING`; `CHALLENGE` and `SERIOUS_CHALLENGE` (challenge tier, §6.6 S1); `AMENDMENT_REQUEST`, with reason `SCOPE_DEVIATION`, `MISSING_PREREQUISITE`, `INFEASIBLE_CRITERION`, `CONTRACT_DEFECT` or `AUTHORITY_DEFECT`; `BLOCKER`; `HUMAN_QUESTION`.
+- **Materiality:** `ROUTINE`, `MATERIAL` or `CRITICAL`, declared by the raiser and raised, never lowered, by the floors below.
+
+**Routing (R0).** A routing table of the ruleset maps `(kind, reason, materiality, target domain)` to derived S3 obligations:
+
+| Report | Derived obligation | Holder |
+|---|---|---|
+| amendment request, blocker (including a disclosed breach, §7.7) | `COORDINATE` decision | the plan's principal |
+| any blocking report | the raising task is also suspended, its workspace and basis preserved; it resumes as a new attempt after the decision | Dispatcher |
+| challenge | adjudication under S1 | the qualified actor policy names |
+| Serious Challenge | adjudication and human attention | human |
+| human question | human attention | human |
+| `MATERIAL` or `CRITICAL` report | human attention, plus a `COORDINATE` decision if it bears on the plan | human; principal |
+| `ROUTINE` finding | recorded; a `COORDINATE` decision only if it names a unit of an open item | principal |
+
+**Escalation floors.** System semantics fix the floors; policy may raise them, never lower them.
+
+- `CRITICAL`, always creating human attention: a Serious Challenge; a tension or challenge against accepted D1 or D2 authority; a human question; an amendment that changes a plan's objective or changes or removes an existing acceptance criterion (computed from the plan diff); an authority-defect request targeting D1 or D2; any decision R3 owns.
+- *Domain floor:* every report whose target includes a D1 or D2 unit is at least `MATERIAL`, whatever the raiser declared. The floor is computed from the target's effective kind and domain (§6.1), so under-declaring materiality cannot keep a report from the human.
+- *Delegate floor:* when a task's contract has `scientific = APPLIES`, every material finding in its E2 slots creates human attention. The 7.2.1 duty that material delegated findings survive to the human is thereby realized mechanically rather than by each intermediate agent's compliance.
+
+**Principal decisions.** A coordination task decides each routed report with a coordination-decision record. The outcomes allowed are a function of the report's kind, reason and target domain, never the principal's choice:
+
+| Outcome | Meaning | Allowed for |
+|---|---|---|
+| `RESOLVE_LOCAL` | decided inside the item's delegated space; the raising task resumes | blockers, scope questions, routine findings; never an authority-defect or contract-defect request |
+| `AMEND` | a plan-unit change follows (below) | amendment requests; blockers; contract defects |
+| `CHALLENGE` | a challenge-tier record against the earliest affected owner | any; the required route for an authority-defect request targeting D3 or D4 |
+| `ESCALATE` | human attention | any |
+| `DECLINE` | no action, with a reason code; the raising task resumes or ends | non-floor reports only; a report that already created human attention keeps it |
+
+**Amendment classes.** An `AMEND` decision is followed by an ordinary plan-unit change authored by the principal. Its acceptance class is computed by lint from the diff between the two plan revisions; the principal cannot assert it:
+
+- *Monotone* (R1 where policy permits): no existing obligation removed and no statement or verifier changed; write scope not widened; objective, existing acceptance criteria, gates and dependencies unchanged; the only additions are new obligations or new `HARD` checks.
+- *Decomposition* (R1 where policy permits): an item replaced by sub-items whose obligations partition the original's with statements and verifiers unchanged, whose write scopes partition a subset of the original's, and which together carry every dependency into and out of the original. Only order among the sub-items is added, so this is not a topology change in §7.2's sense.
+- *Every other amendment* is R2: independent plan acceptance, scoped or whole-plan as §7.2 requires. Widening a write scope and weakening a verifier (removing an obligation, or changing `CHECK` or `EVIDENCE` to `REVIEW`) are never monotone.
+
+An R1 amendment reuses the existing early-cutoff mechanism rather than a new acceptance path. The principal's coordination decision carries an `EQUIVALENCE` judgment between the two plan revisions for the consumption class `PLAN_STRENGTHENING` (§6.7). Admission admits that judgment only when lint classifies the diff as monotone or a decomposition and the ruleset waives independence for that class; otherwise it is a proposal that backdates nothing. Through it, the existing plan acceptance stays current for the amended items (§6.6 `sat(content)`), and the judgment is challengeable like any other.
+
+**Annotate, merge, upgrade, downgrade.** The principal may annotate any human-attention obligation; its framing is Channel A interpretation, rendered apart from the evidence core (§9.8). It may merge duplicates, and the merged item lists every member. It may upgrade materiality. It may downgrade a non-floor `MATERIAL` report to `ROUTINE` only by a materiality-reclassification judgment, which discharges that human-attention obligation, appears in the digest (§9.8) and is challengeable: an upheld challenge restores the obligation. Floor items cannot be downgraded. Only an authenticated human judgment discharges human attention (A8).
+
+### 7.10 Iterations, budgets and recurrence
+
+- Each contract carries an iteration budget. Within it, an `INCOMPLETE` result, or a NO-PASS whose findings all lie within the item's write scope and obligations, starts the next implementer iteration mechanically (R0). The new brief carries the conformance view and the review findings as data, not the previous attempt's narrative.
+- Budget exhaustion, a NO-PASS finding outside the item, and every `DISCREPANCY` create a `COORDINATE` decision.
+- **Recurrence** is detected mechanically: the same `HARD` template failing on the same obligation across iterations; the same finding family (template, target unit or relation family) across items; repeated discrepancies by one route. Detection creates a `COORDINATE` decision whose brief carries the convergence-and-cycle-economy duty to consider the shared owner and simplification before another local repair, and to route a Challenge where the contract or its governing authority may be at fault. Detection is mechanical; the response is judgment.
+- An attempt that fails operationally (crash, timeout, lost harness) is a Dispatcher retry (§7.3) and spends no iteration.
+
 ## 8. Concurrency
 
 ### 8.1 What is decided where
@@ -773,6 +997,7 @@ The impact a change triggers on *other* subjects is not a discharge condition: t
 | When | What can be established | Mechanism |
 |---|---|---|
 | Before issue (prediction) | probable footprint: intended affected units, derived impact closure, serialization surfaces | Dispatcher avoids issuing overlapping work; advisory only (K4) |
+| Before issue (authorization) | the write scope of the task's work contract, which is not a prediction | enforced in conformance and at Admission (§7.6-§7.7, §6.8 step 3); more scope only by amendment |
 | At admission (proof) | everything the change relied on is current; actual write set; structural validity of the merged tree; dependency well-formedness | basis currency (§6.6), diff mapped to units, structural checks |
 | After merge (evidence) | behavior of the combined tree | evidence currency recomputed on the merged tree; affected realizations rerun |
 | Never mechanically | joint validity of independently valid changes where no relation, invariant or evidence covers the interaction | judgment: declared joint-invariant units, review of integrated results, residual risk stated |
@@ -785,7 +1010,7 @@ A very late result whose basis is still current is admissible regardless of age;
 
 ### 8.3 Serialization policy
 
-Some surfaces make speculative concurrency wasteful or unsafe to merge mechanically: shared schemas and public contracts, build configuration, D1-D3 subjects in one dependency neighborhood, and generated outputs. A unit may carry a policy-declared serialization attribute; the Dispatcher then issues at most one mutating task on it at a time. Generated units are never hand-merged: they declare `GENERATED_FROM` their generator and inputs and are reproduced by regeneration, with conflicts resolved by regenerating.
+Some surfaces make speculative concurrency wasteful or unsafe to merge mechanically: shared schemas and public contracts, build configuration, D1-D3 subjects in one dependency neighborhood, and generated outputs. A unit may carry a policy-declared serialization attribute; the Dispatcher then issues at most one mutating task on it at a time. Every change plan is such a surface for coordination: at most one coordination task per plan runs at a time (§7.5). Generated units are never hand-merged: they declare `GENERATED_FROM` their generator and inputs and are reproduced by regeneration, with conflicts resolved by regenerating.
 
 ### 8.4 Residual risk
 
@@ -800,30 +1025,30 @@ The interface is defined independently of transport.
 | Operation | Purpose |
 |---|---|
 | `open(task)` | returns the task brief (§9.2) and workspace locator |
-| `ask(query)` | typed questions: what governs X; what X depends on / what depends on X (per relation class); explain a unit, record or obligation; evidence for a claim; why is this blocked or stale; impact of this workspace diff or proposed edit; text/semantic search; history of X (PEM-gated) |
+| `ask(query)` | typed questions: what governs X; what X depends on / what depends on X (per relation class); explain a unit, record or obligation; evidence for a claim; why is this blocked or stale; impact of this workspace diff or proposed edit; advisory verification of the workspace against the task's contract (`ask(verify)`, §7.7); text/semantic search; history of X (PEM-gated) |
 | `read(ref)` | content by unit identity or path; recorded into the basis |
-| `report(item)` | finding, challenge, Serious Challenge, proposed relation, question for a human, scope deviation, blocker |
-| `submit(result)` | outcome classification from the task's allowed set, plus the workspace. Machinery builds the typed admission request (§6.8): diff, touched units, changed authored relations, basis and derived consequences. The response is `ADMITTED` only after the entry is admitted (§15.3); before that it is `PROVISIONAL`, and a provisional entry lost before admission is resubmitted by request identity (§15.4) |
+| `report(item)` | a typed report (§7.9): finding, challenge, Serious Challenge, amendment request (scope deviation, missing prerequisite, infeasible criterion, contract defect, authority defect), blocker, question for a human; or a proposed relation |
+| `submit(result)` | outcome classification from the task's allowed set, the typed result slots its contract requires, plus the workspace. Machinery builds the typed admission request (§6.8) and supplies the facts: diff, touched units, changed authored relations, reads, basis and derived consequences (A6). For a candidate this admits the result records, not the candidate (§7.8); the response then reports conformance as it is derived. The response is `ADMITTED` only after the entry is admitted (§15.3); before that it is `PROVISIONAL`, and a provisional entry lost before admission is resubmitted by request identity (§15.4) |
 | `decide(gate)` | human only: a gate brief (§9.4) and an authenticated decision |
 
 Within a task, `ask` and `read` answer at the task's basis (snapshot isolation), so an agent never sees a mixture of states. `ask("what changed since my basis")` reports admitted changes that intersect the task, letting the agent stop early instead of discovering staleness at submission.
 
-The agent never declares claims, revisions, edges (other than by writing authored relations as part of semantic content), subject roles, epochs, plan patches, lifecycle states or reconciliation steps.
+The agent never declares write claims, revisions, edges (other than by writing authored relations as part of semantic content), subject roles, epochs, plan patches, lifecycle states, reconciliation steps, its own conformance or the decision class of anything. A principal changes a plan by editing its plan unit as ordinary content, which takes effect only when accepted (§7.2, §7.9); a reviewer and a principal submit their judgments and decisions through `submit`.
 
 ### 9.2 Task brief
 
 A task brief contains, in this order:
 
-1. objective and obligation kind;
+1. objective, obligation kind and workflow role;
 2. allowed outcomes;
 3. **governing content inline**: the exact text of governing units at the basis revisions;
-4. constraints, non-goals and delegated space;
-5. acceptance criteria and required evidence;
-6. open challenges, findings and provisional states touching the subject;
+4. the work contract's boundaries (write scope, frozen interfaces, dependency allowance), constraints, non-goals and delegated space;
+5. obligations with their verifier class, acceptance criteria, required evidence and the required result slots;
+6. open challenges, findings and provisional states touching the subject; for a later iteration, the previous conformance view and review findings, as data (§7.10);
 7. **incompleteness notices**: where the basis was widened or `UNBOUNDED`, where analyzers are incomplete, where relations are only proposed, where a relied-on unit is a part whose validity comes from a coarser subject, where the repository declares structure that governance has not admitted (quarantine), where relied-on records are withheld by a loss boundary pending requalification, whether the head admission's publication outcome is not yet recorded, and the qualified ledger head the brief was derived at;
-8. workspace and submission instructions.
+8. escalation triggers, budget, workspace and submission instructions.
 
-It is rendered deterministically from derived state by version-bound templates; no model is needed to translate machine state.
+It is rendered deterministically from derived state by version-bound templates; no model is needed to translate machine state. The duties a brief carries are compiled, never selected by wording (A4): workflow role template × obligation kind × subject domain (the core of the matching SSDP D1-D4 role entrypoint) × contract flags (`scientific`, triggered slots). A duty that is not triggered is not carried. Reviewer and principal briefs follow §9.6 and §9.7.
 
 ### 9.3 Epistemic status of context
 
@@ -842,11 +1067,65 @@ Each item also carries its acceptance status (valid, provisional, challenged, st
 
 ### 9.4 Human gates
 
-A gate brief presents the non-narrative evidence core first: identities, coverage, key data and trajectories, findings as data. Agent interpretation, alternatives, anomalies, uncertainty, variant-search disclosure and unresolved findings follow separately. A gate accepting a D1/D2 revision also receives that revision's tension applicability assessments, including any marked inapplicable, with their asserters, and a gate cannot close unqualified while missing realized records could plausibly change its judgment (7.2.1 Channel C). Gate-evidence adequacy is a semantic judgment, not a presence predicate: the human's decision records whether the evidence was adequate, and that record can itself be challenged. Agents and machinery may request a gate; they cannot synthesize a human judgment. A risk override is a distinct judgment kind that authorizes bounded continuation and leaves dependents provisional (S2, §6.6).
+A gate brief presents the non-narrative evidence core first: identities, coverage, key data and trajectories, findings as data. Agent interpretation, alternatives, anomalies, uncertainty, variant-search disclosure and unresolved findings follow separately. A gate accepting a D1/D2 revision also receives that revision's tension applicability assessments, including any marked inapplicable, with their asserters, and a gate cannot close unqualified while missing realized records could plausibly change its judgment (7.2.1 Channel C). Gate-evidence adequacy is a semantic judgment, not a presence predicate: the human's decision records whether the evidence was adequate, and that record can itself be challenged. Agents and machinery may request a gate; they cannot synthesize a human judgment. Every gate is an entry of the inspector view (§9.8). A risk override is a distinct judgment kind that authorizes bounded continuation and leaves dependents provisional (S2, §6.6).
 
 ### 9.5 Transports and harnesses
 
 Transports expose the same logical operations. There are three: an MCP server; a CLI; and a Git-envelope transport for zero-context web agents (an immutable task envelope on an isolated run branch, a result envelope plus candidate commits written back, and polling-first fetch of the specific run branch). Harness adapters (Claude Code, Codex, OMP, Pi or others) only map these operations and launch/observe executions. The bootstrap is `Execute SSDS task <id>` plus the minimum locator the environment does not already bind (repository, run ref, envelope path, protocol/profile source). It fails truthfully when protocol material cannot be resolved. Transport and process success never imply evidence admissibility or task success.
+
+### 9.6 Review briefs and constructed independence
+
+A review brief is rendered for independence (A9). It **contains**:
+
+- the governing content inline;
+- the contract;
+- the candidate diff and the machine-produced facts;
+- the conformance view, with every `SIGNAL` as a labeled pointer;
+- the evidence with its status;
+- the result's disclosure slots (deviations, unverified assumptions, variant-search disclosure, tensions found), labeled as the author's claims to be tested.
+
+It **excludes**:
+
+- the author's outcome classification, rationale and narrative report;
+- commit messages and transcripts;
+- the principal's annotations and expectations;
+- any earlier conclusion by the author.
+
+In a re-review of a later iteration, policy may supply the previous review's findings, labeled, because they are another reviewer's findings, not the author's.
+
+The Dispatcher launches every review in a fresh context distinct from the authoring task's context and from the contract author's, and records the context lineage, model family, route and toolchain in the execution provenance. Admission rejects a review or plan-acceptance judgment whose provenance shows it continues the author's context (§6.8 step 3). Where a claim relies on independence, the review judgment records material common-mode dependencies (shared model family, source corpus, toolchain or oracle), as the workflow owner requires; policy may require a different model family or a distinct evidence route for high-consequence surfaces.
+
+*Residual:* the artifact under review can itself carry its author's framing in code comments and docstrings. That is content to be reviewed, and it cannot be stripped.
+
+### 9.7 Decision briefs
+
+A coordination task (§7.5) receives a **decision brief** rendered at the qualified head. It contains:
+
+- the plan objective, and each item with its state (awaiting contract, ready, running, suspended, under review, discharged, open);
+- the decision obligations owed, each led by the report's record core, the target's identities and revisions, and the relevant conformance and review outcomes, followed by the outcomes allowed for that report (§7.9);
+- budgets, recurrence detections and discrepancies;
+- the plan's open human-attention items and their state;
+- what changed since the previous coordination.
+
+Narrative reports and transcripts are reached only by reference.
+
+The decision brief *is* the plan's working state. It is derived, version-bound and reproducible, so the principal keeps no memory between invocations, and a context limit, crash or change of model loses nothing that governs the workflow (A2).
+
+### 9.8 The inspector view
+
+The human interface for everything R3 owns is the **inspector view**, an S3 view rendered deterministically.
+
+- **Ordering.** Open human-attention obligations are ranked by derived impact: how many obligations' readiness or discharge waits on each (§7.3), and by consequence class; age breaks ties. The human sees first the decisions that unblock the most work.
+- **Each entry, in order:**
+  1. the evidence core: the report record, target identities and revisions, conformance and review outcomes, cited evidence with its status;
+  2. the principal's framing, labeled as interpretation (Channel A);
+  3. the allowed outcomes.
+
+  Merged entries list their members. Gate briefs (§9.4) are entries of this view.
+- **Answering.** `decide` records an authenticated judgment: acknowledge, answer, accept, reject, redirect, or override where policy allows. The judgment propagates mechanically: suspended tasks resume, amendments follow, obligations discharge or reopen.
+- **Digest.** Below the open entries is a cold digest of what agents settled since the human's last acknowledgment: R1 decisions, materiality downgrades, declined reports, discrepancies and recurrences. Every digest item is challengeable. Reading the digest is never required for work to proceed; an upheld challenge restores whatever it covers.
+
+The view is an inspection surface and a trust boundary (§15.7): where content is confidential it gives the strongest safe aggregate and states the limitation. Human unavailability leaves human-attention obligations open. Dependent work stays not ready, and independent work proceeds (truthful non-closure, §24).
 
 ## 10. Evidence
 
@@ -859,7 +1138,7 @@ Transports expose the same logical operations. There are three: an MCP server; a
 
 A realization supports a claim at revision `c` only while its execution basis is current and its target is `c`, or an equivalence judgment covers the change. An execution-dependency change triggers a rerun obligation; a target change triggers an assessment-review obligation. Stale passing evidence never discharges; stale failing evidence is not admissible against the current claim. Unavailable artifacts degrade binding health through availability observations: the historical record survives, and present use becomes `UNAVAILABLE`. Process exit or harness success is never evidence admissibility. A realization with incomplete or malformed evidence is recorded as such and cannot enter a PASS/FAIL assessment. Raw data stays in native stores; the ledger stores identities and bounded classifications. A realized-record item is an observation only when an evidence realization produced it; retaining it neither assesses nor re-identifies it. A challenge record carries the finding's inquiry status (exploratory or confirmatory) as its own attribute, separate from evidence strength, applicability and disposition (7.2.1 evidence owner). Findings and tensions keep their one canonical home in project evidence records or native issues; the ledger references that home by identity and never becomes it (S13, §15.5).
 
-**Who may realize evidence.** A realization can discharge an evidence obligation only in two cases: a runner that project trust policy designates for that specification executed it (normally Dispatcher-controlled execution on the exact candidate or merged tree), or a designated runner reproduced it. Results an agent reports from its own workspace are findings: useful for direction, never admissible for discharge. Policy may let expensive scientific realizations (long simulations, HPC campaigns) run under recorded custody outside the Dispatcher; the realization record then names the custody evidence.
+**Who may realize evidence.** A realization can discharge an evidence obligation only in two cases: a runner that project trust policy designates for that specification executed it (normally Dispatcher-controlled execution on the exact candidate or merged tree), or a designated runner reproduced it. Results an agent reports from its own workspace are findings: useful for direction, never admissible for discharge. Policy may let expensive scientific realizations (long simulations, HPC campaigns) run under recorded custody outside the Dispatcher; the realization record then names the custody evidence. Conformance check executions (§7.7) follow the same custody: only a designated runner's execution on the exact candidate counts, and a check execution is evidence for a scientific claim only where an evidence specification names it.
 
 ## 11. Intake: one route for every change of unknown provenance
 
@@ -1045,6 +1324,9 @@ Change plans and authority documents remain semantic artifacts. In natively gove
 | Ruleset change | ruleset adoption record | admissions are never re-adjudicated; current derivation uses the adopted ruleset; a previously discharged obligation that the new ruleset no longer considers discharged becomes an open obligation, never rewritten history; a relation reclassification that makes an accepted structure illegal makes its subjects ill-formed until repaired; effective structure and quarantine are unchanged; historical views are reproducible with the ruleset in force at their position |
 | Interrupted migration | — | refinement, promotion and cutover are atomic admissions |
 | Very old task returns | basis check | current basis: admissible; stale basis: recorded as observation and routed to revalidation |
+| Check template found defective (false positive or false negative) | a finding, challenge or qualification result against the template | a corrected template enters by human-gated ruleset adoption; admissions are never re-adjudicated (P2); current conformance is re-derived under the adopted ruleset, so a candidate wrongly blocked becomes integrable and an integrated result that the corrected template would flag gets an integrity obligation, never a silent revocation |
+| Coordination task lost mid-decision (crash, context limit, model change) | the `COORDINATE` obligation stays open | a new coordination task from a freshly rendered decision brief; nothing the lost execution held was canonical (§9.7) |
+| Human unavailable | human-attention obligations stay open | dependent work stays not ready; independent work proceeds; nothing is closed on the human's behalf (§9.8) |
 | Concurrent results from stale bases | currency at admission | first admitted; others revalidated only where their basis intersects |
 | External evidence artifact disappears | availability observation | binding health degraded; present use `UNAVAILABLE`; rerun or remap obligation |
 | Manual edit of authority | drift | intake; every reliant record non-current; acceptance of the edited revision (a light representation-only acceptance when editorial) plus an independent equivalence judgment restores reliant records without re-reviewing them; otherwise normal impact closure |
@@ -1319,7 +1601,7 @@ Agents are not principals with authority. Their records are proposals attributed
 
 ### 15.7 Protected surfaces and untrusted input
 
-Agents cannot modify the ledger, rules registry, project policy, schemas, trust roots, witness configuration, unit governance state or issued task envelopes. Agents may propose structural declarations in the unit manifest as ordinary content; those take effect only through Admission (§6.8 step 4). Changes to rules, policy, schemas, trust roots and witnesses are their own governed changes requiring a human gate. Admission detects any touch of a protected surface. Agent branches and result envelopes are untrusted until validated. Malformed or adversarial records cannot inject actions, and agent-reported test results are never admissible evidence (§10). Unknown executable or binary content is classified statically and never executed or deserialized to classify it. Paths are repository-contained. Evidence, memory and external text are data. Inspection and export views over realized records, and tension or disposition homes that non-owners can write, are data-exposure and trust boundaries (7.2.1 security owner): views give the strongest safe aggregate and state the limitation, and content written to such a home stays a claim by its native asserter.
+Agents cannot modify the ledger, rules registry, project policy, schemas, trust roots, witness configuration, unit governance state or issued task envelopes. The rules registry and policy include the workflow role templates, check templates and their force, the report routing table, escalation floors, decision-class assignments and the contract schema (§7.5-§7.9); no agent role can edit them, and plan units lie outside every agent role's write scope except that of the plan's principal (§7.5). Agents may propose structural declarations in the unit manifest as ordinary content; those take effect only through Admission (§6.8 step 4). Changes to rules, policy, schemas, trust roots and witnesses are their own governed changes requiring a human gate. Admission detects any touch of a protected surface. Agent branches and result envelopes are untrusted until validated. Malformed or adversarial records cannot inject actions, and agent-reported test results are never admissible evidence (§10). Unknown executable or binary content is classified statically and never executed or deserialized to classify it. Paths are repository-contained. Evidence, memory and external text are data. Inspection and export views over realized records, and tension or disposition homes that non-owners can write, are data-exposure and trust boundaries (7.2.1 security owner): views give the strongest safe aggregate and state the limitation, and content written to such a home stays a claim by its native asserter.
 
 ## 16. Components and ownership
 
@@ -1330,12 +1612,12 @@ Agents cannot modify the ledger, rules registry, project policy, schemas, trust 
 | Content Model | parsing observed declarations (manifest, anchors, semantic declarations), resolving effective scopes against observed bytes, authored relation extraction, revisions and scope identities | store status; decide which structure is effective |
 | Analyzers | derived relations and their incompleteness/completeness declarations | claim completeness they do not have |
 | Ledger Store | ledger persistence, authentication and hash-chain verification, currentness qualification (read quorum, read repair, high-water marks, `FORK`/`ROLLBACK`/`BEHIND`/`UNQUALIFIED`), the non-admission bound for abandoned checkpoints, replica restore | interpret records; present a provisional or unqualified head as current; decide what was lost |
-| Derivation Engine | the four strata and every query over them, including the effective-structure fold, quarantine, tenure, well-formedness, expected integration head and publication classification in S0, and loss-boundary continuity in S1 (§6.6) | write canonical state; choose which prefix is current; read the live integration ref |
-| Admission | validation (including structural deltas and adoption), the integration-head observation before every append and publication reconciliation, the only ledger appends (including human-gated recovery records), admission by witness quorum (checkpoint distribution), and canonical publication effects (integration ref) | judge semantics, including what a lost interval contained; perform agent work; publish or report before admission |
-| Dispatcher | scheduling among obligations ready at the qualified head (resource/account/model feasibility, route selection, reservations), workspaces, harness adapters, execution effects including trusted-runner evidence, operator journal | decide readiness or completion; act as a second admission; move canonical refs; dispatch from a provisional head |
-| Interface | logical operations, transports, version-bound brief and gate rendering | hold state of its own |
+| Derivation Engine | the four strata and every query over them, including the effective-structure fold, quarantine, tenure, well-formedness, expected integration head and publication classification in S0, and loss-boundary continuity in S1 (§6.6); in S3, conformance classification, report routing, escalation and coordination obligations, decision classes and amendment classes (§7.5-§7.10) | write canonical state; choose which prefix is current; read the live integration ref |
+| Admission | validation (including structural deltas and adoption), the integration-head observation before every append and publication reconciliation, the only ledger appends (including human-gated recovery records), admission by witness quorum (checkpoint distribution), canonical publication effects (integration ref), and enforcement of role, write scope and conformance (§6.8 steps 3 and 7) | judge semantics, including what a lost interval contained; perform agent work; publish or report before admission |
+| Dispatcher | scheduling among obligations ready at the qualified head (resource/account/model feasibility, route selection, reservations), workspaces, harness adapters, execution effects including trusted-runner evidence and conformance check executions, role-bound task launch in fresh contexts with recorded context lineage, task suspension and resumption, mechanical iteration retry, integration requests (§7.8), operator journal | decide readiness, conformance or completion; choose a decision class; act as a second admission; move canonical refs; dispatch from a provisional head |
+| Interface | logical operations, transports, version-bound rendering of task, review, decision and gate briefs and of the inspector view and digest (§9.2, §9.6-§9.8), advisory `ask(verify)` | hold state of its own |
 
-Dependency direction: Content Model and Analyzers <- Derivation <- {Admission, Interface, Dispatcher}; Ledger Store is read by Derivation and written only by Admission. Ledger Store qualification is consulted by Admission, Interface and Dispatcher before anything is presented as current; Derivation itself never consults witnesses. No component was added for the three revision-3 separations: effective structure and well-formedness are S0 derivation, quarantine is S0/S3 derivation plus an intake judgment, and quorum admission is Admission's existing checkpoint effect plus Ledger Store's existing verification. None was added in revision 4 either: publication reconciliation is a field of Admission's existing append plus an S0 classification, and the loss boundary is a lifecycle record Admission already appended, given S1 semantics, plus one human-gated challenge-tier judgment kind. The Dispatcher submits trusted-runner realizations and execution outcomes through Admission. Scheduling decisions never influence derived workflow state. The route, harness, model and attempt provenance they produce travels in submitted records and is replayed as recorded fact, never recomputed against current resources.
+Dependency direction: Content Model and Analyzers <- Derivation <- {Admission, Interface, Dispatcher}; Ledger Store is read by Derivation and written only by Admission. Ledger Store qualification is consulted by Admission, Interface and Dispatcher before anything is presented as current; Derivation itself never consults witnesses. No component was added for the three revision-3 separations: effective structure and well-formedness are S0 derivation, quarantine is S0/S3 derivation plus an intake judgment, and quorum admission is Admission's existing checkpoint effect plus Ledger Store's existing verification. None was added in revision 4 either: publication reconciliation is a field of Admission's existing append plus an S0 classification, and the loss boundary is a lifecycle record Admission already appended, given S1 semantics, plus one human-gated challenge-tier judgment kind. None was added in revision 5: roles, contracts, routing and escalation are policy parameters, plan content and S3 derivation; conformance is an S3 classification whose expensive inputs are Dispatcher executions recorded as observations; enforcement is two existing Admission steps (§27.5). The Dispatcher submits trusted-runner realizations and execution outcomes through Admission. Scheduling decisions never influence derived workflow state. The route, harness, model and attempt provenance they produce travels in submitted records and is replayed as recorded fact, never recomputed against current resources.
 
 ### 16.2 Transfer of frozen Orchestrator Architecture 1.6.0
 
@@ -1459,11 +1741,11 @@ Their historical inheritance dispositions (6.2-6.6 reconciled; D3 reopen require
 | §15.1 private canonical store by default; in-repository only by explicit D3 adoption resolving concurrency, privacy, history and ownership | **Changed**: Git-replicated ledger adopted with the four conditions resolved (§15.2-§15.5); operator state stays private |
 | §15.2 durability and recovery contract (atomic publication boundary, corruption detection, durable flush, backup/restore, identity mapping, compatibility on restore, retention) | Carried and strengthened (§13, §15.3-§15.5): the atomic publication boundary is quorum admission of a durable append; anti-rollback added as quorum-qualified currentness; restore after unrecoverable admitted loss bounded by the continuity boundary (P5) |
 | §16 formal action registry | Replaced by the rules registry of fixed predicate templates (§6.6) |
-| §17 schema-valid agent outputs; no prose parsing | Carried (§9.1) |
-| §18.1-18.2 TaskEnvelope / ResultEnvelope | Carried: envelope = obligation + basis + brief; result = typed admission request (§6.8, §9) |
+| §17 schema-valid agent outputs; no prose parsing | Carried and strengthened: results are typed slots and machine-produced facts (A6, §7.8); every prose-reading check is `HEURISTIC`, so no control decision parses prose (A7, §7.7) |
+| §18.1-18.2 TaskEnvelope / ResultEnvelope | Carried: envelope = obligation + role + contract + basis + brief; result = typed admission request with typed slots (§6.8, §7.6, §7.8, §9) |
 | §18.3 candidate identity without self-reference | Carried (§6.8) |
 | §18.4 transport artifacts not merged; protected surfaces | Carried (§15.7) |
-| §19 agent PASS is not canonical PASS | Carried (§7.4) |
+| §19 agent PASS is not canonical PASS | Carried and strengthened: a clean mechanical conformance view is not PASS either (A7, §7.4, §7.7) |
 | §20 human gates, risk override, Serious Challenge preservation | Carried and formalized (§6.6 S1, §9.4, §7.4) |
 | §21 deterministic impact; materiality by judgment | Carried and made central (§6.4-§6.7) |
 | §22 workplans/skills after cutover; lifecycle metadata non-authoritative | Carried (§12.6) |
@@ -1534,14 +1816,14 @@ Protocol 7 closed at 7.2.1, accepted with conditions on 2026-10-12 (`qualificati
 
 Each input is a duty that 7.x could state only in prose, because prose cannot make an indeterministic executor comply.
 
-| Input | Landing point | Manual decision |
+| Input | Landing point | Decision (revision 5 at D3, where architecture; then the Manual) |
 |---|---|---|
-| Mandatory role activation and selection | §9.2 brief (obligation kind selects governing content), §9.5 bootstrap, A4 | how an obligation kind maps to the duties a brief carries; no wording-based activation |
+| Mandatory role activation and selection | §7.5 workflow roles, §9.2 brief, §9.5 bootstrap, A4 | **D3:** the obligation kind selects the workflow role; duties are compiled from role × kind × domain × contract flags (§9.2). **Manual:** the compilation tables |
 | Event-triggered injection of owner depth at the situations where it matters | §9.2 governing content inline, §9.3 | which observed events (judgment kind, gate, authority revision) add owner text to a brief |
-| Typed delegation request and return schema | §9.1 operations, §6.8 typed admission requests | the delegate-question schema and the rule that an unanswered part is reported as a gap |
-| Mechanical write-scope (O3) and persistence-home enforcement | §6.8 steps 3-4 and §8.1 admission-time write-set proof, §15.7 protected surfaces | how O3 product-change authority and the designated persistence homes become Admission checks |
+| Typed delegation request and return schema | §7.6 contracts, §7.8 results, §9.1 | **D3:** the delegation request is the work contract; the return is the task result with required typed slots; an empty slot without a typed reason is `INCOMPLETE` (§7.7). **Manual:** slot vocabulary per obligation kind |
+| Mechanical write-scope (O3) and persistence-home enforcement | §7.6 write scope, §6.8 steps 3 and 7, §7.7 boundary checks, §15.7 | **D3:** the contract write scope is enforced authorization (E0); an investigator's persistence homes are named in its contract and checked like a write scope. **Manual:** pattern syntax and the analyzers that map diffs to units |
 | In-loop version routing and self-adoption guard | §6.6 S0 ruleset in force, §12.1 `LEGACY(p)`, S7 | how a task's governing version is bound in the brief and checked at Admission |
-| Typed choice-provenance and claim records | §6.3 closed schemas, §9.1 submit | which choice and claim fields are typed control facts and which stay narrative in native homes |
+| Typed choice-provenance and claim records | §6.3 closed schemas, §7.8 results, §7.7 faithfulness checks | **D3:** facts are machine-produced (A6); remaining claims cite records and are checked (`HARD` faithfulness); choice provenance is an E2 slot. **Manual:** which fields are typed control facts and which stay narrative in native homes |
 | Exact package-access provenance | §9.1 `read` recording, §8.4 | whether consumed-package accounting is needed beyond read recording (the 7.1 ledger was retired as more provenance than the decision needed) |
 
 ### 19.3 Evidence inputs (7.x qualification study; inform, do not bind)
@@ -1550,7 +1832,7 @@ From `qualification/ssdp70/PROTOCOL-7X-QUALIFICATION-STUDY-EVIDENCE-AND-LESSONS-
 
 - Compliance with language-based duties is probabilistic and model-dependent at every layer: activation, loading further text, answering each owed question. Only text in context acts. Conditional "read the owner when …" instructions hit 37%, and inline structured checklists raised uptake from 28% to 92%. This supports inline governing content (§9.2) and A4.
 - Errors run in both directions: more inline duty text produced narration where none was owed. Briefs should carry only the duties that are triggered (A4).
-- Detection, claim integrity, unauthorized mutation and version ordering did not respond to protocol text in any arm, 6.6 included. These are the strongest cases for enforcement over instruction (§19.2 rows 4-6).
+- Detection, claim integrity, unauthorized mutation and version ordering did not respond to protocol text in any arm, 6.6 included. These are the strongest cases for enforcement over instruction (§19.2 rows 4-6). Revision 5 realizes unauthorized mutation and version ordering at E0, claim integrity at E0 for facts and E1 for claims (A6, §7.7), and leaves detection at E3 with mechanical survival of whatever is detected (§7.9); it does not claim to make agents notice more.
 - Measurement: absolute floors measure the model, and paired, calibrated comparisons measure the protocol. The LLM evaluator's unassessable tail set the power of both campaigns. Validate oracles and instruments before runs, and simulate operating characteristics before spending. Frozen rules, custody, blinding and independent review caught real defects. These bind the design of the §22 usability qualification.
 
 ## 20. Non-goals
@@ -1578,7 +1860,13 @@ SSDS 8.0 does not:
 - use migration as a hidden redesign channel;
 - keep document-controlled workflow as a dual-current fallback for native scopes;
 - add webhooks, brokers or hosted services before polling and local operation prove insufficient;
-- add registries, wrappers or fields solely to mirror inherited doctrine;
+- add registries, wrappers or fields solely to mirror inherited doctrine (the doctrine-realization map of §7.7 is a Manual design artifact, not a runtime registry);
+- treat a clean mechanical conformance view, a passing check or an agent's own claim as discharge of an obligation that a judgment must discharge;
+- let a heuristic check, or any check that reads prose, block or pass work;
+- let a contract carry executable check code, or an agent role edit check templates, roles, routing or escalation floors;
+- let any agent role choose a decision's class, lower a report's materiality below a floor, or discharge human attention;
+- make a principal a long-lived process whose memory or conversation is workflow state;
+- use a model judgment as a mechanical check (a model's verdict is an R2 judgment, never a `HARD` template);
 - provide atomic admission across multiple repositories (§11.4 states the supported cross-repository semantics).
 
 ## 21. Architecture Manual closure obligations (before D4)
@@ -1606,7 +1894,12 @@ The SSDS 8 Architecture Manual, independently reviewed and accepted, SHALL decid
 19. versioning: system, schema, ruleset, interface and profile versions kept distinct;
 20. external units, external acceptance import and the cross-repository boundary (§11.4);
 21. the Manual decisions that §19.1 and §19.2 assign, under the 7.2.1 inheritance bound in §0.4 and the pre-cutover baseline of §24;
-22. a minimum-justified-architecture reassessment against the then-current accepted baseline, including whether every primitive in §5, component in §16.1 and persistent surface in §15.1 is still needed.
+22. a minimum-justified-architecture reassessment against the then-current accepted baseline, including whether every primitive in §5, component in §16.1 and persistent surface in §15.1 is still needed;
+23. workflow roles: the system role templates, their obligation kinds, record kinds, outcomes and write-scope rules, separation constraints and context-lineage provenance, the limits on policy extension, and the standing-plan designation for obligations outside any plan (§7.5);
+24. work contracts: schema, lint rules, minimum verifier coverage per item kind, the monotone-amendment and decomposition checks, budgets, and the system contracts of obligation kinds that belong to no item (§7.6, §7.9);
+25. the check-template library: families, parameters and force, the language analyzers for Python and C++ (diff-to-unit mapping, public interface, test-to-code), mutation-testing configuration and thresholds, unit-annotation conventions, and the qualification thresholds that admit a template as `HARD` (§7.7, §22);
+26. reports and escalation: report kinds, reasons and materiality vocabulary, the routing table, escalation floors, the outcome table for coordination decisions, materiality reclassification, and the review, decision and inspector templates, digest and impact ranking (§7.9, §9.6-§9.8);
+27. the doctrine-realization map: every duty of the SSDP 7.2.1 role and specialist entrypoints assigned E0-E3 with its mechanism, slot or review route, and a disclosed list of duties that stay E3 (§7.7).
 
 ## 22. Qualification program
 
@@ -1750,7 +2043,12 @@ Qualification binds every claim to the property its method can discriminate (DS-
 - **Cross-repository.** A pinned external unit never goes stale by external movement; a pin change derives local impact; reliance without external acceptance is provisional; a producer-then-consumer admission sequence leaves visible intermediate states; a consulted external ledger is never written; a later consultation finding the pinned triple no longer accepted supersedes the earlier consultation and makes reliant imports non-current.
 - **Semantic and adversarial.** A coherent-D3 D4 defect stays D4. A downstream observation can challenge D3, D2 or D1 and blocks dependent closure. Machinery never auto-resolves scientific ambiguity. A missing required check never becomes PASS. Documents' lifecycle fields enact nothing. Historical reasoning remains reachable. No second authority emerges.
 - **Security and privacy.** No secrets or private telemetry in the ledger or repository by default; adversarial records cannot inject actions; human decisions require the declared trust mechanism.
-- **Usability.** Live trajectories on real tasks, in shadow mode, showing that agents complete bounded work without reading machine records and with less context than the document-controlled baseline. Claims stay bounded to the trajectories, harnesses and models actually exercised, consistent with the Protocol 6.6 stochastic robustness boundary. Following the 7.x lessons (§19.3), comparisons are paired against the document-controlled 7.2.1 baseline on the same executors and fixtures, gates are calibrated from simulated operating characteristics before any spend, evaluator and oracle instruments are validated first, and rules, custody and blinding are frozen before runs.
+- **Workflow roles and decision classes.** Every role attempts every record kind, outcome and write outside its template: rejected at Admission. An implementer edit to a plan unit, a contract, a check template or an evidence specification its contract does not name: `VIOLATION`, never integrated. A review whose provenance continues the author's context, and a plan acceptance by the contract's author: rejected. No agent operation lowers a decision's class; a principal cannot submit acceptance, conformance or human judgments. Two coordination tasks on one plan are never concurrent.
+- **Work contracts.** Lint rejects an obligation without a verifier, a `HEURISTIC` primary verifier, a write scope containing a protected surface, a plan unit or an unnamed evidence specification, missing triggered slots and missing minimum coverage. Monotone and decomposition classification on generated contract diffs: every widening of scope, removal of an obligation, verifier weakening or change of objective, criteria, gates or external dependencies is classified R2. An amendment makes running tasks on its item non-current, and their late results are routed to revalidation.
+- **Conformance verification (DS-001: mechanics only).** Each `HARD` template is qualified on seeded violations inserted into real trajectories (detection rate) and on clean real trajectories (false-positive rate), against thresholds frozen before the runs; a template that misses either stays `HEURISTIC`. *Signal inertness:* replaying a corpus with every `HEURISTIC` template removed yields identical admission decisions and discharges. *Never sufficient:* a candidate with clean conformance and no current review judgment is never integrated, and no `REVIEW` obligation is discharged by any check. *Disclosure:* the same breach disclosed and undisclosed yields an amendment request and a `DISCREPANCY` respectively, and neither is integrated. *Faithfulness:* fixture results claiming completion with an unmet obligation, or citing a failing realization as passing, yield `DISCREPANCY`. *Test integrity:* deleting, skipping or expected-failure-marking a test, and editing an unnamed acceptance test, yield `VIOLATION`; a weakened assertion yields `SIGNAL` and a mutation-strength shortfall `INCOMPLETE`. *Advisory pre-flight:* `ask(verify)` results never enter discharge. *Determinism:* identical contract, trees and observations give identical conformance on every host.
+- **Escalation and inspector flow.** For every floor kind, every principal operation (decline, resolve locally, merge, downgrade) leaves the human-attention obligation open until an authenticated human judgment; a merged item lists every member. A raiser's `ROUTINE` report targeting a D1 or D2 unit is raised to `MATERIAL`. A downgrade of a non-floor item appears in the digest and an upheld challenge restores it. An authority-defect request cannot be resolved locally. A blocking report suspends exactly the raising task and resumption follows the decision. Inspector ranking is a deterministic function of derived impact. The 7.2.1 delegate floor: a material finding in an E2 slot of a `scientific = APPLIES` task reaches the inspector view through any number of intermediate roles.
+- **Iteration and recurrence.** `INCOMPLETE` within budget re-issues mechanically; exhaustion, out-of-scope findings and discrepancies create coordination decisions; repeated template failures and repeated finding families are detected; operational retries spend no budget.
+- **Usability.** Live trajectories on real tasks, in shadow mode, showing that agents complete bounded work without reading machine records and with less context than the document-controlled baseline. Claims stay bounded to the trajectories, harnesses and models actually exercised, consistent with the Protocol 6.6 stochastic robustness boundary. Following the 7.x lessons (§19.3), comparisons are paired against the document-controlled 7.2.1 baseline on the same executors and fixtures, gates are calibrated from simulated operating characteristics before any spend, evaluator and oracle instruments are validated first, and rules, custody and blinding are frozen before runs. **Doctrine realization** is measured the same way: the 7.x qualification panel, rerun with SSDS role briefs, contracts, conformance verification and escalation in shadow against the 7.2.1 baseline, for unauthorized mutation, claim integrity, owed-duty presence, narration where none was owed, and survival of material delegated findings to the human. Claims stay bounded to the duties and models exercised, and detection is reported separately, because enforcement is not expected to improve it.
 - **Repository acceptance.** The inherited repository workflow (regression, PEM checks, package build/validation, distribution parity, whitespace, frozen-resource integrity, Orchestrator Core snapshot/tests) for every affected surface.
 
 ## 23. Development sequence
@@ -1759,7 +2057,7 @@ Qualification binds every claim to the property its method can discriminate (DS-
 - **Phase B — independent D3 falsification of this architecture**, including the Phase A reconciliation. Its PASS cannot authorize D4 until Phase C closes.
 - **Phase C — SSDS 8 Architecture Manual** resolving §21, independently reviewed, with explicit stakeholder acceptance of this major change.
 - **Phase D — read-only kernel (shadow, no authority).** Content Model, Analyzers, ledger schema and Derivation over this repository, with a shadow genesis from existing history. Value: currency, impact and "what governs" answers with no control change.
-- **Phase E — read-only interface.** `open/ask/read` offered to agents working under the document-controlled baseline; measure burden reduction by live trajectories.
+- **Phase E — read-only interface and workflow layer in shadow.** `open/ask/read` offered to agents working under the document-controlled baseline; role briefs, contract lint, conformance views, report routing, decision briefs and the inspector view computed beside document control with no authority. Measure burden reduction and doctrine realization by live trajectories on the 7.x panel (§22). This is the earliest point at which the stakeholder's reliability question gets evidence, and it needs neither Admission nor witnesses.
 - **Phase F — Admission and Dispatcher in shadow.** Compute admission decisions beside document control. Classify every material difference as an SSDS defect, a baseline ambiguity or defect, a deliberate stronger rule, or an unresolved semantic judgment, and independently review each.
 - **Phase G — intake and migration pilot.** This repository's legacy documents (Case B) and one external scientific repository (Case C/D) without disturbing production.
 - **Phase H — adversarial and fault qualification** (§22).
@@ -1787,8 +2085,9 @@ D4 handoff is possible only when:
 7. intake is the single route for unknown-provenance change, and migration is coverage refinement plus qualified promotion with per-subject cutover;
 8. persistence, quorum admission and currentness qualification, publication and its successor-entry reconciliation, known-loss recovery, confidentiality recovery and evolution are specified, survive loss of any one machine, assert currentness only for quorum-witnessed state, and never let retained authority cross a recorded loss without requalification or accountable attestation;
 9. the agent interface meets the minimum-semantic-burden invariant, demonstrated by live trajectories in shadow mode;
-10. independent D3 Review/Challenge finds no blocker or active governing Serious Challenge;
-11. stakeholder acceptance of this major architectural change is explicit.
+10. the workflow execution and verification layer (§7.5-§7.10, §9.6-§9.8) is specified by the Manual; every `HARD` template is qualified; signal inertness, never-sufficient verification and non-droppable escalation are demonstrated; and doctrine realization on the 7.x panel is reported against the 7.2.1 baseline, with its limits stated;
+11. independent D3 Review/Challenge finds no blocker or active governing Serious Challenge;
+12. stakeholder acceptance of this major architectural change is explicit.
 
 ## 26. Reopen triggers and open uncertainties
 
@@ -1809,16 +2108,21 @@ Reopen this architecture if:
 - a later accepted protocol version requires the ledger to be a canonical home for findings or tensions (7.2.1 resolves this as reference-only, §19.1);
 - an accepted successor protocol version changes doctrine that §19.1 binds, until its own inheritance reconciliation is done;
 - live trajectories show agents still doing bookkeeping;
+- contract authoring and lint cost more than the verification they buy, or write scopes prove so narrow on real work that amendment requests dominate coordination;
+- `HARD` templates block legitimate work often enough on real trajectories that they are routinely amended away, or agents learn to satisfy checks while defeating their purpose;
+- coordination becomes a bottleneck (decision obligations backlog behind one principal per plan), or principal decisions are routinely overturned by challenge;
+- human-attention volume exceeds what the inspector can sustain, so the escalation floors are too broad, or downgrades are used routinely to hide material findings;
+- constructed independence proves illusory in practice (common-mode failures shared by author and reviewer dominate review misses);
 - any inherited guarantee proves unpreservable under §6.
 
 Uncertainties that cannot close by design work alone:
 
 - **Formerly Protocol 7 dependent (resolved at 7.2.1, §19.1):** finding and tension canonical home; product-surface acceptance actor; pre-cutover baseline. **Still open, for the Manual:** exact gate-template obligations; the mapping of tension search keys to unit identity; the §19.2 decisions. The Stage F portable execution-profile semantics did not become 7.x doctrine (7.2 replaced them with the consolidated qualification harness); the Dispatcher keeps only its evidence-only lesson that transport success is not evidence admissibility (§9.5, §10).
-- **Empirical:** rate of false staleness under conservative widening and part-to-subject routing; frequency and cost of promotion judgments in Case B; analyzer completeness for real Python and C++ scientific code; feasibility of read recording per harness; practical unit granularity; derivation cost and checkpoint sizing on large repositories; ledger growth over years; witness availability and admission latency in practice; frequency of structural quarantine and of SDG declarations; agent context and success compared with the document-controlled baseline.
+- **Empirical:** rate of false staleness under conservative widening and part-to-subject routing; frequency and cost of promotion judgments in Case B; analyzer completeness for real Python and C++ scientific code; feasibility of read recording per harness; practical unit granularity; derivation cost and checkpoint sizing on large repositories; ledger growth over years; witness availability and admission latency in practice; frequency of structural quarantine and of SDG declarations; agent context and success compared with the document-controlled baseline; contract authoring cost; detection and false-positive rates of check templates on real Python and C++ scientific code; amendment, escalation and downgrade rates; human-attention load per unit of work; whether doctrine realization on the 7.x panel improves over 7.2.1 on the behaviours that did not respond to text.
 
-## 27. Adequacy and minimum-architecture passes (rounds 2-4)
+## 27. Adequacy and minimum-architecture passes (rounds 2-5)
 
-These passes are design rationale, not evidence of adequacy. The next Review must falsify independently, and nothing here awards a PASS.
+These passes are design rationale, not evidence of adequacy. The next Review must falsify independently, and nothing here awards a PASS. Round 5 (§27.4-§27.5) covers the revision-5 workflow layer only; round 4 (§27.1-§27.2) still governs everything else.
 
 ### 27.1 Round 4: fresh out-of-matrix pass against revision 4
 
@@ -1963,6 +2267,53 @@ Rounds 2-3 minimum-justified-architecture record (superseded by §27.2, which ca
   - automatic, non-human-gated abandonment of sub-quorum checkpoints (rare, and its safety would depend on witness counts that read repair can change);
   - a fifth primitive for simultaneous definition.
 
+### 27.4 Round 5: out-of-matrix pass against the workflow layer
+
+This pass covers only what revision 5 adds and its interaction with the revision-4 mechanisms. §27.1 still governs the rest. Each attack tried to obey every local rule of §7.5-§7.10 while violating A5-A9, S9 or the doctrine-realization objective.
+
+| Attack | Trajectory attempted | Result (revision 5) |
+|---|---|---|
+| Overstep with disclosure | implementer edits a unit outside its write scope and reports it as a deviation | Holds: `VIOLATION`, never integrated; the disclosure becomes an amendment request for the principal; no silent widening (§7.7) |
+| Overstep without disclosure | the same, unreported | Holds: `VIOLATION` plus `DISCREPANCY`; integrity finding; visible to every later reviewer of the item (§7.7) |
+| **Grading its own exam** (found in this pass) | implementer loosens or deletes the acceptance test that judges its work, inside a `tests/**` write scope | **Repaired**: evidence specifications outside `evidence_specs` are outside every implementer write scope by lint, and test deletion, skipping and expected-failure marking are `HARD` test-integrity checks; loosened assertions are signals, and mutation strength catches tests that test nothing (§7.6 rule 6, §7.7). Semantic weakening inside a test the implementer legitimately authored stays with review |
+| Weak contract | principal writes a contract whose obligations are all `REVIEW`, or trivially checkable, to ease the work | Lint enforces policy minimum coverage per item kind; adequacy is an R2 plan acceptance by another execution (§7.6 rule 3). Residual: an adequate-looking but weak contract passing a weak review is a semantic failure, as in any review |
+| **Local resolution of an authority defect** (found in this pass) | an implementer reports that D3 is unrealizable; the principal records `RESOLVE_LOCAL` and amends the item to work around it | **Repaired**: allowed outcomes are a function of the report's kind, reason and target domain; an authority-defect request admits only `CHALLENGE` or `ESCALATE` (and, for D1/D2 targets, always creates human attention) (§7.9) |
+| **Materiality under-declaration** (found in this pass) | a raiser files a finding about a D2 estimator as `ROUTINE` | **Repaired**: the domain floor raises every report targeting a D1 or D2 unit to at least `MATERIAL` from the target's effective domain (§7.9) |
+| Systematic downgrading | the principal downgrades every non-floor material finding | Each downgrade is a recorded judgment shown in the digest, challengeable, and countable per plan; floor items cannot be downgraded (§7.9, §9.8). Residual: a human who never reads the digest; downgrade rate is a reopen trigger (§26) |
+| Escalation flooding | agents mark every report `CRITICAL` to avoid responsibility | Merging, impact ranking and the digest bound the cost; the floors are minimums, not the only route. Residual: human load is an empirical question and a reopen trigger (§26) |
+| **Two principals, one plan** (found in this pass) | two coordination tasks for one plan run concurrently and amend it from different bases | **Repaired**: a change plan is a serialization surface for coordination (§7.5, §8.3). Even without it, the second amendment's basis would be stale at Admission step 6; the surface prevents the wasted work |
+| Self-review under a new identity | the principal's model, in a new task, reviews the contract it authored | Rejected only when provenance shows context continuation; a fresh context of the same model passes A9's process-independence test, and the common-mode dependency is recorded; policy can require another model family for high-consequence surfaces (§9.6). Residual: epistemic independence across one model is limited, as the 6.6 workflow owner states |
+| Author framing leaks to the reviewer | conclusions placed in commit messages, result narrative or code comments | Commit messages, narrative and outcome are excluded from the review brief; code comments are content under review and cannot be stripped (residual, §9.6) |
+| Keyword gaming | agent rephrases prose to avoid certainty vocabulary | Gains nothing: prose checks are `HEURISTIC` and decide nothing; facts are machine-produced, so there is no factual claim to launder (A6, A7) |
+| Stale contract | the principal amends an item while its implementer runs | The running task's basis names the old item revision; its result's conformance is computed against the contract it was given; integration fails currency (step 6) and routes to revalidation (§7.2, §7.6 rule 4) |
+| Check template wrong | a `HARD` template has a false positive that blocks legitimate work | Challengeable; corrected by human-gated ruleset adoption; current conformance re-derived; history not re-adjudicated (§13). Qualification of `HARD` templates bounds the rate (§22) |
+| Undetected discovery | the agent never notices the anomaly it should report | **Not repairable by machinery** and not claimed (§1.1, §1.3, §19.3). Mitigations are independent bidirectional review, signals, and evidence reruns; whatever is detected survives (A8) |
+| Verification as PASS | a clean conformance view on a candidate with no review | Never integrated: discharge needs the current review judgments (§7.4, §7.8, §6.8 step 7) |
+| Production blocked by verification | a human needs to ship while governance is not closed | Production commits remain ordinary Git and are absorbed as foreign change (§1.3, §11); verification blocks governance closure, never production |
+
+Residuals carried: semantic adequacy of contracts and reviews; detection itself; independence limits within one model family; artifact-embedded framing; human attention capacity.
+
+### 27.5 Minimum-justified-architecture pass (round 5)
+
+The question for revision 5 was whether the workflow layer needs a new primitive, record category, persistent surface, component, state machine or identifier.
+
+- **Primitives:** four, unchanged. A contract is plan content; a role is a policy parameter; conformance is derived.
+- **Record categories:** five, unchanged. New judgment kinds in the support tier (task result, report, coordination decision, materiality reclassification, human acknowledgment) and one observation kind (check execution). Challenges and Serious Challenges keep their tier.
+- **Persistent surfaces:** six, unchanged. Contracts live in plan units, and role templates, check templates, routing and floors in the ruleset and policy content.
+- **Components:** seven, unchanged (§16.1). Derivation gains S3 classifications, Admission two checks inside existing steps, the Dispatcher check executions, suspension and integration requests, the Interface three renderings.
+- **State machines:** none added. Conformance, decision class, amendment class and escalation are derived. Task suspension is Dispatcher operational state.
+- **Ordinary-path cost:** one contract per item (authored once, accepted with the item); check executions on each candidate; one review per candidate, which revision 4 already required; one integration request per candidate, which replaces the implicit one.
+- **Rejected additions:**
+  - a separate Verifier component or service: it would be a second admission, and the checks are pure functions plus recorded executions;
+  - a general workflow engine (BPMN, a DAG executor): readiness and routing are already derivation;
+  - a long-lived principal process with canonical memory: the decision brief makes it unnecessary and its loss harmless;
+  - agent-authored check scripts, or checks embedded in contracts: the verifier would stop being protected, and a rule language would return by the back door;
+  - a model-as-verifier for mechanical classes: nondeterministic, and it would turn a judgment into an apparent fact (S9);
+  - blocking keyword checks: they would parse prose for control and invite gaming;
+  - storing conformance reports: derived;
+  - a universal finding or discovery database: S13 keeps one canonical home per finding;
+  - a separate message bus between agents: typed reports and derived obligations already carry every communication that changes what happens next.
+
 ## 28. Handoff state
 
 ```text
@@ -1976,19 +2327,23 @@ ARCHITECTURE: basis-stamped judgments over content-addressed units grouped into 
               currentness only for quorum-witnessed heads; publication reconciled by the successor entry's
               integration observation; known admitted loss as a continuity boundary; Git-replicated ledger;
               optimistic concurrency; one intake route with structural quarantine; refinement plus qualified
-              promotion for migration
+              promotion for migration; workflow layer (revision 5): enforced workflow roles and decision classes
+              R0-R3, machine-readable work contracts, derived conformance verification (necessary, never
+              sufficient), typed reports with deterministic routing and non-droppable escalation to an inspector view
+OBJECTIVE: §1.1, including the doctrine-realization objective added by stakeholder direction 2026-10-13 (§0.1)
 SOURCE BASIS: main af0455753e20ee54a969c844872e29e270007211 (7.2.1 accepted-current); rebased 2026-10-12 from
              f96b7ccf90dede4150d0efa17264fff07ec12d0d with reviewed bytes unchanged (§0.4 commit map)
 DESIGN BASIS: befe6782e7c8fe038bf7cb764646d133ca167855 (befe678 hypothesis archived byte-identically)
 PRIOR REVIEWS: f9d9de8 NO-PASS (repaired by revision 2); 441cf5c NO-PASS (repaired by revision 3);
-               8a75346 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md); repaired here (§0.1)
-THIS WORKPLAN: design revision 4 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
-             not an Architecture Manual; no self-awarded PASS
+               8a75346 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-8A75346-NO-PASS.md); repaired by
+               revision 4 (§0.1, revision 4 record); revision 4 never Reviewed
+THIS WORKPLAN: design revision 5 (revision 4 plus the workflow execution and verification layer) with the 7.2.1
+             inheritance reconciliation; proposed; not accepted-current; not an Architecture Manual; no self-awarded PASS
 SSDP 7: closed at 7.2.1; inheritance RECONCILED (§0.4, §19); Stage H obligation discharged under stakeholder
         instruction (§0.2); pre-cutover baseline Protocol 7.2.1 recovery (§24)
 D3: ready for fresh independent falsification Review (Phase B, covering Phase A); D4 handoff requires that PASS and Phase C
 D4: NOT AUTHORIZED
 SERIOUS CHALLENGE: none
-NEXT ACTION: fresh independent D3 Review of design revision 4 and its 7.2.1 reconciliation by a context that
-             authored neither; then Phase C.
+NEXT ACTION: fresh independent D3 Review of design revision 5 (including the unreviewed revision-4 repairs and the
+             workflow layer) and its 7.2.1 reconciliation by a context that authored none of them; then Phase C.
 ```
