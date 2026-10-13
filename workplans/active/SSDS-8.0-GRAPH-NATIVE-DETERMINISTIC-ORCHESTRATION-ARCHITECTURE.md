@@ -154,7 +154,7 @@ The `6fe1000` Review (a fresh-context sub-agent of the author's model family, un
 | N8 residual text | S4, §7.4, §10, §15.4 and §21 item 14 updated |
 | N9 the outstanding-envelope list's source | Named: run-branch envelopes and the Dispatcher's journal; an unlisted never-lost record is refused with a re-issue obligation (§6.8 step 3) |
 
-The model check adds superseder authorization (own reassessment or a discriminating pair) and property P9: a superseder that is neither never raises the evidence term to `T` on its own. At depth 4 it checks 99,814 transitions with no failures (depth-5 run pending), and all 27 named discriminators give their expected values. `REV17=1` fails P9 and the oracle. Frames, Admission and the pair's verification remain outside the model; §22 carries their cases.
+The model check adds superseder authorization (own reassessment or a discriminating pair) and property P9: a superseder that is neither never raises the evidence term to `T` on its own. At depth 5 it checks 2,944,835 transitions with no failures (99,814 at depth 4), and all 27 named discriminators give their expected values. `REV17=1` fails P9 and the oracle. Frames, Admission and the pair's verification remain outside the model; §22 carries their cases.
 
 #### Revision 17 (prior) record
 
@@ -3340,7 +3340,7 @@ Revision 17 removed the lapse but kept two inferences: `counts` inferred that a 
 | Genuine fix | Identical reproduction on the old content, passing trial on the new: the pair supersedes |
 | Candidate failure about candidate code | Pair on admitted content supersedes; cost: two reruns and one assessment |
 
-**Deterministic check.** The model adds superseder authorization and P9. At depth 4 it checks 99,814 transitions with no failures (depth-5 run pending); `REV17=1` fails P9 and the oracle. Pair verification, frames and Admission are outside the model; §22 carries their cases (DS-001).
+**Deterministic check.** The model adds superseder authorization and P9. At depth 5 it checks 2,944,835 transitions with no failures (99,814 at depth 4); `REV17=1` fails P9 and the oracle. Pair verification, frames and Admission are outside the model; §22 carries their cases (DS-001).
 
 **Attacks on the repair.**
 
