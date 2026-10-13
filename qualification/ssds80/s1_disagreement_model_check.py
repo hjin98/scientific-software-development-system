@@ -156,7 +156,7 @@ REV13=1, REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each must
 report failures on at least one of P1-P14, Q or Q2, not only on O; a run
 that stays green there means the check is blind.
 
-Run: python3 qualification/ssds80/s1_disagreement_model_check.py [--depth N]
+Run: python3 qualification/ssds80/s1_disagreement_model_check.py [--depth N] [--jobs J]
 """
 
 from __future__ import annotations
@@ -1166,12 +1166,33 @@ def inert_candidate_run(L: Ledger, i: int) -> bool:
     return c != old and c not in trials
 
 
-def check(depth: int) -> int:
+PROPS = ("P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12", "P13", "P14", "Q", "Q2", "O")
+
+
+def check(depth: int, jobs: int = 1) -> int:
+    """Every appended-record transition from the empty ledger up to depth. With jobs > 1 the subtrees
+    below each first record are checked in separate processes and the counts summed: the same
+    transitions, the same totals."""
+    if jobs > 1 and depth > 1:
+        import multiprocessing
+        firsts = [(rec,) for rec in candidates(())]
+        seen, counts = explore([()], 1)  # the first level itself
+        with multiprocessing.Pool(jobs) as pool:
+            for s2, c2 in pool.starmap(explore, [([f], depth - 1) for f in firsts]):
+                seen += s2
+                for k in PROPS:
+                    counts[k] += c2[k]
+    else:
+        seen, counts = explore([()], depth)
+    failures = sum(counts.values())
+    print(f"mode {MODE}: checked {seen} appended-record transitions up to depth {depth}; failures: {failures} {counts}")
+    return failures
+
+
+def explore(frontier: list, depth: int) -> tuple[int, dict]:
+    """Breadth-first over depth further appended records from each prefix in frontier."""
     seen = 0
-    counts = dict.fromkeys(
-        ("P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12", "P13", "P14", "Q", "Q2", "O"), 0
-    )
-    frontier = [()]
+    counts = dict.fromkeys(PROPS, 0)
     for level in range(depth):
         nxt = []
         for prefix in frontier:
@@ -1224,15 +1245,15 @@ def check(depth: int) -> int:
                 if level < depth - 1:  # the last level's ledgers are checked, never extended
                     nxt.append(prefix + (rec,))
         frontier = nxt
-    failures = sum(counts.values())
-    print(f"mode {MODE}: checked {seen} appended-record transitions up to depth {depth}; failures: {failures} {counts}")
-    return failures
+    return seen, counts
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--depth", type=int, default=4)
+    ap.add_argument("--jobs", type=int, default=1, help="processes; the totals do not depend on it")
+    args = ap.parse_args()
     print(f"named discriminators (mode {MODE}):")
     d = run_discriminators()
-    f = check(ap.parse_args().depth)
+    f = check(args.depth, args.jobs)
     raise SystemExit(1 if (f or d) else 0)
