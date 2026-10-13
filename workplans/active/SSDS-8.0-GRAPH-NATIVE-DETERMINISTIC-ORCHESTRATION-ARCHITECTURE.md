@@ -173,7 +173,7 @@ The model check separates named content from un-named execution content, which c
 - P13: a pair that discriminates on the assessed content, against a sole failing assessment, disposes of it;
 - P14: an observation of a candidate's content that differs from both sides of every pair changes nothing in the admitted state.
 
-At depth 4 it checks 814,450 transitions with no failures, and all 64 named discriminators give their expected values (depth 5: pending). `REV19=1` fails P13 and P14. Frames other than the admitted state, lineages, custody and decision classes remain outside the model; §22 carries their cases.
+At depth 4 it checks 814,450 transitions with no failures, and all 64 named discriminators give their expected values (at depth 5, 41,742,261 transitions with no failures). `REV19=1` fails P13 and P14. Frames other than the admitted state, lineages, custody and decision classes remain outside the model; §22 carries their cases.
 
 #### Revision 19 (prior) record
 
@@ -3620,7 +3620,7 @@ The `ba7f738` Review found the recurrence at the comparators. Revision 19 read o
 | Refused never-lost bytes (N5) | Resubmitted by the Dispatcher (R0) |
 | Transient foreign push of rejected content, reverted (N6) | Admitted by absorption: the latch fires and its reading is admitted, so the owner disposes (§26) |
 
-**Deterministic check.** The model separates named content from un-named execution content, which can revert. Outcomes take three values. It adds candidate-content failures and executions, and failures under a never-admitted reading with an event that admits it, and it adds P13 and P14. At depth 4 it checks 814,450 transitions with no failures, and its 64 named discriminators give their expected values. `REV19=1` fails P13 and P14, and every earlier mode fails at least P9, P10 or P13. Depth 5: pending. Frames other than the admitted state, lineages, custody and decision classes are outside the model; §22 carries their cases (DS-001).
+**Deterministic check.** The model separates named content from un-named execution content, which can revert. Outcomes take three values. It adds candidate-content failures and executions, and failures under a never-admitted reading with an event that admits it, and it adds P13 and P14. At depth 4 it checks 814,450 transitions with no failures, and its 64 named discriminators give their expected values. `REV19=1` fails P13 and P14, and every earlier mode fails at least P9, P10 or P13. At depth 5 it checks 41,742,261 transitions with no failures. Frames other than the admitted state, lineages, custody and decision classes are outside the model; §22 carries their cases (DS-001).
 
 **Attacks on the repair.**
 
