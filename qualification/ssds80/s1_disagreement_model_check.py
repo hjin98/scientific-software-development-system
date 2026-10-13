@@ -1,5 +1,5 @@
 """Bounded model check of SSDS 8.0 workplan §6.6 S1 polarity and assessment
-disagreement (design revision 20 and later).
+disagreement (design revision 21 and later).
 
 This is a diagnostic transcription of the workplan's equations, not an SSDS
 implementation and not an adequacy oracle (DS-001): it can show that the
@@ -32,8 +32,9 @@ by events:
          configuration, on that assessment's executed content (old=True), on
          the current admitted content, or on a candidate's content that differs
          from it only outside the named content (cand=True), with an evaluated
-         outcome 0, 1 or 2 (1 is the default failing outcome; 0 and 2 are two
-         different other outcomes);
+         outcome 0-3. Mechanical verdicts: 1 fails every reading, 2 and 3 pass
+         the admitted readings and fail the tightened one, 0 passes every
+         reading (1 is the default failing outcome);
   ADMIT  the obligation of the frame-only failing assessments (newobl=True)
          is admitted at some position, by any route.
 An equivalence-covered MOVE is itself the equivalence judgment: it can be
@@ -48,7 +49,9 @@ assessment of outcome 0 is an interpretive failure). A failing assessment may
 have been made on a candidate whose executed content differs from the admitted
 content only outside the named content (cand=True; ba7f738 U1a), or under a
 reading (a tightened tolerance or a revised claim) that was never admitted, on
-an otherwise admitted content with an unchanged outcome (tight=True; U2). A discriminating-pair
+an otherwise admitted content with an unchanged outcome (tight=True; U2). A
+failing assessment's configuration has an assessor-read oracle (identity of
+outcomes) or a mechanical one (mech=True: the verdict function above). A discriminating-pair
 assessment (pair=True) is a passing assessment of its trial that names a
 failing assessment in `supersedes` and carries the reproduction's outcome
 (ro) and the trial's outcome (to); its two executions are admitted
@@ -86,6 +89,14 @@ under the admitted reading; while the admitted reading is the one its trial was
 read under, the trial's own outcome on the current content is another assessed
 value too. Revision 19 compared the named content only
 (p), and is kept as REV19=1.
+Revision 21 removes the pair as a supersession record (convergence owner,
+post-simplification recurrence; 947370d W). A failing assessment is stale, and
+does not count, where discriminating observations show it: an identical,
+standing reproduction on the content it read, never another outcome there, and
+at least one standing observation of the current content, none of which
+(standing or not) yields the failure under the current reading (mechanical
+verdict, or identity for an assessor-read oracle). A PAIR record is then two
+observations and an ordinary passing assessment. Revision 20 is kept as REV20=1.
 
 Properties, for every ledger L and every appended record r:
   P1  appending any challenge never raises the evidence term;
@@ -101,31 +112,33 @@ Properties, for every ledger L and every appended record r:
   P8  a structural-only change (REPART) never raises the evidence term;
   P9  a superseder that is neither the failing assessor's own nor a pair
       never raises the evidence term;
-  P10 a pair that does not discriminate in the observations (reproduction
-      differs from the failing observation, trial outcome equals the
-      reproduction's, no evaluated premise changed, or an admitted
-      observation of the configuration on either content disagrees) never
-      raises the evidence term;
+  P10 a pair of observations that does not discriminate in the owner's sense
+      (discriminates(): reproduction differs from the failing observation,
+      the trial yields the failure under the reading then in force, or an
+      admitted observation disagrees on the failure's content or yields it on
+      the trial's) never raises the undisputed term;
   P11 a content move followed by an execution of the configuration on the
-      new content with another outcome leaves the undisputed term where it
+      new content that does not yield the failure leaves the undisputed term where it
       was before the move, for a ledger with one failing assessment: a
       disagreement resolved by a pair is not presented as live again;
   P12 a failing assessment on an obligation that has never been admitted
       never lowers the evidence term of the admitted state;
   Q   a failing assessment that has no superseder, no challenge against it
-      or its realization and no IMMATERIALITY judgment keeps the evidence term
-      at most P, whatever moved (stated syntactically);
-  P13 a pair that discriminates in the owner's sense on the assessed content
-      (executed content and reading), appended to a ledger whose only failing
-      assessment is its target, leaves the undisputed term T: discriminating
-      evidence that a failure is not the admitted content's disposes of it;
+      or its realization and no IMMATERIALITY judgment, and that discriminating
+      evidence does not show stale (owner_stale), keeps the evidence term at
+      most P, whatever moved;
+  P13 where the only failing assessment counts, nothing is recorded against
+      it, no loss boundary exists, and discriminating evidence stated from the
+      owner (owner_stale, written without the candidate's predicates) shows
+      that the current content under the current reading does not yield it,
+      the undisputed term is T;
   P14 an observation of a candidate's content that differs from every content
       a pair of its target compared never changes the evidence term of the
       admitted state;
-  Q2  a failing assessment whose only dispositions are pairs, each
-      contradicted by an admitted observation of the configuration, or whose
-      failing outcome an execution on the current content reproduces under
-      the same reading, keeps the evidence term at most P;
+  Q2  a counted failing assessment with no judgment recorded against it,
+      whose failure an observation of the current content yields under the
+      current reading, or whose own content has produced another outcome,
+      keeps the evidence term at most P;
   O   the evidence term is T exactly when an oracle says the claim is
       unqualified. The oracle is written separately and does not call the
       bearing, disposer or effectiveness predicates it checks.
@@ -133,7 +146,8 @@ Properties, for every ledger L and every appended record r:
 Named discriminators (the Reviews' trajectories and their contrasts) are
 evaluated separately and printed.
 
-Sensitivity: REV19=1 (stops, standing and withdrawal compared on the named
+Sensitivity: REV20=1 (reading pairs keyed on "ever admitted", mechanical
+standing judged under the failure's reading), REV19=1 (stops, standing and withdrawal compared on the named
 content only, no reading pair, un-named execution content outside passing
 currency), REV18=1 (pair conditions as revision 18 wrote them, basis-
 currency standing, counting from admission everywhere), REV17=1 (any
@@ -152,15 +166,21 @@ import os
 from dataclasses import dataclass, field
 
 F, P, T = 0, 1, 2
-MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13", "REV14", "REV16", "REV17", "REV18", "REV19")
-             if os.environ.get(m)), "REV20")
-LATE = ("REV14", "REV16", "REV17", "REV18", "REV19", "REV20")
-STRICT = ("REV19", "REV20")  # independence is part of a supersession's authorization
+MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13", "REV14", "REV16", "REV17", "REV18", "REV19", "REV20")
+             if os.environ.get(m)), "REV21")
+LATE = ("REV14", "REV16", "REV17", "REV18", "REV19", "REV20", "REV21")
+STRICT = ("REV19", "REV20", "REV21")  # independence is part of a supersession's authorization
+
+
+def fails(reading, o: int) -> bool:
+    """Mechanical verdict: outcome 1 fails every reading; 2 and 3 pass the admitted readings and fail
+    the tightened one; 0 passes every reading."""
+    return o in (1, 2, 3) if reading == "TIGHT" else o == 1
 
 
 def key(c: tuple[int, int]) -> tuple[int, ...]:
     """The content a mode compares: revision 20 the executed content, earlier modes the named content."""
-    return c if MODE == "REV20" else (c[0],)
+    return c if MODE in ("REV20", "REV21") else (c[0],)
 
 
 @dataclass(frozen=True)
@@ -183,7 +203,8 @@ class R:
     old: bool = False  # EXEC: on the target failing assessment's content
     newobl: bool = False  # ASSESS FAIL: for an obligation that exists only in its frame
     cand: bool = False  # ASSESS FAIL, EXEC: on a candidate differing from admitted content outside the named content
-    tight: bool = False  # ASSESS FAIL: under a never-admitted reading; ORACLE: that reading is admitted
+    tight: bool = False  # ASSESS FAIL: under the tightened reading; ORACLE: the tightened reading is admitted
+    mech: bool = False  # ASSESS FAIL: its configuration's oracle is a mechanical verdict function
 
     def ob(self) -> int:
         return self.obs if self.obs is not None else (0 if self.outcome == "PASS" else 1)
@@ -277,6 +298,8 @@ class Ledger:
         ry = self.r[y]
         if ry.supersedes is None or MODE not in ("REV18",) + STRICT:
             return True
+        if MODE == "REV21" and ry.pair:  # revision 21: two observations and a passing assessment, never a supersession
+            return True
         if MODE in STRICT and not ry.indep:  # revision 19: independence is part of the authorization
             return False
         if ry.own:
@@ -306,7 +329,37 @@ class Ledger:
         return self.r[x].kind != "ASSESS" or self.authorized(x)
 
     def superseders(self, x: int) -> list[int]:
-        return [y for y in range(x + 1, self.n) if self.r[y].supersedes == x and self.r[y].kind == "ASSESS" and self.authorized(y)]
+        return [
+            y for y in range(x + 1, self.n)
+            if self.r[y].supersedes == x and self.r[y].kind == "ASSESS" and self.authorized(y)
+            and not (MODE == "REV21" and self.r[y].pair)
+        ]
+
+    def shows_failure(self, f: int, o: int, reading) -> bool:
+        """Revision 21: an outcome shows f's failure under a frame's reading: identity for an assessor-read
+        oracle, the frame's verdict for a mechanical one."""
+        return fails(reading, o) if self.r[f].mech else o == self.r[f].ob()
+
+    def held_obs(self, i: int) -> bool:
+        """A permissive use of an observation: held across later loss boundaries, its record not revoked
+        or blocked."""
+        return self.cont(i) and self.status1(i, True) not in ("REVOKED", "BLOCKED")
+
+    @memo
+    def stale(self, f: int) -> bool:
+        """Revision 21: discriminating observations show that the admitted state does not yield f's failure.
+        f has been reproduced on its own executed content and never differed there; and at least one held
+        observation of its configuration is on the current executed content, and no admitted observation
+        there, standing or not, shows the failure under the current reading."""
+        xf, fo, cur = self.xc(f), self.r[f].ob(), self.content(self.n)
+        obs = self.observations(f)
+        own = [o for i, c, o in obs if c == xf] + [fo]
+        if not any(c == xf and o == fo and self.held_obs(i) for i, c, o in obs) or any(o != fo for o in own):
+            return False
+        if not any(c == cur and self.held_obs(i) for i, c, o in obs):  # permissive: only standing observations
+            return False
+        here = [o for i, c, o in obs if c == cur] + ([fo] if xf == cur else [])  # restrictive: every observation
+        return not any(self.shows_failure(f, o, self.reading(self.n)) for o in here)
 
     def counted(self, f: int) -> bool:
         """Revision 19: a frame-only failing assessment counts here once its obligation is admitted."""
@@ -328,7 +381,7 @@ class Ledger:
     def exec_current(self, x: int) -> int:
         if self.later(x, "REPART"):  # currency follows the unit revision, which a scope change moves
             return F
-        if MODE == "REV20" and self.content(x)[1] != self.content(self.n)[1]:
+        if MODE in ("REV20", "REV21") and self.content(x)[1] != self.content(self.n)[1]:
             return F  # revision 20: the execution basis is everything the execution read
         return min([T] + [self.base(m) if self.r[m].equiv else F for m in self.later(x, "MOVE")])
 
@@ -525,7 +578,8 @@ class Ledger:
         return T if (self.in_force(d) and self.cont(d) and not self.contested(d)) else F
 
     def undisputed(self) -> int:
-        adverse = [a for a in self.assessments("FAIL") if self.bears(a) and self.counted(a)]
+        adverse = [a for a in self.assessments("FAIL") if self.bears(a) and self.counted(a)
+                   and not (MODE == "REV21" and self.stale(a))]
         return min([T] + [max([P] + [self.eff(d, a) for d in self.disposers(a)]) for a in adverse])
 
     # ---- revision 11 (sensitivity) -------------------------------------------
@@ -574,8 +628,9 @@ class Ledger:
 # ---- independent oracle: plain loops over the raw records ---------------------
 def oracle_unqualified(L: Ledger) -> bool:
     recs, n = L.r, L.n
-    rev20 = MODE == "REV20"
-    rev19, rev18 = MODE in ("REV19", "REV20"), MODE == "REV18"
+    rev21 = MODE == "REV21"
+    rev20 = MODE in ("REV20", "REV21")
+    rev19, rev18 = MODE in ("REV19", "REV20", "REV21"), MODE == "REV18"
 
     def after(x, kind):
         return [y for y in range(x + 1, n) if recs[y].kind == kind]
@@ -652,6 +707,8 @@ def oracle_unqualified(L: Ledger) -> bool:
             return True
         if not r.pair:
             return False
+        if rev21:
+            return True  # admitted as observations and a passing assessment; it supersedes nothing
         f = r.supersedes
         if recs[f].kind != "ASSESS" or recs[f].outcome != "FAIL":
             return False
@@ -678,7 +735,8 @@ def oracle_unqualified(L: Ledger) -> bool:
         return True
 
     def superseded_raw(x):
-        return any(recs[y].supersedes == x and recs[y].kind == "ASSESS" and auth(y) for y in range(x + 1, n))
+        return any(recs[y].supersedes == x and recs[y].kind == "ASSESS" and auth(y) and not (rev21 and recs[y].pair)
+                   for y in range(x + 1, n))
 
     def fully_current(x):
         rx = recs[x]
@@ -718,16 +776,45 @@ def oracle_unqualified(L: Ledger) -> bool:
     def chain_to(y, f):
         """The supersession chain from y down to f, or None."""
         path = [y]
-        while recs[path[-1]].supersedes is not None and auth(path[-1]):
+        while recs[path[-1]].supersedes is not None and auth(path[-1]) and not (rev21 and recs[path[-1]].pair):
             nxt = recs[path[-1]].supersedes
             if nxt == f:
                 return path
             path.append(nxt)
         return None
 
+    def verdict_fails(reading, o):
+        return o in (1, 2, 3) if reading == "TIGHT" else o == 1
+
+    def shown_not_to_apply(f):
+        """Revision 21, stated from the evidence owner: the failing observation was reproduced on the
+        content it read and never differed there, and the current content, read under the current
+        reading, is observed (by records standing across loss and challenge) not to yield it."""
+        own_content, fo = executed(f), outcome_of(f)
+        seen = obs_list(f)
+        on_own = [o for i, c, o in seen if c == own_content]
+        reproduced = any(c == own_content and o == fo and L.cont(i) and standing_s1(i, on_real=True) for i, c, o in seen)
+        if not reproduced or any(o != fo for o in on_own):
+            return False
+        if not any(c == revision(n) and L.cont(i) and standing_s1(i, on_real=True) for i, c, o in seen):
+            return False
+        now = [o for i, c, o in seen if c == revision(n)]
+        if own_content == revision(n):
+            now.append(fo)
+        for o in now:
+            if recs[f].mech and verdict_fails(reading_at(n), o):
+                return False
+            if not recs[f].mech and o == fo:
+                return False
+        return True
+
     def settled(f):
+        if rev21 and shown_not_to_apply(f):
+            return True
         for y in range(f + 1, n):
             ry = recs[y]
+            if rev21 and ry.pair:
+                continue
             if ry.kind == "ASSESS" and ry.indep and present(y):
                 path = chain_to(y, f)
                 if path is not None:
@@ -765,9 +852,10 @@ def oracle_unqualified(L: Ledger) -> bool:
 
 
 def untouched_bearing_failure(L: Ledger) -> bool:
-    """Q's premise: a counted failing assessment with nothing recorded against it."""
+    """Q's premise: a counted failing assessment with nothing recorded against it, and no discriminating
+    evidence that it is stale."""
     for f in L.assessments("FAIL"):
-        if not L.counted(f):
+        if not L.counted(f) or owner_stale(L, f):
             continue
         if L.superseded(f) or L.immat_on(f):
             continue
@@ -777,25 +865,78 @@ def untouched_bearing_failure(L: Ledger) -> bool:
     return False
 
 
-def only_contradicted_pairs(L: Ledger) -> bool:
-    """Q2's premise: a failing assessment whose only dispositions are pairs, each contradicted or
-    reproduced on the current content."""
+def plain_content(L: Ledger, i: int, f: int | None = None, old: bool = False, cand: bool = False) -> tuple[int, int]:
+    """Executed content at position i written out directly: (named moves, un-named parity)."""
+    recs = L.r
+    moves = len([k for k in range(i) if recs[k].kind == "MOVE"])
+    flips = len([k for k in range(i) if recs[k].kind == "UMOVE"]) % 2
+    if old:
+        return plain_content(L, f, cand=recs[f].cand)
+    return (moves, 1 - flips) if cand else (moves, flips)
+
+
+def plain_reading(L: Ledger, i: int):
+    oracles = [k for k in range(i) if L.r[k].kind == "ORACLE"]
+    return -1 if not oracles else ("TIGHT" if L.r[oracles[-1]].tight else oracles[-1])
+
+
+def plain_observations(L: Ledger, f: int) -> list[tuple[int, tuple[int, int], int]]:
+    out = []
+    for i, r in enumerate(L.r):
+        if r.kind == "EXEC" and r.target == f:
+            out.append((i, plain_content(L, i, f, old=r.old, cand=r.cand), int(r.outcome)))
+        if r.kind == "ASSESS" and r.pair and r.supersedes == f:
+            out += [(i, plain_content(L, f, cand=L.r[f].cand), r.ro), (i, plain_content(L, i), r.to)]
+    return out
+
+
+def shows(L: Ledger, f: int, o: int) -> bool:
+    """The evidence owner's reading of 'this observation yields f's failure' at the current position:
+    the current reading's verdict for a mechanical oracle, the identical outcome otherwise."""
+    if L.r[f].mech:
+        return o in (1, 2, 3) if plain_reading(L, L.n) == "TIGHT" else o == 1
+    fo = L.r[f].obs if L.r[f].obs is not None else 1
+    return o == fo
+
+
+def owner_stale(L: Ledger, f: int) -> bool:
+    """A failing observation is stale, so inadmissible against current authority, when discriminating
+    evidence shows it: reproduced on the content it read by an observation that stands, never differing
+    there, and the current content, observed by observations that stand, not yielding the failure."""
+    fo = L.r[f].obs if L.r[f].obs is not None else 1
+    mine = plain_content(L, f, cand=L.r[f].cand)
+    seen = plain_observations(L, f)
+    stand = lambda i: L.cont(i) and L.status1(i, True) not in ("REVOKED", "BLOCKED")
+    if not any(c == mine and o == fo and stand(i) for i, c, o in seen):
+        return False
+    if any(c == mine and o != fo for i, c, o in seen):
+        return False
+    if not any(c == plain_content(L, L.n) and stand(i) for i, c, o in seen):
+        return False
+    now = [o for i, c, o in seen if c == plain_content(L, L.n)] + ([fo] if mine == plain_content(L, L.n) else [])
+    return not any(shows(L, f, o) for o in now)
+
+
+def judged(L: Ledger, f: int) -> bool:
+    """Something other than observations has been recorded against f: a superseder, an IMMATERIALITY
+    judgment or a challenge against it or its realization."""
+    return bool(L.superseders(f) or L.immat_on(f) or L.challenges_on(f) or L.challenges_on(f, on_real=True))
+
+
+def reproduced_now(L: Ledger) -> bool:
+    """Q2's premise: a counted failing assessment with no judgment recorded against it, whose failure an
+    observation on the current content yields under the current reading, or whose own content has
+    produced another outcome (nondeterministic in fact)."""
     for f in L.assessments("FAIL"):
-        if not L.counted(f):
+        if not L.counted(f) or judged(L, f):
             continue
-        sups = L.superseders(f)
-        if not sups or L.immat_on(f) or L.challenges_on(f) or L.challenges_on(f, on_real=True):
-            continue
-        if any(L.superseders(y) for y in sups):
-            continue
-        cur = key(L.content(L.n))
-        unadmitted_reading = L.r[f].tight and L.reading(L.n) != "TIGHT"
-        reproduced_here = not unadmitted_reading and any(
-            r.kind == "EXEC" and r.target == f and not r.old and not r.cand and int(r.outcome) == L.r[f].ob()
-            and key(L.content(i)) == cur
-            for i, r in enumerate(L.r)
-        )
-        if all(L.r[y].pair and (L.contradicted(y, None) or reproduced_here) for y in sups):
+        fo = L.r[f].obs if L.r[f].obs is not None else 1
+        mine = plain_content(L, f, cand=L.r[f].cand)
+        seen = plain_observations(L, f)
+        if any(c == mine and o != fo for i, c, o in seen):
+            return True
+        unadmitted = L.r[f].tight and plain_reading(L, L.n) != "TIGHT" and not L.r[f].mech
+        if not unadmitted and any(c == plain_content(L, L.n) and shows(L, f, o) for i, c, o in seen):
             return True
     return False
 
@@ -808,6 +949,8 @@ def candidates(prefix: tuple[R, ...]) -> list[R]:
         R("ASSESS", outcome="FAIL", newobl=True),
         R("ASSESS", outcome="FAIL", cand=True),
         R("ASSESS", outcome="FAIL", tight=True),
+        R("ASSESS", outcome="FAIL", mech=True),
+        R("ASSESS", outcome="FAIL", tight=True, mech=True, obs=2),
         R("ASSESS", outcome="PASS", reads=True),
         R("ASSESS", outcome="FAIL", reads=True),
         R("LOSS"),
@@ -837,12 +980,14 @@ def candidates(prefix: tuple[R, ...]) -> list[R]:
             out.append(R("ASSESS", outcome="PASS", supersedes=t, own=True, indep=False))
             if rt.outcome == "FAIL":
                 out.append(R("IMMAT", target=t))
-                for o in (0, 1, 2):
+                fo = rt.ob()
+                for o in (0, 1, 2, 3):
                     out.append(R("EXEC", target=t, outcome=str(o)))
+                for o in (1, 2):
                     out.append(R("EXEC", target=t, outcome=str(o), cand=True))
-                for o in (0, 1):
+                for o in (fo, 0 if fo else 1):
                     out.append(R("EXEC", target=t, outcome=str(o), old=True))
-                    for o2 in (0, 1):
+                    for o2 in (0, 1, 2):
                         out.append(R("ASSESS", outcome="PASS", supersedes=t, pair=True, ro=o, to=o2))
         if k == "CHALLENGE":
             out += [
@@ -864,6 +1009,7 @@ PASS_, FAIL_ = R("ASSESS", outcome="PASS"), R("ASSESS", outcome="FAIL")
 FAIL_READS, PASS_READS = R("ASSESS", outcome="FAIL", reads=True), R("ASSESS", outcome="PASS", reads=True)
 FAIL_INTERP, FAIL_NEW = R("ASSESS", outcome="FAIL", obs=0), R("ASSESS", outcome="FAIL", newobl=True)
 FAIL_CAND, FAIL_TIGHT = R("ASSESS", outcome="FAIL", cand=True), R("ASSESS", outcome="FAIL", tight=True)
+FAIL_MECH, FAIL_TM = R("ASSESS", outcome="FAIL", mech=True), R("ASSESS", outcome="FAIL", tight=True, mech=True, obs=2)
 UPHOLD = lambda t: R("ADJ", target=t, outcome="UPHELD")
 BCH = lambda t: R("CHALLENGE", target=t, blocking=True)
 OWN = lambda t: R("ASSESS", outcome="PASS", supersedes=t, own=True)
@@ -902,10 +1048,11 @@ DISCRIMINATORS = [
     ("6fe1000 B1: unauthorized superseder is refused", (PASS_, FAIL_, MOVE, R("ASSESS", outcome="PASS", supersedes=1)), F),
     ("6fe1000 B1: pair on unchanged content", (PASS_, FAIL_, PAIR(1)), P),
     ("6fe1000 B1 contrast: the failing assessor's own reassessment", (PASS_, FAIL_, OWN(1)), T),
-    ("6fe1000 B2: differing old-content execution before the pair", (PASS_, FAIL_, EXEC(1, 0, old=True), MOVE, PAIR(1)), F),
+    ("6fe1000 B2: differing old-content execution before the pair (nondeterministic in fact)",
+     (PASS_, FAIL_, EXEC(1, 0, old=True), MOVE, PAIR(1)), P),
     ("4ec0024 B'1: interpretive failure, cosmetic change, identical trial outcome", (PASS_, FAIL_INTERP, CMOVE, PAIR(1, ro=0, to=0)), P),
     ("4ec0024 B'1 (deterministic failure form): trial outcome equals the reproduction's", (PASS_, FAIL_, CMOVE, PAIR(1, ro=1, to=1)), P),
-    ("4ec0024 B'2: unassessed failing trial-content execution before the pair", (PASS_, FAIL_, MOVE, EXEC(1, 1), PAIR(1)), F),
+    ("4ec0024 B'2: unassessed failing trial-content execution before the pair", (PASS_, FAIL_, MOVE, EXEC(1, 1), PAIR(1)), P),
     ("4ec0024 B'2: differing old-content execution after the pair withdraws it", (PASS_, FAIL_, MOVE, PAIR(1), EXEC(1, 0, old=True)), P),
     ("4ec0024 B'2: differing trial-content execution after the pair withdraws it", (PASS_, FAIL_, MOVE, PAIR(1), EXEC(1, 1)), P),
     ("4ec0024 B'2 contrast: agreeing executions on both contents", (PASS_, FAIL_, MOVE, EXEC(1, 1, old=True), EXEC(1, 0), PAIR(1)), T),
@@ -913,7 +1060,10 @@ DISCRIMINATORS = [
     ("4ec0024 C1 contrast: the edit reintroduces the failing outcome, unassessed", (PASS_, FAIL_, MOVE, PAIR(1), MOVE, EXEC(1, 1), PASS_), P),
     ("4ec0024 C1 contrast: the edit reintroduces the failure, assessed", (PASS_, FAIL_, MOVE, PAIR(1), MOVE, PASS_, FAIL_), P),
     ("4ec0024 C1 contrast: no rerun of the configuration on the new content yet", (PASS_, FAIL_, MOVE, PAIR(1), MOVE, PASS_), P),
-    ("4ec0024 C1 contrast: the pair's trial assessment is challenged", (PASS_, FAIL_, MOVE, PAIR(1), MOVE, EXEC(1, 0), PASS_, BCH(3)), P),
+    ("4ec0024 C1: the pair's passing assessment is challenged; its observations still stand",
+     (PASS_, FAIL_, MOVE, PAIR(1), MOVE, EXEC(1, 0), PASS_, BCH(3)), T),
+    ("4ec0024 C1 contrast: the realization behind the reproduction is challenged",
+     (PASS_, FAIL_, MOVE, PAIR(1), MOVE, EXEC(1, 0), PASS_, R("CHALLENGE", target=3, blocking=True, on_real=True)), P),
     ("4ec0024 C2a: failing assessment on an obligation never admitted", (PASS_, FAIL_NEW), T),
     ("4ec0024 C2a contrast: the obligation is later admitted", (PASS_, FAIL_NEW, R("ADMIT")), P),
     ("4ec0024 C2a contrast: admitted, then disposed by a pair", (PASS_, FAIL_NEW, R("ADMIT"), MOVE, PAIR(1), PASS_), T),
@@ -930,31 +1080,30 @@ DISCRIMINATORS = [
     ("ba7f738 U1b: a candidate's run on un-named-different content does not withdraw a pair",
      (PASS_, FAIL_, MOVE, PAIR(1), EXEC(1, 1, cand=True)), T),
     ("ba7f738 U1b, passing other outcome", (PASS_, FAIL_, MOVE, PAIR(1), EXEC(1, 2, cand=True)), T),
-    ("ba7f738 U1b contrast: another outcome on the trial's own executed content withdraws",
-     (PASS_, FAIL_, MOVE, PAIR(1), EXEC(1, 2)), P),
+    ("ba7f738 U1b: another outcome on the current content that does not yield the failure",
+     (PASS_, FAIL_, MOVE, PAIR(1), EXEC(1, 2)), T),
     ("ba7f738 U1: un-named change after a pair, configuration not yet rerun", (PASS_, FAIL_, MOVE, PAIR(1), UMOVE, PASS_), P),
     ("ba7f738 U1: un-named change after a pair, rerun with a third outcome",
      (PASS_, FAIL_, MOVE, PAIR(1), UMOVE, EXEC(1, 2), PASS_), T),
-    ("ba7f738 U2: failure under a never-admitted reading, reading pair against admitted content",
-     (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1)), T),
-    ("ba7f738 U2 contrast: no pair yet, the failure counts at once", (PASS_, FAIL_TIGHT), P),
-    ("ba7f738 U2: reading pair, then an execution-basis change before the configuration reruns",
-     (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), UMOVE, PASS_), P),
-    ("ba7f738 U2: reading pair, execution-basis change, rerun with the same outcome",
-     (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), UMOVE, EXEC(1, 1), PASS_), T),
-    ("ba7f738 U2: reading pair whose trial also changed the outcome", (PASS_, FAIL_TIGHT, UMOVE, PAIR(1, ro=1, to=0), PASS_), T),
-    ("ba7f738 U2: that fix reverted, the failing outcome observed again",
-     (PASS_, FAIL_TIGHT, UMOVE, PAIR(1, ro=1, to=0), UMOVE, EXEC(1, 1), PASS_), P),
-    ("ba7f738 U2: a reading pair on one executed content with two outcomes is refused",
-     (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=0), PASS_), P),
-    ("ba7f738 U2 contrast: the tightened reading is later admitted", (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), ADMIT_TIGHT, PASS_), P),
-    ("ba7f738 U2 contrast: admitted after the pair, then fixed with an outcome flip",
-     (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), ADMIT_TIGHT, MOVE, PAIR(1, ro=1, to=0), PASS_), T),
-    ("ba7f738 U2: another admitted reading change brings it back", (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), ORACLE, PASS_), P),
-    ("ba7f738 U2: re-paired under the new admitted reading",
-     (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), ORACLE, PAIR(1, ro=1, to=1), PASS_), T),
-    ("ba7f738 U2 contrast (4ec0024 B'1 kept): an admitted-reading failure with an identical outcome",
-     (PASS_, FAIL_, ORACLE, PAIR(1, ro=1, to=1), PASS_), P),
+    ("ba7f738 U2, assessor-read: tightened reading, outcome unchanged, so a judgment decides",
+     (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1)), P),
+    ("ba7f738 U2, assessor-read: IMMATERIALITY on the reading ground", (PASS_, FAIL_TIGHT, PAIR(1, ro=1, to=1), R("IMMAT", target=1)), T),
+    ("ba7f738 U2 contrast: no observation yet, the failure counts at once", (PASS_, FAIL_TIGHT), P),
+    ("ba7f738 U2a, mechanical: the admitted reading passes the outcome", (PASS_, FAIL_TM, PAIR(1, ro=2, to=2)), T),
+    ("ba7f738 U2a contrast: the tightened reading is later admitted", (PASS_, FAIL_TM, PAIR(1, ro=2, to=2), ADMIT_TIGHT, PASS_), P),
+    ("947370d W2: an admitted change shifts the output within the admitted tolerance",
+     (PASS_, FAIL_TM, PAIR(1, ro=2, to=2), MOVE, EXEC(1, 3), PASS_), T),
+    ("947370d W2 contrast: a change makes the admitted reading fail", (PASS_, FAIL_TM, PAIR(1, ro=2, to=2), MOVE, EXEC(1, 1), PASS_), P),
+    ("947370d W2 contrast: no execution on the changed content yet", (PASS_, FAIL_TM, PAIR(1, ro=2, to=2), MOVE, PASS_), P),
+    ("947370d W1: a once-admitted, relaxed reading restored by a candidate and failed (mechanical)",
+     (ADMIT_TIGHT, ORACLE, PASS_, FAIL_TM, PAIR(3, ro=2, to=2)), T),
+    ("947370d W1, assessor-read: IMMATERIALITY on the reading ground",
+     (ADMIT_TIGHT, ORACLE, PASS_, FAIL_TIGHT, PAIR(3, ro=1, to=1), R("IMMAT", target=3)), T),
+    ("mechanical failure under the reading in force, then an accepted relaxation", (ADMIT_TIGHT, PASS_, FAIL_TM, EXEC(2, 2, old=True), ORACLE, EXEC(2, 2), PASS_), T),
+    ("assessor-read failure under the reading in force, then an admitted reading change (4c35d92 kept)",
+     (PASS_, FAIL_, EXEC(1, 1, old=True), ORACLE, EXEC(1, 1), PASS_), P),
+    ("reading-only discrimination on unchanged content needs a mechanical verdict", (PASS_, FAIL_TM, EXEC(1, 2, old=True), EXEC(1, 2)), T),
+    ("reproduction and current observation disagree on one content", (PASS_, FAIL_TM, PAIR(1, ro=2, to=0)), P),
 ]
 
 
@@ -964,57 +1113,42 @@ def run_discriminators() -> int:
         got = Ledger(recs).V()
         ok = got == want
         bad += 0 if ok else 1
-        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 20 expects {'FPT'[want]})")
+        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 21 expects {'FPT'[want]})")
     return bad
 
 
 def discriminates(L: Ledger, y: int) -> bool:
-    """The owner's sense, stated plainly on the assessed content (everything the execution read, and
-    the reading applied): the failure reproduces identically on the content it evaluated; on changed
-    executed content the trial's outcome differs, or the failure applied a reading never admitted and
-    the trial passes under the admitted one; and no admitted observation of the configuration on
-    either content disagrees, at any position."""
+    """The owner's sense for a pair record y, stated plainly: its reproduction yields f's outcome on the
+    content f read; its trial does not yield f's failure under the reading in force when it was admitted
+    (on the same content only through a reading change, with the same outcome); and no admitted observation disagrees on f's content or yields the failure
+    on the trial's content, at any position."""
     ry, recs = L.r[y], L.r
     f = ry.supersedes
     if recs[f].kind != "ASSESS" or recs[f].outcome != "FAIL":
         return False
-    moves = lambda i: len([k for k in range(i) if recs[k].kind == "MOVE"])
-    flips = lambda i: len([k for k in range(i) if recs[k].kind == "UMOVE"]) % 2
-    here = lambda i: (moves(i), flips(i))
-    old = (moves(f), 1 - flips(f)) if recs[f].cand else here(f)
     fo = recs[f].obs if recs[f].obs is not None else 1
-    unadmitted = recs[f].tight and not any(recs[k].kind == "ORACLE" and recs[k].tight for k in range(y))
-    if ry.ro != fo:
+    mine, trial = plain_content(L, f, cand=recs[f].cand), plain_content(L, y)
+    if ry.ro != fo or (mine == trial and ry.to != ry.ro):
         return False
-    if not unadmitted and (ry.to == ry.ro or old == here(y)):
+    tight_then = plain_reading(L, y) == "TIGHT"
+    fails_then = (lambda o: o in (1, 2, 3) if tight_then else o == 1) if recs[f].mech else (lambda o: o == fo)
+    if fails_then(ry.to):
         return False
-    if old == here(y) and ry.to != ry.ro:
-        return False
-    for i in range(L.n):
-        r = recs[i]
+    for i, c, o in plain_observations(L, f):
         if i == y:
             continue
-        seen = []
-        if r.kind == "EXEC" and r.target == f:
-            c = old if r.old else ((moves(i), 1 - flips(i)) if r.cand else here(i))
-            seen.append((c, int(r.outcome)))
-        if r.kind == "ASSESS" and r.pair and r.supersedes == f:
-            seen += [(old, r.ro), (here(i), r.to)]
-        for c, o in seen:
-            if (c == old and o != fo) or (c == here(y) and o != ry.to):
-                return False
+        if (c == mine and o != fo) or (c == trial and fails_then(o)):
+            return False
     return True
 
 
-def sole_target_clear(L: Ledger, y: int) -> bool:
-    """P13's premise: y's target is the only failing assessment, and nothing but y stands against or
-    for it; y has just been appended."""
-    f = L.r[y].supersedes
-    if L.assessments("FAIL") != [f] or not L.counted(f):
+def sole_stale_failure(L: Ledger) -> bool:
+    """P13's premise: the only failing assessment counts, nothing is recorded against it, no loss
+    boundary exists, and discriminating evidence shows it stale (owner_stale)."""
+    fs = L.assessments("FAIL")
+    if len(fs) != 1 or not L.counted(fs[0]) or judged(L, fs[0]):
         return False
-    if L.immat_on(f) or L.challenges_on(f) or L.challenges_on(f, on_real=True):
-        return False
-    return L.r[y].indep and not any(L.kind(k) == "LOSS" for k in range(L.n))
+    return not any(L.kind(k) == "LOSS" for k in range(L.n)) and owner_stale(L, fs[0])
 
 
 def inert_candidate_run(L: Ledger, i: int) -> bool:
@@ -1064,17 +1198,16 @@ def check(depth: int) -> int:
                     counts["P6"] += 1
                 if rec.kind == "ASSESS" and rec.supersedes is not None and not rec.own and not rec.pair and raised:
                     counts["P9"] += 1
-                if rec.kind == "ASSESS" and rec.pair and raised and not discriminates(L1, L1.n - 1):
+                if rec.kind == "ASSESS" and rec.pair and L1.undisputed() > L0.undisputed() and not discriminates(L1, L1.n - 1):
                     counts["P10"] += 1
                 if (rec.kind == "EXEC" and not rec.old and not rec.cand and prefix and prefix[-1].kind == "MOVE"
-                        and int(rec.outcome) != L1.r[rec.target].ob() and len(L1.assessments("FAIL")) == 1
+                        and not shows(L1, rec.target, int(rec.outcome)) and len(L1.assessments("FAIL")) == 1
                         and L1.undisputed() < Ledger(prefix[:-1]).undisputed()):
                     counts["P11"] += 1
                 if (rec.kind == "ASSESS" and rec.newobl and e1 < e0
                         and not any(r.kind == "ADMIT" for r in prefix)):
                     counts["P12"] += 1
-                if (rec.kind == "ASSESS" and rec.pair and discriminates(L1, L1.n - 1)
-                        and sole_target_clear(L1, L1.n - 1) and L1.undisputed() != T):
+                if sole_stale_failure(L1) and L1.undisputed() != T:
                     counts["P13"] += 1
                 if rec.kind == "EXEC" and inert_candidate_run(L1, L1.n - 1) and e1 != e0:
                     counts["P14"] += 1
@@ -1084,7 +1217,7 @@ def check(depth: int) -> int:
                     counts["P7"] += 1
                 if untouched_bearing_failure(L1) and e1 == T:
                     counts["Q"] += 1
-                if only_contradicted_pairs(L1) and e1 == T:
+                if reproduced_now(L1) and e1 == T:
                     counts["Q2"] += 1
                 if (e1 == T) != oracle_unqualified(L1):
                     counts["O"] += 1
