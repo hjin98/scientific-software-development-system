@@ -1,5 +1,5 @@
 """Bounded model check of SSDS 8.0 workplan §6.6 S1 polarity and assessment
-disagreement (design revision 17 and later).
+disagreement (design revision 18 and later).
 
 This is a diagnostic transcription of the workplan's equations, not an SSDS
 implementation and not an adequacy oracle (DS-001): it can show that the
@@ -31,8 +31,11 @@ obligation is required, and in every case qual, the undisputed term over
 every obligation an admitted failing assessment names (revision 14).
 
 Revision 17 has no mechanical lapse: no move of any kind ends a failing
-assessment; only a disposition does (a superseder, typically the assessment
-of a configuration rerun, an upheld challenge, or IMMATERIALITY).
+assessment; only a disposition does (a superseder, an upheld challenge, or
+IMMATERIALITY). Revision 18 authorizes a superseder only as the failing
+assessor's own reassessment (own=True) or with a verified discriminating
+rerun pair (disc=True); an unauthorized superseder is refused at Admission
+and acts as an ordinary passing assessment.
 
 Properties, for every ledger L and every appended record r:
   P1  appending any challenge never raises the evidence term;
@@ -46,6 +49,9 @@ Properties, for every ledger L and every appended record r:
   P7  retiring the evidence obligation never makes the evidence term T while
       a bearing failing assessment has nothing recorded against it;
   P8  a structural-only change (REPART) never raises the evidence term;
+  P9  a superseder that is neither the failing assessor's own nor backed by a
+      discriminating rerun pair never raises the evidence term to T while it
+      is the only record against the failing assessment;
   Q   a failing assessment that has no superseder, no challenge against it
       or its realization and no IMMATERIALITY judgment keeps the evidence term
       at most P, whatever moved (stated syntactically);
@@ -56,7 +62,7 @@ Properties, for every ledger L and every appended record r:
 Named discriminators (the 97e753f and 4c35d92 Reviews' trajectories and
 their contrasts) are evaluated separately and printed.
 
-Sensitivity: REV16=1 (content-based lapse, revisions 15-16), REV14=1, REV13=1, REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
+Sensitivity: REV17=1 (any configuration-matching superseder), REV16=1 (content-based lapse, revisions 15-16), REV14=1, REV13=1, REV12=1, REV11=1 and REV10=1 evaluate the earlier forms. Each
 must report failures on P1-P6 or Q, not only on O; a run that stays green
 there means the check is blind.
 
@@ -70,7 +76,7 @@ import os
 from dataclasses import dataclass, field
 
 F, P, T = 0, 1, 2
-MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13", "REV14", "REV16") if os.environ.get(m)), "REV17")
+MODE = next((m for m in ("REV10", "REV11", "REV12", "REV13", "REV14", "REV16", "REV17") if os.environ.get(m)), "REV18")
 
 
 @dataclass(frozen=True)
@@ -85,6 +91,8 @@ class R:
     on_real: bool = False  # CHALLENGE: targets the realization of ASSESS `target`
     holds: frozenset = field(default_factory=frozenset)  # ATTEST
     indep: bool = True  # superseder: independent of the claim's author
+    own: bool = False  # superseder: the failing assessor's own reassessment
+    disc: bool = True  # superseder: a verified discriminating rerun pair backs it
 
 
 def memo(fn):
@@ -112,8 +120,12 @@ class Ledger:
         return [y for y in range(x + 1, self.n) if self.kind(y) == kind]
 
     # ---- S0 -----------------------------------------------------------------
+    def authorized(self, y: int) -> bool:
+        ry = self.r[y]
+        return MODE != "REV18" or ry.own or ry.disc
+
     def superseders(self, x: int) -> list[int]:
-        return [y for y in range(x + 1, self.n) if self.r[y].supersedes == x]
+        return [y for y in range(x + 1, self.n) if self.r[y].supersedes == x and self.authorized(y)]
 
     def superseded(self, x: int) -> bool:
         return bool(self.superseders(x))
@@ -276,7 +288,7 @@ class Ledger:
             return self.unit_bears(a)
         if MODE == "REV16":
             return self.exec_bears(a)  # revisions 15-16: lapse when evaluated content changes
-        return True  # revision 17: no mechanical lapse
+        return True  # revisions 17-18: no mechanical lapse
 
     def disposers(self, am: int) -> list[int]:
         out = self.supersession_closure(am) + self.upholdings(self.challenges_on(am))
@@ -288,7 +300,7 @@ class Ledger:
         return out
 
     def eff(self, d: int) -> int:
-        if self.kind(d) == "ASSESS" and not self.r[d].indep and MODE in ("REV14", "REV16", "REV17"):
+        if self.kind(d) == "ASSESS" and not self.r[d].indep and MODE in ("REV14", "REV16", "REV17", "REV18"):
             return F
         if self.kind(d) in ("ASSESS", "IMMAT"):
             return self.current(d)
@@ -336,7 +348,7 @@ class Ledger:
     def V(self) -> int:
         """The claim's evidence conjunct."""
         required = T if self.retired() else self.ev()
-        if MODE in ("REV14", "REV16", "REV17"):
+        if MODE in ("REV14", "REV16", "REV17", "REV18"):
             return min(required, self.undisputed())
         return required
 
@@ -358,7 +370,7 @@ def oracle_unqualified(L: Ledger) -> bool:
 
     def fully_current(x):
         rx = recs[x]
-        if any(recs[y].supersedes == x for y in range(n)) or not L.cont(x) or not standing_s1(x):
+        if any(recs[y].supersedes == x and auth(y) for y in range(n)) or not L.cont(x) or not standing_s1(x):
             return False
         if rx.kind in ("COMPL", "MOVE"):
             return True
@@ -373,8 +385,11 @@ def oracle_unqualified(L: Ledger) -> bool:
         cs = [c for c in range(x) if recs[c].kind == "COMPL"]
         return fully_current(cs[-1]) if cs else True
 
+    def auth(y):
+        return recs[y].own or recs[y].disc
+
     def descends_from(y, x):
-        while recs[y].supersedes is not None:
+        while recs[y].supersedes is not None and auth(y):
             if recs[y].supersedes == x:
                 return True
             y = recs[y].supersedes
@@ -444,6 +459,8 @@ def candidates(prefix: tuple[R, ...]) -> list[R]:
             out.append(R("CHALLENGE", target=t, blocking=True, on_real=True))
             out.append(R("ASSESS", outcome="PASS", supersedes=t))
             out.append(R("ASSESS", outcome="PASS", supersedes=t, indep=False))
+            out.append(R("ASSESS", outcome="PASS", supersedes=t, disc=False))
+            out.append(R("ASSESS", outcome="PASS", supersedes=t, disc=False, own=True))
             if rt.outcome == "FAIL":
                 out.append(R("IMMAT", target=t))
         if k == "CHALLENGE":
@@ -498,6 +515,9 @@ DISCRIMINATORS = [
      (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1, indep=False)), P),
     ("62c0b24 A: boundary move of the claim unit, passing rerun", (PASS_, FAIL_, R("REPART"), PASS_), P),
     ("62c0b24 A contrast (revision 17): content edit, passing rerun of another realization", (PASS_, FAIL_, R("MOVE"), PASS_), P),
+    ("6fe1000 B1: rerun superseder without a discriminating pair", (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1, disc=False)), P),
+    ("6fe1000 B1 contrast: discriminating rerun pair", (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1, disc=True)), T),
+    ("6fe1000 B1 contrast: the failing assessor's own reassessment", (PASS_, FAIL_, R("ASSESS", outcome="PASS", supersedes=1, disc=False, own=True)), T),
     ("challenged equivalence: failing evidence still bears, passing support provisional at most",
      (FAIL_, R("MOVE", equiv=True), PASS_, BCH(1)), P),
 ]
@@ -509,13 +529,13 @@ def run_discriminators() -> int:
         got = Ledger(recs).V()
         ok = got == want
         bad += 0 if ok else 1
-        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 17 expects {'FPT'[want]})")
+        print(f"  [{'ok' if ok else 'DIFFERS'}] {name}: ev={'FPT'[got]} (revision 18 expects {'FPT'[want]})")
     return bad
 
 
 def check(depth: int) -> int:
     seen = 0
-    counts = dict.fromkeys(("P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "Q", "O"), 0)
+    counts = dict.fromkeys(("P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "Q", "O"), 0)
     frontier = [()]
     for _ in range(depth):
         nxt = []
@@ -541,6 +561,10 @@ def check(depth: int) -> int:
                 if (rec.kind == "ADJ" and rec.outcome == "UPHELD" and prefix[rec.target].kind == "CHALLENGE"
                         and prefix[prefix[rec.target].target].kind == "COMPL" and raised):
                     counts["P6"] += 1
+                if (rec.kind == "ASSESS" and rec.supersedes is not None and not rec.own and not rec.disc
+                        and e1 == T and untouched_bearing_failure(L0)
+                        and all(not L0.challenges_on(f) for f in L0.assessments("FAIL"))):
+                    counts["P9"] += 1
                 if rec.kind == "REPART" and raised:
                     counts["P8"] += 1
                 if rec.kind == "RETIRE" and e1 == T and untouched_bearing_failure(L0):
