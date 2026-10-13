@@ -104,7 +104,9 @@ Properties, for every ledger L and every appended record r:
   P3  appending an open counter-challenge never lifts a revocation;
   P4  appending a LEDGER_LOSS never lifts a revocation;
   P5  moving a premise that is not evidentiary (ORACLE, CTX, GMOVE) never
-      raises the evidence term;
+      raises the evidence term, except that an admitted reading change
+      (ORACLE) may make a mechanical failure stale under the owner's rule
+      (owner_stale), which is revision 21's deliberate behaviour;
   P6  upholding a challenge against a completeness judgment never raises the
       evidence term;
   P7  retiring the evidence obligation never makes the evidence term T while
@@ -341,9 +343,9 @@ class Ledger:
         return fails(reading, o) if self.r[f].mech else o == self.r[f].ob()
 
     def held_obs(self, i: int) -> bool:
-        """A permissive use of an observation: held across later loss boundaries, its record not revoked
-        or blocked."""
-        return self.cont(i) and self.status1(i, True) not in ("REVOKED", "BLOCKED")
+        """A permissive use of an observation: held across later loss boundaries, and no upheld or open
+        blocking challenge against its realization, overridden or not (a risk override never resolves one)."""
+        return self.cont(i) and self.status1(i, True) == "CLEAR"
 
     @memo
     def stale(self, f: int) -> bool:
@@ -906,7 +908,7 @@ def owner_stale(L: Ledger, f: int) -> bool:
     fo = L.r[f].obs if L.r[f].obs is not None else 1
     mine = plain_content(L, f, cand=L.r[f].cand)
     seen = plain_observations(L, f)
-    stand = lambda i: L.cont(i) and L.status1(i, True) not in ("REVOKED", "BLOCKED")
+    stand = lambda i: L.cont(i) and L.status1(i, True) == "CLEAR"
     if not any(c == mine and o == fo and stand(i) for i, c, o in seen):
         return False
     if any(c == mine and o != fo for i, c, o in seen):
@@ -1104,6 +1106,8 @@ DISCRIMINATORS = [
      (PASS_, FAIL_, EXEC(1, 1, old=True), ORACLE, EXEC(1, 1), PASS_), P),
     ("reading-only discrimination on unchanged content needs a mechanical verdict", (PASS_, FAIL_TM, EXEC(1, 2, old=True), EXEC(1, 2)), T),
     ("reproduction and current observation disagree on one content", (PASS_, FAIL_TM, PAIR(1, ro=2, to=0)), P),
+    ("a risk override on a challenged observation never makes a failure stale",
+     (PASS_, FAIL_CAND, PAIR(1), R("CHALLENGE", target=2, blocking=True, on_real=True), R("OVERRIDE", target=3)), P),
 ]
 
 
@@ -1212,7 +1216,9 @@ def explore(frontier: list, depth: int) -> tuple[int, dict]:
                     counts["P3"] += 1
                 if lost and rec.kind == "LOSS":
                     counts["P4"] += 1
-                if rec.kind in ("ORACLE", "CTX", "GMOVE") and raised:
+                if rec.kind in ("ORACLE", "CTX", "GMOVE") and raised and not (
+                        rec.kind == "ORACLE" and any(
+                            L1.r[f].mech and owner_stale(L1, f) and not owner_stale(L0, f) for f in L1.assessments("FAIL"))):
                     counts["P5"] += 1
                 if (rec.kind == "ADJ" and rec.outcome == "UPHELD" and prefix[rec.target].kind == "CHALLENGE"
                         and prefix[prefix[rec.target].target].kind == "COMPL" and raised):

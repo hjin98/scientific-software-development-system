@@ -1241,12 +1241,13 @@ stale_G(a-) ⇔ (1) reproduced: some standing admitted observation of a-'s confi
       assessor-read oracle   o's evaluated outcome on x is a-'s
       either                 o lacks x, or G's reading does not evaluate x, while a-'s check on x was in force
                              in the admitted state at a-'s base
-  standing (permissive use only): held across every later loss boundary (cont), and the observation's
-      realization neither revoked nor blocked (S1)
+  standing (permissive use only): held across every later loss boundary (cont), and no upheld or open
+      blocking challenge against the observation's realization, overridden or not (S1): a risk override
+      never resolves a challenge, so it never lets a challenged observation make a failure stale
   adverse_G(s, e) = { a- admissible for e : starts_G(a-) ∧ about_G(a-, s) ∧ ¬stale_G(a-) }
 ```
 
-`stale` reads S0 observations and S1 standing only, so it is a constant in S2, like `base`. Its polarity follows the owner: everything that can make a failure stale must stand (a reproduction or an observation from before a loss boundary, or one whose realization is under a blocking challenge, makes nothing stale); everything that keeps it counting is read whatever its standing (a disagreeing or yielding observation keeps it counting even if challenged; only a judgment overrides that). A failure's **base** is the admitted state its frame was merged onto, or its own position for a record made in the admitted state; "in force at the base" means present in the admitted state at that position, which is the test W1 needed instead of "ever admitted" (`947370d` W1).
+`stale` reads S0 observations and S1 standing only, so it is a constant in S2, like `base`. Its polarity follows the owner: everything that can make a failure stale must stand (a reproduction or an observation from before a loss boundary, or one whose realization is under a blocking challenge, overridden or not, makes nothing stale); everything that keeps it counting is read whatever its standing (a disagreeing or yielding observation keeps it counting even if challenged; only a judgment overrides that). A failure's **base** is the admitted state its frame was merged onto, or its own position for a record made in the admitted state; "in force at the base" means present in the admitted state at that position, which is the test W1 needed instead of "ever admitted" (`947370d` W1).
 
 What the four conditions keep:
 
