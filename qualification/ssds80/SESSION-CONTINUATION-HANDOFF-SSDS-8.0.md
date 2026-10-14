@@ -42,11 +42,11 @@ The revision-20 Review was sent this instruction mid-review: assess the family f
 - REV23 at depth 4: 1,574,464 transitions, 0 failures, 80/80 discriminators.
 - `REV22=1` fails P11 and P13, so Y is visible.
 - The enumeration generates only honest readings, under a materiality partition (outcome 3 shows the same defect as 1) that only the owner-stated `owner_stale` reads.
-- **Depth 5 for REV23 had not finished** when this hand-off was written. On 4 cores it takes about 100 minutes, about 99M transitions.
+- **Depth 5 for REV23 is done:** 99,095,037 transitions, 0 failures, 80/80 discriminators (`--jobs 4`, 62 min 52 s), on the model committed at `d379298`, which is unchanged at `d879114`. It is **not yet recorded in the workplan**.
 
 ## Next steps (in order)
 
-1. Run `python3 qualification/ssds80/s1_disagreement_model_check.py --depth 5 --jobs 4` in the background. It must report 0 failures and 80/80. If it reports failures, find concrete counterexamples first (a parallel finder over first records, as in revision 21) before changing anything. Revision 21's first depth-5 run found two real defects that depth 4 could not reach.
+1. Depth 5 is done (above). Rerun it only if the model changes. If a rerun ever reports failures, find concrete counterexamples first (a parallel finder over first records, as in revision 21) before changing anything.
 2. Run the sensitivity sweep: `REVxx=1 python3 … --depth 4 --jobs 4` for REV22, REV21, REV20, REV19, REV18, REV17, REV16, REV14, REV13, REV12, REV11 and REV10. Each must fail owner-grounded properties, not only O.
 3. Record both results in the workplan in one commit: the §0.1 sentence ("depth 5 and the sensitivity figures are in §27.40") and §27.40 ("Depth 5 and the sensitivity sweep follow in the depth-5 commit"), with a table like §27.38's. That commit is the candidate.
 4. Fill the draft handoff's placeholders: `git rev-parse HEAD`, `git rev-parse HEAD:workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, and the short SHA in upper case. Delete the DRAFT paragraph, update this file's "Current state", then commit and push.
