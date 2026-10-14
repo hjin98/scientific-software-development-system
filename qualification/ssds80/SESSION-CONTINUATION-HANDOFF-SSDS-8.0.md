@@ -22,11 +22,11 @@ The §6.6 assessment-disagreement family ("what a failing assessment's adversity
 
 The revision-20 Review was sent this instruction mid-review: assess the family for post-simplification recurrence, the minimum justified concretization, a simpler equivalent and common-mode causes, and route at family level.
 
-## Current state (2026-10-14)
+## Current state (Phase B closeout)
 
-- Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, **design revision 23**, frozen for Review at `e23f14208be869e6a78cfd7b312e447254ee1851` (workplan blob `610f373b97fb8152d2a5742e17fa172e12204756`; model at `d379298`, unchanged since). **Fresh independent D3 Review pending.**
-- Last Review: `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md` (revision 22): blocker Y and findings N1-N6, all answered by revision 23 (§0.1, §27.40).
-- Reviews, all NO-PASS: F9D9DE8 … 947370D, EF8445A, 552AC01.
+- Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, **design revision 23**, frozen for Review at `e23f14208be869e6a78cfd7b312e447254ee1851` (workplan blob `610f373b97fb8152d2a5742e17fa172e12204756`; model at `d379298`, unchanged since). **Independent Phase B D3 Review PASS; architecture remains proposed.**
+- Last Review: `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md`, **PASS** on exact candidate `e23f14208be869e6a78cfd7b312e447254ee1851`; committed in `229812de`. No surviving blocker or governing Serious Challenge. Non-blocking N1-N4 and depth-5 provenance limits remain explicit in that record.
+- Earlier reviews, all NO-PASS: F9D9DE8 … 947370D, EF8445A, 552AC01.
 - Stakeholder decisions recorded verbatim: SD-9 (D3 role, convergence rule) and SD-10 (2026-10-14: "Subtractive repair" chosen after the 552ac01 NO-PASS), both in `qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md`. Open non-blocking item: N1's 2026-10-12 adoption instruction is still paraphrase-only.
 - Issued review handoff: `qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-23.md`, bound to candidate `e23f14208be869e6a78cfd7b312e447254ee1851` and workplan blob `610f373b97fb8152d2a5742e17fa172e12204756`; the local checkout path is corrected.
 
@@ -46,9 +46,10 @@ The revision-20 Review was sent this instruction mid-review: assess the family f
 
 ## Next steps (in order)
 
-1. The evidence update is committed in the candidate above. Do not rerun unchanged depth 5; its reported result is reused, not independently corroborated, and its raw output/interpreter are unavailable in the prior handoff. All depth-4 modes and the four routing tests executed locally; the PEM validates and has the bound base blob with no overlay.
-2. Launch the fresh-context reviewer from the issued revision-23 handoff, then follow the loop procedure when its record arrives. The reviewer must distinguish the earlier semantic author's family from the current continuation/reviewer family and preserve the common-mode limits of the inherited handoff and instrument.
-3. If another §6.6 blocker recurs, follow the stakeholder boundary in "Convergence guidance for the next session" below. A PASS still leaves gates G1-G4 and stakeholder acceptance open; D4 remains NOT AUTHORIZED.
+1. The revise/review loop has reached independent Phase B PASS. The Review record, workplan §0/§28 and authority index record it without promoting architecture to accepted-current or changing the reviewed semantic candidate.
+2. The next governed work is Phase C: one Architecture Manual resolving §21, independently reviewed and explicitly accepted by the stakeholder under G1. Carry Review N1-N4 forward: historical adoption provenance; positive-only completeness and cyclic-prefix discriminators at real owners; diagnostic/reader limits; empirical cost/reopen conditions. These are not new Phase B blockers.
+3. Shadow D4 additionally requires the reviewed shadow workplan and explicit stakeholder authorization under G2. **No D4 is authorized.** Runtime qualification and native cutover remain G3/G4. Do not infer authorization from this PASS or start a campaign.
+4. Depth 5 remains prior-session-reported reuse with missing raw output/interpreter. Both continuation and reviewer independently executed depth 4 and the twelve sensitivity modes; they share the instrument, not an independent semantic oracle. Do not rerun unchanged depth 5 merely to accumulate confidence.
 
 ## Loop procedure
 
@@ -60,6 +61,10 @@ The revision-20 Review was sent this instruction mid-review: assess the family f
 6. On PASS: commit the record, update §28 and the index to record it, and report to the stakeholder. Acceptance still needs stakeholder decisions and gates G1-G4; D4 stays NOT AUTHORIZED.
 
 ## Latest Review
+
+`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md`: **PASS**. It closes Y1/Y2 and reconstructs earlier closures, attacks live-failure hiding and settled-failure resurrection, and rejects the completeness-polarity counterexample because it violates the explicit permissive-only rule. The full record owns the evidence, limits and N1-N4 dispositions. D4 remains NOT AUTHORIZED.
+
+## Prior Review (historical)
 
 `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md` (revision 22, candidate `552ac01`): **NO-PASS**. One blocker:
 
