@@ -183,7 +183,7 @@ The `ef8445a` Review (a fresh-context sub-agent of the author's model family, un
 | N4 R2 retirement of concerns under edited readings | The discriminating reading's class rule (R3 unless the failure is the candidate's own), plus the §26 rate |
 | N5 residual prose | §7.4 and §10 now mention staleness |
 
-The model check (§22) adds discriminating readings for assessor-read failures, with the contradictory reading refused. Its owner-stated `owner_stale` no longer branches on the mode under test, so `REV21=1` now fails Q and P7 on X. P10 accepts a pair that completes the owner-stated test, for example by supplying the reproduction a recorded reading was waiting for. P11 applies to mechanical failures, whose stop needs no reading. At depth 4 it checks 1,574,464 transitions with no failures and 77/77 discriminators; depth 5 and the sensitivity figures are in §27.38.
+The model check (§22) adds discriminating readings for assessor-read failures, with the contradictory reading refused. Its owner-stated `owner_stale` no longer branches on the mode under test, so `REV21=1` now fails Q and P7 on X. P10 accepts a pair that completes the owner-stated test, for example by supplying the reproduction a recorded reading was waiting for. P11 applies to mechanical failures, whose stop needs no reading. At depth 4 it checks 1,574,464 transitions and at depth 5 99,095,037, with no failures and 77/77 discriminators; every sensitivity mode fails owner-grounded properties (§27.38).
 
 #### Revision 21 (prior) record
 
@@ -3844,7 +3844,21 @@ Residuals carried: §27.34's minus the pair-specific ones. In addition: delibera
 | A completeness judgment that bounded an observation's basis is revoked | The observation makes nothing stale; its basis is the whole tree |
 | A relaxation arriving by absorption | Makes nothing stale until an admission integrates it |
 
-**Deterministic check.** The model adds `DUAL` records (a discriminating reading) for assessor-read failures, refused when contradictory, and a reading covers its outcome only on its content and under its reading. The owner-stated predicates no longer branch on the mode under test. At depth 4 it checks 1,574,464 transitions with no failures, and 77/77 named discriminators hold. Depth 5 and the full sensitivity sweep follow in the depth-5 commit.
+**Deterministic check.** The model adds `DUAL` records (a discriminating reading) for assessor-read failures, refused when contradictory, and a reading covers its outcome only on its content and under its reading. The owner-stated predicates no longer branch on the mode under test. At depth 4 it checks 1,574,464 transitions and at depth 5 99,095,037 (`--jobs 3`, 98 min), with no failures, and 77/77 named discriminators hold. At depth 4 every sensitivity mode fails owner-grounded properties:
+
+| Mode | Failures | Owner-grounded properties failing |
+|---|---|---|
+| `REV21=1` | 8,985 | P7 166, Q 8,819: X visible |
+| `REV20=1` | 4,290 | P10 1,686, P13 2,604 |
+| `REV19=1` | 4,983 | P10, P13, P14 |
+| `REV18=1` | 7,540 | P10, P11, P12, P13 |
+| `REV17=1` | 117,031 | P9, P10, P11, P12, P13 |
+| `REV16=1` | 127,879 | P7, P9, P10, P12, P13, Q, Q2 (and O) |
+| `REV14=1` | 139,151 | P7, P8, P9, P10, P12, P13, Q, Q2 (and O) |
+| `REV13=1` | 325,687 | P7, P9, P10, P12, P13, Q, Q2 (and O) |
+| `REV12=1` | 331,438 | P5, P7, P9, P10, P12, P13, Q, Q2 (and O) |
+| `REV11=1` | 342,774 | P7, P9, P10, P11, P12, P13, Q, Q2 (and O) |
+| `REV10=1` | 343,752 | P1, P7, P9, P10, P11, P12, P13, Q, Q2 (and O) |
 
 **Attacks on the repair.**
 
