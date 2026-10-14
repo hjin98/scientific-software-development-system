@@ -24,20 +24,20 @@ The revision-20 Review was sent this instruction mid-review: assess the family f
 
 ## Current state
 
-- Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, design revision 21.
-- Candidate under review: `ef8445a3bafb86086546ceff3eaa8b0171dbdb25` (workplan blob `9db8178b5894b4518517aaf69819f3e556711916`).
-- Review handoff: `qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-21.md` (includes the convergence review strategy as method step 5).
-- Review of revision 21: launched as a fresh-context sub-agent; its record arrives uncommitted as `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-EF8445A-<VERDICT>.md`.
-- Reviews, all NO-PASS: F9D9DE8 … 4EC0024, BA7F738, 947370D (`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-*-NO-PASS.md`).
-- Open non-blocking item: N1 (the 2026-10-12 governing-version adoption instruction is paraphrase-only; needs the stakeholder's restatement).
+- Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, design revision 22.
+- Candidate under review: `552ac01bb799c22dece5a33d93bd4244bea21d2a` (workplan blob `8970b617b377756523db1ad783d0863383949fa2`).
+- Review handoff: `qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-22.md` (convergence review strategy and capability-transfer check, method step 5).
+- Review of revision 22: launched as a fresh-context sub-agent; its record arrives uncommitted as `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-<VERDICT>.md`.
+- Reviews, all NO-PASS: F9D9DE8 … BA7F738, 947370D, EF8445A.
+- Stakeholder instruction SD-9 (D3 role, convergence) is recorded verbatim. Open non-blocking item: N1's 2026-10-12 adoption instruction is still paraphrase-only.
 
-### What revision 21 did
+### What revisions 21-22 did
 
-Revision 21 is the simplification pass the convergence owner required after the `947370d` Review (blocker family W, routed as post-simplification recurrence). It removed the pair as a supersession record, together with its Admission authorization, the withdrawal latch, `here`, the reading pair, the run enumeration, the decision-class pair exceptions and the floor deferral. In their place is one derived test, `stale_G` (§6.6): a failing assessment does not count in a frame when it was reproduced identically on its own content, never differed there, and a standing observation of the frame's content does not yield it under the frame's reading. "Yields" means the mechanical verdict for a mechanical oracle and an identical outcome for an assessor-read one. Permissive inputs must stand: held across loss boundaries, with no blocking challenge open, overridden or not. Restrictive inputs are read whatever their standing. Readings are tested by what was in force at the failure's base. The assessor-read reading change is settled by a reading-ground `IMMATERIALITY` judgment (R2). The floor is an event on ledger facts. The start rules are unchanged. One deliberate change: an accepted relaxation can make a mechanical failure stale. Audited in §27.36-§27.37.
+Revision 21 simplified the §6.6 disagreement family under the convergence owner. It removed the pair as a supersession record and its machinery, and replaced them with one derived test, `stale_G`. A failing assessment stops counting in a frame when it was reproduced identically, never differed on its own content, and a standing observation of the frame's content does not yield it under the frame's reading. The `ef8445a` Review found the mechanical branch sound but one capability dropped (blocker X): for an assessor-read oracle only a reading can say that a different outcome no longer shows the failure. Revision 22 restores it as a **discriminating reading**: one independent assessment reads the frame's outcome PASS and the reproduction FAIL in one record. A contradictory reading is refused. The reading is R3 for D1/D2 failures that may belong to admitted content. The reading-ground `IMMATERIALITY` is removed. Audited in §27.36-§27.39.
 
 ### Model check
 
-`qualification/ssds80/s1_disagreement_model_check.py` (default mode REV21; `--jobs N` splits the search by its first record without changing the totals). It has mechanical and assessor-read failures, a verdict function per reading, a tightened reading that can be admitted, relaxed and restored, four outcome values, and owner-stated P13, Q and Q2. Revision 21 results: depth 4, 1,378,642 transitions; depth 5, 81,511,449 transitions (`--jobs 4`, about 49 min); 0 failures and 68/68 discriminators at both. The first depth-5 run found two defects (a risk override on a challenged observation, and P5's statement), now fixed. Sensitivity: `REV20=1` fails P10 and P13; every earlier mode fails owner-grounded properties.
+`qualification/ssds80/s1_disagreement_model_check.py` (default mode REV22; `--jobs N`). Revision 22: depth 4, 1,574,464 transitions; depth 5, 99,095,037 transitions (`--jobs 3`, about 98 min); 0 failures; 77/77 discriminators. `REV21=1` fails Q and P7 (X); every earlier mode fails owner-grounded properties.
 
 ## Loop procedure
 
@@ -50,6 +50,6 @@ Revision 21 is the simplification pass the convergence owner required after the 
 
 ## Latest Review
 
-Pending: the fresh-context sub-agent Review of revision 21, launched from `REVIEW-HANDOFF-SSDS-8.0-REVISION-21.md` against candidate `ef8445a3bafb86086546ceff3eaa8b0171dbdb25`. The previous record, `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-947370D-NO-PASS.md` (blocker family W; N1-N6; family-level convergence assessment), is answered by revision 21's simplification pass (§0.1, §27.36).
+Pending: the fresh-context sub-agent Review of revision 22 against candidate `552ac01bb799c22dece5a33d93bd4244bea21d2a`. The previous record, `WORKPLAN-REVIEW-SSDS-8.0-EF8445A-NO-PASS.md` (blocker X; N1-N5), is answered by revision 22 (§0.1, §27.38).
 
-Next action after a NO-PASS: read the record's family-level assessment first. If the §6.6 family recurs again after this simplification, that is recurrence after two simplifications, so consider whether the earliest affected abstraction is above §6.6 (for example the stakeholder-accepted objective of mechanical dispositions) and route to the stakeholder rather than revising again. Otherwise revision 22 per the loop procedure, then `REVIEW-HANDOFF-SSDS-8.0-REVISION-22.md` (previous candidate `ef8445a3bafb86086546ceff3eaa8b0171dbdb25`, add `REV21=1` to the sensitivity modes).
+Next action after a NO-PASS: read the family assessment first. A clean local defect that genuinely closes a cause stays local. A recurrence in the §6.6 family that is not a missed capability, after the revision-21 simplification, means the earliest affected abstraction may lie above §6.6, for example the stakeholder-accepted aim of mechanical dispositions. Route that to the stakeholder rather than revising again. Otherwise revision 23, then `REVIEW-HANDOFF-SSDS-8.0-REVISION-23.md` (previous candidate `552ac01bb799c22dece5a33d93bd4244bea21d2a`, add `REV22=1`).
