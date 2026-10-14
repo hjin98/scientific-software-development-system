@@ -64,7 +64,7 @@ This is the thirteenth consecutive NO-PASS on the §6.6 disagreement family. The
 Requested checks:
 
 - The four routing tests pass, and `git diff --check` is clean.
-- The model check is green at depth 4 (1,574,464 transitions, 77/77 discriminators) and at depth 5 (D5_RESULT).
+- The model check is green at depth 4 (1,574,464 transitions, 77/77 discriminators) and at depth 5 (99,095,037 transitions, 0 failures, 77/77 discriminators).
 - Every sensitivity mode is red on properties other than the oracle, with totals matching §27.38. `REV21=1` is red on P7 and Q, measured against an `owner_stale` that now transcribes revision 22's own assessor-read rule (§6).
 - A bounded probe shows that the model returns `P` on Y1, where `REV21=1` returns `T`, and that `owner_stale` agrees with the candidate, because it duplicates the candidate's rule; P11, which would see it, was narrowed to mechanical failures.
 
@@ -368,7 +368,7 @@ The four consolidation tests establish frontmatter and routing only. HARD-templa
   | `REV10=1` | 343,752 | P1 3,514, P7 16,338, P9 27,649, P10 76,393, P11 216, P12 6,211, P13 2,074, Q 68,272, Q2 12,721, O 130,364 | 34 | 1 |
 
   Every mode fails properties other than the oracle, and the totals match §27.38.
-- **Model check**, depth 5, default mode, `--jobs 4`: D5_DETAIL
+- **Model check**, depth 5, default mode, `--jobs 4`: **99,095,037 transitions, 0 failures, 77/77 discriminators, exit 0** (61 min 13 s on a shared host), matching §0.1 and §27.38.
 - **Probe.** The candidate's own `Ledger`, `owner_stale`, `untouched_bearing_failure` and `oracle_unqualified`, loaded unmodified from the archive (§1). The probe script lives in a scratch subdirectory and is not part of the record.
 - **Identities.** Verified the predecessor blobs, the release-state identities, the PEM blob at the candidate and at `af04557`, the stakeholder-record blob `c02bbeb9…`, the test blob `39ce361e…`, and the changed-path list.
 - **Repository untouched.** No candidate, source, distribution, index, release state, PEM or frozen resource was changed. The only repository output is this record. Nothing was committed or pushed.
