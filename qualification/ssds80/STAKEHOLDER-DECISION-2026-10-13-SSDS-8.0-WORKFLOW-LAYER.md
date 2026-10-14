@@ -44,6 +44,8 @@ Earlier the same day, on looking for a third reviewer family: "Anthropic and Ope
 
 > "Read the protocol version 7.2.1 and use the software-design role for your revision and reviews. You should be aware of convergence and the active simplification rule when issues don't converge or exposes repeatedly."
 
+**8. Choice after the `552ac01` Review (2026-10-14).** Asked how the cycle should continue after revision 22's NO-PASS (blocker Y), with the options "Subtractive repair (Recommended)", "Drop assessor-read staleness", "Different-family review first" and "Pause and reconsider", the stakeholder chose "Subtractive repair (Recommended)": revision 23, in which a recorded reading covers any later observation with the identical outcome under the same reading, and a failure already shown to be the candidate's own is not re-escalated to R3.
+
 ## Decisions adopted
 
 | # | Decision | Realized in (workplan) |
@@ -57,6 +59,7 @@ Earlier the same day, on looking for a third reviewer family: "Anthropic and Ope
 | SD-7 | Repair the `ffbad17` Review's findings (design revision 6). The next independent D3 Review is by ChatGPT, a different model family, from a handoff prompt written at the end of the revision | workplan revision 6; `REVIEW-HANDOFF-SSDS-8.0-REVISION-6.md` |
 | SD-8 | From revision 11, the author runs the remaining revise/review cycle itself, with fresh-context sub-agent Reviews, until no blocker remains. The sub-agents share the author's model family; every record states that as a common-mode dependency | workplan §0.1 (revision 11 onward); `REVIEW-HANDOFF-SSDS-8.0-REVISION-11.md` and later |
 | SD-9 | Revisions and Reviews are done in the software-design (D3) role under the governing 7.2.1 owners, applying the convergence owner, including its active simplification rule, when issues do not converge or keep resurfacing | workplan §0.1 (revision 21 onward), §27.36; `REVIEW-HANDOFF-SSDS-8.0-REVISION-21.md` and later (method step 5) |
+| SD-10 | After revision 22's NO-PASS, continue with the subtractive repair (revision 23) rather than removing assessor-read staleness, changing reviewer family or pausing | workplan §0.1 (revision 23), §27.40 |
 
 ## Not covered
 
