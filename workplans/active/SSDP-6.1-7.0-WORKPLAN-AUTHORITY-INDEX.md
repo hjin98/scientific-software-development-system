@@ -247,6 +247,8 @@ INDEPENDENT D3 REVIEW: f9d9de8, 441cf5c, 8a75346, ffbad17, f3608f5, ac71fa9, 730
 SSDS 8 D4: NOT AUTHORIZED
 ```
 
+Phase C task handoff: `qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md`. It indexes the complete Manual closure scope and Review residuals, binds the reviewed candidate, and preserves G1/G2 authorization boundaries; it is coordination state, not an accepted Architecture Manual.
+
 The Protocol 7 consolidated workplan's Stage H assigned its closeout the Protocol 8 inheritance reconciliation of the consolidated Protocol 8 plan, which is archived and superseded. Protocol 7 closed at 7.2.1 without authoring it; its 7.2 cycle appended only the §37.2a inputs list to that plan. The stakeholder, who owns both lines, then directed the reconciliation into the SSDS 8 handoff, and the handoff's §0.4 discharges the obligation there (its §0.2 records the routing). The reconciliation advances the pre-cutover baseline to the 7.2.1 recovery and public fallback (kept distinct), binds the final Protocol 7 inputs to the SSDS 8 D3 reassessment, selects no new architecture and authorizes no D4. The closed Protocol 7 workplan is not rewritten.
 
 SSDP 7.2.1 is the accepted document-driven protocol and the pre-cutover fallback. The SSDS 8 branch implies no cutover, no merge to `main` and no implementation authorization.

@@ -47,7 +47,7 @@ The revision-20 Review was sent this instruction mid-review: assess the family f
 ## Next steps (in order)
 
 1. The revise/review loop has reached independent Phase B PASS. The Review record, workplan §0/§28 and authority index record it without promoting architecture to accepted-current or changing the reviewed semantic candidate.
-2. The next governed work is Phase C: one Architecture Manual resolving §21, independently reviewed and explicitly accepted by the stakeholder under G1. Carry Review N1-N4 forward: historical adoption provenance; positive-only completeness and cyclic-prefix discriminators at real owners; diagnostic/reader limits; empirical cost/reopen conditions. These are not new Phase B blockers.
+2. The next governed work is Phase C: follow `qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md` for one Architecture Manual resolving §21, independently reviewed and explicitly accepted by the stakeholder under G1. Carry Review N1-N4 forward: historical adoption provenance; positive-only completeness and cyclic-prefix discriminators at real owners; diagnostic/reader limits; empirical cost/reopen conditions. These are not new Phase B blockers.
 3. Shadow D4 additionally requires the reviewed shadow workplan and explicit stakeholder authorization under G2. **No D4 is authorized.** Runtime qualification and native cutover remain G3/G4. Do not infer authorization from this PASS or start a campaign.
 4. Depth 5 remains prior-session-reported reuse with missing raw output/interpreter. Both continuation and reviewer independently executed depth 4 and the twelve sensitivity modes; they share the instrument, not an independent semantic oracle. Do not rerun unchanged depth 5 merely to accumulate confidence.
 
