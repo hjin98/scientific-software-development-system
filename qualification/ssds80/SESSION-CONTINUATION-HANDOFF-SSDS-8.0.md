@@ -22,22 +22,36 @@ The §6.6 assessment-disagreement family ("what a failing assessment's adversity
 
 The revision-20 Review was sent this instruction mid-review: assess the family for post-simplification recurrence, the minimum justified concretization, a simpler equivalent and common-mode causes, and route at family level.
 
-## Current state
+## Current state (2026-10-14)
 
-- Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, design revision 22.
-- Candidate under review: `552ac01bb799c22dece5a33d93bd4244bea21d2a` (workplan blob `8970b617b377756523db1ad783d0863383949fa2`).
-- Review handoff: `qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-22.md` (convergence review strategy and capability-transfer check, method step 5).
-- Review of revision 22: launched as a fresh-context sub-agent; its record arrives uncommitted as `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-<VERDICT>.md`.
-- Reviews, all NO-PASS: F9D9DE8 … BA7F738, 947370D, EF8445A.
-- Stakeholder instruction SD-9 (D3 role, convergence) is recorded verbatim. Open non-blocking item: N1's 2026-10-12 adoption instruction is still paraphrase-only.
+- Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, **design revision 23**, committed at `ec6b749` (model at `d379298`, unchanged since). **Not yet frozen or reviewed.**
+- Last Review: `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md` (revision 22): blocker Y and findings N1-N6, all answered by revision 23 (§0.1, §27.40).
+- Reviews, all NO-PASS: F9D9DE8 … 947370D, EF8445A, 552AC01.
+- Stakeholder decisions recorded verbatim: SD-9 (D3 role, convergence rule) and SD-10 (2026-10-14: "Subtractive repair" chosen after the 552ac01 NO-PASS), both in `qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md`. Open non-blocking item: N1's 2026-10-12 adoption instruction is still paraphrase-only.
+- Draft review handoff: `qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-23.md`, with placeholders `@CAND@`, `@BLOB@` and `@SHORT@`.
 
-### What revisions 21-22 did
+### What revisions 21-23 did
 
-Revision 21 simplified the §6.6 disagreement family under the convergence owner. It removed the pair as a supersession record and its machinery, and replaced them with one derived test, `stale_G`. A failing assessment stops counting in a frame when it was reproduced identically, never differed on its own content, and a standing observation of the frame's content does not yield it under the frame's reading. The `ef8445a` Review found the mechanical branch sound but one capability dropped (blocker X): for an assessor-read oracle only a reading can say that a different outcome no longer shows the failure. Revision 22 restores it as a **discriminating reading**: one independent assessment reads the frame's outcome PASS and the reproduction FAIL in one record. A contradictory reading is refused. The reading is R3 for D1/D2 failures that may belong to admitted content. The reading-ground `IMMATERIALITY` is removed. Audited in §27.36-§27.39.
+- **Revision 21** simplified the §6.6 disagreement family under the convergence owner. It removed the pair as a supersession record, together with the withdrawal latch, `here`, the reading pair, the run enumeration, the class exceptions and the floor deferral. In their place is one derived test, `stale_G`: a failing assessment stops counting in a frame when it was reproduced identically, never differed on its own content, and a standing observation of the frame's content does not yield it under the frame's reading.
+- **Revision 22** restored, for assessor-read oracles, the one capability revision 21 had dropped: a **discriminating reading**, one independent assessment that reads the frame's outcome PASS and the reproduction FAIL in one record. Admission refuses a contradictory reading, and the reading is R3 for D1/D2 failures that may belong to admitted content.
+- **Revision 23** keys the reading's coverage on the outcome read, under the same reading, on any content, so an identical outcome after a change stays settled. It also stops re-escalating a failure already shown to be the candidate's own (Y), and answers findings N1-N6.
 
 ### Model check
 
-`qualification/ssds80/s1_disagreement_model_check.py` (default mode REV22; `--jobs N`). Revision 22: depth 4, 1,574,464 transitions; depth 5, 99,095,037 transitions (`--jobs 3`, about 98 min); 0 failures; 77/77 discriminators. `REV21=1` fails Q and P7 (X); every earlier mode fails owner-grounded properties.
+`qualification/ssds80/s1_disagreement_model_check.py` (default mode REV23; `--jobs N` splits the search across processes and gives the same totals).
+- REV23 at depth 4: 1,574,464 transitions, 0 failures, 80/80 discriminators.
+- `REV22=1` fails P11 and P13, so Y is visible.
+- The enumeration generates only honest readings, under a materiality partition (outcome 3 shows the same defect as 1) that only the owner-stated `owner_stale` reads.
+- **Depth 5 for REV23 had not finished** when this hand-off was written. On 4 cores it takes about 100 minutes, about 99M transitions.
+
+## Next steps (in order)
+
+1. Run `python3 qualification/ssds80/s1_disagreement_model_check.py --depth 5 --jobs 4` in the background. It must report 0 failures and 80/80. If it reports failures, find concrete counterexamples first (a parallel finder over first records, as in revision 21) before changing anything. Revision 21's first depth-5 run found two real defects that depth 4 could not reach.
+2. Run the sensitivity sweep: `REVxx=1 python3 … --depth 4 --jobs 4` for REV22, REV21, REV20, REV19, REV18, REV17, REV16, REV14, REV13, REV12, REV11 and REV10. Each must fail owner-grounded properties, not only O.
+3. Record both results in the workplan in one commit: the §0.1 sentence ("depth 5 and the sensitivity figures are in §27.40") and §27.40 ("Depth 5 and the sensitivity sweep follow in the depth-5 commit"), with a table like §27.38's. That commit is the candidate.
+4. Fill the draft handoff's placeholders: `git rev-parse HEAD`, `git rev-parse HEAD:workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, and the short SHA in upper case. Delete the DRAFT paragraph, update this file's "Current state", then commit and push.
+5. Launch the fresh-context reviewer with the prompt in loop step 5. Add: "Write any scratch files under a subdirectory of the scratchpad named for this review, never at its root."
+6. When the record arrives, follow the loop procedure. The reviewer may still be finishing its own depth-5 run when the record first appears, with a placeholder in it. Commit what is verified, then commit the reviewer's depth-5 fill-in later.
 
 ## Loop procedure
 
@@ -50,6 +64,21 @@ Revision 21 simplified the §6.6 disagreement family under the convergence owner
 
 ## Latest Review
 
-Pending: the fresh-context sub-agent Review of revision 22 against candidate `552ac01bb799c22dece5a33d93bd4244bea21d2a`. The previous record, `WORKPLAN-REVIEW-SSDS-8.0-EF8445A-NO-PASS.md` (blocker X; N1-N5), is answered by revision 22 (§0.1, §27.38).
+`qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md` (revision 22, candidate `552ac01`): **NO-PASS**. One blocker:
 
-Next action after a NO-PASS: read the family assessment first. A clean local defect that genuinely closes a cause stays local. A recurrence in the §6.6 family that is not a missed capability, after the revision-21 simplification, means the earliest affected abstraction may lie above §6.6, for example the stakeholder-accepted aim of mechanical dispositions. Route that to the stakeholder rather than revising again. Otherwise revision 23, then `REVIEW-HANDOFF-SSDS-8.0-REVISION-23.md` (previous candidate `552ac01bb799c22dece5a33d93bd4244bea21d2a`, add `REV22=1`).
+- **Y:** a reading's coverage and class were keyed on content identity, so settled assessor-read failures resurrected at every change, and for D1/D2 every later reading went to R3.
+
+Findings N1-N6 are non-blocking. Revision 23 answers them all (§0.1). The Review's family assessment found that Y recurs in the "two repairs meet" pattern, with common-mode causes:
+- same-family Reviews' repair directions adopted with their blind spots, three cycles running;
+- the qualification instrument encoding the rule under test;
+- handoff framing;
+- verification in one direction only.
+
+The revision-23 handoff now asks for attacks in both directions.
+
+**Convergence guidance for the next session (SD-9, SD-10).** Thirteen consecutive NO-PASS Reviews have fallen on the §6.6 family. If the revision-23 Review finds another §6.6 blocker:
+- read its family assessment first;
+- a clean local defect that genuinely closes a cause can be repaired locally;
+- any other recurrence is the stakeholder's decision: offer the options again (a subtractive repair, removing assessor-read staleness so those failures stop only by judgment, a different-family Review, or a pause to reconsider above §6.6) rather than revising again on your own judgment.
+
+For a PASS, follow loop step 6: acceptance still needs stakeholder decisions and gates G1-G4, and D4 stays NOT AUTHORIZED.
