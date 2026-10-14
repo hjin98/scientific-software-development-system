@@ -24,11 +24,11 @@ The revision-20 Review was sent this instruction mid-review: assess the family f
 
 ## Current state (2026-10-14)
 
-- Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, **design revision 23**, committed at `ec6b749` (model at `d379298`, unchanged since). **Not yet frozen or reviewed.**
+- Workplan: `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, **design revision 23**, frozen for Review at `e23f14208be869e6a78cfd7b312e447254ee1851` (workplan blob `610f373b97fb8152d2a5742e17fa172e12204756`; model at `d379298`, unchanged since). **Fresh independent D3 Review pending.**
 - Last Review: `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md` (revision 22): blocker Y and findings N1-N6, all answered by revision 23 (§0.1, §27.40).
 - Reviews, all NO-PASS: F9D9DE8 … 947370D, EF8445A, 552AC01.
 - Stakeholder decisions recorded verbatim: SD-9 (D3 role, convergence rule) and SD-10 (2026-10-14: "Subtractive repair" chosen after the 552ac01 NO-PASS), both in `qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md`. Open non-blocking item: N1's 2026-10-12 adoption instruction is still paraphrase-only.
-- Draft review handoff: `qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-23.md`, with placeholders `@CAND@`, `@BLOB@` and `@SHORT@`.
+- Issued review handoff: `qualification/ssds80/REVIEW-HANDOFF-SSDS-8.0-REVISION-23.md`, bound to candidate `e23f14208be869e6a78cfd7b312e447254ee1851` and workplan blob `610f373b97fb8152d2a5742e17fa172e12204756`; the local checkout path is corrected.
 
 ### What revisions 21-23 did
 
@@ -42,16 +42,13 @@ The revision-20 Review was sent this instruction mid-review: assess the family f
 - REV23 at depth 4: 1,574,464 transitions, 0 failures, 80/80 discriminators.
 - `REV22=1` fails P11 and P13, so Y is visible.
 - The enumeration generates only honest readings, under a materiality partition (outcome 3 shows the same defect as 1) that only the owner-stated `owner_stale` reads.
-- **Depth 5 for REV23 is done:** 99,095,037 transitions, 0 failures, 80/80 discriminators (`--jobs 4`, 62 min 52 s), on the model committed at `d379298`, which is unchanged at `d879114`. It is **not yet recorded in the workplan**.
+- **Depth 5 for REV23 is done:** 99,095,037 transitions, 0 failures, 80/80 discriminators (`--jobs 4`, 62 min 52 s), on the model committed at `d379298`, which is unchanged at `d879114`. It is recorded with prior-session provenance and limitations in §27.40. The continuation session also executed default depth 4 (zero failures, 80/80 discriminators) and all twelve sensitivity modes (each fails owner-grounded properties), Python 3.10.12, `--jobs 4`.
 
 ## Next steps (in order)
 
-1. Depth 5 is done (above). Rerun it only if the model changes. If a rerun ever reports failures, find concrete counterexamples first (a parallel finder over first records, as in revision 21) before changing anything.
-2. Run the sensitivity sweep: `REVxx=1 python3 … --depth 4 --jobs 4` for REV22, REV21, REV20, REV19, REV18, REV17, REV16, REV14, REV13, REV12, REV11 and REV10. Each must fail owner-grounded properties, not only O.
-3. Record both results in the workplan in one commit: the §0.1 sentence ("depth 5 and the sensitivity figures are in §27.40") and §27.40 ("Depth 5 and the sensitivity sweep follow in the depth-5 commit"), with a table like §27.38's. That commit is the candidate.
-4. Fill the draft handoff's placeholders: `git rev-parse HEAD`, `git rev-parse HEAD:workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, and the short SHA in upper case. Delete the DRAFT paragraph, update this file's "Current state", then commit and push.
-5. Launch the fresh-context reviewer with the prompt in loop step 5. Add: "Write any scratch files under a subdirectory of the scratchpad named for this review, never at its root."
-6. When the record arrives, follow the loop procedure. The reviewer may still be finishing its own depth-5 run when the record first appears, with a placeholder in it. Commit what is verified, then commit the reviewer's depth-5 fill-in later.
+1. The evidence update is committed in the candidate above. Do not rerun unchanged depth 5; its reported result is reused, not independently corroborated, and its raw output/interpreter are unavailable in the prior handoff. All depth-4 modes and the four routing tests executed locally; the PEM validates and has the bound base blob with no overlay.
+2. Launch the fresh-context reviewer from the issued revision-23 handoff, then follow the loop procedure when its record arrives. The reviewer must distinguish the earlier semantic author's family from the current continuation/reviewer family and preserve the common-mode limits of the inherited handoff and instrument.
+3. If another §6.6 blocker recurs, follow the stakeholder boundary in "Convergence guidance for the next session" below. A PASS still leaves gates G1-G4 and stakeholder acceptance open; D4 remains NOT AUTHORIZED.
 
 ## Loop procedure
 

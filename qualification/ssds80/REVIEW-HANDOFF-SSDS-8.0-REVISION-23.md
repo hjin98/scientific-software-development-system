@@ -1,19 +1,19 @@
 # Independent D3 Review handoff — SSDS 8.0 design revision 23
 
-This is the complete prompt for the independent D3 Review of SSDS 8.0 design revision 23. By stakeholder direction (2026-10-13, decision SD-8), the remaining revise/review cycle runs through fresh-context sub-agent Reviews launched by the authoring session. The sub-agent shares the author's model family, which is a material common-mode dependency that the record must state. The authoring session wrote this handoff. It names the candidate, the governing sources and the method, and gives none of the author's conclusions. Everything below the line is the prompt.
+This is the complete prompt for the independent D3 Review of SSDS 8.0 design revision 23. By stakeholder direction (2026-10-13, decision SD-8), the remaining revise/review cycle runs through fresh-context sub-agent Reviews launched by the authoring session. The reviewer shares the continuation session's model family, which is a material common-mode dependency that the record must state. The semantic revision was authored in an earlier session of the Claude family; this continuation and its reviewer are of the GPT family. This does not establish epistemic independence: the inherited handoff, corpus, model and toolchain remain shared dependencies. The earlier authoring session drafted this handoff; the continuation session bound its identities and execution instructions. It names the candidate, the governing sources and the method, and gives none of the author's conclusions. Everything below the line is the prompt.
 
 
-**DRAFT — not yet issued.** `@CAND@`, `@BLOB@` and `@SHORT@` are placeholders. Before launching the Review, replace them with the frozen candidate's full SHA, the workplan's blob at that SHA, and the candidate's first seven hex digits in upper case (see `SESSION-CONTINUATION-HANDOFF-SSDS-8.0.md`, "Next steps"), and delete this paragraph.
 ---
 
 You are performing an **independent D3 falsification Review** under the Scientific Software Development Protocol (SSDP), governing version **7.2.1**. You did not author the candidate, and you have none of the authoring conversation. Your job is to try to break the candidate, not to confirm it. Do not modify any file except the one Review record you write. Do not commit or push.
 
 ## 1. What you are reviewing
 
-- **Repository (local checkout):** `/home/user/scientific-software-development-system` (GitHub `hjin98/scientific-software-development-system`)
+- **Repository (local checkout):** `/home/samjin/agent-skills/scientific-software-development-system` (GitHub `hjin98/scientific-software-development-system`)
 - **Branch:** `ssds-8.0-graph-native-architecture`
-- **Candidate commit:** `@CAND@` (design revision 23). Review exactly this commit, by `git show @CAND@:<path>` or a `git archive` snapshot. Later commits, including the one that adds this handoff, are not part of the candidate.
-- **Primary workplan:** `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md` (git blob `@BLOB@` at the candidate)
+- **Context provenance:** the earlier semantic author was of the Claude family; this continuation session and its fresh-context reviewer are of the GPT family. The inherited handoff, corpus and diagnostic instrument remain shared dependencies. State those limits without inferring epistemic independence from the family difference.
+- **Candidate commit:** `e23f14208be869e6a78cfd7b312e447254ee1851` (design revision 23). Review exactly this commit, by `git show e23f14208be869e6a78cfd7b312e447254ee1851:<path>` or a `git archive` snapshot. Later commits, including the one that adds this handoff, are not part of the candidate.
+- **Primary workplan:** `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md` (git blob `610f373b97fb8152d2a5742e17fa172e12204756` at the candidate)
 - **Also in scope:**
   - `workplans/active/SSDP-6.1-7.0-WORKPLAN-AUTHORITY-INDEX.md`, SSDS 8.0 section only
   - `tests/test_protocol_80_orchestrator_consolidation.py`
@@ -34,7 +34,7 @@ You are performing an **independent D3 falsification Review** under the Scientif
 - **(c)** the persistence, derivation, concurrency and migration design (§5-§6, §8, §10-§16);
 - **(d)** the Protocol 7.2.1 inheritance reconciliation (§0.4, §19, §24).
 
-The changes since the previous Review are `git diff 552ac01bb799c22dece5a33d93bd4244bea21d2a..@CAND@`. Read them to see what changed, but judge the whole candidate.
+The changes since the previous Review are `git diff 552ac01bb799c22dece5a33d93bd4244bea21d2a..e23f14208be869e6a78cfd7b312e447254ee1851`. Read them to see what changed, but judge the whole candidate.
 
 ## 2. Governing authority
 
@@ -45,7 +45,7 @@ The governing protocol is SSDP **7.2.1**. Its accepted-current identities are ow
 - further owners in `source/shared/references/` as their concern is material: `workflow-and-workplans.md`, `scientific-inspectability-and-initiative.md`, `evidence-evolution-and-dependencies.md`, `abstraction-and-concretization.md`, `semantic-definition-and-traceability.md`, `concurrency-and-orchestration.md`, `storage-and-io.md`, `security-and-trust-boundaries.md`, `protocol-versioning-and-compatibility.md`, `testing-and-validation.md`, `convergence-and-cycle-economy.md`, `project-engineering-memory.md`;
 - `PROJECT-ENGINEERING-MEMORY.md`: the PEM predicate fires for this replacement of mature machinery; entries are evidence, not authority, except where a current owner binds them.
 
-Treat as **hypotheses to test, never as authority or evidence of adequacy**: the workplan's self-assessment (§0.1 tables, the §27 passes), commit messages, the authority index's prose, this handoff's description of scope, the bounded model check's green result, and the prior Review records in `qualification/ssds80/` (F9D9DE8,  441CF5C,  8A75346,  FFBAD17,  F3608F5,  AC71FA9,  730490D,  FB3E542,  124B0B7,  97E753F,  4C35D92,  644EB72,  62C0B24,  203A42B,  A414588,  6FE1000,  4EC0024,  BA7F738,  947370D,  EF8445A,  552AC01, all NO-PASS). Reconstruct independently.
+Treat as **hypotheses to test, never as authority or evidence of adequacy**: the workplan's self-assessment (§0.1 tables, the §27 passes), commit messages, the authority index's prose, this handoff's description of scope, the bounded model check's reported results, and the prior Review records in `qualification/ssds80/` (F9D9DE8,  441CF5C,  8A75346,  FFBAD17,  F3608F5,  AC71FA9,  730490D,  FB3E542,  124B0B7,  97E753F,  4C35D92,  644EB72,  62C0B24,  203A42B,  A414588,  6FE1000,  4EC0024,  BA7F738,  947370D,  EF8445A,  552AC01, all NO-PASS). Reconstruct independently.
 
 **Stakeholder authority.** The stakeholder decision record holds the stakeholder's instructions verbatim. They accept the revision-5 design principles and hold the doctrine-realization objective as an aspiration whose machine limits must be tested. Treat them as task authority; judge whether the design faithfully and adequately realizes them and whether anything attributed to them exceeds what they say. Acceptance of objectives and product scope belongs to the stakeholder, not to D3 Review.
 
@@ -59,14 +59,14 @@ Treat as **hypotheses to test, never as authority or evidence of adequacy**: the
    - whether the architecture is the minimum justified one;
    - whether it is lossless against `workplans/archive/SSDP-8.0-DETERMINISTIC-CONTROL-PLANE-AND-MANDATORY-ORCHESTRATOR-CONSOLIDATED.md`, `workplans/archive/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE-BEFE678-HYPOTHESIS.md` and the frozen `orchestrator/docs/architecture.md` (§16.2, §18);
    - whether §22 could discriminate the defects it targets, or whether green fixtures could coexist with them (PEM DS-001).
-4. Run `python3 -m unittest tests.test_protocol_80_orchestrator_consolidation -v`, `git diff --check 552ac01bb799c22dece5a33d93bd4244bea21d2a @CAND@`, and the model check at the candidate (`python3 qualification/ssds80/s1_disagreement_model_check.py`, at `--depth 4` and `--depth 5` (`--jobs N` parallelizes without changing the totals), and again at depth 4 with each of `REV22=1`, `REV21=1`, `REV20=1`, `REV19=1`, `REV18=1`, `REV17=1`, `REV16=1`, `REV14=1`, `REV13=1`, `REV12=1`, `REV11=1` and `REV10=1`, each of which must report failures on its owner-grounded properties, not only on the oracle). Report results. None of them establishes semantic adequacy.
+4. Run `python3 -m unittest tests.test_protocol_80_orchestrator_consolidation -v`, `git diff --check 552ac01bb799c22dece5a33d93bd4244bea21d2a e23f14208be869e6a78cfd7b312e447254ee1851`, and the model check at the candidate (`python3 qualification/ssds80/s1_disagreement_model_check.py`, at `--depth 4` (`--jobs N` parallelizes without changing the totals), and again at depth 4 with each of `REV22=1`, `REV21=1`, `REV20=1`, `REV19=1`, `REV18=1`, `REV17=1`, `REV16=1`, `REV14=1`, `REV13=1`, `REV12=1`, `REV11=1` and `REV10=1`, each of which must report failures on its owner-grounded properties, not only on the oracle). Report results. For depth 5, follow the continuation handoff's instruction to rerun only if the model changes: independently verify the model identity and applicability of the prior-session-reported result recorded in §27.40, label it reused rather than independently executed, and report the missing raw-output/interpreter provenance. Do not treat that report as independent corroboration. None of these checks establishes semantic adequacy.
 5. **Convergence review strategy.** Read `source/shared/references/convergence-and-cycle-economy.md` at the governing commit ("Active simplification trigger", "Review strategy after recurrence"). The §6.6 assessment-disagreement family has recurred in every revision since 10. Assess it as a family: whether the candidate's simplification and repair genuinely reduce the failure surface or move it, and whether any capability the removed mechanisms carried is still missing (a capability-transfer check); whether it is the minimum justified concretization of the evidence owner; which common-mode causes remain (including this handoff's framing and the model check's independence from the rule it tests). Route any finding at family level rather than as one sibling per cycle, and prefer repair directions that remove mechanism.
 6. Classify every finding by its **earliest owner** as a **blocker** (must be repaired before a PASS) or **non-blocking**. Give each blocker a concrete trajectory and a minimum repair direction; don't redesign the system. Raise a **SERIOUS CHALLENGE** first if accepted governing authority itself is materially false, contradictory, ambiguous, inadequate or unrealizable. Separate genuine blockers from editorial or Manual-level detail: a blocker is a defect that lets a locally compliant actor violate a governing invariant, or a contradiction an implementer cannot resolve without choosing between two owners.
 7. Do not manufacture closure, and do not withhold a PASS for issues that belong to the Architecture Manual (§21) or to later gates (§25). A PASS here authorizes nothing by itself; shadow D4 needs gate G2 (§25).
 
 ## 4. Output
 
-Write exactly one Markdown file, `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-@SHORT@-PASS.md` or `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-@SHORT@-NO-PASS.md`, following the structure of `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md`:
+Write exactly one Markdown file, `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md` or `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-NO-PASS.md`, following the structure of `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md`:
 
 1. title and an indented header block: GOVERNING SSDP, REPOSITORY, BRANCH, CANDIDATE (full SHA), SCOPE, PRIMARY WORKPLAN and blob, governing public-source and recovery refs, prior reviews (hypothesis only), REVIEW METHOD, **REVIEWER** (your model family only, never a model name or identifier, and that you are a fresh-context sub-agent launched by the authoring session);
 2. `## SERIOUS CHALLENGE`;
@@ -80,7 +80,9 @@ Write exactly one Markdown file, `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-
 10. what you verified and how;
 11. what you could not verify;
 12. family-level convergence assessment (method step 5);
-13. common-mode note: you share the author's model family and were launched by the authoring session from this handoff;
+13. common-mode note: you share the continuation session's model family and were launched from this inherited handoff; distinguish that from the earlier semantic author's family;
 14. D4 statement.
+
+Write scratch files only under `/tmp/ssds80-review-e23f142/`, never at a shared scratchpad root. No other agent or inherited author scratch files are part of your task context.
 
 End the file with exactly one trailing newline. Return to the caller only the record path, the verdict and a one-paragraph summary of blockers.
