@@ -3938,7 +3938,27 @@ Residuals: those of §27.36. In addition, assessor-read candidate failures wait 
 - P11 restored for assessor-read failures;
 - `REV22` is a sensitivity mode, failing P11 and P13.
 
-At depth 4 it checks 1,574,464 transitions with no failures and 80/80 named discriminators. Depth 5 and the sensitivity sweep follow in the depth-5 commit.
+At depth 4, the continuation session ran the unchanged model with Python 3.10.12 and `--jobs 4`: 1,574,464 transitions, no failures, 80/80 named discriminators, exit 0. At depth 5, the prior session recorded 99,095,037 transitions, no failures and 80/80 discriminators (`--jobs 4`, 62 min 52 s), on the model committed at `d3792981`. That result is reused from `qualification/ssds80/SESSION-CONTINUATION-HANDOFF-SSDS-8.0.md` at `8588a69dc578a545386574567d03ebeff6a1770e`; the continuation session verified that the model has no intervening change. It did not rerun depth 5; the prior run's interpreter and raw output are not preserved in that handoff, so this is prior-session-reported evidence, not a newly executed or independently corroborated result.
+
+The continuation session ran each sensitivity mode at depth 4, with Python 3.10.12 and `--jobs 4`; every mode checks 1,574,464 transitions and fails owner-grounded properties, not only O:
+
+| Mode | Failures | Failing properties (count) | Discriminators as expected | Exit |
+|---|---|---|---|---|
+| default `REV23` | 0 | — | 80/80 | 0 |
+| `REV22=1` | 14 | P11 2, P13 12 | 78/80 | 1 |
+| `REV21=1` | 8,985 | P7 166, Q 8,819 | 72/80 | 1 |
+| `REV20=1` | 4,290 | P10 1,686, P13 2,604 | 66/80 | 1 |
+| `REV19=1` | 4,983 | P10 130, P13 4,813, P14 40 | 60/80 | 1 |
+| `REV18=1` | 7,522 | P10 1,130, P11 6, P12 2,156, P13 4,230 | 58/80 | 1 |
+| `REV17=1` | 116,887 | P9 29,719, P10 78,686, P11 48, P12 6,360, P13 2,074 | 55/80 | 1 |
+| `REV16=1` | 127,879 | P7 540, P9 29,663, P10 76,360, P12 6,408, P13 2,050, Q 5,416, Q2 300, O 7,142 | 51/80 | 1 |
+| `REV14=1` | 139,151 | P7 1,060, P8 1,126, P9 29,607, P10 73,288, P12 6,456, P13 1,860, Q 10,708, Q2 874, O 14,172 | 50/80 | 1 |
+| `REV13=1` | 325,687 | P7 16,338, P9 27,633, P10 71,072, P12 6,227, P13 1,860, Q 71,596, Q2 12,841, O 118,120 | 48/80 | 1 |
+| `REV12=1` | 331,438 | P5 347, P7 16,338, P9 27,613, P10 67,927, P12 6,247, P13 1,850, Q 75,601, Q2 13,069, O 122,446 | 45/80 | 1 |
+| `REV11=1` | 342,612 | P7 16,338, P9 27,865, P10 76,393, P11 54, P12 5,881, P13 2,074, Q 73,200, Q2 12,797, O 128,010 | 41/80 | 1 |
+| `REV10=1` | 343,590 | P1 3,514, P7 16,338, P9 27,649, P10 76,393, P11 54, P12 6,211, P13 2,074, Q 68,272, Q2 12,721, O 130,364 | 44/80 | 1 |
+
+These are bounded diagnostic transcriptions, not production-owner qualification or architectural acceptance (DS-001). The default and twelve historical modes are prescribed comparisons from the continuation handoff, not a search selecting a favorable architecture. No model variant was edited during this sweep. The inherited design/model selection history remains the revision and Review lineage; these thirteen executions do not bound that earlier search. Four routing tests pass and `git diff --check` is clean. No production implementation, scientific-result campaign or doctrine-improvement measurement was run.
 
 Residuals: those of §27.38. The cost of X is now one R2 reading per genuinely new outcome per counted assessor-read failure (§26).
 
