@@ -1,0 +1,2565 @@
+---
+kind: architecture-manual
+architecture_id: SSDS-ARCHITECTURE-MANUAL
+manual_version: 1.0.0
+status: proposed
+protocol_version: 7.2.1
+target_system_version: 8.0.0
+governing_workplan: workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md
+governing_workplan_design_revision: 23
+phase_b_semantic_candidate: e23f14208be869e6a78cfd7b312e447254ee1851
+phase_b_workplan_blob: 610f373b97fb8152d2a5742e17fa172e12204756
+phase_b_review: qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md
+phase_c_handoff: qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md
+closure_map: qualification/ssds80/MANUAL-CLOSURE-MAP-SSDS-8.0.md
+supersedes_on_acceptance: SDP-ORCHESTRATOR architecture 1.6.0, for SSDS-governed scopes only (§26.4)
+gate: G1-open
+d4: not-authorized
+active_serious_challenge: none
+---
+
+# SSDS 8 Architecture Manual
+
+```text
+STATUS: PROPOSED. Not accepted-current. Gate G1 is open. SSDS 8 D4 is NOT AUTHORIZED.
+GOVERNING PROTOCOL: SSDP 7.2.1 (release identities owned by PROTOCOL-RELEASE-STATE.yaml)
+TARGET: SSDS 8.0.0
+BOUND TO: SSDS 8.0 workplan design revision 23, Phase B semantic candidate
+          e23f14208be869e6a78cfd7b312e447254ee1851 (workplan blob 610f373b97fb8152d2a5742e17fa172e12204756),
+          independent Phase B D3 Review PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md)
+SERIOUS CHALLENGE: none
+ACCEPTANCE: requires an independent D3 Review of this exact Manual candidate with no surviving blocker,
+            and explicit stakeholder acceptance of this major architectural change (workplan §25, G1).
+            Technical Review alone accepts no marked product-scope item (§0.5).
+```
+
+This Manual is the proposed single detailed owner of SSDS 8 durable architecture: the types, ownership, interfaces, flows, lifecycle and derivation rules, trust contracts and component boundaries of the deterministic system on which SSDP's doctrine is to be realized. When accepted it owns that architecture; until then it is a proposal and nothing in it binds an implementation. The SSDS 8.0 workplan remains the cycle contract that produced it: its §0.1, §27 and review records are rationale and history, never proof of adequacy, and they are not restated here.
+
+## Part 0. Orientation
+
+### 0.1 Authority and binding
+
+| Question | Answer |
+|---|---|
+| What does this Manual own once accepted? | Every material current architecture claim about SSDS 8 for SSDS-governed scopes. Each such claim has exactly one statement here. |
+| What does it not own? | Scientific meaning (D1), numerical-method meaning (D2), D4 code, SSDP doctrine, project policy values, release identities (`PROTOCOL-RELEASE-STATE.yaml`), and the behavior of the frozen Level 0 Core for version-bound work (§26.4). |
+| What happens to the workplan's contract sections on acceptance? | Workplan §1.4, §2 and §5-§26 are superseded as the statement of current architecture by this Manual. They stay the reviewed cycle record. Where this Manual refines them, §0.3 lists each refinement; there is no other intended difference. |
+| What does acceptance require? | G1: workplan §25 criteria 1-8, 11 and 12. Criterion 2 is this Manual resolving every §21 item; `qualification/ssds80/MANUAL-CLOSURE-MAP-SSDS-8.0.md` is the review aid that maps each item to its section. The map is not a second owner. |
+| What does acceptance not do? | It authorizes no D4. Shadow implementation needs G2 (a reviewed shadow D3->D4 workplan derived from this Manual, and explicit stakeholder authorization). Runtime acceptance is G3; native authority over a subject is G4 for that subject. |
+
+**Normative language.** "Must", "never" and "only" state architecture. A section marked **[D3 decision]** fixes a choice the workplan left to the Manual. A clause marked **[delegated]** names a choice left to D4 within the stated contract; D4 may choose any concretization that meets it. Formulas are normative where they appear in code blocks introduced as definitions; examples are not.
+
+**Decision status.** Every [D3 decision] here is a proposal until G1. A decision marked **[proposed default]** is a parameter value the stakeholder may change at G1 or later through the owning lifecycle record without reopening the architecture.
+
+### 0.2 Architecture in one page
+
+SSDS 8 coordinates reasoning agents and humans over evolving scientific software. Wherever an answer is mechanically decidable it is answered mechanically; where machinery can answer only conservatively it over-approximates and a recorded judgment narrows; a judgment already made is reused while its basis holds.
+
+Four primitives carry everything:
+
+1. **Unit** — a governed region of repository content with a stable identity and a content-addressed revision. Leaf units partition the governed content. Composite units group leaves into one acceptance **subject**. Structure takes effect only as admitted (§1).
+2. **Relation** — a typed, directed fact between units with a closed semantic role and cycle class (§2).
+3. **Record** — an immutable entry in one append-only ledger: a judgment, an observation, an admission or a lifecycle record (§3).
+4. **Basis** — the exact typed set of unit revisions and records a record relied on (§4).
+
+Everything else — validity, currency, obligations, readiness, impact, context, conformance, routing, briefs, views — is a pure, stratified **derivation** over the ledger and the content its records name (§5-§7). One **Admission** component is the sole ledger writer (§8). The ledger is an authenticated Git commit chain on one authoritative ref, appended by single-ref compare-and-swap, admitted only when a witness quorum holds the new head, and published to the product integration ref as an effect whose outcome the next entry records (§21-§23). A known loss of admitted history is a ledger fact that withholds every retained permissive effect until requalified or accountably attested (§23.6).
+
+Agents act in typed **workflow roles** whose authority Admission enforces from authenticated task envelopes, never from instruction text. Each plan item carries a machine-readable **work contract**; **conformance verification** is a derived classification that can reject, return or point but never pass what a judgment must pass; every report that can change what happens next is a typed record routed deterministically, and material findings reach the human through obligations no agent can close (§10-§16).
+
+Six separations carry the design:
+
+| Separation | Rule | Failure class it excludes |
+|---|---|---|
+| observed repository state vs admitted governance state | content proposes; admitted records enact (§1.6, §8) | authority, routing or acceptance arising from repository presence, foreign pushes, restores or merges |
+| definitional vs warrant dependency | cycles legal only among definitional edges inside a declared simultaneous-definition group (§2.4) | circular warrant, authority, evidence, provenance or lineage |
+| appended vs current-qualified ledger state | only quorum-witnessed heads are asserted current (§23) | a historical prefix or unwitnessed append presented as current |
+| retained vs known-lost admitted history | a recorded loss boundary withholds pre-loss permissive effects (§23.6) | authority reviving across lost history, even after a stale-consistent restore |
+| authority envelope vs instruction | Admission checks role, write scope and record kinds against the signed task envelope (§12) | an agent mutating plans, contracts, verifiers or out-of-scope content because a prompt was misread or absent |
+| mechanical conformance vs semantic acceptance | verification is necessary, never sufficient (§14) | a passing check or an agent's own claim standing in for a reviewer's judgment |
+
+### 0.3 Refinements of the reviewed workplan
+
+The Phase B Review passed workplan revision 23. This Manual resolves the §21 items that revision delegated to it. The following clauses go beyond filling a delegated detail: each narrows or makes explicit a reviewed contract. None adds a persistent record kind, latch or exception to the assessment-disagreement family; each is listed so that Review can check it rather than find it.
+
+| # | Reviewed contract (workplan) | This Manual | Why; property preserved |
+|---|---|---|---|
+| R1 | §6.6 `on` and the clause "standing (permissive use only)" | Two named matching predicates: `on⁺` (permissive use: narrow recorded basis only while every bounding completeness judgment is current `T`, else whole tree) and `on⁻` (adverse use: the recorded basis as recorded, whatever any judgment's standing). Each use site of §6.6 names which it uses (§6.5) | Phase B N2: makes the positive-only completeness rule unambiguous at every use. Losing completeness can only narrow permissive matches; it can never remove an adverse recorded match |
+| R2 | §6.6 support-graph cycle clause ("evaluates to `F` and raises a finding") | Before any value is presented, every non-trivial strongly connected component of the instantiated support graph is forced to `F` as a whole, then the rest is evaluated (§5.6) | Phase B N2: the promised `F` is applied explicitly, not left to whatever a permissive provisional value would give |
+| R3 | §6.6 "derivation is defined for every authenticated prefix"; integrity defects "raise an obligation" | An authenticated entry that violates the closed schema, the entry-shape rule or a record kind's syntactic constraints puts every position at or after it into `INTEGRITY_HALT`: no current assertion, Admission halted, recovery only by a human-gated lifecycle record (§5.7) | Fail-closed handling of corrupt prefixes before any current assertion (Phase B N2) |
+| R4 | §15.3 publisher's durable write-ahead attempt log; intactness left to the Manual (`ac71fa9` N2) | The publisher of entry `n` is the Admission **process incarnation** that appended `n`, identified in the entry. Only that incarnation, in that incarnation's lifetime, may perform `B_n -> C_n`; any restart, other process or other host fences. No durable attempt log exists (§22.3) | Removes the intactness problem instead of specifying it: an in-memory "I have not attempted" is exact within one incarnation. Preserves at-most-once execution and decision-after-settlement; costs a fence (and its human decision) after a crash inside the publication window |
+| R5 | §6.1 coverage partition "checked at every admission" | Partition holds by construction for every tree: siblings are statically disjoint by declaration, each byte belongs to the innermost declared region containing it, and every composite owns an implicit residual part (§1.4) | Foreign bytes can no longer create overlapping leaves, so no S0 case is left undefined |
+| R6 | §6.1 `scope_id` "identifies the set of regions independently of their bytes" | `scope_id(s)` is the hash of the scope expression declared on the subject itself; parts must partition it (§1.5) | Byte-preserving refinement keeps `scope_id`, revision and tenure exactly as the workplan requires |
+| R7 | §6.2 vocabulary listed `CHALLENGES` only as a record-level relation | An authored `CHALLENGES` type (role `EVIDENTIAL`, never a validity or warrant prerequisite) lets an in-repository tension home bind its implicated authorities with inquiry status (§2.2) | 7.2.1 tension binding and inquiry status on `CHALLENGES`; adds no S2 input |
+
+Every other clause restates the reviewed contract or decides a §21 item inside it.
+
+### 0.4 Governing invariants
+
+These invariants are the parents every section below concretizes. Their sources are the accepted SSDP 7.2.1 owners, the consolidated Protocol 8 proposal and the stakeholder's SSDS objectives, as tagged in workplan §2; the tags show provenance only.
+
+**Semantic.**
+- **S1** D1-D4 semantic authority, one current owner per material normative claim, acyclic current ownership, a layered DAG rather than a waterfall; mutual definition only through an explicit simultaneous-definition declaration; no definition, definitional dependency or condensation warrants a claim; circular warrant, authority, evidence, provenance or lineage is invalid.
+- **S2** Concretization fidelity and abstraction adequacy are distinct; a Serious Challenge stops counterfeit closure; a risk override leaves dependents visibly provisional.
+- **S3** Authority mutation is proposal, independent falsification where required, human ratification where required, acceptance, bounded impact, reconcretization. Repository presence promotes nothing.
+- **S4** Evidence is specification, realization, observation, assessment; observations are immutable and assessments supersede only explicitly; stale passing evidence never confirms and stale failing evidence never refutes; a failing assessment that counts keeps its claim qualified until a judgment addressing it, or discriminating evidence, disposes of it; binding health is tracked separately from historical existence.
+- **S5** Absence of a relation establishes independence only inside a scope judged complete for that relation class.
+- **S6** Specialized inference needs the exact canonical meaning; definitions establish no truth; conflicting simultaneous meanings go to their owner.
+- **S7** Version-bound interpretation; no retroactive reinterpretation; no self-adoption.
+- **S8** Project Engineering Memory is non-authoritative; a Historical Applicability Set is task-local.
+- **S9** No machine vocabulary converts a semantic judgment into a deterministic fact; an agent PASS is a recommendation.
+- **S10** Acceptance attaches to one exact semantic subject, in one tenure, at one exact scope and revision. Content identity, scope identity, subject role and tenure, lineage, dependency coverage, semantic equivalence and acceptance are distinct facts.
+- **S11** Effective governance is admitted, never observed. An acceptance belongs to one subject tenure and never revives.
+- **S12** Gate evidence is decision-sufficient with a separable non-narrative core; its adequacy is a semantic judgment. A marked product inspectability surface beyond the requested deliverable is accepted only by the product-scope owner.
+- **S13** A persisted finding has one canonical home; a tension's home is a project evidence record or native issue, never accepted authority text; no universal discovery database.
+
+**Control.** **C1** one serialization point per ledger. **C2** same canonical inputs and ruleset give one derived state. **C3** time, filesystem, Git remotes, resources, model output and human judgment enter only as recorded typed records. **C4** external effects follow intent, idempotent or reconcilable effect, observed outcome; ambiguity is reconciled before retry. **C5** unknown required semantics fail closed. **C6** disagreement between semantic content and its control representation blocks dependent transitions. **C7** control data is the minimum needed to select, validate, serialize, replay or audit. **C8** the derivation is well-founded: one value per predicate for every admitted input, no self-supporting acceptance, no negation through recursion.
+
+**Concurrency.** **K1** a result is admitted only if everything it relied on is current, or it is revalidated. **K2** no two mutating executions share a working tree. **K3** a clean textual merge is not semantic orthogonality. **K4** correctness never depends on predictions.
+
+**Provenance and replay.** **P1** every canonical change records what, who, against which basis, under which rules. **P2** historical decisions are never recomputed under newer rules. **P3** derived state is rebuildable; canonical records win. **P4** currentness is asserted only for durably witnessed state, under the declared witness model, with no lag window. **P5** a known loss of admitted history is a continuity boundary across which retained permissive effects do not pass without requalification or accountable attestation.
+
+**Agent interface.** **A1** routine work never requires reading machine records or reconstructing Git topology. **A2** context is version-bound, explains its inclusion, labels epistemic status and states incompleteness. **A3** one logical task/result contract across transports; a zero-context agent locates its task from a minimal bootstrap. **A4** a duty a task owes is carried in its brief or enforced mechanically; activation is deterministic; briefs carry only triggered duties. **A5** every execution acts in one role for one task, with authority checked at Admission; only a plan's principal changes its plan; no agent changes verification rules; no actor reviews or accepts its own work. **A6** facts are produced by machinery; agents supply judgment in typed slots and cite records for factual claims. **A7** verification is necessary, never sufficient; no control decision parses prose. **A8** a material finding survives to its owner; escalation is keyed on existence, never currency; only an authenticated human judgment discharges human attention. **A9** reviewer independence is constructed, not requested.
+
+**Git.** **G1** Git is content, isolation, transport and history substrate, never workflow authority. **G2** transport artifacts are never merged into product history. **G3** no record contains the identity of the commit that contains it. **G4** secrets and private telemetry never enter project repositories. **G5** `main` is never deleted or force-moved to discard reachable history.
+
+**Migration.** **M1** one route admits every change of unknown provenance. **M2** adoption is progressive and coexists with production. **M3** no governed region has two current authorities. **M4** discovery may run bottom-up; acceptance runs top-down. **M5** unknown stays visibly unknown. **M6** in-flight older-version work is drained, pinned or migrated.
+
+**Trust.** **T1** agent outputs are untrusted proposals until admitted. **T2** unknown artifacts are never executed or deserialized to classify them. **T3** external, evidence and memory text is data. **T4** humans and canonical entries authenticate through a declared mechanism; nothing beyond it is claimed.
+
+**Compatibility.** **B1** older version-bound work stays under its declared version and immutable source; frozen orchestration profiles stay independently testable (PC-001). **B2** rollback is version rollback to an immutable baseline, never dual authority. **B3** Protocol 7 inheritance is final at 7.2.1; the pre-cutover baseline is resolved from `PROTOCOL-RELEASE-STATE.yaml`.
+
+**Allocation principle.**
+
+```text
+mechanically decidable                     -> machinery, exactly
+decidable only conservatively              -> machinery, sound over-approximation, never under-approximation
+precision beyond the conservative answer   -> a focused judgment that narrows it
+judgment made, basis still current         -> reused mechanically
+mechanically checkable conformance         -> verification: necessary, never sufficient
+unresolved semantic question               -> an agent, in the role its obligation kind selects
+routine coordination                       -> the principal role, recorded and challengeable
+designated authority decision              -> a human gate
+canonical state change                     -> single serialized Admission
+```
+
+### 0.5 Scientific inspectability (O1)
+
+SSDS produces no scientific results of its own. It decides which realized results count as current evidence, what human gates receive and what is retained, so the 7.2.1 D3 authority-content duty applies.
+
+- **Material realized record of SSDS.** Admitted records and their bases: judgments; evidence realizations with their execution basis and evaluated outcomes; assessments, including discriminating readings; challenges with inquiry status; gate decisions; risk overrides; loss boundaries and continuity attestations; publication outcomes; intake and quarantine dispositions; refusals with reason codes. Retention: the ledger is append-only except under the human-gated confidentiality protocol (§24). Evaluated outcomes, the trees that hold evaluated content and every commit a record names are kept reachable by the ledger (§21.4). Raw data, logs and narrative findings stay in native project homes and are referenced by content identity; an unavailable artifact degrades binding health and erases no history.
+- **Intended readers.** Stakeholders and human-gate holders; independent reviewers; agents, only through rendered briefs.
+- **Routine questions.** What governs this subject, at which revision? Is this result current against its basis, and if not, what moved? Which evidence supports or challenges this claim, and which is stale, disputed or unavailable? What did a gate decide, on which evidence core, with which findings and tensions visible? What is withheld by quarantine or a loss boundary, and why? What did each agent do, in which role and within which boundaries; what did verification find; and which findings were escalated, merged or downgraded, by whom?
+- **Product inspectability surfaces (marked).**
+  - *Within the requested deliverable (this architecture):* `ask`/`read` answers naming their qualified head (§16.2); task briefs with incompleteness notices (§16.3); gate briefs led by a separable non-narrative core (§16.6); the conformance view of each result (§14.6); the inspector view and digest (§16.8); historical views at any ledger position (§5.8); the canonical-JSON ledger itself, readable with Git and a JSON reader without SSDS code or an AI (§21.2), which is the tool-independent route.
+  - *Beyond the requested deliverable:* **None.** Projection of a project's own scientific records, exploration interfaces and discovery stores stay with project products. SSDS references their homes and adds no universal observation database.
+- **Realized-record architecture.** Canonical source: the ledger plus the content it names. Derived projections: every view, regenerated, never edited (§5.8). Drill-down identity: record identity, unit identity plus revision, scope identity, ledger position and qualified head. Streaming and interim exposure: a long execution's progress is operator state; its realized outcome enters only as an admitted observation, and the inspector shows pending executions as pending. Restart continuity: the ledger and Git content; derived state rebuilds. Privacy and security: §24-§25; inspection and export views are trust boundaries that give the strongest safe aggregate and state the limitation.
+
+## Part I. Primitives
+
+### 1. Units, scopes, subjects and the manifest
+
+#### 1.1 Unit
+
+A **unit** `u` has a stable logical identity `id(u)`; a **kind** and owning **domain**; a **scope** (the repository regions it covers); a declaration source; and a **role**, leaf or composite. Every unit is either a **subject** (default) or a declared **part** of its enclosing composite.
+
+**Identity grammar [D3 decision].** `id := segment ("." segment)*`, `segment := [a-z0-9][a-z0-9_-]{0,62}`, at most 255 bytes. Identities are opaque: no meaning is inferred from their text. The prefix `ssds.` is reserved for system units (§1.8). A residual part (§1.4) has the derived identity `<id>.~`, which no declaration may use.
+
+**Kinds [D3 decision].** The kind fixes the owning domain and the acceptance contract that applies.
+
+| Kind | Domain | Meaning |
+|---|---|---|
+| `D1` | D1 | scientific/mathematical formulation |
+| `D2` | D2 | algorithm and numerical method |
+| `D3` | D3 | software architecture |
+| `D4` | D4 | specification and implementation, including tests that are not evidence specifications |
+| `EVIDENCE_SPEC` | the domain of the claims it `EVIDENCES` (§2.2); acceptance by that domain's contract | an evidence specification |
+| `EVIDENCE_RECORD` | none (non-authority) | an in-repository finding, tension or evidence home; never authority text (S13) |
+| `PLAN` | plan | a change-plan unit (§11) |
+| `GENERATED` | the domain of its generator | content reproduced by regeneration (§9.3) |
+| `EXTERNAL` | external | an immutable external pin (§20) |
+| `POLICY` | governance | the project policy unit; protected (§25.3) |
+| `MANIFEST` | governance | the unit manifest; content edits are ordinary, effect only by admission |
+| `UNCLASSIFIED` | none | content whose kind is not yet judged |
+
+A subject's kind and domain are declared on the subject. A part inherits them; a part declaring a different kind is a static error (§1.9). A region that needs another domain must be its own (nested) subject.
+
+#### 1.2 The unit manifest
+
+**Location and format [D3 decision].** Structural declarations live only in the repository-owned unit manifest at the path genesis declares, default `.ssds/manifest.toml`. It is TOML 1.0, parsed by a data-only parser; parsing never instantiates objects or executes content (T2). A manifest that does not parse is, for every declaration key, a quarantined delta against `Σ` (§1.6): governance continues on `Σ`, and the parse failure is an intake obligation.
+
+```toml
+schema = 1                                    # manifest grammar version
+
+[governed]
+ignore = ["build/", "*.pyc"]                  # governed-content boundary: excluded path patterns
+
+[[unit]]
+id       = "numerics.solver"                  # identity grammar §1.1
+kind     = "D2"                               # required on every subject; forbidden on parts
+role     = "composite"                        # "leaf" | "composite"
+subject  = true                               # default true; false declares a part
+part_of  = "numerics"                         # optional: the enclosing composite (membership)
+scope    = [ { file = "docs/solver.md" } ]    # ordered list of scope terms (§1.3)
+renamed_from = ["numerics.method"]            # optional identity lineage
+
+[unit.semantic]                               # semantic declarations (§1.7); part of the revision
+defines   = ["solver.timestep-rule"]
+relations = [ { type = "USES_DEFINITION", object = "physics.units" } ]
+sdg       = [ { id = "solver-core", members = ["numerics.solver.a", "numerics.solver.b"] } ]
+joint_invariants = [ { id = "flux-conservation", units = ["numerics.solver", "kernels.flux"] } ]
+```
+
+Keys other than these are a static error for the grammar version. The `[unit.semantic]` table is semantic content of that unit and is part of its revision (§1.5); every other key is structural.
+
+**Declaration keys.** `decl(T)` is the map from **declaration key** to value parsed from tree `T`. The keys are `(id, "kind")`, `(id, "role")`, `(id, "subject")`, `(id, "part_of")`, `(id, "scope")`, `(id, "renamed_from")` for each declared `id`, and `("governed", "ignore")`. A key absent from `T` has value `⊥`. Removing a unit is the change of each of its keys to `⊥`.
+
+**Inline anchors [D3 decision].** An anchor only delimits a leaf span inside a file that a manifest scope term names (`anchor` term, §1.3). It never declares role, membership, kind, domain or scope. Syntax: a line whose content after the file's comment leader is `ssds:begin <name>` or `ssds:end <name>`, with `<name>` in the segment grammar. Comment leaders are fixed by file type: `<!-- … -->` for Markdown and HTML, `#` for Python, TOML, YAML and shell, `//` for C, C++ and similar, `%` for TeX. **[delegated]** The file-type table and its extension within the same rule. Anchor lines are pure structural boundary markers and are removed by normalization (§1.5). Immutable or version-pinned artifacts are never rewritten to acquire anchors; their spans use `heading` or `symbol` terms, or whole-file scopes.
+
+#### 1.3 Scope terms and resolution
+
+A unit's scope is an ordered list of scope terms. **[D3 decision]** The term grammar is closed:
+
+| Term | Denotes, in tree `T` |
+|---|---|
+| `{ path = "a/b.py" }` | the whole file at that exact path |
+| `{ prefix = "src/solver/" }` | every governed file whose path starts with the prefix (must end in `/`) |
+| `{ file = "f", heading = ["A", "B"] }` | in Markdown file `f`, the span from the ATX heading path `A > B` to the next heading of the same or higher level, or end of file |
+| `{ file = "f", symbol = "pkg.mod.Class.method" }` | the source span of that definition, as resolved by the language analyzer of the file (§14.5) |
+| `{ file = "f", anchor = "name" }` | the lines strictly between the matching `ssds:begin name` and `ssds:end name` |
+| `{ file = "f" }` | the whole file, used inside a composite whose parts section it |
+
+**Resolution.** `resolve(t, T)` returns the region the term denotes in `T`'s bytes, or `ABSENT` when it does not resolve: the file is missing; the heading path, symbol or anchor does not occur; it occurs more than once; or anchors are unbalanced, crossed or nested under one name. `ABSENT` is a value, not an error: the unit's content identity records it, so a unit whose region vanishes changes revision and every reliance on it becomes non-current. An ambiguous or malformed anchor additionally raises an S3 integrity finding.
+
+**Governed content.** The governed content of `T` is every tracked path not matched by an effective `ignore` pattern. `ignore` patterns use Git wildcard semantics (`fnmatch` with `**`), decided once by the system version.
+
+#### 1.4 Partition by construction
+
+**[D3 decision]** Leaves partition the governed content of every tree by construction, so no observed bytes can produce an overlap:
+
+1. **Static sibling disjointness.** Within one composite, and among top-level units, no two units' scope terms may be nested or equal by declaration: two `prefix`/`path` terms where one is a prefix of the other; two span terms on one file where one heading path is a prefix of the other, one qualified symbol name is a prefix of the other, or the anchor names are equal; a whole-file term and any term on the same file. Such a declaration is a static error (§1.9). A unit that should sit inside another is declared a member of it (`part_of`), never a sibling.
+2. **Containment.** Every member's terms must denote regions inside its composite's declared terms: a member `path`/`prefix` lies under a composite `prefix` or equals a composite `path`; a member span term names a file the composite covers whole or a span nested in a composite span. Static error otherwise.
+3. **Innermost ownership.** A byte of governed content belongs to the innermost unit whose resolved region contains it. Resolution can still nest or cross regions dynamically (anchors moved by an edit): a region nested in a sibling's is the inner owner of its bytes; two resolved regions of distinct units that partially overlap (neither contains the other) both resolve to `ABSENT`, as does a member region that falls outside its composite's resolved region, and each case raises an S3 integrity finding. Within a composite, bytes of the composite's regions that no member resolves to belong to the composite's **residual part** `<id>.~`, an implicit leaf part of that composite.
+4. **Uncovered region.** Governed bytes that no top-level unit's region contains belong to the reserved **uncovered region**, status `UNCLASSIFIED` (§18).
+
+So a new foreign file under a declared prefix belongs to that prefix's innermost owner; a vanished or conflicting span's bytes fall to the enclosing residual; nothing is ever owned twice. Composites form a laminar family because membership is a forest (each unit has at most one `part_of`, and membership is acyclic).
+
+#### 1.5 Revision, content identity and scope identity
+
+**Normalization [D3 decision].** Content identity uses exactly two normalizations, fixed by the system version and never by policy: CRLF and lone CR become LF; anchor lines (§1.2) are removed. Nothing else is normalized: trailing whitespace, encoding and Unicode form are content. A future normalization is a system-version change (§27).
+
+```text
+cid(t, T)     = sha256( "ssds.cid.v1" ‖ term_kind ‖ term_args ‖ normalized bytes of resolve(t, T) )
+                ("ABSENT" in place of the bytes when the term does not resolve; a prefix term hashes its
+                 files in bytewise path order, each as path ‖ length ‖ bytes)
+content(u, T) = sha256( "ssds.content.v1" ‖ cid(t_1, T) ‖ … ‖ cid(t_k, T) )   -- u's declared term order
+sem(u, T)     = sha256( JCS( sorted semantic declarations of u and of every unit inside scope(u) ) )
+rev(u, T)     = sha256( "ssds.rev.v1" ‖ content(u, T) ‖ sem(u, T) )
+cur(u)        = rev(u, T_n)
+```
+
+`JCS` is RFC 8785 canonical JSON. Semantic declarations include those in manifest `[unit.semantic]` tables and inline semantic markers (§1.7) inside the unit's regions.
+
+**Scope identity [D3 decision; refinement R6].** `scope_id(s) = sha256("ssds.scope.v1" ‖ JCS(declared terms of s))`, over the terms declared **on the subject itself**, independent of bytes and of how parts partition them. Parts must partition exactly the subject's declared terms (§1.4 rule 2 plus the residual). Byte-preserving structural refinement therefore leaves `scope_id`, `content`, `sem` (unless relations are redirected) and `rev` unchanged, which is what makes a refinement leave acceptance valid (§19.3). A change to the subject's own terms is a scope change and ends its tenure (§1.6).
+
+Revisions are computed from Git content on demand and memoized by key (§5.9); no separate hash graph is stored.
+
+#### 1.6 Effective structure, quarantine and tenure
+
+**Effective structure** `Σ_n` is the map of structural declarations in force at ledger position `n`: genesis admits `Σ_0`; an ordinary or intake admission changes `Σ` exactly by the structural changes it authored or explicitly adopted (§8.3 step 4); an absorption never changes it; a governance-mode transition changes only the mode. `Σ_n` is a fold over admitted entries and the trees they name; it is never stored as a second copy. Derived from it: units, leaves, composites, residual parts, `scope_id`, `subj`, kind and domain, governed boundary, and tenure.
+
+- `subj(u)` is `u` if `u` is a subject, else the nearest enclosing composite that is a subject; unique by laminarity.
+- **Resolution** of effective scopes is against the bytes of the observed tree `T_n` (§5.2).
+- **Quarantine.** `Q_n = { k : decl(T_n)[k] ≠ Σ_n[k] }`.
+- **Governance-affecting classification [D3 decision: algorithm].** For each `k ∈ Q_n` compute the derived structure `Σ_n[k := decl(T_n)[k]]` on `T_n`. The delta is **governance-affecting** iff, compared with `Σ_n` on `T_n`, some unit's identity, kind, domain, role or enclosing composite differs; some subject's `scope_id`, or the set of governed byte regions it covers, differs; or the governed boundary differs. Otherwise it is **governance-neutral**: a re-partition of leaves inside one subject's unchanged regions into parts of that subject. A delta whose single-key override is statically invalid (§1.9) is governance-affecting. The classification is fixed by the system version, never by policy.
+- **Affected subjects.** `aff(Q_n)` compares `Σ_n` with `Σ_n` overridden by every key of `decl(T_n)` (all deltas together), on `T_n`. It contains every effective subject that is, or contains, a unit named by a governance-affecting quarantined delta, and every effective subject whose signature or covered regions the override would change. A foreign declaration that would carve a part out of `P` as a nested subject affects `P`.
+- **Governance signature** of subject `s`: `(role = subject, scope_id(s), kind/domain, governance mode)`. **Tenure** `τ(s)` is the first ledger position of the current uninterrupted run over which `s` has been an effective subject with an unchanged signature. A tenure ends when `s` is demoted to a part, its `scope_id` changes, its kind or domain changes, or its governance mode changes; a later restoration starts a new tenure. Byte-preserving refinement and carve-out promotion of one of its parts leave `s`'s tenure unchanged. Acceptance belongs to a tenure (§5.5 `ACC`); challenges, revocations and supersessions target exact triples and records and survive tenure changes.
+
+**Content proposes; admitted records enact.** Acceptance, governance mode, reconstruction status, lifecycle and effective structure are derived from records, never from fields in unit content.
+
+#### 1.7 Semantic declarations
+
+Semantic declarations are authored in the manifest's `[unit.semantic]` table of the unit they belong to, or inline inside the unit's regions [D3 decision: inline syntax]: a line whose content after the comment leader is one of
+
+```text
+ssds:rel <TYPE> <object-unit-id> [key=value ...]
+ssds:defines <object-name>
+ssds:sdg <group-id> <member-unit-id> <member-unit-id> ...
+ssds:joint-invariant <invariant-id> <unit-id> <unit-id> ...
+```
+
+Inline semantic markers are content: they are not normalized away, and editing one changes the unit's revision. Semantic declarations are: authored relations (§2), defined-object declarations, simultaneous-definition group declarations (§2.4) and joint-invariant declarations (§9.2).
+
+**Single definer.** A unit may declare that it defines a named semantic object (`defines`). Two units current in one tree defining the same object name is an integrity conflict: both are ill-formed (§2.5) until the owner adjudicates by removing one declaration.
+
+#### 1.8 System units and genesis structure
+
+Genesis declares three reserved leaves: `ssds.manifest` (kind `MANIFEST`, the manifest file), `ssds.policy` (kind `POLICY`, the project policy file at the path genesis names, default `.ssds/policy.toml`) and, optionally, `ssds.unclassified` (kind `UNCLASSIFIED`, `prefix = ""`, a catch-all that genesis may use instead of declaring units). Their identities are reserved; the policy unit is a protected surface (§25.3).
+
+#### 1.9 Static structural checks
+
+These checks run on every admission over the merged tree (§8.3 step 4) and define part of `well_formed` (§2.5): identity grammar and uniqueness; kind present on every subject and absent on parts; membership a forest; static sibling disjointness and containment (§1.4); scope conservation for a refinement (the parts partition the subject's declared terms); every scope term well formed; no `renamed_from` cycle; residual identities never declared.
+
+#### 1.10 What each identity establishes
+
+| Fact | Established by | Never implies |
+|---|---|---|
+| content identity | hashing (mechanical) | any fact below |
+| scope identity | the subject's admitted scope declaration | that bytes or meaning are unchanged |
+| subject role and tenure | effective structure, changed only by admission | acceptance; a past tenure's acceptance |
+| lineage | `renamed_from`, refinement history, ledger history, Git rename history | acceptance or equivalence |
+| simultaneous definition | an SDG declaration accepted with its subject's revision | warrant of any member claim |
+| dependency and completeness coverage | relations; `COMPLETENESS` judgments; analyzer completeness declarations | equivalence or acceptance; widening only adds context |
+| semantic equivalence | an `EQUIVALENCE` judgment by a qualified actor (machinery decides only byte identity and §1.5 normalization) | acceptance of any new subject |
+| acceptance | a passing acceptance judgment on exact `(subject, scope_id, rev)` in the current tenure | anything about another subject, scope or tenure |
+
+#### 1.11 Locating an authority from a tension search key [D3 decision; §19.1 mapping]
+
+The 7.2.1 tension search keys map onto unit structure as follows; the query is `ask(locate)` (§16.2).
+
+| 7.2.1 key | SSDS resolution |
+|---|---|
+| owner/path plus heading, anchor or object ID | the unit that owns that region in `Σ` at the position asked (innermost ownership, §1.4); an object ID resolves through `defines` |
+| exact revision | `(id, rev)` at that position, with the ledger position(s) at which it was current |
+| claim or locator | the unit plus the byte span within it |
+| earlier revisions | the unit's revision history over ledger positions |
+| former names or paths | `renamed_from` lineage, transitively; Git rename-following history for paths |
+| recorded predecessors | `SUPERSEDES`/`REPLACES` relations and refinement/promotion history in the ledger |
+
+A tension home binds every implicated authority by unit identity (in-repository homes use `CHALLENGES`, §2.2; native issues carry the identities in searchable text). A move plus substantial rewriting that neither `renamed_from` nor Git rename detection reveals is a stated limitation, not a further rule.
+
+### 2. Relations
+
+#### 2.1 Relation and provenance class
+
+A **relation** is `(subject, type, object, class, provenance)`, stored in the direction subject -> prerequisite; reverse traversal is impact analysis, never a second relation.
+
+- **Authored** relations are semantic declarations inside the subject's scope or manifest semantic table (§1.7). They are part of every enclosing subject's revision, take effect when that subject's revision is accepted, and change only by changing content.
+- **Derived** relations are computed by a versioned analyzer from content (§14.5) and cached under their derivation key; never edited, never canonical.
+- **Proposed** relations are records awaiting acceptance; one is accepted only by an admitted content change to the subject's authored relations.
+- **Record-level relations** (challenge targets, adjudication, supersession) are fields of records (§3), never edits to their targets.
+
+#### 2.2 Vocabulary [D3 decision]
+
+The vocabulary is part of the ruleset in force `ρ_n` (§5.2). It is closed and versioned. The system ruleset `ssds-rules/1` defines:
+
+| Type | Role | Cycle class | Classes permitted | Layer constraint | Completeness class |
+|---|---|---|---|---|---|
+| `USES_DEFINITION` | `DEFINITIONAL` | `SIMULTANEOUS` | authored, proposed | non-ascending | `DEF` |
+| `DERIVED_FROM` | `WARRANT` | `ACYCLIC` | authored, proposed | non-ascending | `WARRANT` |
+| `ASSUMES` | `WARRANT` | `ACYCLIC` | authored, proposed | non-ascending | `WARRANT` |
+| `DEPENDS_ON` | `WARRANT` | `ACYCLIC` | authored, proposed | non-ascending | `WARRANT` |
+| `CONCRETIZES` | `GOVERNING` | `ACYCLIC` | authored, proposed | non-ascending | `GOVERNING` |
+| `CONSTRAINED_BY` | `GOVERNING` | `ACYCLIC` | authored, proposed | non-ascending | `GOVERNING` |
+| `EVIDENCES` | `EVIDENTIAL` | `ACYCLIC` | authored | subject kind `EVIDENCE_SPEC` | none |
+| `EXECUTION_DEPENDS_ON` | `EVIDENTIAL` | `ACYCLIC` | authored, derived | subject kind `EVIDENCE_SPEC` or `D4` | `EXEC` |
+| `CHALLENGES` | `EVIDENTIAL` | `ACYCLIC` | authored | subject kind `EVIDENCE_RECORD`; attribute `inquiry` ∈ {`EXPLORATORY`, `CONFIRMATORY`} required | none |
+| `GENERATED_FROM` | `PROVENANCE` | `ACYCLIC` | authored, derived | subject kind `GENERATED` | `EXEC` |
+| `SUPERSEDES` | `LINEAGE` | `ACYCLIC` | authored | same kind | none |
+| `REPLACES` | `LINEAGE` | `ACYCLIC` | authored | same kind | none |
+| `IMPORTS` | `STRUCTURAL` | `NEUTRAL` | derived | none | `STRUCT` |
+| `CALLS` | `STRUCTURAL` | `NEUTRAL` | derived | none | `STRUCT` |
+| `BUILD_DEPENDS` | `STRUCTURAL` | `NEUTRAL` | derived | none | `STRUCT` |
+| `TESTS` | `STRUCTURAL` | `NEUTRAL` | derived | none | `STRUCT` |
+
+**Layer order.** `D1 < D2 < D3 < D4` from higher abstraction to lower concretization; `PLAN`, `EVIDENCE_SPEC`, `EVIDENCE_RECORD`, `GENERATED` take the layer of their domain; `EXTERNAL`, `POLICY`, `MANIFEST` and `UNCLASSIFIED` are layer-free. **Non-ascending** means `layer(object) ≤ layer(subject)`: a unit may rely on its own or a higher abstraction, never on a lower concretization. Plan item dependencies follow the layer of each item's governing subject.
+
+What each role can do: `DEFINITIONAL` fixes meaning and never warrants; `WARRANT` carries claim support or prerequisite order; `GOVERNING` carries authority; `EVIDENTIAL` binds evidence to target, execution and challenged authority; `PROVENANCE` orders regeneration; `LINEAGE` records replacement; `STRUCTURAL` supplies context, impact and widening only. `CHALLENGES` and `EVIDENCES` never appear as validity or warrant prerequisites in any rule (§2.3).
+
+A generic "related-to" type does not exist and supports no closure (S5).
+
+#### 2.3 Vocabulary adoption checks
+
+A ruleset adoption (§27.1) is rejected unless: every type has every attribute; `SIMULTANEOUS` only on `DEFINITIONAL` types; `NEUTRAL` only on derived `STRUCTURAL` types and on no authored type; no rule names a `NEUTRAL` type, `CHALLENGES` or `EVIDENCES` as a validity-mode or warrant prerequisite; and every layer constraint is one of the closed forms above. An adoption that removes, renames or reclassifies a type declares, for existing uses, `READ` (alias to a defined type), `MIGRATE` (ordinary content changes through Admission) or `REJECT`; the adoption gate is shown the subjects that would become ill-formed. Historical views keep the vocabulary in force at their position. A type absent from `ρ_n` has unknown required semantics: Admission rejects any authored relation of that type, and in absorbed content it makes its subject ill-formed.
+
+#### 2.4 Simultaneous-definition groups and cycle legality
+
+An **SDG** is a semantic declaration (§1.7) naming units whose meanings are defined together. It is part of the enclosing subject's revision, so adding, removing or changing it needs acceptance. Rules: all members have one common `subj`, and the declaration lies inside that subject's scope; an SDG never contains a subject; SDGs are laminar; no relation is a self-relation.
+
+**Cycle legality.** Let `E` be every authored relation and every derived relation whose cycle class is not `NEUTRAL`, over effective units in the observed tree. `E` is legal iff every cycle of `E` lies inside the member set of one SDG and uses only `SIMULTANEOUS` edges. Consequences: a `DERIVED_FROM` or `DEPENDS_ON` cycle is illegal, even inside one subject or SDG; a mixed cycle is illegal; a cycle spanning two sibling SDGs is illegal unless an enclosing SDG is declared; nested SDGs are permitted. Contracting each SDG yields the acyclic order used for layer checks, ordering and impact; the contraction is a representation, never a warrant. Every claim inside an SDG still needs `ACYCLIC`-class warrant and its subject's acceptance.
+
+Code recursion (mutual imports, recursive calls) is derived `STRUCTURAL` and `NEUTRAL`: legal, inert, traversed by widening, never warrant.
+
+#### 2.5 Well-formedness
+
+`well_formed(s)` (S0) is false when any unit of `s`: fails a static structural check of §1.9 in the effective structure as resolved; lies on an illegal cycle; carries an authored relation of a type unknown to `ρ_n` or one violating its layer constraint or subject-kind constraint; belongs to a malformed SDG; or conflicts under the single-definer rule. Admission rejects any request whose merged tree would make an affected subject ill-formed (§8.3 step 4(c)); a violation reaching the tree without Admission (absorption, a ruleset reclassification) makes every involved subject invalid in S2 through `ok` (§5.5).
+
+Machinery checks declared relations only. Circular reasoning stated only in prose is a semantic defect for acceptance review and Challenge (§32).
+
+#### 2.6 Completeness
+
+`COMPLETENESS(X, R)` asserts, for a scope `X` (a set of effective units) and a completeness class `R`, that every `R`-prerequisite of a unit in `X` lying outside `X` is declared (boundary completeness). For `{u}` it is the outgoing completeness of `u`, typically attested during `u`'s acceptance review. Its mechanical minimum basis is a `content` entry on every unit of `X` plus the identity of `X`'s membership (`scope_id` of each member and the member set), so adding, removing or editing a member makes it non-current. Completeness never transfers through refinement or scope change.
+
+**Analyzer completeness declarations [D3 decision].** An analyzer version declares, per language and configuration, the constructs for which its derived relations of a class are complete, and the **incompleteness markers** it detects: reflection, plugin loading, dynamic registration or import, generated code, runtime configuration, data read by path, build flags, external consumers. An analyzer may supply boundary completeness for a derived class only for a scope in which it detected no marker, and only within its declared constructs. A marker never overrides a qualified actor's `COMPLETENESS` judgment or complete observed reads.
+
+### 3. Records and the ledger schema
+
+#### 3.1 The ledger
+
+The **ledger** is the single canonical store of everything not derivable from content: append-only, totally ordered by position, authenticated (§23.2), serialized in one closed versioned schema. Every record enters through Admission. A ledger entry is *provisional* when appended and *admitted* when a witness quorum holds its head (§22); a record is *recorded* when its entry is admitted; whether it is *current* is derived (§5.5). Rejections and refusals are recorded, so provenance includes what was refused and why.
+
+Purely operational facts — task issue, reservations, leases, worktree creation, agent launch, retries — live in the Dispatcher's private operator journal under intent -> effect -> observed outcome (C4). They influence scheduling, never derived workflow state. Execution provenance that matters for audit travels inside submitted records.
+
+#### 3.2 Common record envelope [D3 decision]
+
+Every record is a canonical JSON object (RFC 8785, UTF-8). Field values are only: identifiers in declared grammars, enumerations, `sha256:` digests, integers, booleans, recorded UTC timestamps (RFC 3339, informational), validated repository-relative paths, and content-identity references. There are no free-text fields (C7, §24.1).
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | digest | `sha256` of JCS of the record without `id` |
+| `kind` | enum §3.4 | fixes tier, schema and polarity |
+| `schema` | integer | ledger schema version; `1` for SSDS 8.0 |
+| `ruleset` | `{system, policy}` | system ruleset id (e.g. `ssds-rules/1`) and policy content digest in force when submitted |
+| `actor`, `actor_class` | actor id §25.1; `HUMAN` \| `AGENT` \| `MACHINERY` \| `ADMISSION` | who asserts it |
+| `frame` | `ADMITTED` \| `{transformation: id(X)}` | the derivation it is evaluated in (§7) |
+| `target` | typed reference(s) per kind | what it is about |
+| `basis` | list of basis entries §4 | what it relied on |
+| `outcome` | per-kind enumeration | its conclusion |
+| `reason` | list of enumerated reason codes | why, where the kind requires |
+| `supersedes` | list of record ids | explicit supersession, authorized at Admission (§8.3) |
+| `binding` | task binding §12.2 | the signed envelope, its signature and the execution's lineage class, for every record submitted for a task |
+| `governs` | `{mode: NATIVE, ruleset}` \| `{mode: LEGACY, protocol}` | the governing version the record declares; must equal its envelope's (§16.9) |
+| `provenance` | `{route, harness, model_family, model, attempt, toolchain}` | execution provenance; replayed as recorded fact |
+| `refs` | list of content references | report artifacts, evaluated outcomes, narrative homes, by content identity |
+| `recorded_at` | timestamp | informational; never read by derivation (C3) |
+
+A **content reference** is `{store, digest, media_type, locator?}` where `store` is `LEDGER` (an object in the ledger repository, §21.4), `REPO` (a blob in a commit the ledger keeps reachable), `HOME` (a native project home: issue tracker, evidence store, with a stable locator) or `RUNNER` (an external custody store). Derivation reads only `LEDGER`-store objects (evaluated outcomes, §17.3); every other reference is for drill-down and binding health.
+
+#### 3.3 Tiers
+
+| Tier | Kinds | Read by |
+|---|---|---|
+| **support** (judgments) | every judgment kind not in the challenge tier | S2 support (currency) |
+| **challenge** | `CHALLENGE`, `ADJUDICATION`, `WITHDRAWAL`, `RISK_OVERRIDE`, `CONTINUITY_ATTESTATION` | S1 |
+| **observation** | `REALIZATION`, `CHECK_EXECUTION`, `EXTERNAL_CONSULTATION`, `ANALYZER_OUTPUT`, `AVAILABILITY`, `CUSTODY_ENUMERATION` | S0 (as facts), S2 (as `record` premises) |
+| **admission** | `ADMISSION`, `ABSORPTION` | S0 |
+| **lifecycle** | §3.4 lifecycle rows | S0 |
+
+Each kind has exactly one tier.
+
+#### 3.4 Record kinds [D3 decision]
+
+Decision classes R0-R3 are defined in §12.4; "S1 role" is the syntactic polarity of §5.3; "after a loss boundary" is the treatment of §23.6.
+
+**Support tier.**
+
+| Kind | Target | Outcomes | Producer and class | S1 role | After a loss boundary |
+|---|---|---|---|---|---|
+| `ACCEPTANCE` | `(s, scope_id, rev)` in its frame | `PASS`, `FAIL` | qualified actor for `s`'s domain under policy; R2, or R3 where policy requires (D1/D2 by default) | — | withheld |
+| `REVIEW` | transformation `id(X)` or subject triple | `PASS`, `NO_PASS` | reviewer; R2 | — | withheld |
+| `CONFORMANCE` | transformation `id(X)` and contract item revision | `CONFORMANT`, `NONCONFORMANT` | reviewer; R2 | — | withheld |
+| `EQUIVALENCE` | `(u, r_from, r_to, consumption_class)` | `EQUIVALENT`, `NOT_EQUIVALENT` | qualified actor; R2; independent of the change's author where the rule requires (§4.4) | — | withheld |
+| `COMPLETENESS` | `(X, R, membership)` | `COMPLETE`, `INCOMPLETE` | qualified actor; R2 | — | withheld |
+| `EVIDENCE_ASSESSMENT` | realization record, evidence obligation `e`, reading; mode `ORDINARY` or `DISCRIMINATING` (§6.6) | `PASS`, `FAIL`, `INCONCLUSIVE`; `failing_outputs`; for `DISCRIMINATING`, a pair of `(observation, reading, verdict)` items | assessor; R2, or R3 per §6.8 | — | withheld; a failing assessment's adversity is unchanged (§6) |
+| `IMMATERIALITY` | failing assessment(s) | `IMMATERIAL` | owner's qualified actor; R2, R3 for D1/D2 (§6.8) | — | withheld as disposition |
+| `PLAN_ACCEPTANCE` | plan objective section and item revisions | `ACCEPTED`, `REJECTED` | reviewer independent of the contract's author; R2 | — | withheld |
+| `INTAKE_CLASSIFICATION` | observed path set or quarantined delta | proposed kind/domain/class | investigator, or the static classifier (machinery, §18.2); advisory, enacts nothing | — | withheld |
+| `INTAKE_DISPOSITION` | quarantined delta or observed content | §18.3 vocabulary | independent reviewer, R2; a governance-neutral `ABSORB` may be machinery R0 where policy permits (§18.4) | — | withheld |
+| `LEGACY_ACCEPTANCE` | `(s, scope_id, rev)` plus cited legacy evidence | `IMPORTED` | qualified actor; R2, R3 where policy requires | — | withheld |
+| `EXTERNAL_ACCEPTANCE` | external unit pin plus consultation record | `IMPORTED` | qualified actor; R2 | — | withheld |
+| `RECONSTRUCTION_PROPOSAL` | proposed unit or relation | `PROPOSED`, `PROVISIONAL`, `UNKNOWN` | investigator; enacts nothing | — | withheld |
+| `TASK_RESULT` | task, candidate commit, `id(X)` | the task's allowed outcomes (§12.3); typed slots (§13.5) | the bound role | — | withheld (requalified by a new iteration) |
+| `FINDING`, `AMENDMENT_REQUEST`, `BLOCKER`, `HUMAN_QUESTION` | target units or records | materiality, blocking flag, reason | any role | — | unchanged (never-lost; §15.2) |
+| `COORDINATION_DECISION` | report(s) or item; `PARTITION` names tasks | `RESOLVE_LOCAL`, `AMEND`, `CHALLENGE`, `ESCALATE`, `DECLINE`, `PARTITION` | principal; R1 | — | not in force; the report's obligation reopens |
+| `MATERIALITY_RECLASSIFICATION` | a non-floor report | `ROUTINE` | principal; R1 | — | not in force |
+| `HUMAN_DECISION` | a human-attention obligation | `ACKNOWLEDGE`, `ANSWER`, `ACCEPT`, `REJECT`, `REDIRECT`, `MOOT` | authenticated human; R3 | — | not in force; attention reopens |
+| `GATE_DECISION` | a gate obligation and the exact evidence core shown | `ACCEPT`, `REJECT`; `adequacy` ∈ {`ADEQUATE`, `INADEQUATE`} | authenticated gate holder; R3 | — | withheld |
+| `PRODUCT_SCOPE_ACCEPTANCE` | a marked product-surface item in an authority unit at a revision | `ACCEPTED`, `REJECTED` | stakeholder or task authority; R3 | — | withheld |
+| `LINEAGE_ATTESTATION` | a judgment record | `HUMAN_ATTESTED_FRESH` | authenticated human; R3 | — | withheld |
+| `NON_AUTHORSHIP_ATTESTATION` | a disposition record and the claim content | `NOT_AUTHOR` | authenticated human disposer; R3 | — | withheld |
+
+**Challenge tier.**
+
+| Kind | Target | Fields | Producer and class | S1 role |
+|---|---|---|---|---|
+| `CHALLENGE` | a support-tier record, a subject triple, an adjudication, a risk override or a continuity attestation; never another challenge, except that a challenge of a restrictive adjudication is a counter-challenge (§5.3) | `blocking`; `serious` (always blocking); `inquiry` ∈ {`EXPLORATORY`, `CONFIRMATORY`}; `locus` (the part, when raised against a part); materiality | any qualified actor per policy | restrictive, or counter |
+| `ADJUDICATION` | a challenge | `UPHELD`, `DISMISSED` | the qualified actor policy names; R2, or R3 (Serious Challenge, D1/D2 claims) | restrictive (`UPHELD` of ordinary) or relaxer |
+| `WITHDRAWAL` | the raiser's own challenge | — | the raiser | relaxer |
+| `RISK_OVERRIDE` | a challenge | declared continuation scope (§10.5) | authenticated human; R3 | relaxer |
+| `CONTINUITY_ATTESTATION` | a `LEDGER_LOSS` | scope form `COMPLEMENT` or `EXPLICIT` (§23.7); evidence references | designated human; R3 | relaxer |
+
+**Observation tier** (produced by machinery through the Dispatcher; class R0).
+
+| Kind | Target | Content |
+|---|---|---|
+| `REALIZATION` | evidence specification revision and claim content | execution basis, configuration, evaluated outcome reference or `INCOMPLETE` (§17.2) |
+| `CHECK_EXECUTION` | contract obligation and candidate | template, parameters, result class per finding, tool version (§14) |
+| `EXTERNAL_CONSULTATION` | external unit or external ledger | consulted qualified head, checkpoints, status read (§20) |
+| `ANALYZER_OUTPUT` | analyzer identity, version, configuration, input revisions | output digest (only for nondeterministic or expensive analyzers, §14.5) |
+| `AVAILABILITY` | a content reference | `AVAILABLE`, `UNAVAILABLE` |
+| `CUSTODY_ENUMERATION` | an external custody runner and configuration | the complete list of runs of the configuration it performed (§17.5) |
+
+**Admission tier.** `ADMISSION` (request identity, decision `ACCEPT`/`REJECT`, reason codes, validated basis summary, base commit, admitted commit, adopted deltas, the admitted records, salvaged never-lost records and refused records by identity and reason). `ABSORPTION` (plain, or fencing with its fence effect `B_n -> F_n`). Both carry `obs` (§22.1).
+
+**Lifecycle tier** (Admission appends; human-gated unless stated).
+
+| Kind | Effect |
+|---|---|
+| `GENESIS` | project identity, ledger id and location, authoritative replica, trust roots, witness set and quorums, ruleset, initial `Σ_0`, baseline commit, deployment class |
+| `RULESET_ADOPTION` | system ruleset version plus policy digest from position on (§27.1) |
+| `SCHEMA_MIGRATION` | ledger schema version change with READ/MIGRATE/REJECT (§27.2) |
+| `MODE_TRANSITION` | a subject's governance mode change, including cutover and version rollback (§19) |
+| `LEGACY_RELEASE` | the legacy process owner releases a scope from the legacy process (§19.6) |
+| `KEY_LIFECYCLE` | register, rotate or retire an Admission host key or Dispatcher issue key; a retirement lists the outstanding envelopes (§25.2) |
+| `TRUST_MECHANISM_CHANGE` | change of human authentication mechanism or human key registry |
+| `PROJECT_FORK` | new project identity |
+| `REPLICA_REDESIGNATION`, `WITNESS_SET_REDESIGNATION` | §23.8 |
+| `LEDGER_LOSS`, `FORK_RESOLUTION` | §23.6 |
+| `LINEAGE_MIGRATION`, `LINEAGE_RETIREMENT`, `REDACTION_NOTICE` | §24 |
+
+#### 3.5 Actor qualifications
+
+Project policy (§25.3) maps each judgment kind × target domain × outcome to a required actor class and qualification, within system floors that policy may raise and never lower:
+
+- D1 and D2 `ACCEPTANCE`, every `GATE_DECISION`, `RISK_OVERRIDE`, Serious Challenge adjudication, `CONTINUITY_ATTESTATION`, `PRODUCT_SCOPE_ACCEPTANCE`, `HUMAN_DECISION`, `LINEAGE_ATTESTATION`, `NON_AUTHORSHIP_ATTESTATION` and every lifecycle record need an authenticated human.
+- `PRODUCT_SCOPE_ACCEPTANCE` needs the stakeholder or task authority designated in policy for product scope; an applicable D1/D2 human gate whose evidence core showed the marked surface accepts it too, recorded as a `GATE_DECISION` naming the surface. Technical D3 review of any kind never accepts it (S12).
+- No actor reviews, accepts, conforms or plan-accepts its own work (A5; independence §8.3 step 3, §12.2).
+
+#### 3.6 Compatibility contract [D3 decision]
+
+The schema is **closed**: Admission rejects a record with an unknown kind, an unknown field, a missing required field or a value outside its grammar (C5). A system version declares the set of ledger schema versions it reads. A reader that meets an authenticated entry of an unreadable schema version presents historical views up to the entry before it and makes no current assertion (it is not compatible); this is not an integrity defect. New optional semantics never enter a schema version silently: any change to a kind, field or enumeration is a new schema version adopted by `SCHEMA_MIGRATION` (§27.2). Admission never re-adjudicates a record under a newer schema or ruleset (P2).
+
+### 4. Basis
+
+#### 4.1 Basis entries and modes
+
+A **basis entry** is `(mode, target, consumption_class, role?)`. The mode is fixed by the rule for the record's kind at admission and never inferred at evaluation.
+
+| Mode | Target | Satisfied when (§5.5) | Used for |
+|---|---|---|---|
+| `content` | `(u, r)` | evaluated in the record's frame and, for a frame record, in the entry's role (§7.3): `cur(u) = r`; or an equivalence path from `r` to `cur(u)` for the entry's consumption class; or, for class `PLAN_CONTROL` only, `cur(u)` reached from `r` by the control-tightening order (§13.4) | everything the actor saw: the judged revision, context supplied or read, change base, content behind evidence; prerequisites inside the record's own subject |
+| `validity` | `(u, r)` | the content condition holds and `subj(u)` is valid | direct `GOVERNING` or `WARRANT` prerequisites in another subject only; never a `NEUTRAL`, `CHALLENGES` or `EVIDENCES` relation |
+| `record` | record `x` | `x` is current | premises that are judgments or observations: completeness, realization, assessment, plan acceptance, consultation |
+| `identity` | a record, or `(subject, scope_id, rev)` | always | targets of challenge-tier records, supersessions and dispositions; equivalence endpoints |
+
+**Subject boundary.** Let `S_x` be the subject of a record's target. A governing or warrant prerequisite `v` with `subj(v) ≠ S_x` gets a `validity` entry where the rule requires validity; one with `subj(v) = S_x` gets a `content` entry. A record never holds a `validity` entry on its own subject: no acceptance supports itself, warrant is acyclic inside and across subjects, an edit to the relied-on part makes the record stale through its `content` entry, and an `EQUIVALENCE` on that part for the record's class restores it without re-review. Modes are fixed at admission: after a part is promoted, records admitted earlier keep their `content` entries (exactly as strong, because the former subject's frozen scope still covers the promoted bytes); records admitted afterwards use `validity` on the new subject. Transitive governing authority is reached through validity of direct prerequisites, not listed separately.
+
+#### 4.2 Composition
+
+The basis of a record is the union of:
+
+- the **mechanical minimum** for its kind (§4.3);
+- **recorded reads**: every `read` through the interface during the task (§16.4), and every read a harness adapter or designated runner observed;
+- **declared reliance** the actor adds at submission.
+
+An actor can add to the mechanical minimum, never remove from it. A read outside the governed tree is recorded by content identity where it can be pinned (§20.1); an unpinnable read is recorded as such and makes the record's content its own (§6.3).
+
+#### 4.3 Mechanical minimum per kind [D3 decision]
+
+`gov(u)` is the set of direct `GOVERNING` and `WARRANT` prerequisites of `u`; `closure(S, R)` is §4.6 over class set `R`. "ctx" entries take consumption class `CONSUMER:<kind>`; target entries take `EXACT`.
+
+| Kind | Mechanical minimum |
+|---|---|
+| `ACCEPTANCE` of `(s, σ, r)` | `content (s, r, EXACT)`; `validity` on each `v ∈ gov(u)` for units `u` of `s` with `subj(v) ≠ s`; ctx `content` on every unit of `closure(units(s), {GOVERNING, WARRANT, DEF})` outside `s`; `record` on each completeness judgment the closure used |
+| `REVIEW`, `CONFORMANCE` on `X` | frame-role `content` on every unit of `Δ(X)` (before-image and output, §7.3) and on the contract item revision (`EXACT`); `validity` on `gov` of each changed unit across subjects; ctx `content` on the governing closure; `record` on the task result and on every `CHECK_EXECUTION`/`REALIZATION` of the exact candidate it was shown |
+| `EQUIVALENCE` of `(u, r_1, r_2, k)` | `identity` on `(u, r_1)` and `(u, r_2)`; `validity` on `gov(u)` across subjects; never a `validity` entry on any consumer of `u` (§8.5) |
+| `COMPLETENESS` of `(X, R, m)` | `content` on every unit of `X`; its target `m` is the membership digest `sha256(sorted (id, scope_id) of X's members)` and is part of its currency (§5.5) |
+| `EVIDENCE_ASSESSMENT` | `record` on the realization; `content` on the specification revision applied (the reading) and on the claim content read; for `DISCRIMINATING`, both observations' realizations as `record` and both readings as `content` |
+| `IMMATERIALITY` | `identity` on the failing assessments; `content`/`validity` on the governing state its conclusion is about (the specification or claim revision now in force) |
+| `PLAN_ACCEPTANCE` | `content` on the plan objective section and each accepted item revision, class `PLAN_CONTROL` for items (§13.4), `EXACT` for the objective |
+| `TASK_RESULT` | `content` on the item revision (`EXACT`); frame-role `content` on reads and on `Δ(X)`; `validity` on governing units across subjects |
+| `INTAKE_DISPOSITION` | `identity` on the absorption entry and delta key; `content` on affected units |
+| `LEGACY_ACCEPTANCE`, `EXTERNAL_ACCEPTANCE` | `content (s, r, EXACT)`; `record` on the consultation observation (external); `identity` on cited legacy evidence |
+| `GATE_DECISION` | `content` on the gated subject revision; `record` on every record of the evidence core shown (§16.6) |
+| `COORDINATION_DECISION` | `identity` on the reports it resolves; `content` on the plan items it names |
+| `REALIZATION` | target `content` on claim content (`EXACT`); execution `content` on its executed content (§17.2), class `CONSUMER:REALIZATION` |
+| reports, challenges | provenance only; never checked for currency and never consumed by any rule (§8.3 step 6) |
+
+#### 4.4 Consumption classes and equivalence paths [D3 decision]
+
+Classes: `EXACT` (no equivalence coverage), `EDITORIAL`, `REPRESENTATION`, `MIGRATION`, `CONSUMER:<kind>`, `PLAN_CONTROL`. An `EQUIVALENCE` judgment of class `c` covers an entry of class `k` iff `k ≠ EXACT`, `k ≠ PLAN_CONTROL`, and `c = k`, or `c ∈ {EDITORIAL, REPRESENTATION}` (a meaning-preserving change affects no consumer). `MIGRATION` covers only `MIGRATION` entries and the cutover condition (§19.5).
+
+```text
+sat(content (u, r, k)) = T                              if cur(u) = r, or k = PLAN_CONTROL and r ⊑ cur(u)
+                       = ⋁_{paths r = r_0 -> … -> r_m = cur(u)} ⋀_i current(q_i)
+                                                        over EQUIVALENCE judgments q_i on u covering class k
+```
+
+A path composes judgments of covering classes; every hop must be current. The static support graph over-approximates coverage by including every equivalence judgment on `u` reachable from `r` (§5.6). Where the rule requires independence, the author of a change cannot be the sole qualifier of an equivalence or completeness judgment about that change; a self-declared one is admitted as non-independent (§8.3) and covers nothing.
+
+#### 4.5 Conservative widening
+
+Widening addresses dependency uncertainty only. It never establishes equivalence, completeness or acceptance, and a widened basis never makes a part valid.
+
+**Enclosing-scope chain.** For a unit `u`, built from `Σ_n` only (never from quarantined declarations):
+
+```text
+X_0 = {u}
+then each effective composite containing u, smallest first      (laminar, so nested)
+then the directory of u's declaration source, then each ancestor directory
+X_m = every effective unit in the governed tree, plus the uncovered region
+each step: X_{i+1} = X_i ∪ units(next scope); steps adding nothing are skipped
+```
+
+#### 4.6 Closure
+
+```text
+closure(S, R):                                     -- R a set of completeness classes
+  reached := S; queue := S
+  while queue not empty:
+    u := pop(queue)                                -- order irrelevant to the result
+    for v in declared R-prerequisites(u), authored and derived: enqueue v if new   -- enqueue adds v to reached
+    if no X_i in chain(u) has a COMPLETENESS(X_i, c) with outcome COMPLETE, current with value T, for every c ∈ R:
+        W := X_m                                   -- whole governed tree; brief marks UNBOUNDED
+    else:
+        W := the smallest such X_i
+    for v in W: enqueue v if new
+  return reached                                   -- least fixed point; finite; order-independent
+```
+
+Exact closure needs a current singleton completeness judgment on every reached unit. With no judgment anywhere in the chain the result is the whole governed tree, marked `UNBOUNDED`, with declared external units listed and undeclared external dependencies stated as unenumerable. Missing dependency knowledge never proves independence (S5).
+
+## Part II. Derivation
+
+### 5. The derivation and its strata
+
+#### 5.1 Function
+
+```text
+derive(L_n, content of the trees L_n names) -> exactly one derived state D_n
+```
+
+`L_n` is the authenticated ledger prefix through position `n`. The ruleset and effective structure are read from `L_n`; nothing is supplied from outside. Derivation is a pure function. Which prefix may be presented as current is decided outside it, by currentness qualification (§23), so witness reads, live refs, wall clock, operator state and search indexes never enter `D_n`. A transformation frame `D_n[X]` is the same function over a hypothetical tree and structure fixed by `id(X)` (§7).
+
+Four strata, each reading only lower strata; recursion only inside S1 and S2 in the forms proved unique below.
+
+**Fixed predicate templates.** The SSDS system version fixes every derivation predicate. Project policy (§25.3) only parameterizes these templates: judgment kinds in use and their passing outcomes; actor qualifications (above the floors of §3.5); additions to the mechanical minimum; consumption classes per entry role; required judgment kinds, actor classes and human gates per subject domain; evidence obligations per claim kind; obligation triggers; the report routing table and escalation floors (raise only); role narrowing; enabled check templates; default budgets and time bounds. There is no rule language and no executable policy.
+
+**Adoption-time stratification check [D3 decision].** A ruleset adoption is rejected if any parameter would make: S0 read anything but syntax, admitted structure, observed content and recorded facts; polarity depend on anything but kind, outcome and target; S1 read S2 or S3; S2 read S3 (readiness, discharge, obligations, routing, conformance, materiality, rank); or `stale` read an S2 value other than completeness currency, positively (§6.6). Every template declares its stratum, and the check is a comparison of declared strata, not an analysis of policy text.
+
+#### 5.2 S0 — observed content, effective structure and ledger syntax
+
+- **Ruleset in force** `ρ_n`: the latest admitted `RULESET_ADOPTION` at or before `n` (genesis's ruleset before any), naming a system ruleset version and a policy digest.
+- **Expected integration head** `E_n`: genesis's baseline commit; `C_k` after an admission `k` (`C_k = B_k` for a records-only request); `obs_k` after a plain absorption `k`; `F_k` after a fencing absorption `k` (whose tree equals `obs_k`'s); unchanged after any other entry. **Observed tree** `T_n = tree(E_n)`.
+- **Publication classification** `pub(k)` ∈ {`PENDING`, `PUBLISHED`, `OVERTAKEN`} and `late(k)`: §22.2.
+- **Loss boundaries.** Every admitted `LEDGER_LOSS` is a boundary at its own position. `exposed(x, X)`, for a record `x` before the boundary and a set `X` of subjects and records, holds if `x ∈ X`, `x` targets a member of `X`, or `x` targets an exposed record; subjects resolve in `Σ` at the boundary.
+- **Effective structure** `Σ_n`, and from it units, leaves, residual parts, composites, `scope_id`, `subj`, kind, domain, governed boundary, governance mode and tenure `τ(s)` (§1.6).
+- **Quarantine** `Q_n` and `aff(Q_n)` (§1.6).
+- **Revisions** `rev(u, T)`, `cur(u)` over effective scopes resolved in observed bytes (§1.5).
+- **Relations and well-formedness**: authored and derived relations of `T_n`; `well_formed(s)` (§2.5).
+- **Record syntax**: targets; `superseded(x)` ⇔ some admitted record names `x` in `supersedes` (authorization was checked at admission); **target conditions** `tgt(x)`: for `COMPLETENESS`, the membership digest of `X` under `Σ_n` equals the recorded one; `T` for other kinds.
+- **Adverse scope facts** of each failing assessment (§6.4): recorded anchors, assessed content, `home`, `about`, `starts`; the matching predicates `on⁺`/`on⁻` inputs (§6.5); the observations and discriminating readings `stale` reads.
+
+**Content proposes; admitted records enact.** The policy unit is ordinary content whose edits take effect only through a human-gated `RULESET_ADOPTION` validated under the previous ruleset. A structural declaration takes effect only through an admission that authored or adopted it. S0 never reads a derived acceptance or validity.
+
+#### 5.3 S1 — challenge tier
+
+Kinds: `CHALLENGE`, `ADJUDICATION`, `WITHDRAWAL`, `RISK_OVERRIDE`, `CONTINUITY_ATTESTATION` (§3.4). Targets carry no tenure, so a challenge or revocation on a triple binds every tenure in which that triple recurs. A challenge against a part targets its subject's current revision and records the part as `locus`. Every target is strictly earlier (§8.5).
+
+**Polarity** is syntactic, by kind, outcome and target:
+
+```text
+restrictive(a)   ⇔ a ∈ ADJUDICATION ∧ a.outcome = UPHELD ∧ ¬counter(a.target)
+counter(c)       ⇔ c ∈ CHALLENGE ∧ restrictive(c.target)
+relaxer(y)       ⇔ y ∈ WITHDRAWAL ∪ RISK_OVERRIDE ∪ CONTINUITY_ATTESTATION
+                   ∨ (y ∈ ADJUDICATION ∧ y.outcome = DISMISSED ∧ ¬counter(y.target))
+                   ∨ (y ∈ ADJUDICATION ∧ y.outcome = UPHELD ∧ counter(y.target))
+                   -- each refers only to strictly earlier records: syntactic and well-founded
+
+held(x, b)       ⇔ ∃ a ∈ CONTINUITY_ATTESTATION : a.target = b ∧ in_force(a) ∧ a holds x      (§23.7)
+cont(x)          ⇔ ⋀ { held(x, b) : b a loss boundary with pos(x) < pos(b) }               -- T if none
+
+gate(y)          = cont(y) if relaxer(y); T otherwise
+in_force(y), y ∈ ADJUDICATION ∪ WITHDRAWAL ∪ RISK_OVERRIDE ∪ CONTINUITY_ATTESTATION
+                 ⇔ gate(y) ∧ ¬∃ c ∈ CHALLENGE : c.target = y
+                                  ∧ (upheld(c) ∨ (c.blocking ∧ open(c) ∧ ¬counter(c)))
+open(c)          ⇔ ¬∃ y ∈ ADJUDICATION ∪ WITHDRAWAL : y.target = c ∧ in_force(y)
+upheld(c)        ⇔ ∃ a ∈ ADJUDICATION : a.target = c ∧ a.outcome = UPHELD ∧ in_force(a)
+overridden(c)    ⇔ open(c) ∧ ∃ o ∈ RISK_OVERRIDE : o.target = c ∧ in_force(o)
+
+status1(z) = REVOKED      if ∃ c : c.target = z ∧ upheld(c)
+             BLOCKED      else if ∃ c : c.target = z ∧ c.blocking ∧ open(c) ∧ ¬overridden(c)
+             PROVISIONAL  else if ∃ c : c.target = z ∧ c.blocking ∧ open(c)
+             CLEAR        otherwise
+```
+
+**Uniqueness.** Polarity is computed first by recursion on strictly earlier targets. In the force and continuity predicates every right-hand side refers only to records at strictly greater positions than the left (a resolver is later than what it resolves; a challenge is later than its target; a boundary is later than every record it covers; an attestation is later than its boundary). The definitions are a recursion on a finite strictly increasing chain of positions, evaluated once in decreasing ledger order; each value is unique although negation appears. Non-blocking challenges have no S1 effect while open; they create S3 obligations.
+
+Effects are conservative in both directions: an open blocking challenge against any relaxer suspends it while open, and an upheld one removes its force permanently; a counter-challenge has no effect while open, whatever its `blocking` flag; a revocation ends only when a counter-challenge is upheld, and that upholding is itself a relaxer (challengeable, suspended by an open blocking challenge, withheld by a later loss boundary). Repair of a revoked triple therefore needs a new revision and acceptance, or a successful challenge of the upholding.
+
+**Loss boundary in S1.** `cont(x)` is false for a record before a `LEDGER_LOSS` unless an in-force attestation of that boundary holds it. It gates exactly the permissive effects: a relaxer before the boundary loses force (`gate`), and a record before it cannot be current (S2 `base`). Ordinary challenges, counter-challenges, restrictive adjudications (so revocations), supersessions and every S0 fact are not gated. Withholding a relaxer at any depth of a challenge chain can only restore a block or a revocation, never lift one. A disposition of an assessment disagreement is permissive for the claim; S2 reads it through `eff`, which includes `cont` (§6.7). With no `LEDGER_LOSS`, `cont` is identically `T`.
+
+#### 5.4 Record polarity summary (every kind)
+
+| Kinds | S1 effect | Effect in S2 | After a loss boundary |
+|---|---|---|---|
+| support-tier judgments other than reports and coordination records | none | support through `current` | withheld (`base = F`) until requalified or held |
+| reports (`FINDING`, `AMENDMENT_REQUEST`, `BLOCKER`, `HUMAN_QUESTION`) | none | none (S3 obligations keyed on existence) | unchanged |
+| `COORDINATION_DECISION`, `MATERIALITY_RECLASSIFICATION`, `HUMAN_DECISION` (as resolving records) | none | none (S3) | not in force; obligations reopen |
+| failing `EVIDENCE_ASSESSMENT` | none | adverse through `adverse`/`qual` (§6) | unchanged (adversity follows existence) |
+| supersession, upheld adjudication, `IMMATERIALITY` as **dispositions** | — | permissive through `eff` | withheld as dispositions; other effects (removal from support, revocation) survive |
+| `CHALLENGE` (ordinary, counter) | restrictive / counter | via `base` | unchanged |
+| `ADJUDICATION` `UPHELD` of ordinary | restrictive (revocation) | via `base` | unchanged |
+| `ADJUDICATION` `DISMISSED` of ordinary; `UPHELD` of counter; `WITHDRAWAL`; `RISK_OVERRIDE`; `CONTINUITY_ATTESTATION` | relaxer | via `base` | not in force |
+| `ADJUDICATION` `DISMISSED` of counter | none | none | unchanged |
+| observations | none | `record` premises; staleness evidence (§6) | permissive use withheld (`cont`); adverse use unchanged |
+| admission and absorption entries, `Σ`, tenure, quarantine, trees | none | S0 constants | unchanged |
+| lifecycle records | none | S0 constants | as re-established by the `LEDGER_LOSS` (§23.6) |
+
+#### 5.5 S2 — support tier
+
+Values lie in the lattice `F < P < T` (non-current/invalid < provisional < current/valid), `∧ = min`, `∨ = max`, empty `∨ = F`, empty `∧ = T`. S0 and S1 are constants here.
+
+```text
+base(z)  = F  if superseded(z) ∨ status1(z) ∈ {REVOKED, BLOCKED} ∨ ¬cont(z) ∨ ¬tgt(z)
+           P  if status1(z) = PROVISIONAL
+           T  otherwise                       (cont = tgt = T for a subject-revision triple z)
+
+current(x) = base(x) ∧ ⋀_{e ∈ basis(x)} sat(e)          -- x a support-tier or observation record
+
+sat(content (u, r, k))   per §4.4
+sat(validity (u, r, k))  = sat(content (u, r, k)) ∧ valid(subj(u))
+sat(record x)            = current(x)
+sat(identity z)          = T
+
+ok(s)    = T if well_formed(s) ∧ s ∉ aff(Q_n), else F                 -- S0 constant
+
+valid(s) = base((s, scope_id(s), cur(s))) ∧ ok(s)
+           ∧ ⋁_{j ∈ ACC(s)} ( current(j)
+                              ∧ ⋀_{required kind/actor q of ρ_n for s} ⋁_{j' passing, by q, on the same triple} current(j')
+                              ∧ ⋀_{required human gate g} ⋁_{authenticated GATE_DECISION h for g, ACCEPT} current(h)
+                              ∧ ⋀_{required evidence obligation e} ev(s, e) )
+           ∧ qual(s)
+  ACC(s) = admitted passing ACCEPTANCE (or LEGACY_ACCEPTANCE, EXTERNAL_ACCEPTANCE per mode) on exactly
+           (s, scope_id(s), cur(s)), admitted at or after τ(s), or prospective acceptances j with bind(j) = τ(s) (§7.6),
+           by actors qualified for them
+
+valid(part u) is not a variable: every use routes to valid(subj(u)).
+
+ev(s, e)         = ( ⋁_{passing assessment a admissible for e} current(a) ) ∧ undisputed(s, e)
+undisputed(s, e) = ⋀_{a⁻ ∈ adverse(s, e)} ( P ∨ disp(a⁻) )       -- T when adverse(s, e) is empty
+qual(s)          = ⋀_{e named by a failing assessment a⁻ with starts(a⁻) ∧ about(a⁻, s)} undisputed(s, e)
+                                                                 -- whether or not e is still required
+```
+
+`adverse`, `starts`, `about`, `stale` and `disp` are defined in §6, evaluated in the frame at hand.
+
+**Supersession and risk override.** A superseded record never becomes current again, even if its superseder later goes stale; supersession withdraws a record without reversing its admitted history. A risk override never resolves a challenge: it turns `BLOCKED` into `PROVISIONAL` for the challenged target, `P` propagates by `min`, and S3 permits provisional discharge only inside the override's declared scope (§10.5). An upheld challenge on a subject revision revokes it permanently.
+
+**Early cutoff.** When upstream subject `a` changes, subject `b` whose acceptance relied on `a` in `validity` mode becomes invalid, and records relying on `b` become non-current. If a re-review of `b` against the new `a` passes without changing `b`, `b` is valid again, and every record whose basis named `b`'s unchanged revision, and did not itself see `a`'s text, is current again with no further work. Equivalence is semantic unless trivial: machinery decides only byte identity and §1.5 normalization; the `PLAN_CONTROL` order is an order, not a sameness claim; derived interface fingerprints serve only consumers of derived structure, never behavioral conformance, evidence or acceptance.
+
+#### 5.6 Uniqueness and support cycles [refinement R2]
+
+S2's right-hand sides are built from `min` and `max` over S2 variables and constants. `about`, `starts`, the S1 predicates and `base` inside `eff` are constants. `current(d)` of an `IMMATERIALITY` judgment enters `undisputed` only positively. `stale` reads one S2 value, the currency of completeness judgments that bound an observation's basis, and only positively, through `on⁺` (§6.5): a current judgment can only make a failure stale, and a stale failure can only raise `undisputed`. The system is therefore monotone on a finite lattice and has exactly one least fixed point.
+
+**Static support graph.** Nodes: `valid(s)` and `current(x)`. Edges, all fixed by admitted records and S0 facts:
+
+1. each basis entry;
+2. each subject to every acceptance, gate and assessment judgment naming it, and to every record disposing of a failing assessment about it (for any obligation, required or not; over-approximated through `home` and specification-derived obligations);
+3. for each `content` entry `(u, r)`, every equivalence judgment on `u` reachable from `r`;
+4. each subject to every completeness judgment that bounds the execution basis of an observation of a configuration whose failing assessments are about it.
+
+Admission keeps this graph acyclic (§8.3 step 5). Two terms of `about` (content-follow and obligation lineage) and the completeness edge of item 4 can acquire a cycle through absorbed content without a new record.
+
+**Evaluation order, explicit fail-closed rule.** Derivation (i) instantiates the graph for the frame; (ii) computes its strongly connected components; (iii) assigns `F` to every node of every non-trivial component (more than one node, or a self-edge), before evaluating anything else; (iv) evaluates the remaining nodes once in topological order, reading the forced values; (v) raises one S3 finding per forced component: an ordinary finding when the cycle passes through an absorption-extensible `about` term or a completeness edge, else an **integrity** obligation, because any other cycle can arise only from corrupted input. Forcing only lowers values, so the result is the least fixed point of the system with those nodes clamped to `F`: no acceptance can ever support itself, and a cycle is never presented at `P` or `T`. For the f9d9de8 configuration (`current(j_a)` ← `valid(b)` ← `current(j_b)` ← `valid(a)` ← `current(j_a)`) every node is `F`, and Admission also rejects it on two independent grounds (support cycle; illegal warrant cycle, §2.4).
+
+#### 5.7 Corrupt prefixes [refinement R3]
+
+The Ledger Store rejects any chain containing an unauthenticated entry before derivation runs (§23.2). An **authenticated** entry `k` that nonetheless violates the closed schema (§3.6), the entry-shape rule (§22.1), a record kind's syntactic constraints (target tier, strictly earlier target, self-supersession, unknown kind) or the single-provisional rule puts every position `≥ k` into **`INTEGRITY_HALT`**:
+
+- derivation of positions `< k` is unaffected and available as historical views;
+- no current assertion is made at or after `k`; Admission appends nothing except a human-gated `FORK_RESOLUTION` or `LEDGER_LOSS` that abandons the chain from `k` (a boundary if `k` was admitted, §23.6);
+- an S3 integrity obligation with `CRITICAL` human attention is raised in every view.
+
+An unreadable schema version is not corruption (§3.6). Integrity checks that run on every derivation: authentication and hash chain; closed schema; entry shape; single provisional entry; static structure of `Σ` (§1.9); relation vocabulary and cycle legality; single definer; support-graph cycles (§5.6); observed-versus-effective comparison.
+
+#### 5.8 S3 — consequence tier and views
+
+Non-monotone functions of S0-S2 that nothing below reads: open obligations, including intake of each quarantined delta, revalidation of each `OVERTAKEN` admission, and requalification of each record or relaxer withheld by a loss boundary that was in effect at the retained head (computed by comparing derivation at the retained head with derivation now); discharge (§10.4); readiness (§10.3); blockers; **drift** (`cur(s)` differs from `acc(s)`, the latest revision with a passing acceptance — a display view only); impact sets for hypothetical changes; context answers; briefs; conformance (§14); routing, escalation and coordination obligations, decision and amendment classes (§12-§15); graph, diff and history views; integrity findings. Provisional values and risk-override scopes are interpreted here. S3 explains and schedules quarantine and ill-formedness; it never enforces them, because S2 already did.
+
+**Historical views.** Derivation at any position `m ≤ n` is `derive(L_m, …)`, reproducible with the ruleset in force at `m`; it is labeled historical and claims no currentness.
+
+#### 5.9 Determinism, analyzers, caching and checkpoints
+
+**Determinism.** For every authenticated `(L_n, content)`: S0 is a function; S1 is a well-founded recursion; S2 is the unique least fixed point with the §5.6 clamp; S3 is a function. The same holds for each frame `D_n[X]`. `D_n` is single-valued and independent of evaluation order, wall clock, live refs, witness reachability, operator state and search indexes (C2, C3, C8).
+
+**Analyzer contract.** Analyzers produce derived relations keyed by `(analyzer id, version, configuration, input revisions)`. A deterministic analyzer's output is cache. A nondeterministic or expensive analyzer's output is recorded as an `ANALYZER_OUTPUT` observation, and replay uses the recorded output. Changing an analyzer version changes the derivation key: judgments whose basis named analyzer output become non-current only if the output changed (early cutoff).
+
+**Caching.** Memoization keyed by inputs; nothing is cached without its content key, so no dirty state exists. Incremental derivation must equal from-scratch derivation (§31).
+
+**Derivation checkpoints and recovery time [D3 decision].** A derivation checkpoint caches the complete derived state at a position, keyed by `(ledger position, entry digest, ruleset, schema, analyzer versions, system version)`, in the private derived index. It is verified before use by recomputing its key from the ledger, carries no currentness, and is unrelated to witness checkpoints. Restart derives from the latest verified checkpoint forward. **[proposed default]** A checkpoint is written at least every 1,000 entries and at every lifecycle entry, so that restart replays at most 1,000 entries; the recovery-time objective is that current state is derivable after restart without replaying unbounded history. **[delegated]** Checkpoint encoding and storage engine.
+
+### 6. Assessment disagreement
+
+#### 6.1 Owner requirements realized here
+
+The 7.2.1 evidence owner requires: "A valid failing observation is evidence. A stale failing observation is not admissible evidence against current authority. A stale passing observation is not admissible confirmation"; `review-required` when applicability is uncertain; "an unresolved material disagreement keeps dependent present guidance/closure visibly qualified"; supersession and adjudication "explicit enough to distinguish resolved reassessment from still-live disagreement"; no resolution by vote, count, latest editor or serialized record position; and no suppression of contradictory admissible observations to manufacture a pass. This section is the D3 concretization of those requirements.
+
+**No mechanical lapse.** A failing assessment, once it counts, counts against the claim until a disposition stands or discriminating observations show it stale in the frame. No content change, structural change, specification change, frame outcome, challenge or ledger order ends it by itself. Staleness is not refutation: a failing assessment never makes validity `F`; it caps it at `P`, and reassessment decides.
+
+**The family rule.** Every input to `adverse`, `qual`, `disp` and `eff` obeys three clauses:
+
+- **start**: machinery may make a failing assessment start counting only on an admitted fact or in its own lineage; once started in the admitted state it never stops there by machinery;
+- **stop**: only a judgment that addresses it, or evidence that discriminates in the observations, stops it;
+- **standing**: a stop earned by supersession stands on immutable facts and its own record's standing, never on the currency of the content it ran on; a stop by discriminating observations holds in each frame exactly while that frame's observations show it.
+
+#### 6.2 Applicability dimensions
+
+| Owner dimension | Role here |
+|---|---|
+| protocol obligation | the evidence obligation `e`. Assessments for different obligations never conflict. An obligation that stops being required keeps its disagreement in `qual`: retirement is not a disposition |
+| input/validity regime; every environment, backend, precision or configuration attribute the specification **fixes** | **admissibility** (§17.4), against the specification revision the realization instantiated: an assessment outside them is inadmissible for `e` and enters neither side |
+| stochastic replicate identity; every execution attribute the specification leaves **free** | **execution variation**: admissible assessments differing only here conflict |
+| everything the execution read; the claim content and the oracle and tolerance semantics applied | **assessed content** (§6.3): decides the rerun obligation and `stale`; never decides whether a failing assessment starts counting |
+| subject/candidate | **frame**: a failing assessment counts in its own lineage's frames from its admission, and in the admitted state and other lineages' frames once its obligation is required there (`starts`) |
+| everything else in the basis | **provenance**: can end the assessment's currency, never its adversity |
+
+#### 6.3 Assessed content
+
+A failing assessment's **assessed content** is recorded at admission as content identities and never changes:
+
+- **executed content**: everything the realization's execution read — the specification unit; the closure of execution content under declared and derived `EXECUTION_DEPENDS_ON` (class `EXEC`) widened by §4.6; and every read the designated runner observed. Where no current completeness judgment bounds the closure and the runner's observed reads are not complete, the widening reaches the whole governed tree. A read outside the governed tree is recorded by content identity where it can be pinned (§20.1); an unpinnable read makes the execution's content its own, never matched by any other execution's (§6.5), so it supports no mechanical stop;
+- **reading**: the specification revision whose oracle and tolerance semantics it applied, and the claim content it read.
+
+The **realization's tree** `tree(a⁻)` is the commit the execution ran on; the ledger keeps it reachable (§21.4).
+
+#### 6.4 Start: anchors, home, about, starts
+
+Admission records each failing assessment's **anchors** in two sets that never change: its **admitted anchors** (every subject whose scope contained the evaluated target in the admitted state at the request's base) and, for a frame record, its **frame anchors** (every subject whose scope contains the target in its frame). Nested subjects are included in both. A frame record's **lineage** is that of the transformation it was made in: the bound obligation for which that transformation was produced, as its signed result envelope records (§7). The lineage's frames are those of every transformation produced for that obligation, iterations and rebases included; never the reviewer's or assessor's own task obligation. A record made in the admitted state has no frame lineage.
+
+**Admitted**, for the start latch, means present in the observed tree, or required, in the admitted state at some ledger position, by any route: integration, absorption or adoption. Every question about which reading or check governed a failure asks what was **in force at its base**: present in the admitted state at the base position, never merely "ever admitted". A failure's **base** is the admitted state its frame was merged onto, or its own position for a record made in the admitted state.
+
+Every formula below is evaluated in one frame `G`: the admitted state `D_n` or a frame `D_n[X]`. The subscript is dropped where clear.
+
+```text
+anchors_G(a⁻) = admitted anchors ∪ (frame anchors, if G is a frame of a⁻'s lineage)
+home_G(a⁻)    = succ*(anchors_G(a⁻)): those anchors and every effective subject that received regions of a
+                subject in home_G(a⁻) by an admitted structural change since a⁻'s base position   -- S0 fold
+about_G(a⁻, s) ⇔ s ∈ home_G(a⁻)
+               ∨ s has a required evidence obligation in G in the lineage of the obligation a⁻ names
+                 (its retargets, splits and renames)
+               ∨ the evaluated target lies within scope(s) in G and within no scope of home_G(a⁻)   -- additions only
+starts_G(a⁻)  ⇔ G is a frame of a⁻'s lineage
+               ∨ the obligation a⁻ names, or one in its lineage, is required in the admitted state at some
+                 position ≤ n                                                   -- monotone latch over positions
+               ∨ G is a frame and that obligation, or one in its lineage, is required in G
+adverse_G(s, e) = { failing assessments a⁻ admissible for e : starts_G(a⁻) ∧ about_G(a⁻, s) ∧ ¬stale_G(a⁻) }
+```
+
+`starts` and `about` read only record syntax, the admitted history of effective structure, the observed trees and the frame's fixed identity, so they are S0.
+
+**Guarantee: `home` is never shed.** Nothing removes a subject from `home`, so no change outside a disposition sheds a dispute from the subjects that held the claim when it was disputed. The other two terms of `about` are best-effort additions: they follow the obligation's lineage and, while no home subject still contains the evaluated content, the content itself. A claim moved and also edited, with its obligation replaced rather than retargeted, is not followed and stays disputed at home; byte-identical copies elsewhere attach nothing while the claim is at home. This bounded clone-tracking is a disclosed limit (§32), not a guarantee.
+
+**Where counting starts.** A failing assessment counts in every frame of its own lineage from its admission. In the admitted state and in other lineages' frames it starts at the first position at which its obligation, or one in that obligation's lineage, is required there: at once for an obligation already admitted (including a candidate's failure of an admitted test); for an obligation the frame introduced, at the integration, absorption or adoption that first admits it, by any route. From then on it counts in the admitted state at every later position whatever happens to the content. A failing test-first specification in a rejected or abandoned iteration therefore costs nothing outside its lineage; a claim revised inside an existing evidenced unit, or a check tightened inside an existing specification, belongs to an admitted obligation and counts at once.
+
+#### 6.5 Matching: configuration, outcome and the two matching predicates [refinement R1]
+
+**Configuration.** A realization's configuration is its specification unit identity, regime, parameter instance, seed or replicate identity, and every execution attribute the specification fixes (§17.1).
+
+**Evaluated outcome.** The part of an observation the specification's oracle reads, recorded by content identity as a canonical outcome object (§17.3). Logs, timestamps, host names, paths and line numbers are never part of it unless the specification names them. A specification that declares no evaluated outcome supports no mechanical stop; its failures go to the assessor or owner. A failing assessment records `failing_outputs`, the declared outputs it found failing (a mechanical oracle reports them; an assessor names them); one naming none found every declared output failing. Below, `F(a⁻)` is that set and `out(o)|F` the restriction of observation `o`'s outcome to it.
+
+**Output identity across specification revisions [D3 decision].** An output's identity is `(specification unit id, output name)`. A specification revision that renames an output declares the mapping in its `output_renames` field (§17.1); without one, the old output is "not evaluated" by the new reading.
+
+**Matching predicates.** For an observation `o` and content `K` (a tree, or a frame's content):
+
+```text
+on⁻(o, K) ⇔ K has, on every unit and widened scope of o's recorded execution basis, the content identity
+            and membership o recorded                          -- the basis exactly as recorded
+on⁺(o, K) ⇔ on⁻(o, K)                     if every COMPLETENESS judgment that bounded o's recorded basis
+                                           is current with value T in the frame of evaluation
+            K equals o's tree on the whole governed tree    otherwise
+```
+
+`on⁻` reads no S2 value. `on⁺` reads completeness currency positively only: a current judgment can only enlarge the set of matches, so `on⁺ ⇒ on⁻` always, and losing completeness (to `P`, `F`, blocked, revoked, superseded or withheld by a loss boundary) can only shrink permissive matches. **Every use below names its predicate. Permissive uses — those that can make a failure stale or lower a decision class — use `on⁺`. Adverse uses — those that keep a failure counting — use `on⁻`.** An observation with an unpinnable read satisfies neither predicate for any `K` except its own execution.
+
+**Verdict functions per reading [D3 decision].** A mechanical oracle is one of:
+
+- **declarative**: a fixed check template over declared outputs (`EXACT`, `ABS_TOL`, `REL_TOL`, `ULP_TOL`, `RANGE`, `SET_EQUAL`, `MONOTONE`, §14.3), parameterized by the specification revision. Its verdict `verdict(ρ, o, x)` under any reading `ρ` is recomputed by Derivation from `o`'s stored outcome; deterministic and memoized;
+- **embedded**: the execution itself produces per-output verdicts (a test runner's per-test results). The verdict under the reading the execution ran is the recorded one; under any other reading it is **not computable**.
+
+Where a verdict needed below is not computable, the failure is treated as yielded (fail closed).
+
+#### 6.6 Stop: staleness by discriminating observations
+
+```text
+stale_G(a⁻) ⇔
+  (1) reproduced                       [permissive: standing, on⁺]
+        some standing admitted observation o ≠ real(a⁻) of conf(a⁻) with on⁺(o, tree(a⁻))
+        has out(o)|F = out(a⁻)|F
+  ∧ (2) never differed                 [adverse: any standing, on⁻]
+        every admitted observation o of conf(a⁻) with on⁻(o, tree(a⁻)), whatever its standing,
+        has out(o)|F = out(a⁻)|F                    -- otherwise nondeterministic in fact
+  ∧ (3) observed here                  [permissive: standing, on⁺]
+        some standing admitted observation o of conf(a⁻) has on⁺(o, G)
+  ∧ (4) not yielded here               [adverse: any standing, on⁻]
+        no admitted observation o of conf(a⁻) with on⁻(o, G), standing or not, yields a⁻'s failure
+        on any x ∈ F(a⁻) under G's reading
+
+yields a⁻'s failure on x under G's reading:
+  mechanical oracle    the verdict on x under G's reading is FAIL, or not computable; where the admitted state
+                       holds G's specification revision only by absorption, the verdict is also taken under the
+                       last revision an admission integrated, and the failure is yielded if either fails
+  assessor-read oracle no standing discriminating reading of a⁻ covers o under G's reading
+  either               o lacks x, or G's reading does not evaluate x, while a⁻'s check on x was in force in the
+                       admitted state at a⁻'s base
+
+standing (permissive uses only; the adverse conditions read observations whatever their standing):
+  an observation stands iff cont holds for it, its realization has no upheld challenge and no open blocking
+  challenge (overridden or not: a risk override never resolves a challenge), and it is not INCOMPLETE;
+  completeness standing enters only through on⁺
+```
+
+`INCOMPLETE` observations have no evaluated outcome and enter none of (1)-(4).
+
+**Discriminating reading (assessor-read oracles).** One `EVIDENCE_ASSESSMENT` in mode `DISCRIMINATING`, by a qualified assessor independent of the claim's authors, of an execution of `conf(a⁻)`, recording in one record `PASS` for that execution's outcome under the reading in force there and `FAIL` for `a⁻`'s reproduced outcome under `a⁻`'s reading, both on `F(a⁻)`. Where its two readings differ, it names the material difference between them by a reason code and a content reference. Admission refuses it where the two readings are the same and the two outcomes on `F(a⁻)` are identical: one outcome cannot be read both ways under one reading.
+
+**Coverage.** A standing discriminating reading `d` of `a⁻` covers, in any frame `G`, every observation whose evaluated outcome on `F(a⁻)` is identical to the outcome `d` read `PASS`, while `G`'s reading is the one `d` read under. Content identity plays no part: what the oracle reads is the outcome under a reading. A reading under a specification or claim revision that the admitted state holds only by absorption covers nothing there until an admission integrates that revision. `d` stands iff `cont(d)`, it is not superseded, `status1(d) ∉ {REVOKED, BLOCKED}`, and the realizations of both observations it reads stand.
+
+**What the four conditions keep.**
+
+- **Discrimination, not repetition.** For a mechanical oracle (4) reads each outcome's verdict. For an assessor-read oracle a value alone discriminates nothing, so (4) needs one record reading both outcomes: a rerun yielding the failing outcome, or an outcome perturbed in low bits that still shows the defect, never makes the failure stale, and a later assessor's ordinary `PASS` of a new outcome never settles it by being later. Interpretive disagreement over one outcome under one reading goes to `a⁻`'s assessor, the owner's adjudication or `IMMATERIALITY`.
+- **Nondeterminism goes to the owner.** (1) and (2) need an identical second execution on the content `a⁻` read and no other outcome there, ever.
+- **Standing per frame, without lapse by change.** After a change of `G`'s executed content, `a⁻` counts again in `G` until one execution on the new content (normally the same execution that refreshes the obligation's passing evidence, which is stale too) shows it not yielded; a revert yields it again. For an assessor-read oracle an outcome identical to one a standing reading read `PASS` is covered with no new reading, whatever else changed; only a genuinely new outcome needs one new reading.
+- **One reading per frame.** A mechanical verdict is computed under `G`'s reading, so a candidate's tightened tolerance or test-first case is stale in the admitted state as soon as the admitted reading passes the admitted outcome; an output shift the admitted reading still passes keeps it stale; an editorial reading variant gives the same verdict and never makes a real failure stale.
+- **Removing a check.** An output `G` no longer evaluates makes nothing stale when `a⁻`'s check on it was in force at `a⁻`'s base: removing a check is a specification change the owner disposes of. When the check was the candidate's own addition, its absence from the admitted reading is why the failure does not apply there.
+- **Accepted change of the admitted reading.** Under a declarative mechanical oracle, an admitted specification revision that the admitted outcome passes makes an earlier mechanical failure stale; the review brief of every specification change lists, as a required item, the counted failures it would make stale and the discriminating readings it would stop covering (§16.5). Under an assessor-read oracle an admitted reading change raises reassessment or a discriminating reading under the new reading.
+- **Completeness polarity.** Losing a completeness judgment never removes a differing old-content run from (2) or a yielding present-content run from (4), because both use `on⁻`; it only stops a narrow-basis observation from serving (1) or (3). A claim is never made less qualified by discarding an observation or by making an unrelated passing assessment stale.
+
+#### 6.7 Stop: effective disposition
+
+A record `d` **disposes of** `a⁻` when:
+
+- `d` supersedes `a⁻`, directly or through a chain of supersessions: an explicit reassessment of the realization by `a⁻`'s own assessor, or the owner's adjudication;
+- `d` is an `UPHELD` adjudication of a challenge targeting `a⁻` or its realization `real(a⁻)` (the only premises whose revocation discredits the observation); an upheld challenge against any other premise disposes of nothing;
+- `d` is an `IMMATERIALITY` judgment covering `a⁻`.
+
+```text
+eff(d, a⁻) = F                                  d admitted as non-independent (§8.3)
+           = base(d)                            otherwise, d a supersession; S1 constants only
+           = current(d)                         otherwise, d an IMMATERIALITY judgment
+           = T if in_force(d) ∧ cont(d) ∧ ¬contested(d), else F      otherwise, d an UPHELD adjudication
+contested(d) ⇔ ∃ c ∈ CHALLENGE : c.target = d ∧ c.blocking ∧ open(c)       -- counter-challenge or not
+disp(a⁻)     = ⋁_{d disposing a⁻} eff(d, a⁻)
+```
+
+A supersession stands on immutable facts: not superseded, not revoked or blocked, held across any boundary; an open blocking challenge removes it and a risk override caps it at `P`. `IMMATERIALITY` stands at its own currency, since its premise is about the current governing state. An upholding stands while in force, held and uncontested; an open blocking challenge against it suspends its disposing effect while its revocation stays (each effect keeps its own polarity). A disposition names `a⁻` in `identity` mode, so a challenge against `a⁻` never changes the disposition's currency.
+
+**What does not end a disagreement:** an open challenge against `a⁻`, overridden or not; a loss boundary (the disposition is withheld and observations from before it make nothing stale); a positive-only requalification or attestation; any content or structural change; a passing assessment of another realization or configuration, or a passing rerun that yields `a⁻`'s outcome; the rejection, abandonment or integration of `a⁻`'s candidate; an upheld challenge against another premise; retirement, split or retargeting of the obligation; an unauthorized later passing assessment; an `IMMATERIALITY` whose basis moved; a fallen superseder; ledger order.
+
+**Re-disposal** after a disposition stops standing uses existing records: a new `IMMATERIALITY`, a further supersession of `a⁻` (a record may have several superseders), or a supersession of the fallen superseder. Staleness needs no re-disposal: it is read afresh in every frame.
+
+#### 6.8 Decision class, independence and floor events
+
+Staleness is not a decision: it is derived from designated-runner observations (R0) and, for an assessor-read oracle, a recorded discriminating reading.
+
+- **Independence.** Every judgment disposition, including the failing assessor's own reassessment, must be independent of the claim's authors: the actors whose admitted records authored the evaluated target content. Where any part of that content has no admitted authoring record (absorbed pushes, legacy imports, restores, manual merges), authorship is unknown and fails closed: a disposition is credited as independent only with the disposer's `NON_AUTHORSHIP_ATTESTATION` (human), or under the owner exception with the common-mode dependency recorded; an unknown author lineage is never disjoint from an agent's. For an authenticated human, independence means not among the authors. Where policy names no qualified human other than the claim's author, that author may dispose as owner, admitted as satisfying the requirement with the common-mode dependency recorded and shown in the inspector view. A disposition admitted as non-independent has `eff = F`.
+- **Class.** `IMMATERIALITY` judgments, and supersessions or adjudications disposing of another actor's failing assessment, are R2; R3 where any subject `a⁻` is about is, or has been, D1 or D2 authority. A discriminating reading is R2; it is R3 where any such subject is or has been D1/D2, **unless the failure is shown to be the candidate's own**: either this reading's passing observation `p` has `on⁺(p, base(a⁻))` and `a⁻`'s assessed content was not the admitted content at its base, or a standing reading has already shown that. A reading of later admitted content may carry a fix of a failure the base already had, so it is R3 unless already shown candidate-own. Admission checks the class from S0 facts and completeness currency (through `on⁺`); the highest class reached latches. An adjudication obligation that no available agent can make independently is routed to a human mechanically.
+- **Floor event (D1/D2).** Where any subject a failing assessment is about is, or has been, D1 or D2 authority, a failing assessment that counts in the admitted state, for any obligation `qual` reads, on a claim having any admitted passing assessment, becomes a **floor item** at the first position at which, with no disposition standing and while not stale there, one of these holds: `a⁻`'s assessed content was the admitted content at its base; for a mechanical oracle, an admitted observation `o` with `on⁻(o, T_m)`, at a position `m` where the failure counts in the admitted state, yields it under the admitted reading; for an assessor-read oracle, an admitted observation of admitted content has `a⁻`'s identical outcome under `a⁻`'s reading (so no reading can be admitted), or its reading obligation is answered by a failing assessment of the admitted outcome, closes into the owner's adjudication, or needs an R3 reading; (2) has failed; or an execution scheduled for it ended `INCOMPLETE`. The event is evaluated once, latches, and creates human attention keyed on the failing assessment's existence, closed only by an authenticated human judgment (which may record it `MOOT`). The inspector digest shows the failure before the event.
+
+#### 6.9 Scheduling
+
+When `a⁻` counts in `G` with no disposition standing and is not stale there, S3 derives a **rerun obligation** for what (1) or (3) lacks: one reproduction on `tree(a⁻)`, and one execution of the configuration on `G`'s content (which `G`'s own affected-evidence rerun normally supplies). For an assessor-read oracle whose observed outcome in `G` no standing reading covers, it derives one **reading obligation**, held by an independent reviewer at the class above: read `a⁻`'s reproduced outcome and `G`'s observed outcome in one assessment, recording a discriminating reading or a failing assessment of `G`'s outcome. A reviewer who disagrees with `a⁻` over one outcome under one reading can record neither; the reading obligation then closes into the owner's adjudication obligation. Where (2) has failed nothing is scheduled: the failure is the owner's.
+
+The Dispatcher keeps at most one outstanding execution per configuration and frame, on the frame's latest content. Every designated-runner execution it starts ends in an admitted, never-lost observation: complete, or `INCOMPLETE` when the execution fails, cannot start or exceeds its time bound. **[D3 decision]** The specification declares the time bound; the system caps it at **168 hours** of wall-clock time from start for Dispatcher-run executions. Longer realizations run under external custody (§17.5). Observations hosted by a policy-designated external custody runner make nothing stale unless its `CUSTODY_ENUMERATION` lists every run of the configuration it performed; every enumerated run counts for (2) and (4). A run admitted late is read when it arrives, so no run can be hidden from (2) or (4).
+
+#### 6.10 Effects and uniqueness
+
+A live disagreement makes `undisputed(s, e) = P`, so `ev`, validity and discharge are visibly provisional (§10.4), and briefs and gate views label the evidence `disputed`. S3 derives an adjudication obligation for each adverse assessment with no standing disposition, routed to the claim's owner; the inspector view shows which observations make each failure stale, so resolved reassessment stays distinguishable from live disagreement. `stale`, `adverse`, `qual` and `disp` preserve the monotonicity argument of §5.6.
+
+**Stochastic specifications.** For a specification with free stochastic attributes, the assessed unit is the declared assessment granularity (§17.3): an ensemble specification's realization is the whole ensemble and its evaluated outcome is the declared ensemble statistic in canonical form; replicate variation inside one realization is not disagreement. Ensemble assessments of the configuration still disagree when they differ. A stochastic failure becomes stale mechanically only if the specification fixes its seed policy so that (1) and (2) can hold; otherwise it goes to the owner. Acceptance never depends on the latest single replicate: a later passing ensemble neither supersedes nor disposes of a counted failing one, so edit-and-rerun is not a route to a pass.
+
+### 7. Transformation frames
+
+#### 7.1 Transformation identity
+
+A **transformation** is `X = (B, C, A)`: `B` the recorded base (an admitted integration commit); `C` an immutable candidate commit on an isolated ref; `A` the exact set of quarantined structural deltas its producing request adopts by `ABSORB` dispositions (§18), possibly empty. `id(X) = sha256("ssds.transformation.v1" ‖ B ‖ C ‖ JCS(sorted A))`. `id(X)` is fixed by the task result that first submits the candidate; no later request changes what that result's transformation adopts. `Δ(X)` is the set of effective units whose revision in `tree(C)` differs from `B`; `Δ_Σ(X)` is the set of structural-declaration changes `C` authors relative to `B`, together with `A`.
+
+#### 7.2 Frame state and the fixed merge
+
+At admitted head `n`, the frame `D_n[X]` is `derive` over the same `L_n` with the observed tree replaced by `M_n(X)` and effective structure replaced by `Σ_n ⊕ Δ_Σ(X)`.
+
+**The three-way merge [D3 decision].** `M_n(X)` is the merge of `tree(C)` onto `T_n` with merge base `tree(B)`, computed by the system version's pinned implementation with these semantics: path-level three-way merge with no rename or copy detection; a path changed on one side only takes that side; a path changed identically on both sides takes it; a text path changed differently on both sides is merged line-wise by the diff3 rule with a fixed diff algorithm and succeeds only when no hunk overlaps; any other both-sides change (binary content, file mode, symlink target, delete versus modify, add versus add with different bytes) is a conflict. Repository attributes, custom merge drivers and rerere never apply. A conflict means the frame does not exist (§7.4). The implementation is part of the system version: changing it is a system version change (§27.3), never a configuration. **[delegated]** The diff implementation, within the pinned determinism requirement.
+
+In the frame, the declarations in `Δ_Σ(X)` are not quarantined (they are the proposal under judgment); every other quarantined delta stays quarantined.
+
+#### 7.3 Basis-entry roles
+
+Every `content` entry `(u, r)` of a frame-`X` record has exactly one role, computed mechanically from `B`, `C` and the entry:
+
+| Role | When | Satisfied before integration (in `D_n[X]`) | After the integrating admission `k` |
+|---|---|---|---|
+| **before-image** | `u ∈ Δ(X)` and `r = rev(u, B)` | while the live head still has it: `rev(u, T_n) = r`; otherwise rebase or re-review | a fixed fact about what `k` transformed: satisfied, like `identity` |
+| **output** | `u ∈ Δ(X)` and `r = rev(u, C)` | `rev(u, M_n(X)) = r` (a unit changed on both sides is judged at its merged revision) | ordinary currency in the admitted state |
+| **context** | `u ∉ Δ(X)` | ordinary currency in `D_n[X]` | ordinary currency in the admitted state |
+| — | `u ∈ Δ(X)` and `r` neither | never | — |
+
+`validity`, `record`, challenge-tier and loss-boundary facts are evaluated in `D_n[X]` before integration and in the admitted state after. A `record` entry on another frame-`X` record is evaluated in the same frame; one on a record of a different transformation is satisfied only if that record's basis holds in this frame. No frame designation transfers currency.
+
+#### 7.4 Existence: inspection, not enactment
+
+The frame exists when the merge is clean and `Δ_Σ(X)` is **well-formed**: every structural check of §8.3 step 4 except the enactment condition — leaf coverage, laminarity and scope conservation (§1.9); governance-mode consistency; source and destination challenge freezes; SDG integrity; release by the old domain owner for a domain change; relation and cycle legality. In the frame, a subject that `Δ_Σ(X)` creates or restores exists in a **prospective tenure** and is simply not yet valid. Without a clean merge or well-formedness there is no frame, no record in it can be current, and §11 routes a new iteration: machinery never resolves a conflict (K3). `D_n[X]` is never presented as current state, and nothing in `D_n` reads it.
+
+#### 7.5 Declared frame and what frames decide
+
+A task result, a check execution, a realization on the candidate, and a review, conformance, assessment or acceptance judgment about a transformation declare frame `id(X)`. Every other record declares the admitted frame. An acceptance in frame `X` must name a subject effective in `Σ_n ⊕ Δ_Σ(X)` at its frame `scope_id` and revision; it is a **prospective acceptance**. Evaluated in `D_n[X]`: the conformance of `C` (§14); the readiness and discharge of review and acceptance obligations on `X`; Admission step 6 for frame-`X` records. Nothing evaluated in a frame changes the admitted state: in `D_n` a review or prospective acceptance of `X` is admitted but not current, and a proposed promotion is still quarantined.
+
+#### 7.6 Integration enacts; prospective acceptance binds once
+
+The integrating admission `k` of `X` admits exactly `M_n(X)` as the observed tree and `Σ_n ⊕ Δ_Σ(X)` as effective structure, in one entry, after the full §8.3 step 4 validation including the **enactment condition**: every promotion or restoration carries a prospective acceptance that counts for the tenure it starts. Its discharge predicate is evaluated in the post-admission state, where before-image entries are fixed facts and output and context entries hold exactly as they held in the frame.
+
+A prospective acceptance `j` made in the frame of `X_0` counts for the tenure that `k` starts iff:
+
+1. **Same enactment lineage**: `k` integrates a transformation produced for the same bound obligation as `X_0` (signed result envelopes): `X_0` itself, a later iteration or a rebase. A restoration after a demotion is new work under a new obligation.
+2. **Same structure**: `Δ_Σ(X) = Δ_Σ(X_0)`.
+3. **Basis holds**: `j`'s basis holds, in its roles, in `D_n[X]` at `k`.
+4. **First enactment**: `j` has not counted for any earlier tenure. `bind(j)`, the first admission at which 1-3 held and that started a tenure, is a function of the ledger.
+
+`j` therefore counts for at most one tenure; when it ends, `j` leaves `ACC` permanently. Promotion and acceptance take effect together in `k`; the integration request carries no new judgment.
+
+**Rebase.** A rebase produces `X' = (B', C', A')` for the same obligation. A frame-`X` record counts for `X'` only if every one of its entries holds, in its role, in `D_n[X']`; a record about structure (a prospective acceptance, a structural review) additionally needs `Δ_Σ(X') = Δ_Σ(X)`. Records never move between frames by assertion. A frame-`X` failing assessment counts in every frame of its lineage, `X'` included, from its admission (§6.4).
+
+## Part III. Admission and concurrency
+
+### 8. Admission
+
+#### 8.1 Admission requests
+
+An **admission request** is the typed result of `submit` (§16.1), built by machinery. It contains: a **request identity**; its **task binding** (the authenticated envelope of the task that produced it, §12.2), which fixes bound obligation, role and contract revision; the obligations whose discharge it claims, possibly none; the base admitted position and base commit; candidate commit(s) on isolated refs, or none for a records-only request; any quarantined structural deltas it adopts; and the records it submits. The admission record that accepts or rejects it carries the request identity, decision, reason codes, the admitted records and the resulting admitted commit. That is the complete identity and audit trail of a change; no change primitive exists.
+
+**Request identity and idempotency [D3 decision].** `request_id = sha256("ssds.request.v1" ‖ JCS(request without request_id))`. A repeated identical request returns the recorded decision and appends nothing. A request with the same task binding and different content is a different request. The Dispatcher retains the request bytes in its journal until the decision is recorded, so a provisional entry lost before admission is resubmitted by identity (§22.4).
+
+Admission is the **sole ledger writer**. Other actors can still move the integration ref (legacy-scope pushes, an external merge button, a force-push, a restore). Such movement has no admitted status: Admission observes it before its next append and absorbs it (§8.6).
+
+#### 8.2 Queue order
+
+Admission processes requests one at a time against the admitted head it holds, as a merge queue. **[D3 decision]** Order is arrival order at Admission (FIFO), except that a request carrying only never-lost records is never delayed behind a request that may need revalidation. Any order is correct, because each request is validated against the head it is appended on (serializable by validation, §9.1); FIFO bounds starvation. **[delegated]** Speculative batching, which must preserve the serial order and revalidate each request at its actual head.
+
+#### 8.3 Validation order
+
+Admission validates, in order, against the admitted head it holds after reconciling the integration head (step 9), and either appends or rejects with recorded reasons:
+
+1. **schema** — every record well-formed under the closed schema (§3.6); bounded secret and sensitive-value checks (§24.1); unknown required semantics fail closed.
+2. **reference** — every identity, revision, task, obligation and target exists and matches.
+3. **authorization**:
+   - actor class qualified for each judgment kind (§3.5);
+   - acceptance judgments only on subjects effective in the record's frame: in their current tenure (after the request's own structural changes), or for a frame-`X` acceptance in the prospective tenure of `Σ_n ⊕ Δ_Σ(X)`; never on parts, never on a `REVOKED` triple, never on an ill-formed revision;
+   - the task binding verifies against a Dispatcher issue key in force (§25.2); or, for never-lost records (step 6), against a retired, never-compromised issue key whose retirement record lists the envelope among its outstanding envelopes. A never-lost record under an unlisted envelope is refused, its bytes retained by content identity with the refusal (inert: S0 never reads them), and a re-issue obligation is raised; the Dispatcher resubmits it mechanically (R0) under the re-issued task's envelope with the refusal as provenance, keeping its original actor and lineage class;
+   - the envelope names an obligation existing at the request's base and was issued for the role `role(kind(o))` under `ρ_n`;
+   - the record's declared `governs` equals its envelope's (§16.9);
+   - **independence**: for equivalence and completeness about the request's own change, and for every review, conformance, acceptance and plan-acceptance judgment and every disposition of a failing assessment, a judgment satisfies an independence requirement only when its lineage class is `ATTESTED_FRESH` or `HUMAN_ATTESTED_FRESH` and its lineage is disjoint from the author's (for a human disposition, when the human is not among the claim's authors, or under the owner exception with the common-mode dependency recorded; unknown authorship fails closed, §6.8). Any other judgment failing an independence requirement is admitted as **non-independent** and can satisfy none;
+   - a record may name `x` in `supersedes` only as `x`'s own assessor's reassessment or the owner's adjudication, in each case by an actor independent of the claim's authors or under the owner exception; a record whose `supersedes` is not so authorized is **rejected**, its refusal recorded, and it is never admitted;
+   - a discriminating reading is refused where it reads one outcome both ways under one reading, and admitted only at its class (§6.8);
+   - the bound role permits each record kind and outcome (§12.3); the request's write set lies within the bound contract's write scope, and plan units, contracts and verification rules lie outside every role's scope except as §12.3 assigns them; protected surfaces are untouched without their own authority (§25.3).
+4. **structure** — on the merged tree `M`:
+   - **(a) effective-structure delta.** For every declaration key `k`: if `k ∉ Q_n`, `Σ_{n+1}[k] := decl(M)[k]` (authored change, or none); if `k ∈ Q_n` and `decl(M)[k] = Σ_n[k]`, the request **realigns** and `Σ` is unchanged; if `k ∈ Q_n` and the request carries an `ABSORB` disposition adopting `k`, `Σ_{n+1}[k] := decl(M)[k]`, validated exactly as if authored; if `k ∈ Q_n` and `decl(M)[k] = decl(T_n)[k]`, the quarantine is carried unchanged; any other value routes the request to revalidation. Authored and adopted changes are validated together by the **well-formedness** checks: §1.9; no membership change mixing governance modes without its `MODE_TRANSITION` (§19.1); SDG members never separated; no change of a unit's kind or owning domain without a judgment by an actor qualified for its *current* domain (release by the old owner). An integrating admission must also meet the **enactment condition** (§7.6). Admission never creates quarantine, and repository presence never enters `Σ` except through an adopting disposition.
+   - **(b) challenge freeze.** No change to the signature, scope, regions or membership of any subject is admitted, whether it would lose or gain units, while its current revision carries an unresolved blocking challenge (overridden or not) or is `REVOKED`; the freeze applies at source and destination.
+   - **(c) semantic structure.** Known relation types of `ρ_n`; direction, layer and subject-kind constraints; cycle legality and SDG rules; single definer (§2).
+5. **dependency well-formedness** — challenge-tier targets strictly earlier and of permitted kinds; no `validity` entry on the record's own subject or a part of it; after adding the request's edges (basis entries, equivalence coverage, the edges of existing records whose `validity` endpoints the request's structural changes re-route through `subj`, and the disposition edges that a successor added by the request's structural changes acquires) the static support graph (§5.6) stays acyclic; no equivalence judgment's `validity` entries depend on a consumer of its unit.
+6. **currency** — every basis entry of every submitted support-tier record other than a report is satisfied, in its role, in that record's frame at the current admitted head (the admitted state, or `D_n[X]` for a record about `X`). A request carrying content or structural changes is evaluated as a frame record of its own transformation. Otherwise the record is classified stale and routed to revalidation, not admitted. **Never-lost records are exempt**: reports, challenges, failing assessments and the observations of designated-runner executions. A report's or challenge's basis is provenance, never checked for currency and never consumed by any rule. A failing assessment counts until a disposition stands, never according to its context's currency. Never-lost records are checked record by record: whenever Admission rejects a request after authenticating its task binding, for any reason at any step, the rejecting admission record still admits each never-lost record that passes its **own** schema, reference and step-3 checks (a failing assessment's co-submitted realization is salvaged with it when that realization passes its own checks). A never-lost record failing its own checks is recorded as refused, by identity and reason, and S0 never reads it.
+7. **legality** — the bound obligation exists at the current head. A task result or discharge claim bound to an already-discharged obligation or a non-current contract revision is recorded with that classification and routed to revalidation. Never-lost records are admitted whatever the state of their task. A human decision on a fenced admission is admissible only once that admission is **settled** (§22.3). Each obligation whose discharge the request claims is undischarged at the current head (a duplicate discharge is rejected and recorded), and its discharge predicate (§10.4) holds after the request's own records, including affected evidence rerun on the merged tree. For a claimed task obligation with a work contract, the derived conformance of the exact candidate has no `VIOLATION`, `INCOMPLETE` or `DISCREPANCY` (§14.6), and an integrating request claims it only together with its current review judgments (§11.5).
+8. **no collateral regression** — every obligation discharged at the current head and affected by the merged tree stays discharged, with affected evidence rerun. The only legal way to reopen others' closures is an accepted change to a prerequisite authority, whose derived impact obligations are the intended consequence. This step concerns the request's content and structural changes: an admitted assessment, report or challenge that qualifies another closure is evidence, never collateral regression.
+9. **commit and admit** — Admission reads the live integration head `obs`. The request is appended only if `obs` is the head entry's expected head `E` or an equivalent publication of it (§22.2); otherwise Admission first appends an absorption of `obs` and revalidates the request at the new head. One entry carrying `obs` and all records is appended by single-ref compare-and-swap (§21.3); it also reconciles the previous admission's publication if that was pending. The entry is provisional until a witness quorum holds it (§22.4); only then is the request reported admitted, the integration ref published, work dispatched from the new state and the next entry appended.
+
+#### 8.4 Reason codes [D3 decision]
+
+Rejections and refusals carry enumerated codes, one per failed check, grouped by step: `SCHEMA_*`, `SECRET_DETECTED`, `REF_*`, `AUTH_ACTOR`, `AUTH_TARGET_PART`, `AUTH_TARGET_REVOKED`, `AUTH_ILL_FORMED`, `AUTH_ENVELOPE`, `AUTH_ROLE_KIND`, `AUTH_WRITE_SCOPE`, `AUTH_PROTECTED`, `AUTH_SUPERSEDES`, `AUTH_VERSION`, `READING_CONTRADICTION`, `STRUCT_*`, `FREEZE_SOURCE`, `FREEZE_DESTINATION`, `ENACTMENT_MISSING`, `RELATION_*`, `CYCLE_SUPPORT`, `CYCLE_WARRANT`, `STALE_BASIS`, `OBLIGATION_*`, `CONFORMANCE_*`, `REGRESSION`, `HEAD_MOVED`, `NOT_SETTLED`. **[delegated]** The exact member list of each `*` family, which is closed per schema version.
+
+#### 8.5 Dependency rules restated for authors
+
+A challenge-tier record targets only strictly earlier records; a challenge never targets a challenge except as a counter-challenge of a restrictive adjudication. A judgment about part `u` never holds `validity` on `subj(u)`. An equivalence judgment relates two revisions of one unit and never relies on a consumer of that unit.
+
+#### 8.6 Absorption
+
+Absorption of a foreign change already on the integration ref records what happened, so it cannot be stale or illegal. It skips steps 1-8 and is appended and admitted like any entry. It is a pure integration observation: its only content is `obs` and, for a fencing absorption, the fence effect `obs -> F` (§22.3). An entry whose `obs` differs from its expected head must be an absorption carrying no submitted records; Admission rejects any other shape, and derivation treats a violating entry as corrupt (§5.7). Absorption sets the observed tree and changes nothing else. Consequences, all in S0/S2: foreign structural declarations become quarantined deltas; foreign semantic content changes revisions, so acceptances and reliance on it stop being current; foreign relation violations make the involved subjects ill-formed. The S3 obligations that follow — intake, drift, broken closures, integrity findings — only schedule and explain (§18).
+
+#### 8.7 Self-reference and agent PASS
+
+Records reference the candidate commit; they are never stored inside it. Task and result envelopes on run branches are transport, ingested into the ledger, never merged (G2, G3). An admitted `PASS` judgment is a recorded fact about what the actor concluded; closure is a derived discharge (§10.4).
+
+### 9. Concurrency, serialization and joint invariants
+
+#### 9.1 What is decided where
+
+| When | What can be established | Mechanism |
+|---|---|---|
+| before issue (prediction) | probable footprint: intended affected units, impact closure, serialization surfaces | Dispatcher avoids overlapping work; advisory only (K4) |
+| before issue (authorization) | the work contract's write scope | enforced in conformance and at Admission (§13, §8.3 step 3) |
+| at admission (proof) | everything relied on is current; actual write set; structural validity of the merged tree; dependency well-formedness | basis currency, diff mapped to units, structural checks |
+| after merge (evidence) | behavior of the combined tree | evidence currency recomputed; affected realizations rerun |
+| never mechanically | joint validity of independently valid changes where no relation, invariant or evidence covers the interaction | judgment: declared joint invariants, review of integrated results, stated residual risk |
+
+**Optimistic admission.** Concurrent tasks work from recorded bases in isolated workspaces (K2: one mutating execution per worktree, enforced by the Dispatcher's lease keyed by physical worktree identity). Two requests conflict when one modifies a unit or record in the other's basis; this catches write-skew among recorded reliances across disjoint files. A request whose basis was overtaken is revalidated — rebased, re-derived, affected judgments re-requested — never rejected outright and never silently admitted. A losing compare-and-swap between two Admission hosts is the same case. A very late result whose basis is still current is admissible regardless of age; a fresh result with a stale basis is not. Lease expiry affects scheduling, never correctness.
+
+#### 9.2 Serialization surfaces and joint invariants [D3 decision]
+
+- **Serialization surfaces.** Project policy may declare units (by identity) as serialization surfaces: shared schemas and public contracts, build configuration, D1-D3 subjects in one dependency neighborhood, generated outputs. The Dispatcher then issues at most one mutating task whose write scope intersects such a unit at a time. Every change plan is a serialization surface for coordination: at most one coordination task per plan at a time (§12.5). Serialization is scheduling, never correctness.
+- **Joint invariants.** A semantic declaration `joint_invariant` (§1.7) names an invariant identity and the units whose joint behavior it constrains. Any admitted change touching the scope of any named unit derives a joint-invariant obligation: a `REVIEW` of the integrated result against the invariant, by a reviewer in the R2 class, plus any evidence specifications that `EVIDENCES` the invariant's unit. Policy may mark further surfaces high-consequence, which derives the same integrated-result review for every change to them.
+
+#### 9.3 Generated units
+
+A `GENERATED` unit declares `GENERATED_FROM` its generator and inputs. It is never hand-merged and never hand-edited: a boundary check (§14.3) flags any diff to it not produced by regeneration, and a conflict is resolved by regenerating. Its acceptance is that of its generator's subject plus a regeneration-parity check execution.
+
+#### 9.4 Residual risk disclosure
+
+Semantic dependencies an agent uses without machinery observing them cannot be captured. Mitigation is layered: the mechanical minimum includes the governing closure; integration reruns affected evidence; joint invariants re-derive their obligations; integrated-result reviews run on high-consequence surfaces. Every brief whose basis includes unobservable reads (manual and Git-envelope routes) states "reads not observed"; every review record and gate brief over integrated work states the residual: "joint validity is reviewed only where a relation, joint invariant or evidence covers the interaction".
+
+## Part IV. Work, workflow and verification
+
+### 10. Obligations, readiness and discharge
+
+#### 10.1 Two sources of work
+
+- **Derived obligations** follow from rules and state; they are never authored and appear and disappear as derivation changes (S3).
+- **Authored intents** carry creative direction (implement this, investigate that, migrate this region). They live in change-plan **items** (§11).
+
+#### 10.2 Obligation kinds [D3 decision]
+
+An obligation's identity is `sha256("ssds.obligation.v1" ‖ rule id ‖ JCS(target) ‖ JCS(parameters))`, deterministic from its derivation. The system ruleset's obligation kinds, their triggers and holders:
+
+| Kind | Trigger (S3) | Holder role (§12.3) |
+|---|---|---|
+| `IMPLEMENT`, `REPAIR`, `MIGRATE` | an accepted, issuable item of that kind with a contract | implementer |
+| `INVESTIGATE` | an accepted investigation item; an intake classification need | investigator |
+| `CONTRACT` | an accepted item revision lacking a lint-clean contract | principal |
+| `COORDINATE(plan)` | a decision owed on the plan: a routed report, budget exhaustion, an out-of-scope NO-PASS finding, detected recurrence, an `OVERTAKEN` admission or stale result needing re-planning, a `DISCREPANCY` | principal of the plan |
+| `PLAN_ACCEPT(items)` | an item revision not covered by a current plan acceptance | reviewer |
+| `REVIEW(X)` | a task result whose conformance is `CLEAN` | reviewer |
+| `ACCEPT(s)` | a subject without a valid acceptance whose work is ready for acceptance | reviewer (R2) or human (R3 by domain) |
+| `REVALIDATE(x)` | an admitted judgment no longer current that a current obligation depends on | the role of `x`'s kind |
+| `REALIZE(spec, claim)` | an evidence obligation without a current admissible realization in the frame | Dispatcher (R0 execution) |
+| `ASSESS(realization)` | an admitted realization without an assessment for its obligation | reviewer (assessor) |
+| `RERUN(a⁻, G)`, `READING(a⁻, G)` | §6.9 | Dispatcher; reviewer at the §6.8 class |
+| `ADJUDICATE(c)` | an open challenge | the actor policy names (R2/R3) |
+| `ADJUDICATE_DISAGREEMENT(a⁻)` | an adverse assessment with no standing disposition | the claim's owner (R2/R3) |
+| `GATE(g)` | a required human gate without a current `ACCEPT` | human |
+| `HUMAN_ATTENTION(r)` | a report or floor event routed to the human (§15) | human |
+| `INTAKE(δ)` | each quarantined delta; each uncovered or foreign observed change | investigator, then a disposition reviewer |
+| `SPEC_REVIEW(spec)` | a change to an evidence specification | the specification's owner (reviewer of its domain) |
+| `JOINT_INVARIANT(i, k)` | an admitted change touching a joint invariant's scope (§9.2) | reviewer |
+| `REVALIDATE_OVERTAKEN(k)` | an `OVERTAKEN` admission | the role of `k`'s bound task |
+| `REQUALIFY(x)` | a permissive record or relaxer in effect at the retained head and withheld by a loss boundary | the role of `x`'s kind |
+| `INTEGRITY(f)` | an integrity finding (§5.6-§5.7) | human, plus the standing principal |
+| `REISSUE(envelope)` | a refused never-lost record under an unlisted retired envelope (§8.3) | Dispatcher (R0) |
+| `RECONSULT(external)` | a newer external revision observed (advisory, never blocking) | Dispatcher |
+
+Obligations belonging to no plan are held by the role their kind names; a decision owed on them goes to the principal of the plan policy designates as **standing**, or to the human where policy names none (§12.5).
+
+**Evidence obligations under change [D3 decision].** An evidence obligation is `(claim unit lineage, specification unit lineage)`. Its **lineage** follows retargets (an `EVIDENCES` relation moved to a successor claim unit), splits (one obligation becoming several, each in the lineage) and renames (`renamed_from`). Retirement (the specification or relation removed), split or retargeting never disposes of a failing assessment: `qual` keeps reading it through the lineage, and the owner disposes explicitly, typically by `IMMATERIALITY` (§6.7).
+
+#### 10.3 Readiness
+
+An obligation is **ready** when every prerequisite it names is valid (or provisional, where an in-force risk override's scope or policy permits provisional continuation; the result is then provisional) and its plan item, if any, is covered by a current plan acceptance. Readiness is derived from the ledger and content alone (S3); it replaces any freeze frontier. Whether a ready obligation is dispatched now is the Dispatcher's operational decision (resources, routes, serialization surfaces held) and never feeds back into derived state.
+
+**Iterations and attempts [D3 decision].** An **iteration** of obligation `o` is identified by `(o, k)`, where `k` counts the admitted `TASK_RESULT` records bound to `o`; a NO-PASS leaves `o` undischarged and the next task is iteration `k+1`. A **task** is identified by a 128-bit random identity the Dispatcher issues in its envelope. An **attempt** is one execution of one task, `(task, j)`, recorded only in the operator journal; a failed attempt never touches derived workflow state and spends no iteration budget.
+
+#### 10.4 Discharge
+
+Discharge is an S3 classification with three values: `DISCHARGED`, `DISCHARGED_PROVISIONAL`, `OPEN`.
+
+```text
+discharged(o) ⇔ ∃ current judgment j of kind(o) on subject(o) by an actor qualified for kind(o),
+                  with outcome in passing(o), satisfying any independence requirement (§8.3)
+              ∧ status1 of subject(o)'s current revision ∉ {BLOCKED, REVOKED}
+              ∧ ev(subject(o), e) for every evidence obligation e of o              -- §5.5, the same term valid reads
+              ∧ qual(subject(o))                                                    -- §5.5
+              ∧ every human gate of o has a current authenticated ACCEPT
+value is DISCHARGED_PROVISIONAL when any input above is P; that value is permitted only inside the declared
+scope of an in-force risk override, or where policy permits provisional continuation for o's kind;
+otherwise the obligation stays OPEN.
+```
+
+Impact on other subjects is not a discharge condition: those are separate obligations, and Admission step 8 forbids collateral regression. A missing required check is an undischarged obligation; no rule turns it into a pass.
+
+#### 10.5 Provisional propagation and risk-override scope [D3 decision]
+
+A `RISK_OVERRIDE` declares its continuation scope as a closed set: the subjects and items covered (identities), the obligation kinds allowed to discharge provisionally, and whether descendants created after the override inherit it (default no). It never covers `GATE`, `HUMAN_ATTENTION`, `ADJUDICATE` or `INTEGRITY` obligations. Inside the scope, `P` inputs discharge as `DISCHARGED_PROVISIONAL`; outside it they stay `OPEN`. Every view, brief and gate core labels provisional values with the override and the challenge it overrides; descendants whose support passes through a `P` value are `P` (min-propagation) and can never emit unqualified closure.
+
+### 11. Change plans, plan acceptance and integration flow
+
+#### 11.1 Plan structure [D3 decision]
+
+A change plan is a `PLAN`-kind subject: a Markdown document whose manifest declaration sections it into parts. The **objective** part is the section headed `Objective`. Each **item** is a section whose heading path the manifest declares as a part, containing exactly one fenced code block with info string `ssds-item`, a TOML document:
+
+```toml
+item     = "solver-timestep"                 # item id, unique in the plan
+kind     = "IMPLEMENT"                       # IMPLEMENT | REPAIR | MIGRATE | INVESTIGATE | AUTHOR | DOCUMENT
+objective = { ref = "#objective-of-item" }   # the prose objective for judgment is the item's own text
+governing = ["numerics.solver@rev:…"]        # governing units at revisions
+acceptance_criteria = [ { id = "ac1", evidence = "tests.solver-convergence" } ]
+affected  = ["src/solver/"]                  # intended affected units or patterns
+gates     = ["d2-owner-review"]              # required gates
+depends_on = ["other-item"]                  # item dependencies (acyclic, layer-respecting)
+[contract]                                   # the work contract (§13.1)
+```
+
+Plan lifecycle fields in document prose (`status:`, `active/`, `archive/` placement) are non-authoritative or generated, and a manual edit to them enacts nothing (§19.8).
+
+#### 11.2 Plan acceptance
+
+A `PLAN_ACCEPTANCE` judgment (R2, by an execution other than the contract's author) names the objective section and the item revisions it accepts, the items with consumption class `PLAN_CONTROL`. An item is **issuable** only while a current plan acceptance covers its current revision. Item-level revisions give locality: an amendment is an ordinary change to the plan unit; tasks whose basis names a changed item become non-current; tasks on unchanged items continue. Running tasks remain bound to their basis; no revision pretends an old task saw new requirements.
+
+#### 11.3 Plan invariants
+
+Rechecked mechanically on every plan-unit change, as part of contract lint (§13.2): referenced units exist in `Σ`; item dependencies are acyclic and respect layer order; gates policy requires for the item kinds and domains are present; acceptance criteria name resolvable evidence specifications or `REVIEW`; every changed contract passes lint. A plan that fails is admitted as content (the principal's change is recorded) but its changed items are not issuable.
+
+#### 11.4 Amendment policy [D3 decision]
+
+An amendment's class is computed by lint from the diff between the accepted item revision and the current one (§13.4): control tightening keeps the existing plan acceptance current (R1); every other amendment needs independent plan acceptance (R2). The plan's policy section declares, per plan, whether an R2 amendment may be accepted by **scoped review** of the changed items plus their derived impact set, or needs whole-plan review. Changes to the plan objective, acceptance criteria, item topology (`depends_on`, added or removed items) or gates always need whole-plan review. A scoped reviewer always receives the whole-plan objective and may escalate to whole-plan review. There is no global planning or working phase and no global stop: an unaccepted amendment only makes its own items non-issuable.
+
+#### 11.5 Results, review and integration
+
+Implementation work enters canonical state through two ordinary admissions.
+
+1. **Result.** `submit` by an implementer or investigator produces a records-only request bound to its task and claiming no discharge: a `TASK_RESULT` (outcome, typed slots, claim references, reports) naming the candidate commit and the contract revision. It fixes `X = (B, C, A)`. Machinery attaches the factual part: diff mapped to units, touched relations, reads (A6). The candidate is not merged. The Dispatcher then runs the contract's required executions on the exact candidate through a designated runner and submits them as observations. Conformance is derived (§14.6).
+2. **Review.** Once conformance is `CLEAN`, `REVIEW(X)` becomes ready (R0). Result, executions, review and conformance judgments declare frame `id(X)`. A reviewer task submits its judgments as a records-only request claiming discharge of the review obligation only. When the candidate promotes, restores or adopts a subject, a qualified reviewer also records the prospective acceptance in the frame (§7.6).
+3. **Integration.** Once the claimed obligation's discharge predicate would hold on the candidate — clean conformance, current review judgments, required gates — the Dispatcher submits an **integration request**: the candidate plus references to those admitted records, bound to the producing task and claiming its obligation, carrying no new judgment. Admission validates it through steps 1-9. If the head moved, the candidate is rebased; a rebase that does not apply cleanly routes to a new implementer iteration (K3); a clean rebase has its conformance re-derived, and review is re-requested only where the review's basis no longer holds.
+
+Every other request follows the same split: a mid-task report is bound to its task and claims nothing (a blocking report suspends that task, §15); a coordination request is bound to its `COORDINATE` obligation and claims discharge of the decision obligations it resolves. A rejected candidate stays recorded with its conformance view and reports. Records-only work (reviews, investigations whose output is findings) has no integration step.
+
+### 12. Workflow roles and decision classes
+
+#### 12.1 Role and domain
+
+A **workflow role** is an authority envelope: what an execution may write, which record kinds and outcomes it may submit, which decisions it may make. It is distinct from SSDP's D1-D4 domain roles, which are content: the epistemic procedure a brief carries for its subject's domain (§16.3). A brief composes the two. No agent role is a principal in the authentication sense of §25.1: its records are proposals attributed to an execution identity.
+
+#### 12.2 Authenticated task binding and lineage
+
+The Dispatcher issues every task as an **envelope**, signed with a Dispatcher **issue key** registered as a trust root (§25.2):
+
+```text
+envelope = { task_id, obligation_id, role, contract_revision (item unit, rev) | system contract id,
+             governs (§16.9), route, lineage_class, input_sessions, issued_at_position, issue_key_id }
+binding  = { envelope, signature, lineage_class }        -- carried by every submitted record
+```
+
+Admission verifies the signature and checks role, write scope and record kinds against the envelope (§8.3 step 3); admitted records carry the binding, so derivation and replay read it from the ledger alone. Binding and discharge are separate: every request is bound to one task; only some claim discharge.
+
+**Lineage classes and context-lineage provenance [D3 decision].** On a route where the Dispatcher's harness adapter launches the execution, it starts a new harness session for the task, hands that session alone a per-task submission credential, and signs a **launch attestation** naming the session identity and the sessions of the task's inputs (the authoring task of a candidate under review; the author of a contract under plan acceptance). Requests authenticated by that credential carry lineage class `ATTESTED_FRESH`. On manual and Git-envelope routes the Dispatcher cannot observe the session: a judgment from such a route is `UNKNOWN` unless an authenticated human attests that it ran in a fresh context that did not receive the author's conclusions (`HUMAN_ATTESTED_FRESH`, a `LINEAGE_ATTESTATION`). Anyone holding an envelope may submit within its role and contract; independence is credited only to positively attested lineage. Two lineages are **disjoint** iff no session in one's attestation closure appears in the other's. Execution provenance records lineage class, route, harness, model family and model, and toolchain.
+
+#### 12.3 System role templates [D3 decision]
+
+| Role | Obligation kinds held | Operations | Record kinds and outcomes it may submit | Write-scope rule | Decision class | May not |
+|---|---|---|---|---|---|---|
+| **Principal** | `COORDINATE`, `CONTRACT` | `open`, `ask`, `read`, `report`, `submit` | `COORDINATION_DECISION` (outcomes per §15.5), `MATERIALITY_RECLASSIFICATION`, reports, challenges; plan-unit candidate | its plan's units only | R1 | write product, authority or evidence units; submit review, conformance, acceptance, plan-acceptance or human judgments; any judgment keeping its own amendment covered; change verification rules |
+| **Implementer** | `IMPLEMENT`, `REPAIR`, `MIGRATE`, `REVALIDATE` of its own result | all six except `decide`; `ask(verify)` | `TASK_RESULT` with outcomes `COMPLETE`, `PARTIAL`, `BLOCKED`, `INFEASIBLE`; reports; challenges | its contract's `write_scope`, plus `evidence_specs` it names | — | edit plan units, contracts, evidence specifications its contract does not name, verification rules or protected surfaces; judge its own work |
+| **Reviewer** | `REVIEW`, `ACCEPT` (R2), `PLAN_ACCEPT`, `ASSESS`, `READING`, `ADJUDICATE` (R2), `ADJUDICATE_DISAGREEMENT` (R2), `SPEC_REVIEW`, `JOINT_INVARIANT`, `INTAKE` dispositions | `open`, `ask`, `read`, `report`, `submit` | `REVIEW`, `CONFORMANCE`, `ACCEPTANCE`, `PLAN_ACCEPTANCE`, `EVIDENCE_ASSESSMENT`, `EQUIVALENCE`, `COMPLETENESS`, `IMMATERIALITY`, `ADJUDICATION`, `INTAKE_DISPOSITION`, reports, challenges | none (records only) | R2 | write content; judge work or a contract its own execution or lineage authored; receive the author's narrative or conclusions |
+| **Investigator** | `INVESTIGATE`, `INTAKE` classification | `open`, `ask`, `read`, `report`, `submit` | `TASK_RESULT` (findings outcomes `FOUND`, `NONE_FOUND`, `INCONCLUSIVE`), `INTAKE_CLASSIFICATION`, `RECONSTRUCTION_PROPOSAL`, reports, challenges, proposed relations | scratch workspaces and the native finding/evidence homes its contract names (`homes`) | — | write product or authority units; submit acceptance |
+| **Human** | `GATE`, `HUMAN_ATTENTION`, every R3 decision | `decide`, plus all operations | every R3 kind; any content as ordinary change that enacts nothing until admitted or accepted | any, as ordinary change | R3 | — |
+
+Every role may submit reports (§15) and challenges, because those are never-lost. Every execution the Dispatcher launches runs in a fresh context for one task.
+
+**Separation constraints.** No execution holds principal and reviewer roles; no reviewer reviews a transformation, contract or record its own lineage authored; a plan acceptance is never by the contract's author lineage; an `ACCEPTANCE`, `REVIEW`, `CONFORMANCE` or disposition by a lineage not disjoint from the author's is non-independent (§8.3). The obligation kind determines the role (A4): no agent selects its role.
+
+**Policy extension limits.** Project policy may add roles only by narrowing a system template (fewer obligation kinds, operations, record kinds, outcomes or write scope). It may not widen a template, combine principal and reviewer in one execution, give an agent role any R3 decision, or let any role edit roles, check templates, routing, floors or decision classes.
+
+#### 12.4 Decision classes
+
+The class of every decision is a function of its kind, target domain and policy; no agent selects it. An agent may move a decision up by escalating, never down.
+
+| Class | Decided by | Decisions | Recorded as |
+|---|---|---|---|
+| **R0** | machinery | readiness; dispatch, suspension, resumption; staleness; evidence and check executions; iteration retry within budget; report routing; integration requests; recurrence detection; re-issue | derived state or operator journal; never a judgment |
+| **R1** | principal | task partitions and ordering; responses to findings inside an item's scope; local resolutions in delegated space; control-tightening amendments; merging, upgrading, framing; downgrading non-floor materiality | coordination decision or plan-unit change; challengeable; never acceptance |
+| **R2** | an independent agent or human reviewer (A9) | plan acceptance of new contracts and every non-tightening amendment; review, conformance and acceptance judgments policy assigns to agents; adjudications assigned to agents; dispositions of a disagreement (§6.8) | support- or challenge-tier judgment |
+| **R3** | authenticated human | gates; D1/D2 acceptance where policy requires; Serious Challenge adjudication; risk overrides; product-scope acceptance; continuity attestations; human attention; dispositions of a D1/D2 disagreement, including discriminating readings of a failure that may belong to admitted content | authenticated human judgment |
+
+#### 12.5 The principal is an obligation holder; standing plans
+
+`COORDINATE(plan)` obligations are derived whenever a decision is owed on a plan. Each coordination task is a fresh execution whose decision brief (§16.7) is rendered from derived state; nothing a principal execution remembers is canonical, so any execution can replace it at any decision point and context compaction loses no workflow state. Each plan is a serialization surface for coordination: at most one coordination task per plan at a time, and the Dispatcher batches the plan's pending decisions into it.
+
+**Standing-plan designation [D3 decision].** Project policy names one plan as **standing** (`standing_plan = "<plan subject id>"`). Decisions owed on obligations that belong to no plan (intake, integrity, requalification, re-issue) route to its principal; with no standing plan they route to the human. The standing plan is an ordinary plan with ordinary acceptance; it has no extra authority.
+
+### 13. Work contracts
+
+#### 13.1 Schema [D3 decision]
+
+A **work contract** is the `[contract]` table of an item (§11.1): plan content authored by the plan's principal, revisioned with the item, accepted by the item's `PLAN_ACCEPTANCE`, and bound into every task's basis through the item revision. Obligations that belong to no item receive the **system contract** of their kind (§13.6), so every task has exactly one contract.
+
+```toml
+[contract]
+scientific   = "APPLIES"                      # APPLIES | NOT_APPLIES: the 7.2.1 scientific-checks predicate
+budget       = 3                              # iterations before mechanical retry yields to the principal
+[contract.boundaries]
+write_scope  = ["src/solver/", "tests/solver/"]   # unit ids or scope terms, resolved in Σ
+frozen       = ["pkg.solver.step", "pkg.solver.Solver.run"]   # public symbols, by language analyzer
+dependencies = { python = ["numpy>=1.26"] }   # permitted additions to declared dependency manifests
+evidence_specs = []                           # evidence-specification units the item may change (default none)
+homes        = []                             # investigator only: finding/evidence homes it may write
+[[contract.obligations]]
+id        = "o1"
+statement = { ref = "#o1" }                   # prose in the item section, for judgment
+verifier  = { check = "OBLIGATION.required_evidence", params = { spec = "tests.solver-convergence" } }
+          # or { evidence = "<spec unit>", runner = "<runner class>" } or "REVIEW"
+secondary = [ { check = "TEST_INTEGRITY.no_skips" } ]   # optional secondary HARD checks
+[contract.expectations]
+artifacts = ["src/solver/timestep.py"]
+evidence  = ["tests.solver-convergence"]
+slots     = ["findings", "choices", "retention", "claims"]   # required result slots (§13.5)
+[contract.escalation]
+triggers  = ["SCOPE_DEVIATION", "D1_D2_TOUCH"]
+```
+
+Unknown keys are a lint error (closed schema, C5).
+
+#### 13.2 Lint
+
+Lint is mechanical and runs at every admission of a plan-unit change, with the plan invariants (§11.3):
+
+- fields typed under the schema; units and scope terms resolve in `Σ_n`;
+- the write scope lies within the item's `affected` units and contains no protected surface, no plan unit and no evidence-specification unit outside `evidence_specs`;
+- every obligation names exactly one primary verifier; every `check` names a `HARD` template of `ρ_n` with valid parameters (a `HEURISTIC` template cannot be a primary or secondary verifier); every `evidence` names an existing specification and a designated runner class;
+- the required slots include every slot the obligation kind, subject domain and `scientific` flag trigger (§13.5);
+- policy-declared minimum verifier coverage holds (§13.3);
+- a budget is present and within the system cap (§13.7).
+
+Lint establishes form only. Whether the contract captures the item — the right obligations, a sufficient verifier for each, a boundary neither too narrow nor too loose, the right `scientific` flag — is judged in `PLAN_ACCEPTANCE` by an execution other than the contract's author. A strong verifier over a weak contract proves only what the contract asked.
+
+#### 13.3 Minimum verifier coverage per item kind [D3 decision; policy may raise]
+
+| Item kind | Minimum |
+|---|---|
+| `IMPLEMENT`, `REPAIR` changing `D4` units | at least one `EVIDENCE` obligation; at least one `REVIEW` obligation; `TEST_INTEGRITY` and `BOUNDARY` families as secondary checks on every obligation |
+| `REPAIR` | additionally an `EVIDENCE` obligation whose specification failed before the repair (a regression oracle) or a `REVIEW` stating why none exists |
+| `MIGRATE` | a `REVIEW` obligation whose judgment is a `MIGRATION`-class equivalence (§19.5) |
+| `AUTHOR` (D1-D3 authority) | a `REVIEW` obligation, an `ACCEPT` obligation at the domain's class, and the `o1_content` slot (§13.5) |
+| `INVESTIGATE`, `DOCUMENT` | a `REVIEW` obligation |
+
+#### 13.4 Control tightening: the closed whitelist and its order
+
+An amendment is **control tightening** (R1) iff every field of the item and its contract is unchanged or moved only in its tightening direction; every other change is R2.
+
+| Field | Tightening direction |
+|---|---|
+| `write_scope`, `dependencies` allowance, `evidence_specs`, `homes` | subset (resolved in `Σ` at the comparison) |
+| `frozen` | superset |
+| each obligation | `id`, `statement` and primary `verifier` unchanged; `secondary` may gain `HARD` checks |
+| `expectations.slots`, `escalation.triggers` | superset |
+| `budget` | not greater |
+| `scientific` | `NOT_APPLIES` to `APPLIES` only |
+| `kind`, `objective`, `governing`, `acceptance_criteria`, the obligation set, `expectations.artifacts`, `expectations.evidence`, `gates`, `depends_on` | unchanged |
+| any other field, including fields later schema versions add | not in the whitelist: R2 |
+
+The relation `r ⊑ r'` holds iff every field of `r'` is reached from `r` by its direction; it is reflexive and transitive and is always checked against the **accepted** revision, so tightening then loosening is caught. It is the only rule-defined coverage order (`PLAN_CONTROL`, §4.4). It claims only that the acceptance's conclusion about what is asked still applies under tighter controls; feasibility is not claimed, and a scope narrowed too far surfaces as an `INFEASIBLE_CRITERION` or `SCOPE_DEVIATION` request. Adding an obligation narrows what is admissible and is therefore R2.
+
+#### 13.5 Result slots [D3 decision; §19.2 delegation schema]
+
+The delegation request is the work contract; the return is the `TASK_RESULT` with typed slots. Each slot holds a typed value, or `NONE` with an enumerated reason, or a content reference to a narrative home. An empty required slot without a typed reason is `INCOMPLETE` (§14.4).
+
+| Slot | Content | Triggered by |
+|---|---|---|
+| `deviations` | declared boundary deviations (units, reason codes) | every implementer task |
+| `unverified_assumptions` | assumptions with targets | every implementer and investigator task |
+| `claims` | each factual claim with the record ids establishing it | every task |
+| `findings` | material findings (target identities, materiality, inquiry status, home reference) or `NONE` | `scientific = APPLIES`; every investigator task |
+| `null_envelope` | examined and materially unexamined areas, materiality basis | tasks that produce, run or review realized results or prepare gate evidence |
+| `variant_search` | count and kind, selection criterion and data (including held-out reuse), lineage, known lower bound where history is missing | tasks that may select among analysis, pipeline, preprocessing, model or parameter variants |
+| `tension_search` | searched scopes, unreachable places, each tension with entries, binding and asserter | tasks relying on accepted D1/D2 authority for a consequential judgment |
+| `choices` | consequential choice, effective value, origin, chooser, binding or `PROPOSED` | tasks building or changing a scientific pipeline, analysis or report |
+| `retention` | what the change retains, projects and omits, with proposed defaults marked | the same tasks, unless accepted authority states the realized record |
+| `delegate_returns` | each delegate's findings, null and variant answers, or the gap | tasks that delegate under `scientific = APPLIES` |
+| `bidirectional` | reverse-direction finding, or "no reverse-direction finding survives" | review tasks on scientific subjects (§16.5) |
+| `o1_content` | realized record, reader, routine questions, marked product surfaces | `AUTHOR` items for D1-D3 authority over scientific software |
+| `revision_assessments` | per found tension: applicable / inapplicable with reason / review-required, asserter | `AUTHOR` items revising D1/D2 authority |
+
+#### 13.6 System contracts
+
+| Obligation kind | System contract |
+|---|---|
+| `REVIEW`, `PLAN_ACCEPT`, `ACCEPT`, `ASSESS`, `READING`, `SPEC_REVIEW`, `JOINT_INVARIANT`, `ADJUDICATE*` | write scope empty; required slots `claims`, `findings`, and `bidirectional` for scientific subjects; budget 1; escalation triggers per §15.4 |
+| `INVESTIGATE` from intake, `INTAKE` | write scope empty; `homes` from policy; slots `claims`, `findings`, `unverified_assumptions` |
+| `COORDINATE`, `CONTRACT` | write scope the plan's units; slots `claims` |
+| `REVALIDATE`, `REQUALIFY`, `REVALIDATE_OVERTAKEN` | the contract of the original record's task where it has one, else the kind's contract above |
+
+#### 13.7 Task partition and budgets
+
+A `PARTITION` coordination decision splits the **execution** of one item revision into tasks, never the item: their obligation sets partition the item's obligations exactly; their write scopes are pairwise disjoint subsets of the item's; their order is acyclic. Lint checks all three. Each task's contract is the item contract restricted mechanically to its share. The item, its plan acceptance and its scope are unchanged. The item is discharged when every part is and an item-level review of the integrated result has passed, because separately reviewed parts can violate a joint property; policy may waive the item-level review only for named item kinds. A later partition supersedes an earlier one only for obligations not yet discharged.
+
+**Budgets [D3 decision].** **[proposed default]** 3 iterations; system cap 10. Within budget, an `INCOMPLETE` result or a NO-PASS whose findings all lie within the item's write scope and obligations starts the next iteration mechanically (R0), whose brief carries the conformance view and review findings as data, not the previous attempt's narrative. Budget exhaustion, a NO-PASS finding outside the item, and every `DISCREPANCY` create a `COORDINATE` decision. An operational failure is a Dispatcher retry and spends no iteration.
+
+### 14. Conformance verification and the check library
+
+#### 14.1 Conformance
+
+**Conformance** of a task result is an S3 classification evaluated in the candidate's frame: a pure function of the contract at the task's basis, the base and candidate trees, the result record and the observations recorded for that exact candidate. It is never stored. Expensive or nondeterministic checks (test execution, mutation testing, static analyzers) run on the exact candidate by a designated runner and are recorded as `CHECK_EXECUTION` observations; deterministic checks are memoized like analyzers. No component is added: Derivation evaluates, the Dispatcher executes, Admission enforces (§8.3 steps 3 and 7).
+
+#### 14.2 Templates and force
+
+Check templates are fixed, versioned functions of `ρ_n`. A contract only parameterizes them and never carries executable check code. A project-specific template enters only by human-gated ruleset adoption after qualification (§14.7). Each template declares one **force**: `HARD` templates may yield `VIOLATION`, `INCOMPLETE` or `DISCREPANCY`; `HEURISTIC` templates yield `SIGNAL` only. Every template that reads prose is `HEURISTIC` by system rule, so no control decision parses prose (A7). A model's verdict is never a template: it is an R2 judgment.
+
+#### 14.3 The library [D3 decision]
+
+| Family | Template | Parameters | Force |
+|---|---|---|---|
+| `BOUNDARY` | `write_scope` (diff mapped to units ⊆ write scope) | — | `HARD` |
+| | `protected_surfaces` | — | `HARD` |
+| | `frozen_interface` (public symbols and signatures, by language analyzer) | symbol set | `HARD` |
+| | `dependency_allowance` (manifest additions ⊆ allowance) | allowance | `HARD` |
+| | `generated_untouched` (no hand edit of `GENERATED` units) | — | `HARD` |
+| | `credential_values` (known patterns, high entropy, in content) | policy pattern set | `HARD` |
+| `TEST_INTEGRITY` | `no_deletions`, `no_skips`, `no_xfail` (tests deleted, skipped or marked expected-to-fail) | test selectors | `HARD` |
+| | `evidence_specs_untouched` (outside `evidence_specs`) | — | `HARD` |
+| | `fewer_assertions`, `widened_tolerance` | — | `HEURISTIC` |
+| `OBLIGATION` | `required_artifact` (present and linked by derived `TESTS` relation) | artifact | `HARD` |
+| | `required_evidence` (realized by the designated runner on the exact candidate, passing) | specification | `HARD` |
+| | `evidence_basis_fields` (regime, precision, backend, seed, replicate match the specification) | — | `HARD` |
+| | `slots_filled` (required slots filled or `NONE` with reason) | — | `HARD` |
+| | `no_new_stubs` (placeholder bodies, `NotImplementedError`, `TODO` stubs in written units) | language | `HARD` |
+| | `mutation_strength` (§14.5) | threshold | `HARD` |
+| `FAITHFULNESS` | `outcome_consistent` (`COMPLETE` with an unmet obligation) | — | `HARD` |
+| | `deviations_declared` (declared deviations equal detected breaches) | — | `HARD` |
+| | `citations_support` (every cited record exists and supports its slot; a failing realization cited as passing) | — | `HARD` |
+| | `governing_at_basis` (cited governing units at their basis revisions) | — | `HARD` |
+| | `prose_numbers`, `certainty_vocabulary` | — | `HEURISTIC` |
+| `DOMAIN` | `dimensional_consistency` (annotated quantities, §14.5) | — | `HARD` |
+| | `tolerance_declared` (numerical claims in annotated units carry tolerance and precision) | — | `HARD` |
+| | `layer_direction` (declared references respect layer order) | — | `HARD` |
+| | `unit_inference` (unannotated quantities) | — | `HEURISTIC` |
+| `ORACLE` (declarative mechanical oracles, §6.5) | `EXACT`, `ABS_TOL`, `REL_TOL`, `ULP_TOL`, `RANGE`, `SET_EQUAL`, `MONOTONE` | tolerance, range, order | `HARD` (as oracles, not contract checks) |
+
+Each template has exactly one force. Removing every `HEURISTIC` template must leave every admission decision and every discharge unchanged (§31).
+
+#### 14.4 Classes and set-valued aggregation
+
+| Class | Meaning | Routing (R0) |
+|---|---|---|
+| `VIOLATION` | a `HARD` boundary or test-integrity check failed | the candidate is never integrated; a disclosed breach becomes an amendment request; an undisclosed breach is also an integrity finding to the principal, shown to the reviewer of any later attempt |
+| `INCOMPLETE` | a `HARD` obligation check failed, or a required execution is missing | next implementer iteration within budget; beyond it, the principal |
+| `DISCREPANCY` | a `HARD` faithfulness check failed | integrity finding to the principal and the reviewer; repetition by one route is recurrence (§15.7) |
+| `SIGNAL` | a `HEURISTIC` hit | a labeled pointer in the review brief; changes no disposition |
+| `CLEAN` | none of the first three (signals may be present) | `REVIEW(X)` becomes ready |
+
+Conformance is a **set**: every failed `HARD` template contributes its class and finding, every routing of every contributed class applies, and no class takes precedence. An undisclosed breach is both `VIOLATION` and `DISCREPANCY`.
+
+**A clean conformance view discharges nothing.** `REVIEW`-verified obligations stay open until a current review judgment, and every task obligation still needs the review its kind requires (A7). **Disclosed vs undisclosed breaches**: a disclosed breach is a request for more scope, decided by the principal; an undisclosed one is a faithfulness failure and a finding against the route that produced it; neither is integrated. **Advisory pre-flight**: `ask(verify)` runs the pure templates and workspace-local executions before submission, labeled advisory; it never stands in for the designated runner, and an agent's report of it is a finding, never evidence.
+
+#### 14.5 Language analyzers, mutation testing and unit annotation [D3 decision]
+
+- **Language analyzers.** For Python and C++, an analyzer version provides: diff-to-unit mapping (changed byte ranges to owning units, §1.4); public interface extraction (Python: module-level names not prefixed `_` and their signatures, `__all__` where declared; C++: declarations in public headers the policy names, with signatures after preprocessing under the declared build configuration); symbol span resolution for `symbol` scope terms; derived `IMPORTS`, `CALLS` (static, best-effort), `BUILD_DEPENDS` (from declared build manifests) and `TESTS` (test-to-code, by import and call reachability from test entry points); and completeness declarations with incompleteness markers (§2.6). **[delegated]** Parser libraries and their versions, recorded in the analyzer identity.
+- **Mutation testing.** Seeded mutation over the candidate's changed lines only, with the system operator set (arithmetic, relational, logical and boolean operators, constants, return values, removed calls), executed by the designated runner with a recorded tool identity and seed. The score is killed mutants over non-equivalent generated mutants; mutants the tool marks equivalent and timeouts are reported separately. The contract parameter `threshold` is a fraction; **[proposed default]** 0.70; below it the check is `INCOMPLETE`. **[delegated]** The mutation tool per language.
+- **Unit annotations.** Two forms are read: `typing.Annotated[<type>, Unit("<expr>")]` in Python, and the comment form `ssds:unit <name> = <expr>` in any language with a comment leader (§1.2). Unit expressions use UCUM syntax. Unannotated quantities are inferred only by the `HEURISTIC` template.
+
+#### 14.6 The conformance view
+
+The conformance view of a result lists, per obligation: verifier, template results with classes and findings, the observations used (by record id, with their runner and custody), and the set-valued class. It is rendered deterministically from derived state and shown to the reviewer and the principal; it is never a judgment.
+
+#### 14.7 Qualifying a template as `HARD` [D3 decision; proposed defaults]
+
+A template is adopted as `HARD` only after qualification on real trajectories, with thresholds and samples frozen before the runs: detection on seeded violations inserted into real trajectories, at least 200 seeded violations across at least 20 trajectories, with a Wilson 95% lower bound on the detection rate of at least 0.95; and false positives on clean real trajectories, at least 300 trajectories, with a Wilson 95% upper bound on the false-positive rate of at most 0.01. A template that misses either stays `HEURISTIC`. The thresholds are **[proposed default]** values; changing them is a ruleset adoption (human-gated). A template later found defective is corrected only by ruleset adoption; admissions are never re-adjudicated, and current conformance is re-derived (§27.1).
+
+### 15. Reports, escalation and coordination
+
+#### 15.1 Report kinds and vocabulary [D3 decision]
+
+Every communication from an agent that can change what happens next is a typed report record, not a message. Narrative stays in its canonical home (the project evidence record or native issue for a finding or tension, the result envelope for a task report); the record carries kind, subject, raiser and role, declared materiality, blocking flag, inquiry status for a challenge, reason and a content reference to the home.
+
+| Kind | Tier | Reasons | Can block |
+|---|---|---|---|
+| `CHALLENGE`, `CHALLENGE` with `serious = true` | challenge | `AUTHORITY_DEFECT`, `EVIDENCE_DEFECT`, `CONFORMANCE_DEFECT`, `STRUCTURE_DEFECT` | yes (if blocking; serious always) |
+| `FINDING` | support | `TENSION`, `ANOMALY`, `OPPORTUNITY`, `DEFECT`, `INSPECTABILITY_GAP` | no |
+| `AMENDMENT_REQUEST` | support | `SCOPE_DEVIATION`, `MISSING_PREREQUISITE`, `INFEASIBLE_CRITERION`, `CONTRACT_DEFECT`, `AUTHORITY_DEFECT` | the raising task (if blocking) |
+| `BLOCKER` | support | `PREREQUISITE_UNAVAILABLE`, `ENVIRONMENT`, `AMBIGUITY` | the raising task |
+| `HUMAN_QUESTION` | support | `DECISION_NEEDED`, `CLARIFICATION` | the raising task (if blocking) |
+
+**Materiality**: `ROUTINE` < `MATERIAL` < `CRITICAL`, declared by the raiser and raised, never lowered, by the floors.
+
+#### 15.2 Persistence
+
+Every obligation derived from a report or challenge (human attention, coordination, adjudication) is keyed on that record's existence and identity. It opens when the record is admitted and closes only when a **resolving record** targets the report by `identity` and stays in force: not superseded, not `REVOKED` or `BLOCKED`, not withheld by a later loss boundary. The report's own currency never closes it. When its target or basis moves, the obligation stays open and its entry is annotated "target changed since raised", so the decider can answer `MOOT` explicitly. Only the raiser may supersede or withdraw its own report; withdrawal or supersession of a floor item leaves human attention open with "withdrawn by raiser" shown; for a non-floor item it moves the entry to the digest. A resolving record from before a loss boundary is withheld, so the obligation reopens. Reports inside an abandoned interval are lost with it, and the `LEDGER_LOSS` gate brief states that open human-attention items there cannot be enumerated.
+
+#### 15.3 Routing table
+
+The routing table is a ruleset parameter mapping `(kind, reason, materiality, target domain)` to derived S3 obligations:
+
+| Report | Derived obligation | Holder |
+|---|---|---|
+| amendment request, blocker (including a disclosed breach) | `COORDINATE` decision | the plan's principal |
+| any blocking report | the raising task is suspended, workspace and basis preserved; it resumes as a new attempt after the decision | Dispatcher |
+| challenge | `ADJUDICATE` | the qualified actor policy names |
+| Serious Challenge | `ADJUDICATE` and `HUMAN_ATTENTION` | human |
+| human question | `HUMAN_ATTENTION` | human |
+| `MATERIAL` or `CRITICAL` report | `HUMAN_ATTENTION`, plus `COORDINATE` if it bears on the plan | human; principal |
+| `ROUTINE` finding | recorded; `COORDINATE` only if it names a unit of an open item | principal |
+
+#### 15.4 Escalation floors
+
+System semantics fix the floors; policy may raise them, never lower them.
+
+- **`CRITICAL`, always human attention**: a Serious Challenge; a tension or challenge against accepted D1 or D2 authority; a human question; an amendment changing a plan's objective or changing or removing an existing acceptance criterion (computed from the plan diff); an authority-defect request targeting D1 or D2; an admission fenced after an ambiguous publication (raised when the fence is admitted, decidable once it settles) and every `LATE_PUBLICATION` (§22.3); every integrity halt or forced support cycle of integrity type (§5.6-§5.7); any decision R3 owns.
+- **Domain floor**: every report whose target includes a D1 or D2 unit is at least `MATERIAL`, computed from the target's effective kind and domain.
+- **Disagreement floor**: the floor events of §6.8.
+- **Delegate floor**: when a task's contract has `scientific = APPLIES`, every material finding in its E2 slots creates human attention, so material delegated findings survive to the human by mechanism rather than by each intermediate agent's compliance.
+
+#### 15.5 Principal decisions
+
+A coordination task decides each routed report with a `COORDINATION_DECISION`. The allowed outcomes are a function of the report's kind, reason and target domain:
+
+| Outcome | Meaning | Allowed for |
+|---|---|---|
+| `RESOLVE_LOCAL` | decided inside the item's delegated space; the raising task resumes | blockers, scope questions, routine findings; never an authority-defect or contract-defect request |
+| `AMEND` | a plan-unit change follows | amendment requests; blockers; contract defects |
+| `CHALLENGE` | a challenge-tier record against the earliest affected owner | any; required for an authority-defect request targeting D3 or D4 |
+| `ESCALATE` | human attention | any |
+| `DECLINE` | no action, with a reason code; the raising task resumes or ends | non-floor reports only; a report that already created human attention keeps it |
+| `PARTITION` | §13.7 | items |
+
+An `AMEND` decision is followed by a plan-unit change authored by the principal in the same coordination request; Admission checks binding and role, runs lint with the plan invariants, and integrates the plan-unit change, which enacts nothing by itself. Whether each changed item stays issuable is derived from its plan acceptance and the computed amendment class (§13.4).
+
+#### 15.6 Annotate, merge, upgrade, downgrade
+
+The principal may annotate any human-attention obligation; its framing is Channel A interpretation, rendered apart from the evidence core. It may merge duplicates (the merged entry lists every member, and one human judgment may answer it as a whole), upgrade materiality, and reclassify a non-floor `MATERIAL` report to `ROUTINE` by a `MATERIALITY_RECLASSIFICATION`, which counts only while in force, moves the item to the digest, is challengeable (an upheld challenge or a later loss boundary returns it), and is never a discharge. Floor items cannot be reclassified. Human attention is discharged only by an authenticated human judgment (A8).
+
+#### 15.7 Recurrence
+
+Recurrence is detected mechanically: the same `HARD` template failing on the same obligation across iterations; the same finding family (template, target unit or relation family) across items; repeated discrepancies by one route. Detection creates a `COORDINATE` decision whose brief carries the convergence duty: consider the shared owner and simplification before another local repair, and route a challenge where the contract or its governing authority may be at fault. Detection is mechanical; the response is judgment.
+
+## Part V. Interface
+
+### 16. Agent and human interface
+
+#### 16.1 Logical operations
+
+The interface is defined independently of transport (`ssds.api.v1`, §28).
+
+| Operation | Purpose |
+|---|---|
+| `open(task)` | the task brief (§16.3) and workspace locator |
+| `ask(query)` | typed queries (§16.2), answered at the task's basis |
+| `read(ref)` | content by unit identity or path; recorded into the basis (§16.4) |
+| `report(item)` | a typed report (§15.1) or a proposed relation |
+| `submit(result)` | outcome from the task's allowed set, the contract's required slots, plus the workspace. Machinery builds the admission request and supplies the facts: diff, touched units, changed authored relations, reads, basis, derived consequences (A6). The response is `PROVISIONAL` until the entry is admitted, then `ADMITTED` or `REJECTED` with reason codes; for a candidate it then reports conformance as derived |
+| `decide(gate)` | human only: a gate brief or inspector entry and an authenticated decision |
+
+Within a task, `ask` and `read` answer at the task's basis (snapshot isolation); `ask(changed)` reports admitted changes since the basis that intersect the task. The agent never declares write claims, revisions, edges (except by writing authored relations as semantic content), subject roles, plan patches, lifecycle states, reconciliation steps, its own conformance or any decision class. A principal changes a plan by editing its plan unit; reviewers and principals submit judgments and decisions through `submit`.
+
+#### 16.2 Query classes [D3 decision]
+
+| Query | Answers |
+|---|---|
+| `governs(x)` | the governing units of `x` with revisions, validity and inclusion path |
+| `depends(x, class, direction)` | prerequisites or dependents per completeness class, with widening state (`EXACT`, widened scope, `UNBOUNDED`) |
+| `explain(x)` | a unit, record or obligation: kind, status, basis, why current or not |
+| `evidence(claim)` | evidence for a claim: realizations, assessments, disagreement state (`disputed`, `stale` with the discriminating observations), binding health |
+| `blocked(x)` / `stale(x)` | why: the basis entries, challenges, quarantine, loss withholding or integrity state responsible |
+| `impact(diff)` | the derived impact set of a workspace diff or proposed edit |
+| `verify` | advisory pre-flight against the task's contract (§14.4) |
+| `locate(locator)` | §1.11 resolution of a tension or authority locator |
+| `tensions(authority)` | in-repository `CHALLENGES` relations and recorded challenges bound to the authority's identity, earlier revisions and predecessors; native homes listed as searchable-elsewhere with their identities |
+| `history(x)` | ledger history of `x`; offered only when the PEM predicate fires or on explicit request (`HISTORICAL`) |
+| `search(text)` | text or semantic search; results are `CANDIDATE` only |
+| `changed` | admitted changes since the task's basis intersecting the task |
+
+Every answer names the qualified ledger head it was derived at (§23.4); with no qualified head, answers are labeled `UNQUALIFIED` (historical) and claim no currentness. Answers are deterministic for identical basis, query and policy version; search indexes record their versions, and nondeterministic search contributes only `CANDIDATE` items outside the determinism guarantee.
+
+**Epistemic labels.** Every context item carries one class and its acceptance status and inclusion path:
+
+| Class | Meaning |
+|---|---|
+| `GOVERNING` | authority the task's subject concretizes or is constrained by; mandatory |
+| `IMPLIED` | reached by accepted authored relations inside a judged-complete scope |
+| `ADJACENT` | reached by derived structural relations; completeness per analyzer declaration |
+| `EVIDENTIAL` | evidence for the subject's claims, with current, stale, disputed or unavailable status |
+| `HISTORICAL` | PEM entries and Git history; offered only when the PEM predicate fires or on explicit request |
+| `CANDIDATE` | search or embedding hits and unaccepted proposals; never authority, never closure support |
+
+Acceptance statuses: `valid`, `provisional`, `disputed`, `challenged`, `stale`, `drift`, `quarantined`, `ill-formed`, `loss-withheld`, `unclassified`.
+
+#### 16.3 Task briefs and duty compilation [D3 decision; §19.2 activation and injection]
+
+A task brief contains, in order: (1) objective, obligation kind and workflow role; (2) allowed outcomes; (3) governing content inline — the exact text of governing units at the basis revisions; (4) the contract's boundaries, constraints, non-goals and delegated space; (5) obligations with verifier class, acceptance criteria, required evidence and required slots; (6) open challenges, findings and provisional states touching the subject, and for a later iteration the previous conformance view and review findings as data; (7) **incompleteness notices**: widened or `UNBOUNDED` bases, incomplete analyzers, proposed-only relations, parts whose validity comes from a coarser subject, quarantine, loss-withheld records, a pending publication outcome, unobservable reads on this route, and the qualified head; (8) the governing version (§16.9); (9) escalation triggers, budget, workspace and submission instructions.
+
+Briefs are rendered deterministically from derived state by version-bound templates; no model translates machine state. **The duties a brief carries are compiled, never selected by wording** (A4):
+
+```text
+duties(task) = role_core(role)                                -- the role's authority and prohibitions (§12.3)
+             ∪ domain_core(domain(subject))                   -- the governing SSDP role entrypoint's contract
+             ∪ kind_duties(obligation kind)                   -- e.g. review: Challenge Pass, out-of-matrix pass
+             ∪ slot_duties(required slots, §13.5)             -- each owed question, inline, as a typed slot
+             ∪ injected(events)                               -- owner depth at the situations it matters
+```
+
+**Domain cores** are the version-bound text of the SSDP role entrypoint for the subject's domain (D1 scientific-formulation, D2 numerical-algorithm-design, D3 software-design, D4 software-implementation), including its entry contract and its scientific checks, at the protocol source the ruleset pins. Specialist cores (documentation, maintenance audit, repository hygiene) apply to `DOCUMENT` items and to audit and hygiene tasks.
+
+**Injection events.** Owner depth that the 7.2.1 entrypoints load conditionally is injected mechanically when its predicate is a recorded or derived event:
+
+| Event (derived) | Owner text injected (version-bound) |
+|---|---|
+| obligation is `ACCEPT`, `REVIEW` or `AUTHOR` on a subject of domain D1/D2/D3/D4 | that domain's reference owner (scientific formulation, numerical algorithm design, architecture and design, specification and implementation) |
+| `ASSESS`, `READING`, `ADJUDICATE_DISAGREEMENT`, `SPEC_REVIEW` | evidence owner: applicability, assessment disagreement |
+| the subject or its governing closure declares `defines`, a parameter family, or an external import | semantic-definition owner |
+| recurrence detection; budget exhaustion; a repeated finding family | convergence owner, active simplification |
+| PEM predicate: the item kind is `MIGRATE`, or the task replaces mature machinery (policy-tagged units), or recurrence detection | PEM owner, plus `HISTORICAL` items |
+| `GATE` preparation; a `scientific = APPLIES` review | workflow Channel C; scientific-inspectability owner as optional depth |
+| `AUTHOR` revising D1/D2 authority | the revising duty and tension-search duty |
+| a Serious Challenge raised or adjudicated | kernel Challenge rules |
+| subject in `LEGACY(p)`, or a declared version mismatch | versioning owner; the brief renders under `p`'s profile |
+| write scope intersects units tagged by policy with a concern (`security`, `storage`, `concurrency`, `performance`, `configuration`, `release`) | that concern owner |
+
+A duty that is not triggered is not carried, because surplus duty text causes narration nobody owed.
+
+#### 16.4 Read recording
+
+`read` records `(u, r)` or the path's content identity into the task's basis. Harness adapters that can observe file reads add them as observed reads. On routes where reads cannot be observed (manual, Git-envelope), the basis is the mechanical minimum plus `read` calls plus declared reliance, and the brief and the result's provenance state "reads not observed" (§9.4). No consumed-package ledger exists beyond read recording **[D3 decision; §19.2]**: the rendered brief is recorded by content identity in the task's envelope, so the doctrine text an agent was given is recoverable exactly; finer package-access accounting would be provenance the decision does not need (the 7.1 package-access ledger stays retired).
+
+**Typed control facts versus narrative [D3 decision; §19.2].** Typed control facts in records: kinds, outcomes, targets, bases, reason codes, materiality, inquiry status, slot structures (identities, counts, enumerations, record references). Narrative in native homes by content reference: rationale, interpretation, finding prose, review argument, gate commentary. A slot that needs prose holds a content reference; its presence is checked (E2) and its content is judged (E3).
+
+#### 16.5 Review briefs and constructed independence
+
+A review brief **contains**: the governing content inline; the contract; the candidate diff and machine-produced facts; the conformance view with every `SIGNAL` as a labeled pointer; the evidence with status, including, for a candidate changing a specification, the counted failures the change would make stale (mechanical) or whose discriminating readings it would stop covering (assessor-read), as a required review item; the result's disclosure slots, labeled as the author's claims to test; for a scientific subject, the 7.2.1 bidirectional Review question as the required `bidirectional` slot (an explicit "no reverse-direction finding survives" is valid; an empty slot is `INCOMPLETE`); for a substantial authority review, the out-of-matrix abstraction-adequacy duty.
+
+It **excludes**: the author's outcome classification, rationale and narrative; commit messages and transcripts; the principal's annotations and expectations; any earlier conclusion by the author. In a re-review of a later iteration, policy may supply the previous review's findings, labeled as another reviewer's.
+
+The Dispatcher launches every review in a fresh context distinct from the authoring task's and the contract author's, and records lineage class, model family, route and toolchain. Independence fails closed (§12.2). Where a claim relies on independence, the review judgment records material common-mode dependencies (shared model family, source corpus, toolchain, oracle); policy may require a different model family or a distinct evidence route for high-consequence surfaces. *Residual:* the artifact under review can carry its author's framing in comments and docstrings; that is content to review and cannot be stripped.
+
+#### 16.6 Gate briefs (Channel C) [D3 decision: template obligations]
+
+A gate brief is rendered at a named qualified head, in this order, each section a deterministic projection of records:
+
+1. **Evidence core (non-narrative, separable, first).** Gate identity and the decision asked; subject identities, revisions and scope; qualified head; coverage (denominators; included, excluded, missing, failed counts; selection rule; complete, sampled or thresholded); key data and trajectories as records, tables and links to canonical artifacts; findings as data — open challenges, disputed evidence with the observations that keep it counting, stale and unavailable evidence, provisional and risk-overridden states, integrity and quarantine states; tensions found by the relying search with every recorded entry, binding and native asserter; variant-search disclosures from the slots; known missing realized records, each classified (non-material limitation, material uncertainty, blocker, provisional continuation, prospective-retention trigger).
+2. **Consequential-decision disclosure.** Anomalies, uncertainty, alternatives considered, unresolved findings, each linked to its record.
+3. **For a gate accepting a D1/D2 revision**: that revision's tension applicability assessments, including those marked inapplicable, with their asserters.
+4. **Interpretation (Channel A)**, labeled: the preparing agent's and principal's framing.
+5. **Allowed outcomes**, and the required `adequacy` and `qualification` fields of the `GATE_DECISION`.
+
+Rules: agents and machinery may request a gate and prepare its interpretation; they cannot synthesize a human judgment. Admission refuses an `ACCEPT` with `qualification = UNQUALIFIED` while the evidence core lists required evidence that is `UNAVAILABLE`, `disputed` or stale, or a missing record classified material uncertainty or blocker; whether other missing records could plausibly change the judgment is the human's semantic judgment, recorded in `adequacy` and challengeable. Every gate is an inspector entry (§16.8).
+
+#### 16.7 Decision briefs
+
+A coordination task receives a decision brief rendered at the qualified head: the plan objective and each item with its state (awaiting contract, ready, running, suspended, under review, discharged, open); the decision obligations owed, each led by the report's record core, the target identities and revisions, and the relevant conformance and review outcomes, followed by the allowed outcomes (§15.5); budgets, recurrence detections and discrepancies; the plan's open human-attention items; what changed since the previous coordination. Narrative reports are reached by reference. The decision brief *is* the plan's working state: derived, version-bound and reproducible, so the principal keeps no memory between invocations.
+
+#### 16.8 The inspector view and digest
+
+The human interface for everything R3 owns is the **inspector view**, an S3 view rendered deterministically.
+
+- **Ordering [D3 decision].** Open human-attention obligations sort by the key `(−w, c, p, id)`: `w` the number of obligations whose readiness or discharge waits on this one (transitively through readiness prerequisites); `c` the consequence class, `CRITICAL` before `MATERIAL` before `ROUTINE`; `p` the ledger position at which the obligation opened (older first); `id` the obligation identity.
+- **Each entry, in order**: the evidence core (the report or floor record, target identities and revisions, conformance and review outcomes, cited evidence with status); the principal's framing labeled as interpretation; the allowed outcomes. Merged entries list their members.
+- **Answering.** `decide` records an authenticated `HUMAN_DECISION` or `GATE_DECISION`; its effects propagate mechanically (suspended tasks resume, amendments follow, obligations discharge or reopen).
+- **Digest.** Below the open entries, a cold digest of what agents settled since the human's last acknowledgment: R1 decisions, materiality downgrades, declined reports, discrepancies, recurrences, and failures counted but not yet at a floor event. Every digest item is challengeable; reading it is never required for work to proceed.
+- **Trust boundary.** Where content is confidential the view gives the strongest safe aggregate and states the limitation. Human unavailability leaves human-attention obligations open; dependent work stays not ready, independent work proceeds.
+
+#### 16.9 Version binding [D3 decision; §19.2 in-loop version routing]
+
+Each issued envelope carries `governs`: for a `NATIVE` subject, the ruleset in force, which pins the SSDP doctrine version and its immutable public-source identity used for domain cores and injected owner text; for a `LEGACY(p)` subject, protocol `p`, and the brief is rendered through `p`'s frozen Core profile. The brief states the governing version in its first lines. Admission rejects a record whose `governs` differs from its envelope's (`AUTH_VERSION`). No agent record can adopt a version: adoption is a human-gated `RULESET_ADOPTION` (doctrine pin) or `MODE_TRANSITION`. This realizes the version step and self-adoption guard at E0 for native work.
+
+#### 16.10 Transports, harnesses and bootstrap [D3 decision]
+
+Three transports expose the same operations: an MCP server; the CLI (`sdp ssds <operation>`, §26.3); and a **Git-envelope** transport for zero-context web agents: an immutable signed task envelope `task.json` plus the rendered brief on an isolated run ref `refs/heads/ssds/run/<task-id>`, a result envelope `result.json` plus candidate commits written back to that ref, and polling-first fetch of that specific ref. Run refs are transport: never merged, retired by policy, regenerable from the ledger and obligations. Harness adapters only map operations and launch, observe and cancel executions (admit, start, events, control response, cancel, terminal result, §26.4). The bootstrap is `Execute SSDS task <task-id>` plus the minimum locator the environment does not already bind (repository, run ref, envelope path, protocol source). It fails truthfully when protocol material cannot be resolved. Transport and process success never imply evidence admissibility or task success. Local and Git-envelope transports give identical admissions for identical submissions.
+
+## Part VI. Evidence and intake
+
+### 17. Evidence
+
+| SSDP evidence concept | SSDS 8 representation |
+|---|---|
+| specification | an `EVIDENCE_SPEC` unit with `EVIDENCES` -> the unit holding the claim, declared or derived `EXECUTION_DEPENDS_ON`, and its specification declaration (§17.1) |
+| realization | a `REALIZATION` observation whose basis has a **target** part (the claim's content) and an **execution** part (executed content, §6.3) plus the configuration fields (§17.2) |
+| observation | the realization's evaluated outcome, by content identity, plus references to native artifacts (logs, data) |
+| assessment | an `EVIDENCE_ASSESSMENT` judgment; a reassessment replaces an earlier one only by authorized supersession (§8.3); a counting failing assessment and a passing assessment for one obligation are a disagreement (§6) |
+
+#### 17.1 Specification declaration [D3 decision]
+
+Every `EVIDENCE_SPEC` unit carries exactly one specification declaration, a TOML document in a fenced `ssds-spec` block (Markdown) or a file `*.ssds-spec.toml` inside the unit's scope. It is semantic content: part of the unit's revision and of every reading.
+
+```toml
+oracle      = "DECLARATIVE"          # DECLARATIVE | EMBEDDED | ASSESSOR_READ (§6.5)
+runner      = "ci-linux-x86_64"      # designated runner class (§17.5)
+time_bound_hours = 24                # ≤ 168 for Dispatcher-run executions (§6.9)
+outputs     = [ { name = "l2_error", type = "float64", canonical = "binary64-hex" },
+                { name = "converged", type = "bool" } ]
+verdicts    = [ { output = "l2_error", template = "ABS_TOL", params = { reference = 0.0, tol = 1e-8 } } ]
+fixed       = { regime = "re<2000", parameters = "configs/case3.toml", backend = "cpu",
+                precision = "float64", environment = "lock:requirements.lock" }
+granularity = { mode = "SINGLE" }    # or { mode = "ENSEMBLE", replicates = 32,
+                                     #      statistic = "mean_and_ci95", seed_policy = "FIXED_SEQUENCE" }
+output_renames = {}                  # old output name -> new name (§6.5)
+```
+
+`fixed` attributes are **claim-defining**: a realization differing in one is inadmissible for the specification's obligation. Every execution attribute the declaration does not fix is **free** (execution variation): admissible assessments differing only there conflict. What each kind fixes by default **[D3 decision]**: `DECLARATIVE` and `EMBEDDED` specifications fix nothing beyond what they declare; an `ENSEMBLE` granularity fixes the replicate count, statistic and seed policy; every specification's runner class is fixed. Precision, backend and environment are fixed only when declared, and the D2 owner of the claim decides which are claim-defining; the default (free) is the conservative one for disagreement.
+
+A change to a specification unit raises `SPEC_REVIEW` for its owner (a reviewer of the claim's domain), whose brief lists the counted failures the change would make stale and the readings it would stop covering (§16.5).
+
+#### 17.2 Realization basis fields
+
+A `REALIZATION` records: specification unit and revision; claim units and revisions (target); executed content (§6.3), with any widened scopes and their membership digests and any `UNBOUNDED` fallback; observed reads; unpinnable reads, if any; configuration (each fixed attribute's value and every free attribute's observed value, including seed and replicate identity); environment, backend, precision, toolchain and runner identity; the tree it ran on; start and end positions; and either a `LEDGER` reference to its evaluated outcome, or `INCOMPLETE` with an enumerated reason (`FAILED_TO_START`, `CRASHED`, `TIME_BOUND`, `MALFORMED_OUTPUT`, `CANCELLED`). Logs and data go to native artifacts by content reference.
+
+A realization with incomplete or malformed evidence is `INCOMPLETE` and cannot enter a `PASS`/`FAIL` assessment. Process exit or harness success is never evidence admissibility.
+
+#### 17.3 Evaluated outcomes [D3 decision]
+
+The evaluated outcome is a canonical JSON object `{output name: value}` over the declared outputs, stored as a `LEDGER`-store object (§21.4). Canonical forms: `binary64-hex` (IEEE-754 bit pattern, exact), `decimal-shortest` (round-trip shortest decimal), `rounded:<n>` (declared rounding to `n` significant digits, a D2 decision of the specification's owner), integers, booleans, enumerations, and `digest` (a content identity of a large output artifact). An `ENSEMBLE` outcome is the declared statistic over the replicates plus the replicate count; replicate-level outputs are native artifacts. Identity of outcomes on failing outputs (§6.6) is byte equality of canonical values.
+
+#### 17.4 Admissibility and currency
+
+An assessment is **admissible** for obligation `e` iff its realization instantiated the specification revision `e` names (or a revision in its lineage under the reading rules of §6.6), every fixed attribute matches that revision's declaration, and the realization is complete. A realization supports a claim at revision `c` only while its execution basis is current and its target is `c`, or an equivalence judgment covers the change (class `CONSUMER:REALIZATION`, §4.4). An execution-dependency change triggers a rerun obligation, including the configuration of every failing assessment counted against the claim (§6.9); a target change triggers an assessment-review obligation. Stale passing evidence never discharges. Failing evidence is never dropped by a change (§6).
+
+**Binding health.** `AVAILABILITY` observations record when a referenced artifact becomes unavailable: the historical record survives, and present use becomes `UNAVAILABLE` (an evidence term that needs it is not `T`). Raw data stays in native stores; the ledger stores identities and bounded classifications.
+
+**Realized-record/observation boundary.** A realized-record item is an observation only when an evidence realization produced it; retaining it neither assesses nor re-identifies it. A `CHALLENGE` carries the finding's inquiry status (`EXPLORATORY` or `CONFIRMATORY`) as its own attribute, separate from evidence strength, applicability and disposition. Findings and tensions keep their one canonical home in project evidence records or native issues; the ledger references that home by identity and never becomes it (S13).
+
+#### 17.5 Who may realize evidence: runners and custody [D3 decision]
+
+A realization can discharge an evidence obligation only when a **designated runner** for the specification's runner class executed or reproduced it. Project policy designates runner classes, each as one of:
+
+- **Dispatcher-controlled**: the Dispatcher runs the execution on the exact candidate or merged tree in an isolated workspace it owns, with a runner identity key registered in policy; the realization is submitted by the Dispatcher;
+- **external custody**: an external runner (HPC scheduler, CI service, laboratory system) designated with its custody identity. Its realization records name the custody evidence (job identifiers, scheduler accounting, signed run manifests) by content reference. A `CUSTODY_ENUMERATION` from that runner must list every run of the configuration it performed before any of its observations can make a failure stale (§6.9).
+
+Results an agent reports from its own workspace are findings: useful for direction, never admissible for discharge. A `CHECK_EXECUTION` (§14) is evidence for a scientific claim only where an evidence specification names it.
+
+### 18. Intake: one route for every change of unknown provenance
+
+#### 18.1 Detection
+
+Intake is a set of derivation rules plus judgment kinds over any content not produced by an admitted request. Recorded facts detect it: the live integration ref moved away from the expected head (observed by Admission before every append; a Dispatcher census that notices it requests an absorption); a submitted workspace contains changes outside its reported result; an external branch is offered for import; content differs from accepted revisions (drift); observed structural declarations differ from `Σ` (quarantine); a scheduled census finds untracked or unexpected material.
+
+Two entry paths share one rule set. Content **already on the integration ref** is absorbed (§8.6): the observed tree advances, nothing governing changes, and consequences become obligations. Content **offered as a candidate** (an external or foreign-agent branch, agent work outside its result) is a change whose basis is computed conservatively from its merge base (mechanical minimum plus widening) and reaches the integration ref only through ordinary Admission after its intake obligations are discharged.
+
+#### 18.2 Processing and static classification [D3 decision]
+
+```text
+preserve exact identity (commit, ref, tree; nothing executed or deserialized)
+ -> diff against the last admitted observed tree; map changed paths to effective leaves (§1.4)
+ -> structural declarations: each key of decl(T_n) ≠ Σ_n is a quarantined delta, classified (§1.6)
+ -> uncovered paths: proposed new units, statically classified
+ -> mechanical consequences (S0/S2): changed revisions make dependent records non-current; aff(Q) and
+    ill-formed subjects are invalid
+ -> obligations (S3): INTAKE per delta and per uncovered or foreign change
+```
+
+**Static classifier.** A versioned machinery function proposing `(kind, domain, class)` for an uncovered path from: path and extension; content-type sniffing by fixed magic bytes and text/binary detection (never parsing beyond a bounded size, never executing, importing or deserializing); Git history (authors, rename history, producing commits); known producers (`GENERATED_FROM` declarations, build manifests naming outputs); parsers of declared manifest formats in data-only mode. Its output is an advisory `INTAKE_CLASSIFICATION` proposal (R0 machinery, enacting nothing). **Opaque active content** — binaries, archives, notebooks with outputs, executables, serialized objects, unknown formats — is proposed `QUARANTINE`.
+
+#### 18.3 Dispositions
+
+| Disposition | Meaning |
+|---|---|
+| `ABSORB` | accept the content as it stands; for a quarantined structural delta, **adopt** it (§18.4) |
+| `RECONCILE` | needs rework; an item or obligation follows |
+| `SPLIT` | divide into separately classified parts |
+| `ARCHIVE` | keep as historical material |
+| `RETAIN_AS_EVIDENCE` | keep as evidence, not authority (`EVIDENCE_RECORD` kind) |
+| `MARK_GENERATED` | declare `GENERATED`; regenerate rather than edit |
+| `QUARANTINE` | isolate untrusted or opaque content: it stays in the tree but is excluded from governing context, evidence and acceptance basis |
+| `REJECT` | revert by an ordinary change; for a structural delta, **realign** the declaration with `Σ` |
+| `DISPOSABLE` | classification only; deletion is a separate authorized change |
+
+#### 18.4 Structural intake, adoption and realignment
+
+A quarantined delta becomes effective in exactly one way: an admission request carries an `ABSORB` `INTAKE_DISPOSITION` adopting it, which makes the delta part of its transformation's identity `A` (§7.1), and Admission validates the adopted change exactly as if the requester authored it now (§8.3 step 4): challenge freezes at source and destination, a prospective acceptance bound to the same admission for any promotion, mode consistency, SDG integrity. Adoption is re-authoring under current rules and authority, never ratification of presence, validated under the ruleset in force when admitted. A ruleset adoption never changes `Σ` or `Q`. **Realignment** is an ordinary change that makes `decl(T)[k] = Σ[k]`.
+
+**Mechanical adoption of governance-neutral deltas [D3 decision].** Where project policy sets `intake.neutral_auto = true` (default `false`), the Dispatcher may submit an `ABSORB` adoption of a governance-neutral delta as an R0 machinery disposition; it still passes §8.3 step 4 and is recorded and challengeable. A governance-affecting delta always needs an R2 disposition.
+
+#### 18.5 Effect on governance and inspectability
+
+Foreign content affects governance only through lower-stratum facts: changed bytes or semantic declarations change revisions (S2); changed structural declarations are quarantined, and every subject in `aff(Q)` has `ok = F` and cannot serve as validity prerequisite, governing context or acceptance basis until adopted or realigned, while routing (`subj`, scope, tenure) follows admitted structure; uncovered content is `UNCLASSIFIED` and excluded from governing use; illegal relation structure makes its subjects ill-formed. The S3 intake obligations only schedule and explain. Unqualified authority cannot arise from repository presence, because no S0 input that S2 consumes changes by presence alone.
+
+Foreign content is never hidden or discarded: the observed tree is the product and stays buildable and releasable; views show each quarantined delta beside its effective value with the absorption entry that introduced it; every disposition is an ordinary admitted change a later admitted change can reverse. Production is never blocked; what stays open is governance closure. Agent overstep, manual edits, collaborator branches, foreign-agent work, repository restores, manual merges, legacy import and corruption repair all use this one route.
+
+## Part VII. Migration and external units
+
+### 19. Governance modes, migration and cutover
+
+#### 19.1 Governance modes
+
+Every subject is in exactly one governance mode at any ledger position; its parts share it (M3).
+
+| Mode | Meaning |
+|---|---|
+| `NATIVE` | SSDS-governed: acceptance, conformance and evidence obligations derived and enforced by Admission |
+| `LEGACY(p)` | governed by a declared legacy process bound to protocol version `p`; SSDS records and derives but never adjudicates or reinterprets |
+| `UNGOVERNED` | production content with no authority system yet; changes recorded, mechanical consequences derived, no conformance claims |
+| `UNCLASSIFIED` | unknown content; excluded from governing context, evidence and acceptance basis until classified |
+
+Mode is ledger state, set at genesis per subject and changed only by an admitted `MODE_TRANSITION`, which ends the subject's tenure. A membership change that would move a unit between subjects of different modes is a mode transition for that unit and needs its record (§8.3 step 4); neither an ordinary request nor an adopted foreign declaration can do it silently. A change touching subjects in several modes receives the union of their obligations. Changes confined to `LEGACY(p)` or `UNGOVERNED` subjects may arrive as ordinary commits; they are absorbed and derive only intake classification for uncovered paths plus whatever the mode's policy requires.
+
+#### 19.2 Relying on legacy authority
+
+A `LEGACY_ACCEPTANCE` imports the fact that the legacy process accepted an exact revision of an exact scope: it cites the legacy process's acceptance evidence (for SSDP source, the `PROTOCOL-RELEASE-STATE.yaml` entry and its Review and ratification records at their immutable identities) and supplies the acceptance for that `(subject, scope_id, rev)` without claiming SSDS reviewed it. The imported scope is the scope the legacy process actually accepted: a whole-document or release acceptance cannot be imported onto a section. Native work relying on a legacy subject without an imported acceptance is provisional.
+
+#### 19.3 Reconstruction status and structural refinement
+
+Authority-bearing subjects carry a reconstruction status, `OPAQUE`, `PARTIAL` or `RECONSTRUCTED`, recorded by admitted `RECONSTRUCTION_PROPOSAL` judgments accepted through the subject's owner (proposals alone enact nothing).
+
+**Structural refinement** is an admitted change that partitions a leaf's scope into new leaves declared as parts of the original unit, which becomes or remains a composite subject. Scope conservation is checked mechanically (§1.9). Refinement makes no semantic claim. A byte-preserving refinement leaves `scope_id`, content identity, signature and tenure unchanged, and semantic declarations unchanged unless relations are redirected; the revision is unchanged and the acceptance stays valid; nothing is copied. Parts hold no acceptance of their own: every `validity` reliance on a part routes to the subject; `content` reliance on a part is local to its bytes. Coarse relations stay on the subject until redirected to parts by authored relations, which is a semantic change needing a new accepted subject revision.
+
+#### 19.4 Promotion, demotion, restoration and carve-out
+
+**Promotion** makes a part `A` of subject `P` its own subject. It needs both an admitted declaration change marking `A` a subject (authored, or adopted from a quarantined declaration), which starts `A`'s tenure; and an acceptance on `(A, scope_id(A), rev(A))` in that tenure, by an actor qualified for `A`'s domain, recorded beforehand as a prospective acceptance in the promoting candidate's frame by an independent reviewer and bound to the integrating admission (§7.6). If the request also changes `A`'s domain, the old domain's owner must release it too. The judgment's basis names `P`'s acceptance (`record`) and widens to `P`'s former scope until a completeness judgment narrows it. Promotion is rejected while `P` or `A` carries an unresolved blocking challenge or a revoked revision. The reviewer may conclude `A` is not self-standing; then `A` stays a part or the owner first makes the coupling explicit (`A USES_DEFINITION B`). SDG members are promoted together, as one composite whose scope contains the SDG declaration, or not at all. Neither widening, byte identity nor an unchanged relation set substitutes for the judgment. For a `LEGACY(p)` subject only the legacy process can accept `A` separately.
+
+**Demotion** of `A` into a part of `P` ends `A`'s tenure; `A`'s acceptances leave `ACC(A)` permanently and stay as history. **Restoration** of `A` is a promotion: a new tenure, a new acceptance bound to the same admission; it may cite the earlier tenure's records by `identity`, and prior evidence counts only where currently admissible.
+
+An old acceptance cannot become current again because structure changed. Three independent locks: repository presence never changes `Σ`; an admitted restoration starts a tenure excluding every earlier judgment; after a recorded loss, every earlier acceptance is withheld until requalified or attested (§23.6). Challenges and revocations target triples without tenure, so they bind a restored subject exactly as before, and every signature change is frozen while an affected subject is under unresolved blocking challenge or revoked.
+
+**After promotion** `P` keeps its frozen scope, which still includes `A`'s bytes, and its tenure. Reliance on `P`'s remaining parts stays valid only while that whole scope is byte-identical to `P`'s accepted revision; once `A` evolves it needs a scoped `EQUIVALENCE` for their consumers, acceptance of a residual subject (a new scope), or, for `LEGACY(p)`, a new legacy acceptance. A **carve-out** is a promotion after which `A` leaves `P`'s governance mode (§19.6); the same rule applies. An equivalence relates revisions of one unit and never different scopes; acceptance moves to a new scope only by acceptance of that scope.
+
+#### 19.5 Discovery bottom-up, acceptance top-down; cutover
+
+Agents may propose candidate D3, D2 and D1 units reconstructed from D4 behavior, papers, comments, tests and history. A proposed upstream unit is accepted only through its owner's acceptance (human-gated where policy requires); until then descendants relying on it are provisional, and no D4 behavior creates accepted authority. Reconstruction that cannot recover intent records `PROVISIONAL` or `UNKNOWN` explicitly (M5).
+
+A **cutover** of subject `s` from `LEGACY(p)` or `UNGOVERNED` to `NATIVE` is a `MODE_TRANSITION` admitted only with:
+
+1. reconstruction status at least the policy minimum (default `RECONSTRUCTED` for D1-D3, `PARTIAL` for D4);
+2. a current `EQUIVALENCE` of class `MIGRATION` stating that representation changed and behavior and meaning did not, or a separately governed change if they did;
+3. owner acceptance of the native revision of that exact subject;
+4. for a carve-out from a legacy subject: the subject promoted first, and a `LEGACY_RELEASE` by the legacy process owner (§19.6);
+5. the **quiescence record**: the cutover record lists every known in-flight legacy run on `s` (open workplans, branches and tasks bound to `p` that touch `s`) with its disposition `DRAINED`, `PINNED` (continuing in an isolated workspace under `p`) or `MIGRATED` (explicitly re-bound by its owning authority), and the human gate attests the list complete to its knowledge (M6);
+6. the human-gated cutover decision.
+
+After cutover only Admission governs `s`; legacy-side edits are foreign changes (§18); the legacy representation is historical. A part cannot cut over apart from its subject. Each refinement, promotion and cutover is one admission, so interrupted migration leaves no half state.
+
+#### 19.6 Carve-out release
+
+A `LEGACY_RELEASE` is a human-gated lifecycle record by the actor policy designates as the legacy process owner for `p`, naming the exact scope released from the legacy process. It is required before a carve-out cutover and enacts nothing else.
+
+#### 19.7 Version rollback
+
+Rollback is version rollback to the immutable pre-cutover baseline (B2): stop Admission for the affected scope, resume the pinned baseline process there (resolved from `PROTOCOL-RELEASE-STATE.yaml`, never guessed), repair SSDS separately. The `MODE_TRANSITION` back to `LEGACY(p)` ends each affected subject's tenure, so pre-cutover legacy imports never revive; a fresh `LEGACY_ACCEPTANCE` is needed. Ledger rollback (§23) is an integrity incident, not a version rollback; an unrecoverable admitted loss adds a boundary, which composes with a later version rollback because the mode change ends tenure and the boundary withholds every pre-loss import independently. A cutover lost inside an abandoned interval leaves the retained mode in force, with every retained import withheld until requalified.
+
+#### 19.8 Documents, workplans and skills after cutover
+
+Change plans and authority documents remain semantic artifacts. In natively governed documents, lifecycle fields (`status:`) and directory placement (`active/`, `archive/`) are removed or generated from derived state and marked non-authoritative; a manual edit to them enacts nothing. Skills remain epistemic procedures and stop owning workflow transitions represented by rules. Historical pre-cutover workplans and records stay immutable under their original semantics.
+
+#### 19.9 Genesis and deployment cases [D3 decision: genesis procedure]
+
+Genesis records project identity, ledger id and location, authoritative replica, trust roots (Admission host keys, Dispatcher issue keys, human authentication mechanism and keys), witness set and quorums with deployment class, ruleset, `Σ_0` and per-subject modes, and the baseline commit. **Procedure (FF-001):** build the genesis entry and `Σ_0` in an isolated workspace; validate every declaration, static check, trust root and witness reachability; obtain the human gate; append and admit it under its own quorum; only then publish any identity or begin derivation as current. A genesis that fails validation publishes nothing.
+
+| Case | Entry | Special |
+|---|---|---|
+| A native project | genesis with fine subjects, all `NATIVE` | none |
+| B SSDP 7 or earlier documents | the manifest declares section-level parts of each legacy subject (the scope its process accepted: a document or a release tree) without rewriting files; mode `LEGACY(p)`; heuristically extracted relations are proposed | version-pinned workplans stay governed by their protocol; section locality serves reading and context; validity routes to the legacy subject; promotion and carve-out cutover per §19.4-§19.6 |
+| C mature repository without authority | a few coarse `UNGOVERNED`, `OPAQUE` subjects by top-level region, or `ssds.unclassified`; analyzers give derived structure early | bottom-up proposals, top-down acceptance; production continues |
+| D live partial migration | mixed modes | a production edit makes non-current exactly the reconstruction judgments whose basis named it |
+| E external or foreign-agent branch | intake of a change with unknown basis (§18) | provenance recorded; obligations from touched units |
+| F drift or corruption | intake; derived state rebuilt; ledger integrity and qualification checked | §23 |
+
+**Shadow genesis.** A shadow deployment (G2-G3) runs genesis with every subject in mode `LEGACY(p)` or `UNGOVERNED`, so SSDS derives, renders and records but holds no authority over any subject. Moving any subject to `NATIVE` is a cutover under G4.
+
+### 20. External units and the cross-repository boundary
+
+#### 20.1 External units and pins [D3 decision: pin grammar]
+
+SSDS governs one ledger per project and provides no atomic admission across repositories. Cross-repository projects couple through immutable pins. An `EXTERNAL` unit's scope is one pin:
+
+```text
+{ git = "<repository identity>", commit = "<full hash>", path = "<region>" }
+{ package = "<ecosystem>:<name>", version = "<exact>", digest = "sha256:…" }
+{ dataset = "sha256:…", locator = "<url or DOI>" }
+{ doi = "<DOI>", variant = "<edition/version>", locator = "<section/table/page>" }
+```
+
+Its content never changes, so `content` entries on it never go stale. A change of pin is an ordinary local content change whose impact is derived locally. A read outside the governed tree is pinned by the same grammar where possible; otherwise it is unpinnable (§6.3).
+
+#### 20.2 External acceptance and consultation
+
+An `EXTERNAL_ACCEPTANCE` imports the fact that the external project's own process accepted that exact revision and scope, citing its evidence; its basis names, in `record` mode, the `EXTERNAL_CONSULTATION` it relied on. Without one, native reliance on the external unit is provisional. External status is only as fresh as the latest consultation; re-consultation is an advisory Dispatcher obligation, and briefs show the consulted position.
+
+**Supersession by consultation.** When a later consultation observes that the pinned triple is no longer accepted by its owner, or finds the external ledger `FORK`, `ROLLBACK` or retired, Admission admits it with **mandatory supersession** of the earlier consultation, so every import relying on that consultation becomes non-current mechanically. A merely unreachable (`UNQUALIFIED`) external ledger supersedes nothing, which keeps network loss from flapping imports. A qualified actor may additionally challenge the importing subject. An external correction or retraction of a cited source is a binding event under the semantic-definition owner.
+
+#### 20.3 Another SSDS ledger
+
+Another project's SSDS ledger may be consulted read-only. The consultation qualifies that ledger's head under its own witness model (§23); an unqualified or retired head is never imported. The observation records the qualified head consulted, the checkpoints used and the derived status read. The external ledger is never written, merged or treated as local authority.
+
+#### 20.4 Multi-repository change
+
+A multi-repository change is a sequence of admissions: the producer first, then the consumer pinning the producer's admitted commit. Intermediate states are visible and legitimate: the consumer stays on its older pin until its own admission. A newer external revision observed by the Dispatcher creates an advisory obligation, never a block. **Supported class:** coupling through immutable pins (submodules, lock files, package versions, dataset hashes, DOIs). Scopes that must co-evolve atomically belong in one repository and one ledger; otherwise their transient inconsistency is visible as provisional or advisory state, never hidden.
+
+## Part VIII. Persistence, publication, trust and security
+
+### 21. Ledger storage realization
+
+#### 21.1 Stores
+
+| Store | Content | Canonical? | Location | Sole writer | Recovery |
+|---|---|---|---|---|---|
+| content store | all repository content including authored relations, the manifest, anchors and the policy file (the observed state) | yes, for meaning; structural declarations and policy are proposals until admitted | the project's Git repository | humans and tools through Git; Admission only by publication compare-and-swap | Git replication; foreign movement absorbed; referenced commits kept reachable by the ledger |
+| ledger | entries (§21.2) under the closed schema | yes, for everything not derivable | one authoritative ref (§21.5) | Admission | any replica extending the highest observed checkpoint; else human-gated `LEDGER_LOSS` |
+| witness checkpoints | authenticated checkpoints and retirement statements; digests only | no; evidence that admits entries and detects rollback | declared witnesses outside the authoritative replica's administrative control | Admission; any participant may relay an existing authenticated checkpoint | redundancy by quorum; loss beyond the fault bound by human-gated redesignation |
+| derived index | derived state, effective structure, derivation checkpoints, analyzer caches | no | private, local, rebuildable | Derivation | discard and re-derive |
+| operator state | leases, reservations, account and quota telemetry, harness sessions, raw prompts and transcripts, signing keys and secret references, high-water marks, the operator journal | no project authority | private user-local root outside repositories (owner-only permissions) | Dispatcher (journal); each participant's Ledger Store (its high-water mark); Admission (its keys) | journal rebuilt by observing harnesses and workspaces; high-water mark by qualification; keys by trust-root lifecycle |
+| transport | task and result envelopes, rendered briefs and candidate commits on run refs | no | `refs/heads/ssds/run/<task-id>` in the project repository | Dispatcher and Interface (envelopes, briefs); agents (results, candidates) | regenerated from the ledger and obligations; results enter only through Admission |
+
+There is no publication-attempt log (§22.3, refinement R4).
+
+#### 21.2 Entry format [D3 decision]
+
+Each ledger entry is one Git commit on the authoritative ledger ref. Its tree contains exactly:
+
+```text
+entry.json             RFC 8785 canonical JSON of the entry
+entry.sig              Ed25519 signature by the appending Admission host key over
+                       "ssds.entry.v1" ‖ sha256(entry.json)
+objects/<sha256>.json  LEDGER-store objects this entry introduces (evaluated outcomes, refused record bytes)
+```
+
+```text
+entry = { ledger_id, position, schema,
+          prev: sha256 of the previous entry's (entry.json ‖ entry.sig)      -- null for genesis
+          entry_kind: ADMISSION | ABSORPTION | LIFECYCLE,
+          host_key_id, incarnation_id,                                       -- the publisher (§22.3)
+          obs: commit | null,                                                -- null only for recovery lifecycle entries
+          admission: { request_id, decision, reasons, base_commit, admitted_commit,
+                       adopted_deltas, refused: [ {record_id, reasons, object} ] } | null,
+          absorption: { fence: {base, fence_commit} | null } | null,
+          lifecycle: <lifecycle record> | null,
+          records: [ … ] }
+entry_digest(n) = sha256(entry.json ‖ entry.sig)
+```
+
+The authenticated chain is the SHA-256 `prev` chain plus signatures; Git's commit chain is transport and must agree with it (a mismatch is corruption, §5.7). Commit metadata is fixed (author and committer `ssds-admission`, message `ssds ledger <ledger_id> #<position>`) and is never read.
+
+**Reachability.** An entry commit's first parent is the previous entry commit; its further parents are every commit the entry newly references that is not already reachable from earlier entry commits: base, admitted, observed and candidate commits, fence commits, and the trees realizations ran on. So the ledger keeps every content commit it references reachable, and product-ref force-pushes or deletions cannot make history underivable. In a dedicated ledger repository those objects are pushed with the entry.
+
+#### 21.3 Append and durability [D3 decision]
+
+The append is a compare-and-swap of the single ledger ref from the expected previous entry commit to the new one:
+
+- **local authoritative repository**: a Git reference transaction with an expected old value, with object and reference fsync enabled (`core.fsync` including `objects` and `reference`, `core.fsyncMethod = fsync`), sufficient for the declared crash model: process crash and operating-system crash or power loss of the authoritative host;
+- **remote authoritative replica**: a push of the single ledger ref with an explicit expected old value (`--force-with-lease=<ref>:<expected>`), which the server rejects if the ref moved. No multi-ref capability is needed. The server's own durability is assumed; loss of the server is covered by the witness quorum (§23).
+
+A losing writer re-validates against the new head (§9.1).
+
+#### 21.4 Retention of referenced objects and evaluated content
+
+The ledger retains every entry, every `LEDGER`-store object, and reachability of every referenced commit for its lifetime. Evaluated outcomes and the trees on which failing and reproducing executions ran are therefore always available to derivation (§6). Native artifacts referenced by `REPO`, `HOME` or `RUNNER` references are not retained by the ledger; their unavailability is a binding-health event (§17.4). Nothing referenced is purged except under the confidentiality protocol (§24.2), which weighs later scientific judgment before any irreversible purge.
+
+#### 21.5 Location options [D3 decision]
+
+Genesis chooses one: (i) the reserved ref `refs/ssds/ledger/<ledger_id>` in the project repository; or (ii) a dedicated ledger repository (for example private, when governance records must be more private than the product), on the ref `refs/ssds/ledger/<ledger_id>`. Semantics are identical. Genesis names the **authoritative replica** (repository URL and ref); a change is a human-gated `REPLICA_REDESIGNATION`.
+
+#### 21.6 Derived index and operator-state boundary
+
+The derived index holds only derived state, keyed caches and derivation checkpoints (§5.9); it is never authority and is discarded and rebuilt on any doubt. Operator state never enters the ledger, the content store or transport, except as record provenance fields (route, harness, model family and model, attempt, toolchain). **[delegated]** Index and journal storage engines.
+
+### 22. Publication
+
+#### 22.1 The integration observation and the entry-shape rule
+
+Every entry carries `obs`, the live integration head Admission read immediately before appending it (for an admission, `obs = B`). The exception is a human-gated recovery lifecycle entry (`LEDGER_LOSS`, `FORK_RESOLUTION`, `WITNESS_SET_REDESIGNATION`, `REPLICA_REDESIGNATION`, `LINEAGE_RETIREMENT`), which carries `obs = null`, so recovery never waits for the integration host. **Entry-shape rule**: an entry whose `obs` differs from its expected head `E` must be an absorption carrying no submitted records. An **equivalent publication** of admission `n` is a commit reachable from `obs` (or equal to it) that descends from `B_n` and has `C_n`'s tree.
+
+#### 22.2 Publication classification
+
+An admission entry `n` names `C_n` and `B_n`; it is the complete admitted **intent** of the effect `B_n -> C_n` (C4). A records-only request has `C_n = B_n` and no effect. Publication starts only after `n` is admitted. Publication of `n` is reconciled by the first later entry carrying `obs`:
+
+| `obs` of the first later entry | That entry may be | `pub(n)` |
+|---|---|---|
+| none yet | — | `PENDING` |
+| `C_n`, or an equivalent publication equal to `obs` | any entry, including the next admission; `E` becomes `obs` (same tree) | `PUBLISHED` |
+| anything else | only an absorption of `obs` | `PUBLISHED` if `C_n` or an equivalent publication is reachable from `obs`, else `OVERTAKEN` |
+
+`late(n)` holds when `pub(n) = OVERTAKEN` and a later `obs` newly reaches `C_n` or an equivalent publication: a `LATE_PUBLICATION` integrity finding with `CRITICAL` attention. An `OVERTAKEN` admission keeps `C_n` recorded and reachable; its records are re-evaluated against the absorbed tree; `REVALIDATE_OVERTAKEN` is derived; its structural changes, already in `Σ` but absent from the absorbed tree, appear as quarantine until the revalidated request publishes and realigns.
+
+#### 22.3 The publisher, fencing and settlement [refinement R4]
+
+**Publisher.** Each Admission process generates a random 128-bit **incarnation identity** when it starts and records it in every entry it appends, with its host key. The publisher of admission `n` is the incarnation named in entry `n`. Only that incarnation, during its lifetime, performs `B_n -> C_n`, at most once, tracked in its own memory. A restarted process is a new incarnation; a different process or host is never the publisher. No durable attempt log exists: within one incarnation, "I have not attempted `n`" is exact, so no log intactness question arises (copied, restored, shared or inherited operator state cannot authorize a publication). Two processes holding the same host key are distinct incarnations and cannot both be `n`'s publisher.
+
+**Fencing.** A fence commit `F_k` for admission `n`, created by entry `k`, has `tree(B_n)`, parent `B_n` and message `ssds fence <ledger_id> #<n> by #<k>`; it changes no content, and distinct fences have distinct identities. Any Admission incarnation that finds `L = B_n` with `pub(n) = PENDING` and is not `n`'s publisher in its first attempt appends, after the operational takeover wait, a **fencing absorption** `k`: an absorption of `B_n` (`obs_k = B_n`, classifying `n` as `OVERTAKEN`) carrying the effect `B_n -> F_k`, performed by `k`'s own publisher. Exactly one compare-and-swap from `B_n` can succeed: if the fence lands, `n`'s effect can never apply from this ref state; if `C_n` lands first, the next entry observes it.
+
+**Takeover wait [D3 decision; proposed default].** 300 seconds after `n` is admitted with no successor, policy-configurable; a liveness choice only. A publisher that crashes inside the window is always fenced, which costs a human decision (below) and loses nothing.
+
+**Settlement.** Admission `n` is **settled** iff some later admitted entry's `obs` is not `B_n`. Human attention for an ambiguous `n` is raised when the first fencing absorption of `n` is admitted; a human decision on it is admissible only once `n` is settled (§8.3 step 7). Across a chain of fences the rule is the same: a later fencing absorption may classify an earlier fence `OVERTAKEN` while the ref still shows `B_n`; only an observation away from `B_n` proves that no outstanding effect from `B_n` can still apply. If a fence landed, the human chooses to re-apply `n` (an ordinary revalidated admission onto the fence) or keep the fence; no outstanding effect can reverse either. If `C_n` landed first, `n` was published late; the human chooses, with the product showing `C_n`, to accept it or revert by an ordinary admission.
+
+**ABA policy.** A foreign reset of the integration ref to exactly `B_n` after a successful compare-and-swap is indistinguishable from a publication not yet applied. Every `L = B_n` that is not the publisher's first attempt is fenced, and the human decides after settlement. After a fence, a foreign writer returning the ref to exactly `B_n` while a stale publisher resumes is outside SSDS's control: detected as `LATE_PUBLICATION`, never prevented — a disclosed residual.
+
+**Procedure** at an admitted head `n` with `pub(n) = PENDING` (Admission reads only the qualified ledger, the live ref and its own memory):
+
+```text
+read L
+L = B_n and this incarnation is n's publisher and has not attempted n
+                       -> compare-and-swap B_n -> C_n; mark attempted; read L again
+L = B_n otherwise      -> after the takeover wait, append a fencing absorption of B_n with effect B_n -> F_k;
+                          once admitted, its publisher performs it; read L again
+L = C_n, or an equivalent publication equal to L
+                       -> append the next entry with obs = L (the next ready admission, or an absorption
+                          recording PUBLISHED)
+anything else          -> append an absorption of L: PUBLISHED if C_n or an equivalent publication is
+                          reachable from L, else OVERTAKEN
+```
+
+Recording an idle outcome is optional: a canonical `PENDING` with no successor is truthful, because the governed tree is already `T_n`.
+
+**Every failure point.** Crash before the compare-and-swap: the publisher is gone; a takeover fences. Compare-and-swap loses to a foreign push: the successor is an absorption, `OVERTAKEN` unless the foreign history contains `C_n`. Compare-and-swap succeeds, then crash: restart reads `L`; `C_n` gives a consistent successor; later foreign movement gives an absorption classified by reachability. Successor appended but not admitted: it is the single provisional entry; restart completes its anchoring; if it vanished and is proved never admitted, read `L` again and append a new successor. Successor admitted, response lost: `submit` by request identity returns the recorded decision. Two hosts racing to reconcile: the ledger compare-and-swap admits one; the loser re-derives from the winner's `obs`. Publisher paused, takeover fences, human decides, publisher resumes: its compare-and-swap from `B_n` fails against `F_k`. Fence publisher paused: another incarnation fences again with a new fence commit.
+
+**Idempotency and replay.** The effect identity `(ledger_id, n, B_n, C_n)` is fixed by entry `n`; a compare-and-swap from the exact predecessor is idempotent and never overwrites foreign work. Classification reads only `B_n`, `C_n`, `obs` and the commits reachable from `obs`, which the ledger keeps reachable, never the live ref; replay explains from the ledger alone which entry resolved each publication. There is no hidden cycle: `n` admitted -> effect -> read `L` -> append `n+1` -> admit `n+1`, and nothing on that chain waits for `n+1`.
+
+#### 22.4 Commit point: provisional and admitted entries
+
+```text
+append (CAS, durable)                              -> PROVISIONAL
+checkpoint acknowledged by q_a witnesses           -> ADMITTED (current-qualified; the commit point)
+then: submit response ADMITTED; integration-ref publication; dispatch from the new state;
+      current-state answers at the new head; the next append
+```
+
+Admission keeps **at most one provisional entry**: it appends `n+1` only after `n` is admitted. The single exception is a human-gated `WITNESS_SET_REDESIGNATION`, which may be appended over a provisional entry and whose admission settles that prefix. The head Admission validates against is therefore always admitted, and no provisional entry influences derivation anyone relies on. After a crash, request identity tells Admission what happened: no entry carries it -> retry; a provisional entry carries it -> complete checkpoint distribution (nothing else could append in between, so validation still holds); an admitted entry carries it -> proceed to publication. A provisional entry whose every copy is lost is resubmitted by identity when qualification proves it never admitted (§23.6); otherwise its loss is a `LEDGER_LOSS`.
+
+If the authoritative replica, the integration host or a witness read quorum is unreachable, appends stop (fail closed) while production continues; recovery lifecycle entries need only the replica and witnesses. Each admission costs one entry and one quorum round in ordinary operation, because the next admission carries its predecessor's outcome.
+
+### 23. Currentness qualification, witnesses and known loss
+
+#### 23.1 Contract (P4)
+
+Currentness is asserted only for durably witnessed state. A head is **current-qualified** only when a witness quorum holds its exact identity and it extends every checkpoint and high-water mark the evaluator observes. Every current-state assertion names its qualified head. The guarantee holds without exception under the declared witness model; there is no lag window.
+
+#### 23.2 Authentication [D3 decision]
+
+Every entry is signed (§21.2) by an Admission host key registered as a trust root in genesis or a `KEY_LIFECYCLE` record; keys are Ed25519, held only in private operator state, non-exportable where the platform provides it. Derivation rejects any chain containing an entry with a missing or invalid signature, a key not in force at that position, or a `prev` mismatch: this detects direct pushes of crafted entries. Entries are signed in every deployment class, including single-user local trust.
+
+#### 23.3 Witness model, kinds and formats [D3 decision]
+
+Genesis declares `N` witnesses outside the authoritative replica's administrative control, an admission quorum `q_a`, a read quorum `r` and a fault bound `f`, with
+
+```text
+q_a + r > N + f        (any admission quorum and any read quorum share more than f witnesses)
+```
+
+A faulty witness may be lost, rolled back or adversarial. Genesis and every redesignation reject parameters violating the inequality.
+
+| Deployment class | `(N, q_a, r, f)` | Premise stated in status views |
+|---|---|---|
+| `LOCAL_TRUST` | `(1, 1, 1, 0)` | the single witness is on another medium under the same user and is not rolled back together with the replica |
+| `TEAM` | `(3, 2, 2, 0)` | witnesses under three administrative controls |
+| `HARDENED` | `(4, 3, 3, 1)` | one witness may be faulty |
+
+Witness kinds: **Git witness**, a repository on a host under separate administrative control, holding checkpoints as files on an append-only ref (`refs/ssds/witness/<ledger_id>`) with force-push and deletion disabled by the host; **file witness**, an append-only directory on another medium (local-trust only); **log service**, an append-only transparency log. Acknowledgment means the witness durably retained the checkpoint: for a Git witness, the successful push of a commit adding it; for a file witness, the fsynced write; for a log service, its signed inclusion receipt. **[delegated]** Additional witness kinds that meet the same append-only and acknowledgment contract.
+
+```text
+checkpoint  = { ledger_id, position, entry_digest, entry_commit, host_key_id, signature }   -- Admission-signed
+retirement  = { ledger_id, kind: RETIREMENT, last_position, last_entry_digest,
+                successor_ledger_id, successor_genesis_digest, signatures }               -- human-gated (§24.2)
+```
+
+Witnesses retain every checkpoint they receive, append-only per ledger id. Any participant may relay an authenticated checkpoint it has seen to further witnesses (**read repair**); relaying can complete a quorum but cannot forge one.
+
+#### 23.4 Qualification procedure and states
+
+Every participant that presents current state (Admission, Dispatcher, Interface hosts, clones) keeps a **high-water mark**: the last head it qualified, in private operator state. An evaluator with authoritative-replica head `A` and high-water mark `W` collects checkpoint sets from at least `r` witnesses (after read repair where possible), then classifies:
+
+- `FORK` — two observed checkpoints, or `A` and an observed checkpoint, lie on conflicting chains with no authenticated human-gated resolution in `A`'s chain naming the abandoned side;
+- `ROLLBACK` — `A` is a strict ancestor of an observed checkpoint or of `W`, with no admitted abandonment record in `A`'s chain naming it; for a non-authoritative copy that can fetch the missing suffix, `BEHIND`: fetch, then re-qualify;
+- otherwise the **qualified head** `H*` is the highest entry of `A`'s chain observed held by `q_a` witnesses that extends every observed checkpoint and `W`; `A` is `H*` or `H*`'s single provisional successor, labeled `PROVISIONAL` and never presented as current;
+- `UNQUALIFIED` — fewer than `r` witnesses respond, or no head is confirmable at `q_a`: historical views only, no current assertion, Admission does not append;
+- `RETIRED` — the witnesses hold a retirement statement for the ledger id: historical views only, from any mirror (§24.2);
+- `INTEGRITY_HALT` — §5.7.
+
+Every current-state answer, task brief, dispatch readiness decision, snapshot export, external consultation and publication is bound to a named `H*`. Admission's own validation uses the head it holds by compare-and-swap, admitted by construction. Nothing irreversible depends on a non-Admission participant's notion of currency: results are revalidated at Admission (K4).
+
+**Why the contract is sound.** An admitted head is held by `q_a` witnesses; any `r` responses include more than `f` of them, so at least one honest holder; every qualifying evaluator therefore observes every admitted head, and an older prefix cannot qualify. An entry that never reached `q_a` was never relied on. If every copy and checkpoint of such an entry disappears, nothing distinguishes it from never having been appended, and no architecture can infer it; SSDS needs no such inference because it never granted that entry currentness, and its request is resubmitted by identity.
+
+#### 23.5 Fresh-clone procedure
+
+A fresh clone, with or without a historical prefix, has no high-water mark: it qualifies against a read quorum; fetches a missing admitted suffix (`BEHIND`) or reports `ROLLBACK`; with no read quorum its views are `UNQUALIFIED` and Admission refuses to append from it. It then sets its high-water mark to `H*`.
+
+#### 23.6 Known loss of admitted history (P5)
+
+**Abandonment versus loss.** A human-gated record may abandon a head not in the retained chain; whether that abandons admitted history is decided from witness reports, never asserted. Let `h` be the number of responding witnesses holding the abandoned checkpoint and `m` the number not responding; up to `f` responders may deny a checkpoint they hold. The entry is **proved never admitted** iff `h + m + f < q_a`; **known admitted** iff `h ≥ q_a`; otherwise **possibly admitted**. Abandoning only proved-never-admitted entries is a `FORK_RESOLUTION` with no boundary. Abandoning a known or possibly admitted head is a `LEDGER_LOSS`, whichever lifecycle record carries it. When the bound is inconclusive because witnesses are unreachable, waiting is always an alternative to a boundary.
+
+**`LEDGER_LOSS` names** the retained head `R` (position and digest of the highest entry of the retained authenticated chain from genesis); every abandoned head known from witnesses, replicas or high-water marks, with position, digest and witnessed admission status (the lost interval is at least `(R, h_max]`); the content reference of the qualification report gathering those reports; the **global control facts** re-established from its position — witness model and set, trust roots, ruleset (each may equal its retained value; the gate re-establishes them because the lost interval may have changed any, and their effect is project-wide); and the human gate's decision. It is appended at `R + 1`, carries `obs = null`, and is admitted under the quorum it re-establishes (and the old one where reachable). Once admitted, qualification classifies the named heads as abandoned. A lineage whose old witnesses hold a retirement statement cannot take a `LEDGER_LOSS`; recovery continues in the successor lineage.
+
+**The boundary** is the S1 predicate `cont` (§5.3): a record admitted before it has no permissive effect after it unless held. Polarity decides (§5.4): acceptances, conformance, plan acceptances, completeness, equivalence, assessments, imports, reconstruction and intake judgments, realizations, consultations, task results and check executions are not current until requalified or held; relaxers lose force, so their challenges reopen, their blocks return, and a revocation lifted by a counter-challenge returns; ordinary challenges, counter-challenges, restrictive adjudications, revocations and supersessions are unchanged; reports and their obligations are unchanged; failing assessments and their disagreements are unchanged, while their dispositions are withheld as dispositions; coordination decisions, reclassifications and human decisions that resolved a report are not in force, so the report's obligation reopens; `Σ`, tenure, quarantine, trees and content are unchanged; availability degradations and adverse consultations are unchanged; derivation at earlier positions is unchanged.
+
+**Requalification** uses existing kinds only: a fresh acceptance, adjudication, assessment, realization, import or consultation after the boundary, whose basis may cite withheld records by `identity`. S3 derives one `REQUALIFY` obligation per permissive record or relaxer in effect at `R` and withheld now, so recovery work is enumerated, and readiness orders it top-down.
+
+**Why a stale-consistent restore cannot resurrect authority.** While any read quorum shows a later checkpoint, qualification refuses the stale ledger (`ROLLBACK`). Continuing needs an admitted `LEDGER_LOSS`, a ledger fact independent of product content; the boundary reads only ledger records, so agreement between a restored tree and the retained ledger is irrelevant: `Q` may be empty and nothing revives. At every position at or after the boundary, `current(x) ≤ base(x) ≤ cont(x)` for every earlier record, and every earlier relaxer is in force only if `cont` holds.
+
+#### 23.7 Continuity attestation [D3 decision: grammar]
+
+The only narrowing is accountable. A `CONTINUITY_ATTESTATION` is a human-gated challenge-tier judgment by an actor policy designates for the purpose:
+
+```text
+{ target: <LEDGER_LOSS record id>,
+  scope: { form: COMPLEMENT, possibly_affected: [subject ids, record ids] }
+       | { form: EXPLICIT,   held: [subject ids, record ids] },
+  evidence: [ content references: hosting audit logs, notifications, CI artifacts, operator journals,
+              a surfaced abandoned chain ] }
+holds(a, x) ⇔ (form = EXPLICIT ∧ exposed(x, held)) ∨ (form = COMPLEMENT ∧ ¬exposed(x, possibly_affected))
+```
+
+`exposed` is the S0 predicate of §5.2. While in force it holds what it covers, and dependents follow through S2. Any qualified actor may challenge it; an upheld challenge withdraws it permanently; a later boundary withholds it like any relaxer unless that boundary's attestation holds it. It is the only way a pre-boundary record becomes current again without a fresh record, and it is an accountable act, never an inference from agreement between product and ledger.
+
+#### 23.8 Recovery
+
+| Situation | Recognized by | Response | Boundary |
+|---|---|---|---|
+| ledger ref rewound, suffix recoverable | `ROLLBACK`/`BEHIND`; some replica or clone holds the suffix | restore it; Admission halted until then | none |
+| stale product restore, ledger intact | the next entry's `obs` differs from `E` | absorption, drift, quarantine | none |
+| ledger truncated, newer product observable | `ROLLBACK`; suffix unrecoverable | `LEDGER_LOSS`; the next entry also absorbs the newer product | yes |
+| ledger and product restored to one stale snapshot | `ROLLBACK` from a witnessed later checkpoint; `Q` empty | `LEDGER_LOSS` | yes; the boundary alone protects |
+| only proved-never-admitted entries lost | non-admission bound holds | `FORK_RESOLUTION`; request resubmitted by identity | none |
+| fork, or witnesses on conflicting chains | `FORK` | human-gated `FORK_RESOLUTION` choosing one lineage and naming the abandoned head; key rotation if compromise is suspected; never auto-merged | if the abandoned side holds admitted entries |
+| crash after append, before admission | provisional entry | complete anchoring (idempotent) | none |
+| witnesses below read quorum | `UNQUALIFIED` | historical views only; Admission halted; production continues; read repair when witnesses return | none |
+| witnesses lost beyond the fault bound, ledger intact | `UNQUALIFIED` | human-gated `WITNESS_SET_REDESIGNATION` continuing from the intact head when every reachable checkpoint, replica and high-water mark ends there; the record states that continuity rests on that evidence (an assumption beyond the fault model); any evidence of a later head not proved never admitted makes it a `LEDGER_LOSS` | conditional |
+| ledger objects lost, witness checkpoints intact | `ROLLBACK` | `LEDGER_LOSS` naming retained and abandoned heads | yes |
+| authoritative replica lost | unreachable or empty | restore from a replica extending the highest observed checkpoint; `REPLICA_REDESIGNATION`; if none extends it, `LEDGER_LOSS` | conditional |
+| abandoned entries later surface | an authenticated chain conflicting with an admitted abandonment | never merged; evidence with an integrity obligation; may ground a challenge to an attestation | the boundary stays |
+| lost local store, intact repository | absent operator state | ledger is in Git; journal rebuilt from harnesses and workspaces; stale leases released; high-water mark re-established by qualification | none |
+| corrupted derived state | integrity checks; mismatch with re-derivation | discard and re-derive | none |
+| content objects referenced by the ledger unavailable | object lookup | `UNAVAILABLE` binding health; fail closed for dependent closure; restore from any replica | none |
+
+**Witness lifecycle.** The witness set and quorums change only through a human-gated `WITNESS_SET_REDESIGNATION`, admitted under both old and new quorums where the old is reachable. Where it is not, the gate gathers every reachable checkpoint, replica head and high-water mark and names the head the new set continues from; any evidence of a later head not proved never admitted makes the record carry a `LEDGER_LOSS`. Witness admission latency on the Admission critical path is a reopen trigger (§32), not a reason to restore a lag window.
+
+**Where information runs out.** If every copy, checkpoint and high-water mark of an admitted head is lost (more than `f` witnesses failing with every replica) and the product is restored stale as well, nothing distinguishes that world from one where the head never existed. A continuity attestation can be wrong: it is accountable and challengeable, not infallible. A holder of recovery authority who abandons a recoverable suffix can withhold admitted history from continuity until the abandoned chain surfaces; it is then evidence, never silently merged.
+
+### 24. Confidentiality
+
+#### 24.1 Prevention [D3 decision]
+
+1. **Closed, reference-oriented schema** (§3.2): no free text; reasons are codes; rationale and reports are referenced by content identity and live under ordinary repository hygiene or in a private store.
+2. **Bounded Admission checks** over every string-valued record field and every `LEDGER`-store object: grammar validation; known-credential patterns (a system list of provider token formats, private-key headers and connection-string forms, which policy may extend and never shrink); high-entropy detection (**[proposed default]** Shannon entropy at least 4.5 bits per character over any token of at least 20 characters, outside fields whose grammar is a digest or identity). Where policy enables it, the same scan runs over the candidate diff (the `credential_values` boundary check). A hit rejects with `SECRET_DETECTED`. These are preventive help, not a confidentiality guarantee.
+3. **Operator secrets** (signing keys, tokens, prompts, transcripts, account telemetry) live only in private operator state.
+4. **Visibility separation**: a dedicated private ledger repository when governance records must be more private than the product (§21.5).
+
+#### 24.2 Breach protocol
+
+Applies when a sensitive value is found in a replicated ledger entry or in product content the ledger pins.
+
+1. A human-gated security incident under the security owner; Admission halts for the affected ledger.
+2. **Rotate or revoke** every exposed credential immediately; rotation does not wait for any purge.
+3. **Inventory replicas**: authoritative replica, remotes, clones, mirrors, forks, CI and harness caches, hosting retention and backups. Checkpoints contain digests only.
+4. **Weigh retention before loss.** Before any irreversible purge, the incident record states which realized records and evidence the purge would make irrecoverable, which later scientific judgments may need them, and the substitute retained (digests, the private mapping, a redacted re-encoding), under the storage and scientific-inspectability owners.
+5. **Choose remediation by confidentiality need** (human decision):
+   - *Rotation suffices*: keep history; append a `REDACTION_NOTICE`; no guarantee yields.
+   - *Confidentiality required*: a replacement lineage. Settle the old head (admit or prove-never-admitted any provisional entry). Re-encode records with sensitive fields replaced; map commit identities if product history moves; hold any pseudonym mapping privately. Bind the new genesis to the old lineage's last admitted head digest by a `LINEAGE_MIGRATION` record, and qualify that the replacement derives the same state, effective structure included, up to the renaming. Publish an authenticated **retirement statement** to the old witnesses, held by `q_a` of them, so every read quorum observes it and treats the old lineage as `RETIRED`; retire participants' high-water marks for it. Purge the old ledger ref and objects on every controlled replica only with explicit operation-specific authorization (G5); declare old clones invalid for SSDS use; request host garbage collection and backup purge. If the value sits in protected `main` history, confidentiality requires a new repository with the old one archived or access-restricted, never an in-place rewrite. Publish the replacement only after it validates (FF-001).
+6. **Disclose what yields** in the incident record: append-only continuity (the old lineage is abandoned or purged); reproducibility of the affected records (only digests and the private mapping survive); checkpoint continuity (the new lineage starts new checkpoints); confidentiality of copies outside controlled replicas (cannot be guaranteed). A new lineage never removes leaked data, and SSDS never claims it does.
+
+### 25. Actors, authentication, protected surfaces and self-governance
+
+#### 25.1 Actor identity [D3 decision]
+
+| Actor class | Identity | Authentication |
+|---|---|---|
+| `HUMAN` | `human:<key fingerprint>` | a signature by a registered human key in the SSH signature format with namespace `ssds`, or, in `LOCAL_TRUST`, the declared single-user mechanism (operating-system account plus a local key) |
+| `AGENT` | `agent:<task id>/<attempt>` | the signed task envelope plus, on harness routes, the per-task submission credential; provenance names harness, model family and model, route and toolchain |
+| `MACHINERY` | `machinery:<component>@<host key id>` | the component's registered key (Dispatcher issue key for envelopes and Dispatcher-submitted observations; runner keys for designated runners) |
+| `ADMISSION` | `admission:<host key id>` | the Admission host key |
+
+Agents are never principals with authority: their records are proposals attributed to an execution identity and bound to an envelope. No guarantee beyond the implemented mechanism is claimed (T4).
+
+#### 25.2 Trust roots and key lifecycle
+
+Trust roots are declared in genesis and change only through human-gated lifecycle records: Admission host keys (per host; every entry names its host and incarnation), Dispatcher issue keys, designated runner keys, human keys and the human authentication mechanism (`TRUST_MECHANISM_CHANGE`). A `KEY_LIFECYCLE` record registers, rotates or retires a key. A retirement of an issue key lists every outstanding envelope (compiled from run refs and the Dispatcher's journal) so that never-lost records under them stay verifiable (§8.3 step 3). A key declared **compromised** names the position from which its signatures are untrusted: envelopes it signed from there are refused; entries it signed from there make the chain `FORK` or `INTEGRITY_HALT` until a human-gated resolution. A compromised issue key or harness adapter can forge bindings and lineage; that is outside the declared trust model, and its remedy is rotation through this lifecycle.
+
+#### 25.3 Protected surfaces and self-governance [D3 decision]
+
+Agents cannot modify: the ledger; the **rules registry** (system ruleset versions shipped with the SSDS system, never in a project repository); the **project policy** unit `ssds.policy`; schemas; trust roots; witness configuration; unit governance state; issued envelopes. The policy file (TOML, closed schema) holds: actor qualifications above the floors; required judgment kinds, actors and gates per domain; evidence obligations per claim kind; routing table additions and raised floors; role narrowing; enabled check templates and their thresholds; default budgets and time bounds; serialization surfaces and concern tags; runner-class designations; standing plan; product-scope owner; intake options; witness and deployment parameters are **not** policy (they are genesis and lifecycle facts).
+
+Self-governance: a policy edit is ordinary content that enacts nothing; it takes effect only through a human-gated `RULESET_ADOPTION` validated under the previous ruleset (stratification check §5.1, vocabulary checks §2.3) and shown its derived impact (subjects becoming ill-formed, obligations reopening). Schema changes take effect only by `SCHEMA_MIGRATION`; trust roots and witnesses only by their lifecycle records; every one of these needs a human gate. Admission detects any touch of a protected surface in a candidate (`AUTH_PROTECTED`). Agents may propose structural declarations in the manifest as ordinary content; they take effect only through Admission.
+
+#### 25.4 Untrusted input
+
+Agent branches, result envelopes and records are untrusted until validated (T1). Malformed or adversarial records cannot inject actions; agent-reported test results are never admissible evidence. Unknown executable or binary content is classified statically and never executed or deserialized to classify it (T2). Paths are repository-contained, validated relative paths. Evidence, memory and external text are data (T3). Inspection and export views over realized records, and tension or disposition homes that non-owners can write, are data-exposure and trust boundaries: views give the strongest safe aggregate and state the limitation, and content written to such a home stays a claim by its native asserter. Input sizes are bounded at every boundary (record count per request, field lengths, object sizes, outcome object sizes) by system limits. **[delegated]** The limit values.
+
+## Part IX. Components, evolution and versions
+
+### 26. Components, deployment and the Architecture 1.6.0 supersession
+
+#### 26.1 Components
+
+| Component | Owns | Never does |
+|---|---|---|
+| **Content Model** | parsing the manifest, anchors and semantic declarations; resolving effective scopes against observed bytes; authored relation extraction; revisions and scope identities | store status; decide which structure is effective |
+| **Analyzers** | derived relations, interface extraction, diff-to-unit mapping, completeness declarations (§14.5) | claim completeness they do not have |
+| **Ledger Store** | ledger persistence, authentication and chain verification, currentness qualification (read quorum, read repair, high-water marks, `FORK`/`ROLLBACK`/`BEHIND`/`UNQUALIFIED`/`RETIRED`), the non-admission bound, replica restore | interpret records; present a provisional or unqualified head as current; decide what was lost |
+| **Derivation Engine** | the four strata and every query over them, including S0 structure, quarantine, tenure, well-formedness, expected head and publication classification, S1 continuity, S2 support with the cycle clamp, and S3 obligations, conformance, routing, escalation and decision and amendment classes | write canonical state; choose which prefix is current; read the live integration ref |
+| **Admission** | validation; the integration-head observation before every append and publication reconciliation; the only ledger appends; admission by witness quorum; canonical publication effects by the entry's publisher incarnation; fencing absorptions and fence commits; enforcement of task binding, role, write scope, lineage-based independence, version binding and conformance | judge semantics, including what a lost interval contained; perform agent work; publish or report before admission |
+| **Dispatcher** | scheduling among obligations ready at the qualified head (route selection, resources, reservations, serialization surfaces); workspaces and worktree leases; harness adapters; execution effects, including designated-runner realizations and check executions; signed task envelopes; launches in fresh sessions with per-task credentials and launch attestations; suspension and resumption; mechanical iteration retry; integration requests; the operator journal; route recommendation from benchmark evidence | decide readiness, conformance or completion; choose a decision class; act as a second admission; move canonical refs; dispatch from a provisional head |
+| **Interface** | logical operations, transports, version-bound rendering of task, review, decision and gate briefs and of the inspector view and digest, advisory `ask(verify)` | hold state of its own |
+
+**Dependency direction.** `Content Model, Analyzers <- Derivation <- {Admission, Interface, Dispatcher}`. The Ledger Store is read by Derivation and written only by Admission; its qualification is consulted by Admission, Interface and Dispatcher before anything is presented as current; Derivation never consults witnesses. Admission and the Dispatcher never depend on each other's internals: the Dispatcher submits through the same request path as every actor, and Admission never schedules. Scheduling decisions never influence derived workflow state; their provenance travels in submitted records and is replayed as recorded fact.
+
+#### 26.2 Executable architecture fitness [D3 decision; replaces 1.6.0 §18 for SSDS]
+
+Static checks on the SSDS source distribution, run in repository acceptance:
+
+```text
+ssds.content, ssds.analyzers    import only Core public API/SPI and each other's public module
+ssds.derivation                 imports content, analyzers, ledger (read API) only
+ssds.ledger                     imports Core public API/SPI only; exposes read and qualification APIs and an
+                                append API whose only importer is ssds.admission
+ssds.admission                  imports derivation, ledger; never ssds.dispatcher or ssds.interface
+ssds.dispatcher                 imports derivation, ledger (qualification only), interface rendering; never
+                                ssds.admission internals, and never the ledger append API
+ssds.interface                  imports derivation, ledger (qualification only); submits only through the
+                                admission request API
+Core (sdp_orchestrator.core)    imports nothing from ssds
+```
+
+Also enforced: no derivation module reads the clock, the network, environment variables or the live integration ref (an import allowlist); every SSDS file lives under `orchestrator/`; one extension registration; no private cross-module imports. Fitness checks are sensors of the dependency rule, not architecture truth.
+
+#### 26.3 Deployment and composition [D3 decision]
+
+- **One composition root.** SSDS is a Core extension, `sdp.ssds`, registered through Core's single entry-point group `sdp_orchestrator.extensions.v1`. The `sdp` CLI and Core composition root stay the only root per installation; SSDS adds the command group `sdp ssds` (`open`, `ask`, `read`, `report`, `submit`, `decide`, `status`, `inspect`, `admission serve`, `dispatcher serve`, `mcp serve`, `genesis`, `qualify`, `export`). Core never imports SSDS; Core's standalone acceptance never depends on it (1.6.0 invariant 12, PC-001).
+- **Packaging.** Distribution `sdp-orchestrator-ssds`, depending on `sdp-orchestrator-core`, under `orchestrator/` (containment root unchanged), native namespace package `sdp_orchestrator.ssds` with subpackages per component. Public surfaces `sdp_orchestrator.ssds.api.v1` (logical operations and records) and `sdp_orchestrator.ssds.spi.v1` (harness adapter, runner, witness and analyzer provider contracts).
+- **Processes.** Admission and the Dispatcher run as long-lived local processes started through `sdp ssds … serve`; Interface hosts (CLI, MCP) are short-lived or long-lived; Derivation is a library. Multiple Admission hosts may exist; correctness comes from the ledger compare-and-swap and witness quorum, not from leader election.
+- **Configuration ownership.** Core's configuration owner (defaults -> config/profile -> environment allowlist -> explicit CLI/API) holds operator-local SSDS settings in a namespaced `[ssds]` section: repository and ledger locations, key references, harness routes, runner endpoints, witness endpoints. Secrets are references, never values. Project policy is not configuration: it is governed content adopted by the ledger (§25.3).
+
+#### 26.4 Executed supersession of Architecture 1.6.0 for SSDS-governed scopes [D3 decision]
+
+On acceptance of this Manual, `orchestrator/docs/architecture.md` (Architecture 1.6.0, frozen) is superseded **for SSDS-governed scopes only**. For version-bound older work, the implemented Level 0 Core keeps its accepted behavior unchanged: one composition root, version/profile-separated source resolution, frozen historical profiles, versioned JSON records, no cross-version substitution (PC-001). The frozen document is not edited. The Tracker, Adapter and Scheduler levels were never implemented, so no Level 1-3 data migrates; their functions are preserved below.
+
+| # | 1.6.0 product invariant | Final disposition for SSDS scopes |
+|---|---|---|
+| 1 | progressive usefulness; Core alone complete | **Replaced**: staged usefulness (read-only derivation and interface useful without Admission); document-only operation is not complete for native scopes (§19). **Preserved** for version-bound work through Core prompt mode |
+| 2 | `core <- tracker <- adapters <- scheduler` | **Retired** with the ladder; **replaced** by §26.1-§26.2 dependency direction |
+| 3 | graceful degradation without silent policy bypass | **Replaced**: degradation is truthful non-closure plus read-only derivation, labeled `UNQUALIFIED` or historical; no-silent-bypass **preserved** |
+| 4 | one CLI and one composition root; extensions via versioned SPIs | **Preserved and closed**: SSDS is a Core extension under the single `sdp` root (§26.3); no second root |
+| 5 | versioned public boundaries | **Preserved**: `sdp_orchestrator.ssds.api.v1`, `…spi.v1` |
+| 6 | no duplicated workflow authority | **Replaced**: ledger plus Admission is the single workflow authority for native scopes; workplans and profiles keep transitions only for `LEGACY(p)` |
+| 7 | manual operation is first-class | **Replaced in part**: manual invocation and the Git-envelope route stay first-class; manual results enter by admission; manual document control is not complete for native scopes |
+| 8 | capability recommendation precedes resource scheduling | **Retired** as a module boundary (both in the Dispatcher); substance **preserved**: recommendation evidence never acts as quota or resource authority |
+| 9 | benchmark observations preserve context | **Preserved and closed**: the Dispatcher's route-recommendation evidence keeps source, benchmark and version, model identity, effort, harness and configuration, value with uncertainty, generated and fetched time, freshness and identity-match quality (`EXACT_CONFIG_MATCH`, `MODEL_EFFORT_PROXY`, `MODEL_ONLY_PROXY`, `UNRESOLVED`), in operator state; never derived workflow state; incompatible metrics are never combined into one scalar |
+| 10 | scheduler subordinate to workflow intent | **Preserved and strengthened**: the Dispatcher acts only on derived-ready obligations and cannot affect derived state |
+| 11 | private state outside project repositories | **Replaced in part**: operator state private; the closed-schema ledger in a Git repository designated at genesis, which may be private |
+| 12 | subset acceptance is permanent | **Preserved** for Core; **retired** as a ladder rule for SSDS components, which are accepted as one system (G3) |
+| 13 | stable IDs cross modules; implementation objects do not | **Preserved** |
+| 14 | read-only query and durable mutation visibly distinct | **Preserved**: `ask`/`read` and Derivation are pure; only Admission mutates canonical state |
+| 15 | long-running execution is explicit | **Preserved and closed**: the harness-adapter SPI has `admit` (route admission), `start`, `events` (cursor-paged, normalized), `respond` (control and permission responses with stable request identity), `cancel` (idempotent) and `wait` (terminal result without destroying the run); one active execution per attempt; an ambiguous start reconciles before retry; process status and workflow semantics stay separate |
+| 16 | manual and direct routes share one route vocabulary | **Preserved**: `ExecutionRoute` vocabulary (backend, account, transport, model, effort, delivery `direct`/`manual_handoff`, prompt context `local`/`web`, repository access, mutability) |
+| 17 | capability identity independent of API version | **Preserved and closed**: SSDS capability keys `ssds.derive`, `ssds.query`, `ssds.admit`, `ssds.ledger`, `ssds.qualify`, `ssds.dispatch`, `ssds.render`, `ssds.transport.cli`, `ssds.transport.mcp`, `ssds.transport.git-envelope`, `ssds.harness.<family>`, `ssds.runner.<class>`, `ssds.witness.<kind>`, `ssds.analyzer.<language>` |
+| 18 | explicit route choice is not an admission bypass | **Preserved** in the Dispatcher's resource admission (distinct from SSDS Admission) |
+| 19 | route admission precedes final prompt rendering | **Preserved**: the route is selected before route-specific brief rendering (privacy differs by route) |
+| 20 | run identity precedes scheduling and rendering | **Preserved**: task and attempt identity precede dispatch and travel in records |
+| 21 | manual result tracking has a structured seam | **Replaced and strengthened** by the typed admission request |
+| 22 | protocol version binding is explicit | **Preserved** (§16.9, B1) |
+| 23 | one mutating run owns one local worktree | **Preserved** (K2; Dispatcher lease keyed by worktree identity) |
+| 24 | workflow routing authority is profile-owned | **Replaced** by the rules registry for native scopes; profiles remain for version-bound rendering |
+| 25 | uncertain routing remains uncertain | **Preserved**: ambiguity surfaces as explicit S3 states or fails closed |
+| 26 | orchestrator code contained under `orchestrator/` | **Preserved and closed**: SSDS keeps `orchestrator/` as its containment root; no change |
+
+| 1.6.0 frozen surface | Final disposition for SSDS scopes |
+|---|---|
+| §3 capability ladder and distributions | **Retired**; Level 0 Core **preserved** for version-bound work; SSDS is one additional distribution (§26.3) |
+| §5.1 API versus SPI | **Adopted** |
+| §5.2 compatibility | **Adopted**: a public major is a semantic contract; persisted schema, ledger schema, ruleset, interface and profile versions are independent dimensions (§28) |
+| §5.3 public records | **Adopted** with SSDS canonical JSON (RFC 8785) for records; timestamps UTC; IDs opaque; digests carry algorithm, scheme and value; unsupported required semantics fail; records never hold live objects |
+| §5.4 pagination | **Adopted** for `ask` results, history and inspector listings |
+| §5.5 problems/errors | **Adopted**: `Problem{code, message, retryable, details}`, codes namespaced `ssds.*`, Admission reason codes carried in `details`; callers never parse messages; redaction per owning boundary |
+| §5.6 idempotency/mutation | **Adopted**: `ask`/`read`/render are read-only; `submit` idempotent by request identity; `decide` idempotent by the decision record's identity; Dispatcher start idempotent per attempt |
+| §5.7 sync/async boundary | **Adopted**: `ask`, `read`, `report` and `decide` synchronous; `submit` returns `PROVISIONAL` and the outcome is observed by request identity; harness execution through handles |
+| §5.8 two-stage API freeze | **Superseded**: the SSDS API v1 is frozen once, at the G3 implementation review, for the whole system |
+| §6 Core composition SPI | **Preserved**; SSDS registers through it |
+| §7 Core shared records | **Mapped**: `ProjectKey` -> genesis project identity; `WorktreeKey` reused for K2 leases; `RunId` retained for Core prompt mode only (SSDS uses task and attempt identity); `DigestRef` reused; `ProtocolProfileRef` reused for `LEGACY(p)` rendering; `WorkplanRef` not reused (plans are units); `CandidateRef` **declined** (transformation identity `(B, C, A)` replaces it, §7.1); `StageResultEnvelope` **declined** (the typed `TASK_RESULT` and admission request replace it); `EventEnvelope` remains Core's non-durable event; SSDS never derives state from events |
+| §8 Core/Prompt module | **Preserved** for version-bound work |
+| §9 Tracker | **Retired** as a module; functions **replaced**: history and projection by Ledger and Derivation (historical views, §5.8); status and next action by obligations and readiness; manual result ingestion by the Git-envelope result and `submit`; retention and export by the ledger and `sdp ssds export`; the storage/lease SPI by the Dispatcher's operator journal and worktree leases |
+| §10 Adapters | **Retired** as a module; functions **replaced** by the Dispatcher: routes and identities, manual and direct delivery, pre-render route admission, worktree lease, execution lifecycle (invariant 15), benchmark sources, cache and identity resolver, static recommendation |
+| §11 Scheduler | **Retired** as a module; functions **replaced** by the Dispatcher: account and resource ledgers and meters (operator state, never workflow), reservations, prediction, AUTO route selection, future-stage reserves, failover; a configured-required resource policy that is unavailable fails closed |
+| §12 configuration ownership; secrets as references | **Preserved and closed** (§26.3) |
+| §13 persistence/event ownership | **Replaced** by §21 stores; "persisted state is not repository authority" **retired** for native scopes, where the ledger is authority |
+| §15 failure/degradation | **Replaced** by §23.8 and §19.7 |
+| §16 security/privacy | **Preserved** (§24-§25): untrusted pasted output, no tokens in prompts, caches, events, logs or repositories, no local paths or telemetry in web context, no transcript auto-injection, restrictive permissions |
+| §17 benchmark integrity | **Preserved** for Dispatcher recommendation |
+| §18 executable architecture fitness | **Replaced and closed** by §26.2 |
+| §19-§20 module acceptance ladder; module-workplan derivation | **Retired**; replaced by gates G2-G4 and Manual-derived D4 workplans |
+| §21 versioning/evolution | **Preserved** principle; SSDS versions per §28 |
+| §22 active simplicity/reopen triggers | **Preserved** where applicable: separate mutable workflow authority, duplicated resolution, hidden preview writes, private objects in public API, process execution outside its owner |
+
+### 27. Evolution
+
+#### 27.1 Ruleset evolution
+
+A ruleset adoption is a human-gated `RULESET_ADOPTION` naming a system ruleset version and a policy digest, validated under the previous ruleset by the stratification check (§5.1) and vocabulary checks (§2.3), and shown its derived impact. Admissions are never re-adjudicated (P2): current derivation uses the adopted ruleset; a previously discharged obligation the new ruleset no longer considers discharged becomes open, never rewritten history; a relation reclassification that makes accepted structure illegal makes its subjects ill-formed until repaired; `Σ` and `Q` are unchanged; historical views reproduce with the ruleset in force at their position. A corrected check template enters the same way; a candidate wrongly blocked becomes integrable, and an integrated result the corrected template would flag gets an integrity obligation, never a silent revocation.
+
+#### 27.2 Schema evolution
+
+A ledger schema change is a human-gated `SCHEMA_MIGRATION` declaring, per kind and field, `READ` (the new reader reads old records as stated), `MIGRATE` (old records are re-encoded only in a replacement lineage, never in place) or `REJECT` (records of that shape are inadmissible from the position on). Old records are retained. The manifest grammar version (§1.2) and specification declaration grammar evolve the same way through the ruleset.
+
+#### 27.3 System version evolution
+
+Derivation semantics, normalizations (§1.5), the merge implementation (§7.2), check-template functions and the canonical encodings belong to the SSDS system version. A system version change that alters any of them is adopted by `RULESET_ADOPTION` naming a ruleset of the new system version, so historical views keep the semantics of their position.
+
+#### 27.4 Successor migration
+
+The ledger is self-describing and versioned. An SSDS successor either reads it compatibly (declaring the schema versions it reads, §3.6) or starts a new lineage whose genesis carries a `LINEAGE_MIGRATION` record naming the SSDS 8 last admitted head digest; admissions are never reinterpreted, and the old lineage stays readable as history.
+
+### 28. Versions
+
+| Dimension | Identity | Changes by |
+|---|---|---|
+| SSDS system version | semantic version (`8.0.0`) | release of the SSDS system |
+| Manual (architecture) version | `manual_version` of this document (`1.0.0`) | accepted D3 change through its acceptance process |
+| ledger schema version | integer in every record and entry (`1`) | `SCHEMA_MIGRATION` |
+| ruleset version | `{system ruleset id, policy digest}` | `RULESET_ADOPTION` |
+| manifest and specification grammar versions | integers in the files | ruleset |
+| interface version | `ssds.api.v1`, `ssds.spi.v1` | public-major change per §26.4 |
+| doctrine version for native briefs | SSDP version and immutable public-source identity pinned by the ruleset | `RULESET_ADOPTION` |
+| protocol and profile versions | SSDP protocol versions and Core profiles (`ssdp-protocol-7.2`, …), resolved from `PROTOCOL-RELEASE-STATE.yaml` | SSDP release process; never by SSDS |
+
+No dimension is inferred from another, and none is conflated with SSDP protocol semantic version. Every supported orchestration profile through `ssdp-protocol-7.2` stays frozen and independently testable (PC-001).
+
+## Part X. Assurance
+
+### 29. Doctrine realization
+
+#### 29.1 Levels
+
+| Level | Realization | What it guarantees | What it cannot |
+|---|---|---|---|
+| **E0** | enforced mechanically; no agent action needed | the mechanical part happens or the work is refused | that a judgment around it is good |
+| **E1** | detected mechanically, routed to judgment | the condition is surfaced to a named holder and survives | that the holder decides well |
+| **E2** | a required typed slot whose presence is checked and whose content is judged | the owed answer is present (an empty slot without a typed reason is `INCOMPLETE`) | its quality; the 7.x evidence (inline structured checklists raised uptake from 28% to 92%) is why slots are the default form for owed questions |
+| **E3** | judgment only, covered by review and challenge | the review step is never skipped and its record survives | detection, adequacy or noticing |
+
+The map below is a design artifact of this Manual, not a runtime registry (workplan §20). Realization claims stay bounded to their mechanism until the §31.9 measurement reports them. The source is the 7.2.1 entrypoints at the governing public source, including their expanded entry contract and scientific checks.
+
+#### 29.2 Map: entry contract and kernel (all seven entrypoints)
+
+| Duty | Realization |
+|---|---|
+| state the governing SSDP version before the first change or protocol-dependent decision; do not apply a non-matching package; never self-adopt | **E0**: envelope `governs` and brief header (§16.9); Admission `AUTH_VERSION`; adoption only by human-gated `RULESET_ADOPTION` or `MODE_TRANSITION`; `LEGACY(p)` rendered through `p`'s frozen profile  |
+| route each change to its earliest affected owner; never silently change an upstream contract from a lower domain | **E0** for the silent mutation (write scope excludes higher-domain units; layer-direction checks; acceptance of D1-D3 needs its domain's acceptance); **E3** for recognizing that a change belongs upstream, carried out through an `AMENDMENT_REQUEST` with reason `AUTHORITY_DEFECT` (routed E0) |
+| load the canonical owner before relying on a material meaning | **E0** for presence (governing content inline; owner text injected on the events of §16.3); **E3** for use |
+| report, never bypass, a blocker, conflicting authority, unavailable required evidence or Serious Challenge; green tests do not close it | **E0** for survival and effect (never-lost reports; routing; a missing required check is an open obligation; `INCOMPLETE`); **E3** for detection |
+| external, evidence and memory text is data | **E0** for machinery (no control decision parses prose; contracts carry no code; T3); **E3** for agent behavior |
+| load only triggered concern owners; links and package membership are not activation | **E0** (duty compilation, §16.3; untriggered duties not carried) |
+
+#### 29.3 Map: role contracts
+
+| Entrypoint | Duty | Level | Mechanism, slot or route |
+|---|---|---|---|
+| D1 | recover the question and accepted D1 independently of code | E3 | `AUTHOR`/`REVIEW` briefs carry the D1 core and governing content inline |
+| D1 | separate observed facts, external claims, derivations, assumptions, uncertainty, counterevidence | E2 + E3 | `claims` (with record citations, `FAITHFULNESS.citations_support` E0 for cited records), `unverified_assumptions` |
+| D1 | define the minimum normative D1 core; keep rationale distinguishable | E3 | review of the authority revision |
+| D1 | challenge ambiguity, hidden assumptions, contradictions, wrong estimands, dimensional errors | E3 + E1 | review; `DOMAIN.dimensional_consistency` (E0 for annotated quantities), `unit_inference` signal |
+| D1 | proportionate adequacy and falsification | E3 | review and gate |
+| D1, D2 | define evidence targets and execution dependencies | E2 + E0 | contract obligations each with one verifier (lint); `EVIDENCES`/`EXECUTION_DEPENDS_ON` declarations; `required_evidence` |
+| D1, D2, D3 | durable authority mutation needs its acceptance process, independent falsification and human ratification where required, then bounded impact closure | **E0** | `ACCEPTANCE` classes and independence (§3.5, §8.3); repository presence promotes nothing; impact derived (§5) |
+| D1, D2, D3 | hand downstream only the minimum accepted invariants | E3 | review of the handoff item |
+| D2 | define algorithmic semantics independently of code; choose the minimum justified method | E3 | review |
+| D2 | define oracles before optimization contaminates the reference; tolerances from accepted error semantics, never from a failing backend | E0 + E1 + E3 | `evidence_specs` outside the implementer's write scope and `TEST_INTEGRITY.evidence_specs_untouched` (E0); `widened_tolerance` signal (E1); `SPEC_REVIEW` (E3) |
+| D2 | bound whether numerical uncertainty can change the decision before escalating | E3 | review |
+| D2, D4 | distinguish evidentiary target from execution dependency; remap/rerun when machinery changes | **E0** | realization basis target/execution parts; execution change derives rerun obligations (§17.4) |
+| D3 | classify the earliest affected domain and side constraints | E3 | review |
+| D3 | reconstruct accepted D3 independently of implementation | E3 | review brief excludes author narrative (§16.5) |
+| D3 | test D3 adequacy against D2 | E3 | review |
+| D3 | compare admissible architectures; prefer minimum justified complexity | E3 | review; §30 |
+| D3 | freeze only material decisions; delegate machinery | E3 | review |
+| D3 | define D4 acceptance at real owner and consumer boundaries | E2 + E3 | contract verifiers; review of the contract in `PLAN_ACCEPTANCE` |
+| D3, D4 | a first clean local defect stays local; recurrence triggers simplification before additive repair | E1 + E3 | recurrence detection creates a `COORDINATE` decision carrying the convergence duty (§15.7) |
+| D4 | reconstruct the accepted contract; prefer the simplest admissible repair | E3 | brief |
+| D4 | an equivalent local concretization is reconciliation; reopen upstream only when the abstraction must change; never change a D1/D2 meaning, default or tolerance for convenience | **E0** + E3 | write scope and protected evidence specifications enforce the edit boundary; the judgment is reviewed |
+| D4 | close each stage with affected regression; reconcile every obligation; rerun evidence whose owner changed; real-boundary integration | **E0** | `required_evidence` on the exact candidate by a designated runner; integration reruns affected evidence; no collateral regression (§8.3 step 8) |
+| D4 | a required check that did not execute is not a pass; green tests do not prove omitted obligations | **E0** | `INCOMPLETE`; open obligations; discharge requires every obligation |
+| D4 | name each claim's real owner; test doubles never replace it | E3 | review; qualification design (§31) |
+| D4 | never weaken tests, tolerances or specifications or discard contradictory evidence | **E0** + E1 | `no_deletions`, `no_skips`, `no_xfail`, `evidence_specs_untouched` (E0); `fewer_assertions`, `widened_tolerance` (E1); failing evidence never dropped (§6) |
+| all roles | Review/Challenge: reconstruct, attempt falsification, Serious Challenge before ordinary findings | E3 + E2 | review brief kind duties; `bidirectional` slot for scientific subjects; Serious Challenge routing and human attention (E0) |
+| all roles | completion report: governing parents, state, evidence applicability, blockers, Challenge first | E2 + E3 | `TASK_RESULT` outcome and slots; machine-produced facts (A6) |
+
+#### 29.4 Map: scientific checks
+
+| Duty | Realization |
+|---|---|
+| when delegating, ask the findings, realized-results, variant and tension questions in the request itself | **E0** for SSDS-dispatched delegation (the delegate's contract requires the triggered slots, §13.5); **E2** (`delegate_returns`) for delegation outside SSDS |
+| report each unanswered part as a gap, never a null | **E0** for emptiness (empty slot without typed reason -> `INCOMPLETE`); E3 for truthfulness |
+| findings, including delegates' and out-of-scope ones; inspectability gaps | E2 (`findings`) + **E0** survival (delegate floor, §15.4) + E3 detection |
+| realized-results inquiry with null envelope and materiality basis | E2 (`null_envelope`) |
+| variant-search disclosure | E2 (`variant_search`) |
+| tension search before relying on accepted D1/D2 for a consequential judgment; report entries, bindings, asserters | E2 (`tension_search`) + E1 (`ask(tensions)` over in-repository `CHALLENGES` and recorded challenges) + E3 |
+| consequential choices with origin, chooser and binding | E2 (`choices`) |
+| retention, projection and omission statement | E2 (`retention`) |
+| claims no stronger than evidence | **E0** for cited records (`citations_support`, `outcome_consistent`) + E1 (`prose_numbers`, `certainty_vocabulary`) + E3 |
+| look for findings before discarding or irreversibly aggregating realized results or retained evidence | **E0** for the ledger (append-only; purge only through §24.2 with retention weighing); E3 for project data |
+| probe within the declared resource budget | **E0** for Dispatcher-run executions (time bound, runner classes); E3 inside an agent's workspace |
+| persist a finding or human decision in one authorized home with its required content | **E0** for records and human decisions (ledger); E2 + **E0** for homes (`homes` in the contract, enforced as write scope); E3 for content |
+| persist a tension bound to every plausibly implicated authority and its subject, with asserter | E2 + E0 (`CHALLENGES` requires an inquiry attribute; schema) + E3 for breadth |
+| inaccessible homes: named limit; qualify or block only on the stated conditions | E2 (`tension_search`) + E3 |
+| product changes need accepted authority, instruction or contract; a marked surface beyond the deliverable binds only after stakeholder/task acceptance | **E0** for acceptance (`PRODUCT_SCOPE_ACCEPTANCE` is R3; technical review cannot accept it, §3.5); E3 for whether a code change is an unrequested product change |
+| revising D1/D2: search tensions bound to accepted concretizations; record predecessor identity and revision-scoped assessments, asserter, proposed until accepted | E2 (`revision_assessments`) + **E0** (the gate core renders them, §16.6) |
+| authority content (O1) when authoring or materially revising D1-D3; check it when reviewing | E2 (`o1_content`) + E3 |
+
+#### 29.5 Map: specialists
+
+| Entrypoint | Duty | Level | Mechanism |
+|---|---|---|---|
+| documentation | classify a disagreement before editing; route to its owner | E3 | `DOCUMENT` briefs carry the classification table |
+| documentation | never self-approve semantic changes or promote observations into doctrine | **E0** | edits to authority units produce new revisions that need their domain's acceptance |
+| documentation | edit canonical sources and regenerate derivatives | **E0** | `generated_untouched` (HARD) |
+| documentation | preserve evidence distinctions; truthful current documents | E3 | review |
+| maintenance audit | sense risk; route each finding to its smallest owner; no redesign inside the audit | E2 + **E0** + E3 | `findings` slot; the investigator role cannot write product or authority units; review |
+| maintenance audit | no PEM admission or authority by assertion | **E0** + E3 | no agent role can accept authority; PEM admission stays with its owner |
+| repository hygiene | hard boundaries: never delete or force-move `main` or protected refs, never rewrite history, delete only with positive proof | E3 | ref operations are outside SSDS's governed content and G5 relies on Git host protection; SSDS itself never deletes refs and purges only through §24.2 |
+| repository hygiene | classify, retain ambiguous, report | E2 + E3 | `findings` and `claims` slots; review |
+
+#### 29.6 Disclosed E3 duties
+
+These stay judgment only, and SSDS claims nothing more for them than that the review step runs and its record survives: **detection** (noticing anomalies, tensions, upstream defects; the 7.x study found detection did not respond to protocol text in any arm, and enforcement is not expected to change it); adequacy of authority, contracts, evidence and gate evidence; semantic equivalence and completeness; scientific and numerical interpretation; materiality; whether a Serious Challenge is warranted; the quality of discriminating readings (a lenient but formally consistent reader); the adequacy of a tension search; real-owner versus proxy judgments; whether a change belongs upstream; reliance on reads machinery cannot observe; behavior inside an agent's own workspace; hygiene operations on Git refs.
+
+#### 29.7 Protocol 7 inputs: Manual decisions (§21 item 21)
+
+| Input (workplan §19) | Decision | Section |
+|---|---|---|
+| gate-evidence template obligations (Channel C) | gate brief order, core contents, refusal of an unqualified accept with known missing evidence, adequacy field | §16.6 |
+| tension search keys to unit identity | locator resolution, lineage, `CHALLENGES` binding | §1.11, §2.2, §16.2 |
+| product-scope acceptance actor | `PRODUCT_SCOPE_ACCEPTANCE`, R3, policy-designated owner; D1/D2 gate naming the surface | §3.4-§3.5 |
+| realized-record/observation overlap; inquiry status | §17.4; `CHALLENGE.inquiry`; `CHALLENGES.inquiry` | §17.4, §2.2 |
+| inspection/export and writable homes as trust boundaries | strongest safe aggregate with the limitation stated; content written to such a home stays a claim by its native asserter | §25.4, §16.8 |
+| mandatory activation and selection | obligation kind selects role; duty compilation tables | §12.3, §16.3 |
+| event-triggered owner injection | injection event table | §16.3 |
+| typed delegation request and return | the contract and the slot vocabulary | §13.1, §13.5 |
+| mechanical write-scope and persistence-home enforcement | `write_scope`, `homes`, boundary checks; scope term syntax and analyzers | §13.1, §14.3, §1.3, §14.5 |
+| in-loop version routing and self-adoption guard | `governs`, `AUTH_VERSION`, adoption only by lifecycle records | §16.9 |
+| typed choice-provenance and claim records | control facts versus narrative; `choices`, `claims` | §16.4, §13.5 |
+| exact package-access provenance | no consumed-package ledger beyond read recording and recorded brief identity | §16.4 |
+| pre-cutover baseline | resolved from `PROTOCOL-RELEASE-STATE.yaml`, currently 7.2.1; public fallback and recovery distinct | §19.7 |
+
+### 30. Minimum-justified-architecture reassessment (§21 item 22)
+
+Against the accepted baseline (document-controlled SSDP 7.2.1 with the frozen Level 0 Core), each primitive, component and persistent surface is kept only if removing it drops a capability some governing invariant requires and no simpler equivalent exists.
+
+| Element | Capability it alone carries | Simpler equivalent considered | Verdict |
+|---|---|---|---|
+| unit | locality of acceptance, context and staleness below file and above byte | files (too coarse for long authority documents), Git blobs (no semantic grouping) | keep |
+| subject/part split | one acceptance per holistic meaning while reading and context stay local | per-leaf acceptance (needs false semantic claims at refinement) | keep |
+| relation | declared authority, warrant, definition and evidence structure with cycle classes | prose links (no mechanical impact or cycle legality) | keep |
+| record and one ledger | everything not derivable from content, append-only and replayable | status in documents (H3, rejected: anyone can push a PASS file) | keep |
+| basis | per-record staleness, the single mechanism replacing epochs, plan binding, context staleness, evidence staleness and dirty tracking | global epochs (H0, rejected: global coupling) | keep |
+| Content Model, Analyzers | revisions and derived relations | — | keep; distinct inputs |
+| Derivation Engine | the only interpreter of records | logic in Admission (would duplicate interpretation for queries) | keep |
+| Admission | the single serialization point (C1) | Git merge rules (not semantic) | keep |
+| Dispatcher | execution effects, designated runners, envelopes, launch attestations | agents launching themselves (no lineage attestation, no runner custody) | keep |
+| Interface | one transport-neutral contract over three transports | per-transport logic (would duplicate rendering) | keep |
+| Ledger Store with qualification | currentness only for witnessed state (P4) | trusting the replica (cannot detect its own rollback) | keep |
+| witness checkpoints | rollback and stale-restore detection | none: a replica cannot prove its own currentness; `LOCAL_TRUST` is the minimal instance | keep |
+| derived index | bounded restart cost | re-derive from genesis every time (violates the recovery-time objective) | keep, as cache only |
+| operator state | private keys, leases, transcripts, high-water marks | in-repository state (violates G4) | keep |
+| transport run refs | zero-context web agents | — | keep; regenerable |
+| publication-attempt log | (formerly: evidence of "no attempt" across restarts) | **in-memory per incarnation (R4)** | **removed** in this Manual |
+| partition validity check over observed bytes | (formerly: detection of overlapping leaves) | **partition by construction (R5)** | **removed** as a dynamic check; static checks remain |
+| frames, transformation identity | pre-integration review with defined currency | reviewing only after merge (loses K1 for review) | keep |
+| roles, envelopes, contracts, conformance, reports, inspector | stakeholder-directed enforcement layer (SD-1-SD-6) | instruction text (the 7.x evidence: compliance with text is probabilistic) | keep |
+| fences | revocation of a stale publisher's effect authority | ledger checks before CAS (a paused publisher outlives them) | keep |
+
+No new primitive, component, persistent surface, record tier or disagreement-family mechanism is added by this Manual; two mechanisms are removed (R4, R5). The §6 family is unchanged in mechanism: R1 names two existing uses' polarity, and R2 makes an existing fail-closed promise explicit. Practical costs remain reopen triggers (§32.3), not grounds to claim burden reduction.
+
+**Stabilization question.** Would this architecture still be deliberately chosen today for the same governing contract? Within the evidence available at Phase C, yes: each element carries a capability an invariant requires. The answer is design rationale, not evidence of adequacy; independent Review and the G3 measurements decide.
+
+### 31. Qualification design
+
+#### 31.1 Principles
+
+Qualification binds every claim to the property its method can discriminate (DS-001). Synthetic fixtures and model cases establish mechanical properties only; semantic adequacy (promotion, equivalence, completeness, gate adequacy, reading quality) needs real-owner cases and independent Review. Persistence and recovery claims use deterministic failpoints with the production owner executing. Every negative discriminator below is a case a shallow or proxy implementation would pass and a correct one fails. **No executable SSDS evidence exists at G1.** Every runtime group below is **UNEXECUTED**; G1 needs only the document-level checks of §31.10. A missing required check is never a pass.
+
+| Gate | Evidence it needs from this section |
+|---|---|
+| G1 | §31.10 document checks; independent D3 Review of this Manual; stakeholder acceptance |
+| G2 | a shadow D3->D4 workplan that carries §31.2-§31.9 as its acceptance program, independently reviewed |
+| G3 | §31.2-§31.9 executed against production owners, with independent implementation Review |
+| G4 | per subject: §19.5 cutover conditions, demonstrated rollback (§19.7), human and project approval |
+
+#### 31.2 Derivation, structure and relations
+
+Real owner: the Derivation Engine and Content Model, consumed by Admission and the Interface.
+
+- **One input, one state.** Property-based generation of admissible ledgers and trees; identical derived state across evaluation orders, incremental and from-scratch evaluation, repeated runs and hosts. Discriminator: an implementation memoizing without the full key diverges under an analyzer-version change.
+- **Partition by construction (R5).** Generated manifests and trees, including foreign files under prefixes, vanished spans, malformed and crossed anchors, duplicate headings: every governed byte has exactly one owner or lies in the uncovered region; scope identity and revision unchanged by byte-preserving refinement; sibling-overlap declarations rejected statically. Discriminator: overlapping prefix siblings accepted, or a vanished span's bytes double-owned.
+- **Manifest handling.** An unparsable manifest quarantines every key while governance continues on `Σ`; anchors never declare structure; inline semantic markers change revisions.
+- **Illegal positive recursion.** The f9d9de8 configuration rejected at Admission; a fixture-injected ledger evaluates to all-`F` with an integrity obligation.
+- **Support-cycle clamp (R2; Phase B N2).** Injected cycles through absorption-extensible `about` terms, through a completeness edge, and through corruption: every node of every non-trivial component is `F` before any presentation, never `P` or `T`; an ordinary finding or integrity obligation as classified. Discriminator: an implementation evaluating only the least fixed point from a permissive provisional start shows `P` on a cycle node.
+- **Corrupt prefixes (R3).** Authenticated entries violating schema, shape, target tier, strictly-earlier targets or the single-provisional rule: `INTEGRITY_HALT` at and after the entry; historical views before it unchanged; Admission appends only the human-gated resolution. An unreadable newer schema version yields historical views, not a halt.
+- **Challenge recursion and counter-challenges.** The workplan §22 cases: chain uniqueness; challenged dismissal restores the block permanently once upheld; counter-challenges inert while open; revocation lifted only by an upheld counter-challenge; polarity table to depth four.
+- **Relation-cycle legality.** Valid SDG recursion; same-subject `DERIVED_FROM` and `DEPENDS_ON` cycles; mixed cycles; unknown future types; undeclared simultaneity; nested and sibling groups; group boundaries; code recursion legal and inert; self-relations; legitimate intra-subject warrant with `content` entries; re-routed support edges; condensation carries no warrant; ruleset reclassification; vocabulary adoption rejections including `CHALLENGES`/`EVIDENCES` as validity prerequisites.
+- **Structural intake and tenure.** The required counterexample of workplan §22 (accept, demote, accept composite, challenge, foreign re-declaration, adoption only with fresh prospective acceptance; risk-override and revocation variants) and its siblings: part-to-subject, subject-to-part, membership mutation, boundary mutation, kind and governed-boundary changes, reparenting under challenge, destination freeze, rewind and manual conflict resolution, ledger truncation with newer product, lawful demotion then restoration, ruleset evolution during quarantine, overtaken admission, deleted manifest.
+- **Currency and widening.** Exactly the reliant records go non-current; re-review without content change backdates descendants that did not see upstream text; equivalence scoped by class (§4.4 covering rules, including `EXACT` never covered); falsified completeness invalidates its inferences; chain determinism; `UNBOUNDED` fallback; membership change invalidates completeness; widened bases never make parts valid.
+- **Determinism and replay.** Independence from wall clock and live state (with the §26.2 import allowlist); checkpoint corruption detected; schema-evolution fixtures; admissions never re-adjudicated.
+
+#### 31.3 Assessment disagreement
+
+Real owners: Admission, Derivation, discharge (§10.4) and the inspector view, end to end, with nothing seeded resolved. The workplan §22 assessment-disagreement program is carried in full (no lapse under every content, structural, relocation, frame and rerun variant; admission salvage; independence; the cases that must remove qualification; standing; start; content and reading U1/U2/W1/W2; X1-X3; Y1-Y2 and N4; floor and class; the cases that must not qualify; `valid` and discharge agreeing on `ev`; ledger-order and evaluation-order invariance). This Manual adds:
+
+- **Completeness polarity (R1; Phase B N2).** A failing assessment `a⁻` with a recorded narrow execution basis bounded by a completeness judgment `c`. Variants of `c`: current `T`; `P` (an open overridden blocking challenge); blocked; revoked; superseded; withheld by a loss boundary. In each variant, two adverse runs exist: (i) a **differing old-content run** — an observation of `conf(a⁻)` whose recorded narrow basis matches `tree(a⁻)` with another outcome on `F(a⁻)`, made on an alternate tree that differs from `tree(a⁻)` only outside the recorded narrow basis; (ii) a **yielding present-content run** — an observation whose recorded narrow basis matches the frame with an outcome yielding the failure. Expected in every variant: the claim stays qualified (`undisputed = P`); losing `c` never raises support by removing either run, because (2) and (4) use `on⁻`. Contrast: with `c` lost, a narrow-basis reproduction and a non-yielding current observation no longer make the failure stale (`on⁺` falls to whole-tree matching). Negative discriminators: (a) an implementation applying whole-tree fallback to both polarities raises `ev` from `P` to `T` when `c` is lost — must fail; (b) an implementation that "repairs" (a) by discarding the observation or by making the claim's unrelated exact passing assessment stale — must fail, since the expected value is reached with every observation retained and the passing assessment current.
+- **Class decision polarity.** A discriminating reading's R2-versus-R3 class for a D1/D2 claim uses `on⁺(p, base(a⁻))`: with the bounding completeness lost, a candidate-own showing that depended on the narrow basis no longer lowers the class.
+- **Embedded oracles.** A failure under an embedded oracle whose admitted reading is held only by absorption: verdict not computable under the integrated reading -> yielded -> not stale.
+- **Outcome identity.** Canonical-form equality on failing outputs; `output_renames`; an output not evaluated by a new reading with the check in force at the base keeps the failure counting.
+- **Time bound.** A scheduled execution exceeding its bound, or the 168-hour cap, ends `INCOMPLETE`; for a D1/D2 claim it creates the floor item.
+- **Ensembles.** Replicate variation inside one ensemble realization creates no disagreement; two ensemble assessments differing do; a later passing ensemble never disposes of a counted failing one; without a fixed seed policy no mechanical stop occurs.
+- **Diagnostic model.** `qualification/ssds80/s1_disagreement_model_check.py` stays green in its default mode and keeps its sensitivity modes failing owner-grounded properties. It is a diagnostic transcription (DS-001), never a production test; it does not model `about`, frames other than the admitted state, lineages, Admission classes and floors, per-observation completeness polarity, structural scopes, witnesses, publication, external custody or real assessors (Phase B N3), and it enumerates honest readings only. The R1 polarity cases above therefore run at the real owners; extending the model to them is optional diagnostic work, not a substitute.
+
+#### 31.4 Admission, publication, currentness and loss
+
+Real owners: Admission and the Ledger Store with real witnesses, deterministic failpoints with the production owner executing, and **ledger-only replay** (integration host disconnected) as the oracle for every publication classification.
+
+- **Admission and concurrency.** Disjoint bases admit concurrently; intersecting bases revalidate; write-skew across disjoint files caught; a clean Git merge with a semantic conflict blocked; stale, duplicate, partial and very late results; protected-surface edits and modified envelopes rejected; duplicate discharge rejected; collateral regression rejected while accepted upstream change reopens dependents; live-ref movement absorbed without blocking production; self-declared equivalence backdates nothing; compare-and-swap losers revalidate; FIFO queue under revalidation.
+- **Crash windows.** Clean synchronous admission; crash before append; crash before admission (provisional survives, anchoring completes); crash after admission; witness admission failure (appends halt, answers stay at the previous head); admitted-pending publication; foreign push and force-push in the window; integration host unreachable; equivalent publication by squash, rebase or merge button; no configuration publishes a provisional entry.
+- **Publication reconciliation and the incarnation publisher (R4).** Compare-and-swap succeeds then crash: before restart ledger-only replay gives `PENDING`; after restart the **new incarnation is not the publisher** and fences if the ref shows `B_n`, or records `PUBLISHED` if it shows `C_n`. Two processes sharing one host key: only the appending incarnation publishes; the other fences. A copied or restored operator-state directory confers no publication right. Publisher paused, takeover fences, human decides "keep", publisher resumes: its compare-and-swap fails. Publisher's compare-and-swap released before the fence: the fence fails, `C_n` observed, human decision admissible only after that observation. Human decision while a fence is pending: rejected (`NOT_SETTLED`). Two fence publishers paused in turn: the second classifies the first `OVERTAKEN` while the ref shows `B_n`, and a decision stays inadmissible until an entry observes the ref away from `B_n`. Foreign return to exactly `B_n` after a fence, then a stale publisher resumes: `LATE_PUBLICATION`, `CRITICAL` (detected, never asserted impossible). Barrier discriminators: an admission whose `obs` differs from `E`, or an absorption carrying records, is rejected, and a fixture-injected one halts derivation (R3). Recovery entries carry no `obs` and leave `pub = PENDING`.
+- **Currentness and recovery.** With `(3, 2, 2, 0)`, `(4, 3, 3, 1)` and `LOCAL_TRUST`: the L99/L100 world (`ROLLBACK`); total loss of an unadmitted newest entry (L99 current, resubmission); sub-quorum trace (`FORK` until resolution, no boundary when proved never admitted); fresh clone `BEHIND`; fork plus witness disagreement; malicious rewind with a compromised push credential; witness loss below read quorum; `f` faulty witnesses cannot hide an admitted head; backup older than the admitted head; unauthenticated entry rejected; replica loss; missing content objects `UNAVAILABLE`; derived checkpoints never served as current; external SSDS ledger consultation qualifies its head; retired lineage reads `RETIRED`.
+- **Known loss.** The workplan §22 known-loss program in full (demotion, demotion then restoration, challenge or revocation, ruleset change, evidence invalidation, external import, attestation in both scope forms, counter-challenge across the boundary, escalation across the boundary, product newer, historical visibility, exact requalification set, version rollback after loss, retired lineage, surfaced abandoned chain, provisional-only contrast with the non-admission bound, witness loss beyond `f`).
+- **Confidentiality.** Credential-like and high-entropy values rejected; the incident drill (settle, rotate, re-encode, equal derived state up to renaming, retirement statement, stale mirror reads `RETIRED`, purge only with operation-specific authorization, retention weighing recorded); a value in `main` history routed to a new repository.
+
+#### 31.5 Workflow, contracts and conformance
+
+Real owners: Admission (step 3, step 7), Derivation (S3 conformance, routing), Dispatcher (envelopes, launches), Interface (briefs).
+
+- **Roles and binding.** Every role attempts every record kind, outcome and write outside its template: rejected. Phase-1 results and mid-task blocking reports bound and claiming nothing; forged, absent, revoked-key and compromised-key envelopes rejected; requests bound to discharged obligations or non-current contracts routed to revalidation; ledger-only replay reproduces every binding; retired-key envelope salvage only when listed.
+- **Fail-closed independence.** A review bootstrap pasted into the authoring session, a Git-envelope review without lineage attestation, and a launch attestation naming the author's session each yield a non-independent judgment that discharges nothing; an `ATTESTED_FRESH` review from a disjoint session does.
+- **Version binding.** A record declaring a `governs` different from its envelope is rejected; no agent record adopts a version; a `LEGACY(p)` brief renders through `p`'s profile.
+- **Contracts.** Lint rejections (no verifier, heuristic verifier, protected or plan unit in scope, unnamed evidence specification, missing triggered slots, missing minimum coverage per §13.3, missing budget); control-tightening classification on generated diffs over every field, including tighten-then-loosen and fields injected by a newer schema; partition checks.
+- **Conformance.** Each `HARD` template qualified per §14.7 on real trajectories; signal inertness (removing every `HEURISTIC` template changes no admission or discharge on a replayed corpus); never sufficient (clean conformance without review never integrates); disclosed versus undisclosed breach; faithfulness discrepancies; test integrity; mutation-strength shortfall `INCOMPLETE`; advisory pre-flight never enters discharge; determinism across hosts.
+- **Duty compilation.** Same brief for the same basis, query and policy; every triggered duty and slot present and no untriggered one; every injection event of §16.3 fires exactly on its derived predicate. Discriminator: wording variants of identical structured content change nothing.
+
+#### 31.6 Escalation and the inspector
+
+Persistence after target amendment, basis staleness and a loss boundary; floor items never closed by any principal operation; raiser withdrawal of a floor item leaves attention open; reclassification moves only non-floor items and returns them on an upheld challenge; domain floor raises `ROUTINE` reports on D1/D2 units; authority-defect requests cannot be resolved locally; blocking reports suspend exactly the raising task; deterministic inspector ranking per §16.8; the delegate floor carries a material E2 finding through any number of intermediate roles; a gate `ACCEPT` marked unqualified is refused while the core lists required unavailable, disputed or stale evidence.
+
+#### 31.7 Frames, migration, intake and external units
+
+Candidate frames through the production path (implementer's genuine `read` then edit; before-image, output and context roles; prospective structure; bootstrap from a part with no prospective acceptance; transformation identity with two adoption sets; rebase variants; merge determinism under the pinned implementation and conflicts producing no frame); intake through the one route (manual edit, untracked generated file, opaque binary quarantined and never executed, external branch, authority-like document, agent overstep, foreign manifest edit, neutral auto-adoption only when enabled); migration (single opaque subject; byte-preserving refinement; the holistic Gaussian-units counterexample; legacy section import refused; carve-out with `LEGACY_RELEASE`; cutover quiescence record; version rollback needs a fresh import; no dual-current mode); cross-repository (pins never stale by external movement; consultation supersession; unreachable ledgers supersede nothing; producer-then-consumer sequence).
+
+#### 31.8 Security, Core independence and fitness
+
+No secrets or private telemetry in the ledger or repository; adversarial records inject no actions; instruction-like evidence stays inert; human decisions need the declared mechanism; inspection views give safe aggregates; §26.2 fitness checks; Core's own test suite and frozen-profile tests pass without SSDS installed (PC-001); SSDS installed does not change any Core prompt for version-bound work.
+
+#### 31.9 Usability and doctrine realization (G3, measured, never claimed)
+
+Live trajectories on real tasks in shadow mode, paired against the document-controlled 7.2.1 baseline on the same executors and fixtures, with gates calibrated from simulated operating characteristics before any spend, evaluator and oracle instruments validated first, and rules, custody and blinding frozen before runs (7.x lessons). Measures: agents complete bounded work without reading machine records and with less context; unauthorized mutation, claim integrity, owed-duty presence, narration where none was owed, and survival of material delegated findings to the human, on the 7.x panel rerun with SSDS briefs, contracts, conformance and escalation. Detection is reported separately, because enforcement is not expected to improve it. Claims stay bounded to the duties, harnesses and models exercised (SD-6). Costs are measured, not asserted: false staleness under widening, promotion frequency, reading and reproduction burden, retention cost, human-attention volume, fence frequency (R4).
+
+#### 31.10 G1 document checks (executable now)
+
+- the Manual and closure map exist at their routes; the closure map maps every §21 item and every §16.2 row to a Manual section;
+- `python3 -m unittest tests.test_protocol_80_orchestrator_consolidation -v` passes (routing and lifecycle frontmatter only);
+- `git diff --check` is clean;
+- PEM schema validation passes for the bound basis;
+- the frozen Architecture 1.6.0 file is byte-unchanged;
+- no protocol `source/`, `dist/`, profile or snapshot file changed.
+
+These establish structural facts only. Whether the Manual is adequate is for independent Review.
+
+### 32. Limits, residual risks and reopen triggers
+
+#### 32.1 Where machinery stops
+
+Machinery prepares but never decides: whether two scientific or numerical formulations mean the same; whether a change is editorial beyond byte and normalization identity; whether an acceptance supports a newly scoped subject; whether a foreign structural declaration expresses intended governance; whether a set of objects is genuinely simultaneously defined; whether a discrepancy is a D4 defect or exposes inadequate D3, D2 or D1; whether evidence supports a claim and whether gate evidence is adequate; whether a relation is real or a scope complete; how a legacy region decomposes; whether an architectural change preserves its parent; whether a Serious Challenge is warranted and how it is adjudicated; whether a risk override is acceptable; whether a marked product surface is accepted; whether a confidentiality incident needs destructive remediation. For each, machinery produces a **focused question**: exact subject, scope and revisions; the distinctions already resolved; the evidence and its status; what the answer changes; the allowed outcomes. The answer is a recorded judgment that then propagates mechanically.
+
+#### 32.2 Residual risks
+
+- Semantic dependencies an agent uses without machinery observing them (§9.4).
+- Circular reasoning stated only in prose (§2.5).
+- Lost admitted history whose every copy, checkpoint and high-water mark is gone, with a stale product (§23.8); attestations that are wrong.
+- Machinery cannot make an agent notice what it did not notice, or make a judgment good (§29.6); a formally consistent but lenient reader (Phase B N3).
+- Bounded clone-tracking for moved-and-rewritten claims (§6.4); a move plus substantial rewrite escaping rename detection (§1.11).
+- Late publication after a foreign return of the ref to exactly `B_n` (§22.3).
+- Forgery by a holder of an Admission key or issue key; more than `f` faulty witnesses with control of the replica (§23).
+- VM-level snapshot and resume of a running Admission process mid-publication-window (R4's incarnation model treats it as the same incarnation): outside the declared crash model.
+- Joint validity of independently valid changes where no relation, invariant or evidence covers the interaction (§9.1).
+- Phase B N1: the 2026-10-12 governing-version adoption instruction remains paraphrase-only; only stakeholder restatement or recovered authentic evidence closes it.
+
+#### 32.3 Reopen triggers
+
+Reopen this architecture at its earliest affected owner if, on real repositories or live trajectories:
+
+- conservative widening, part-to-subject routing or whole-tree execution-basis fallback make too much work non-current or too many promotions necessary to be useful;
+- read recording proves infeasible across target harnesses, so bases are systematically too weak;
+- unit declaration cost, the TOML manifest, the closed scope-term grammar or partition-by-construction rules outweigh their locality benefit, or prove unable to express real document and code structure;
+- Git-hosted ledgers cannot meet single-ref compare-and-swap, durability, privacy, scale or hosting constraints;
+- no practical independent witness set satisfying `q_a + r > N + f` exists for the target deployment class, or witness latency on the Admission path proves unacceptable;
+- structural quarantine produces so much invalidity that intake cost outweighs its protection;
+- simultaneous-definition groups prove so frequent or large that subjects become too coarse, or owners need a sound recursive-warrant exception the closed vocabulary cannot express;
+- the confidentiality protocol proves operationally unrealizable;
+- requalification after a loss boundary proves too costly, or continuity attestations become routine shortcuts;
+- integration-head reconciliation proves unworkable on a target host, or fences (including those R4 causes after crashes) become frequent enough that fencing decisions burden the human routinely;
+- the fixed predicate templates cannot express a required project policy without breaking stratification;
+- a later accepted protocol version requires the ledger to be a canonical home for findings or tensions, or changes doctrine this Manual binds, until its inheritance reconciliation is done;
+- agents still do bookkeeping; contract authoring and lint cost more than the verification they buy; write scopes are so narrow that amendment requests dominate coordination;
+- `HARD` templates block legitimate work often enough to be amended away, or agents learn to satisfy checks while defeating their purpose;
+- coordination becomes a bottleneck, or principal decisions are routinely overturned;
+- human-attention volume exceeds what the inspector can sustain, or downgrades hide material findings;
+- constructed independence proves illusory (common-mode failures dominate review misses);
+- owner dispositions, human-routed adjudications, discriminating-reading obligations (one per genuinely new outcome per counted assessor-read failure) or reproductions become a material share of evidence work; discriminating observations prove routinely unobtainable (no declared outcomes, non-reproducing outcomes, low-bit variation under free attributes, unpinnable inputs, external runners without enumeration); retained trees and reproductions cost more than the dispositions they make cheap;
+- failures of admitted obligations found in one lineage routinely delay other lineages, or scheduled executions routinely end `INCOMPLETE`;
+- accepted relaxations of mechanical specifications routinely make failures stale unexamined; discriminating readings become a route for retiring concerns under edited readings; lenient readers pass outcomes that show the defect;
+- residual owner dispositions (lineages dropping their own failing test-first checks, failures latched by transient foreign pushes) become frequent, or disagreement becomes routine;
+- any inherited guarantee proves unpreservable.
+
+#### 32.4 Open uncertainties
+
+**Empirical** (§31.9 measures them; none is claimed): rate of false staleness; promotion frequency in Case B; analyzer completeness for real Python and C++ scientific code; read-recording feasibility per harness; practical granularity; derivation cost and checkpoint sizing; ledger growth over years; witness availability and latency; quarantine and SDG frequency; agent context and success against the baseline; contract authoring cost; template detection and false-positive rates; amendment, escalation and downgrade rates; human-attention load; fence frequency; whether doctrine realization on the 7.x panel improves over 7.2.1 on the behaviors that did not respond to text.
+
+**Decision provenance**: Phase B N1 (above).
+
+### 33. Non-goals
+
+SSDS 8.0 does not: convert scientific reasoning or evidence into machine records or encode scientific truth in rules; provide a general rule or theorem language; require a graph database, network database, hosted service or distributed consensus; infer independence outside judged-complete scope; transfer acceptance by byte identity, scope arithmetic or widening; let agents write canonical state, let derived relations override source, or let D4 behavior create accepted D1-D3 authority; treat Git branches, commits or pull requests as workflow semantics; depend on server-negotiated multi-ref atomicity; assert currentness for state a witness quorum does not hold, claim rollback detection beyond the declared witness model, or claim that lineage migration erases leaked data; let repository presence, a foreign push, a restore or a merge change effective structure, ruleset or acceptance; reconstruct or guess lost admitted history, or let retained authority cross a known loss without requalification or accountable attestation; license a relation cycle by common subject identity, or let a definition or condensation warrant a claim; require every write to pass through an interface; expose machine records as routine agent UX; use search as an authority resolver; execute unknown artifacts to classify them; force all-at-once migration or stop valid production for incomplete migration; allow two current authorities over one subject; use migration as a hidden redesign channel; keep document-controlled workflow as a dual-current fallback for native scopes; add webhooks, brokers or hosted services before polling and local operation prove insufficient; add registries, wrappers or fields solely to mirror inherited doctrine (the realization map of §29 is a design artifact); treat a clean conformance view, a passing check or an agent's own claim as discharge of what a judgment must discharge; let a heuristic or prose-reading check block or pass work; let a contract carry executable check code, or an agent role edit templates, roles, routing or floors; let any agent role choose a decision's class, lower a report below a floor or discharge human attention; make a principal a long-lived process whose memory is workflow state; use a model judgment as a mechanical check; provide atomic admission across repositories; or provide a universal scientific observation database.
