@@ -14,14 +14,14 @@ Governing SSDP version: 7.2.1.
 
 This file is a **review aid**. It maps every workplan §21 obligation, every §16.2 row and every §18 capability to the Manual section that owns its answer, with the disposition reached. It is not a runtime registry and not a second owner: where this map and the Manual differ, the Manual governs and the difference is a defect in this map. A route alone is not closure; each row states what the Manual decides. The exact Manual candidate this map was checked against is named by the Review handoff that freezes it.
 
-Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **CARRIED** — the reviewed workplan contract restated without semantic change; **REFINED** — a listed Manual refinement (§0.3 R1-R10); **DELEGATED** — a D4 choice inside a stated contract; **DEFAULT** — a proposed default parameter the stakeholder may change at G1 or by its lifecycle record; **OPEN** — not closable by design work; named with its owner.
+Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **CARRIED** — the reviewed workplan contract restated without semantic change; **REFINED** — a listed Manual refinement (§0.3 R1-R11); **DELEGATED** — a D4 choice inside a stated contract; **DEFAULT** — a proposed default parameter the stakeholder may change at G1 or by its lifecycle record; **OPEN** — not closable by design work; named with its owner.
 
 ## 1. Workplan §21 items
 
 | # | Clause (workplan §21 at the candidate) | Manual | Disposition |
 |---|---|---|---|
 | 1 | manifest and anchor declaration syntax, governance-affecting declarations only in the manifest | §1.2 (TOML manifest, keys, anchors only delimit spans) | DECIDED |
-| 1 | content normalization and boundary-marker rules | §1.5 (exact bytes plus Git entry type and mode; only anchor-line removal in anchor file types, 3540d98 B1) | DECIDED |
+| 1 | content normalization and boundary-marker rules | §1.5 (one representation: Git entry type, mode and blob bytes, read by identity, the write set and diff mapping, and materialized byte-exact by every runner; anchor-line removal only for classified comment lines; gitlinks by commit; 3540d98 B1, e2154ac B1) | DECIDED |
 | 1 | scope identity | §1.5 (hash of the subject's own declared terms) | REFINED (R6) |
 | 1 | coverage partition and laminarity | §1.4 (partition by construction; membership forest; equal or partially overlapping regions of units not nested by membership resolve to `ABSENT`, 3540d98 B4), §1.9 (resolver purity; newly declared file and span terms must resolve at their admission, 53669a5 N5, 1ffbbf0 N1, 86ab683 N4) | REFINED (R5) |
 | 1 | single-definer rule | §1.7 | CARRIED |
@@ -84,7 +84,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 6 | ABA policy | §22.3 | CARRIED |
 | 7 | obligation rules, including retirement, split and retargeting of evidence obligations carrying failing assessments | §10.2 (revising review derived in any frame where `ACCEPT` or `GATE` lacks a counting revision-assessment record for exactly its revision; predecessor defined as a machinery-supplied set, 1ffbbf0 B2, N3 and SD-19; a record counts only with the current predecessor and while it stands, 86ab683 B1, N6 and SD-20; 71cf9b3 B1-B2 and SD-21; replaced by the revision run, an S0 target condition every consumer reads, with obligations parameterized by the run and the predecessor a machinery-computed display, 798b2b4 B1-B3, N1-N4 and SD-22) | DECIDED |
 | 7 | readiness | §10.3 | CARRIED |
-| 7 | three-valued discharge, provisional propagation, risk-override scope | §10.4 (plus `REFUSED` for an adverse answer under the §5.5 `same` test, named in R9, c6da678 N5), §10.5 | CARRIED + REFINED (R9; b595f2c B4) / DECIDED (override scope grammar) |
+| 7 | three-valued discharge, provisional propagation, risk-override scope (four discharge values; a `QUALIFIED` gate `ACCEPT` caps at `P` through `unq`, R11, SD-24) | §10.4 (plus `REFUSED` for an adverse answer under the §5.5 `same` test, named in R9, c6da678 N5), §10.5 | CARRIED + REFINED (R9; b595f2c B4) / DECIDED (override scope grammar) |
 | 7 | iteration/attempt identity | §10.3 (every task ends in one `TASK_RESULT`; judgment obligations answered once and never re-dispatched) | DECIDED (b595f2c B4) |
 | 8 | change-plan structure | §11.1 (plan subject, `ssds-item` blocks), §13.2 (`ref` locality and part-scoped resolution, b595f2c B2, c6da678 N11) | DECIDED |
 | 8 | plan acceptance; scoped amendment policy; plan invariants | §11.2-§11.4 | CARRIED / DECIDED (per-plan scoped-review flag) |
@@ -274,7 +274,7 @@ Prior closures (Y1/Y2 and earlier) are carried unchanged in §6; the convergence
 - SD-17, which withdrew the SD-15 restriction: a failure becomes stale mechanically only through runs that match the failing realization on its pins and on every execution attribute its runner class records; variation in an attribute no runner class records is a disclosed residual, so a failure it causes can be made stale (§6.5, §17.5, §32.2). Projects choose what each runner class records.
 - SD-18: runner classes that do not observe every read outside the tree support no mechanical stop; their failures, red-then-green iterations included, go to the owner (§17.5, §32.2-§32.3).
 - SD-24: a gate holder's `QUALIFIED` acceptance lets work continue only provisionally (`P`), and discharge is provisional only where policy permits provisional continuation; an `INADEQUATE` acceptance is refused (§5.5, §16.6).
-- Content identity is exact (no line-ending normalization), so a line-ending-only change is a revision change that needs re-acceptance (§1.5).
+- Content identity is exact (no line-ending normalization), so a line-ending-only or mode change is a revision change that needs re-acceptance, and for D1/D2 subjects a revising review and gate (§1.5, §32.3). Runners must materialize Git blob bytes, ignoring `.gitattributes` transforms (§17.5).
 - SD-16, SD-19 and SD-22 as realized: no `NATIVE` D1/D2 revision, however produced and in whatever frame, can be gate-accepted or accepted unless a revision-assessment record for exactly that revision counts (in its revision run, standing), and its acceptance and gate decision are current only within that run. A revert of D1/D2 authority, or any other change of its revision, therefore needs a new revising review, acceptance and gate. The predecessor is a machinery-computed display the reviser may extend, not an equality condition (SD-22 replaced SD-20's equality and SD-21's `holds`). A tension recorded later does not invalidate a record; the gate core shows it. No human override exists (§8.3 step 7, §10.2, §5.2); adding one is a stakeholder decision. Every re-identification and nested-only revision also needs its record.
 - Product scope: the Manual marks **no** inspectability surface beyond the requested deliverable (§0.5); none needs product-scope acceptance.
 - N1 restatement, if the stakeholder chooses to close it.
