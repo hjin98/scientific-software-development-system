@@ -2,7 +2,7 @@ Governing SSDP version: 7.2.1.
 
 # SSDS 8.0 Phase C — session continuation hand-off (Architecture Manual repair/review loop)
 
-This file lets a new session continue Phase C, the proposed SSDS 8 Architecture Manual, from where the authoring session stopped on 2026-10-15 (updated after candidate 21). It is coordination state, not authority. The governing owners are the Phase C task handoff `qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md`, the workplan, the Review records, the stakeholder decision record and `PROTOCOL-RELEASE-STATE.yaml`. Read the Phase C handoff first; this file states only the delta since then.
+This file lets a new session continue Phase C, the proposed SSDS 8 Architecture Manual, from where the authoring session stopped on 2026-10-15 (updated after candidate 22). It is coordination state, not authority. The governing owners are the Phase C task handoff `qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md`, the workplan, the Review records, the stakeholder decision record and `PROTOCOL-RELEASE-STATE.yaml`. Read the Phase C handoff first; this file states only the delta since then.
 
 ## 1. Standing instructions (unchanged)
 
@@ -15,19 +15,19 @@ This file lets a new session continue Phase C, the proposed SSDS 8 Architecture 
 
 ## 2. Current state
 
-- **Manual:** `orchestrator/docs/ssds-8.0-architecture.md`, `manual_version: 1.0.0`, `status: proposed`. Latest frozen candidate is **`f22b4dc4c5cc56da962bee9eca843fa204af40bc`** (candidate 21), not yet reviewed; its handoff is `qualification/ssds80/MANUAL-REVIEW-HANDOFF-SSDS-8.0-F22B4DC.md`, written so that either a same-family sub-agent or a stakeholder-engaged different-family reviewer can run it. The workplan blob is unchanged.
+- **Manual:** `orchestrator/docs/ssds-8.0-architecture.md`, `manual_version: 1.0.0`, `status: proposed`. Latest frozen candidate is **`362af9f4944aa3a04455884add03e969f2e7390a`** (candidate 22), not yet reviewed; its handoff is `qualification/ssds80/MANUAL-REVIEW-HANDOFF-SSDS-8.0-362AF9F.md`, written so that either a same-family sub-agent or a stakeholder-engaged different-family reviewer can run it. The workplan blob is unchanged.
 - **Review aid:** `qualification/ssds80/MANUAL-CLOSURE-MAP-SSDS-8.0.md`; its §5 lists the G1 stakeholder items, including every author choice made under the delegation and SD-25's consequences.
-- **Reviews:** twenty-one Manual reviews of twenty candidates, all NO-PASS. `3540d98` (candidate 11) and `b46c250` (candidate 20, second review) were reviewed by the GPT family; every other by fresh-context Claude-family sub-agents. Records `MANUAL-REVIEW-SSDS-8.0-<SHA7>-NO-PASS.md` for 6FF4ED1, B595F2C, C6DA678, CC005DB, D837363, 53669A5, 1FFBBF0, 86AB683, 71CF9B3, 798B2B4, 3540D98, E2154AC, E9E6E9F, A18B544, 0B6C4FA, 27EF339, 5C55D4B, 575DC78, F7419D5, B46C250, and `MANUAL-REVIEW-SSDS-8.0-B46C250-DIFFERENT-FAMILY-NO-PASS.md`.
-- **Stakeholder choices:** SD-11 to SD-25 (items 9-18 and 20). Item 19 is the delegation; candidates 13-20's repair directions are the author's choices, listed in closure map §5. SD-25 (item 20) chose "One state rule" for the gate family.
-- **Families at candidate 21:**
+- **Reviews:** twenty-two Manual reviews of twenty-one candidates, all NO-PASS (candidate 21, `f22b4dc`: one gate-family blocker, the lineage unit of SD-25's realization). `3540d98` (candidate 11) and `b46c250` (candidate 20, second review) were reviewed by the GPT family; every other by fresh-context Claude-family sub-agents. Records `MANUAL-REVIEW-SSDS-8.0-<SHA7>-NO-PASS.md` for 6FF4ED1, B595F2C, C6DA678, CC005DB, D837363, 53669A5, 1FFBBF0, 86AB683, 71CF9B3, 798B2B4, 3540D98, E2154AC, E9E6E9F, A18B544, 0B6C4FA, 27EF339, 5C55D4B, 575DC78, F7419D5, B46C250, F22B4DC, and `MANUAL-REVIEW-SSDS-8.0-B46C250-DIFFERENT-FAMILY-NO-PASS.md`.
+- **Stakeholder choices:** SD-11 to SD-26 (items 9-18, 20 and 21). SD-26 (item 21) chose the transformation as the unit of enactment. Item 19 is the delegation; candidates 13-20's repair directions are the author's choices, listed in closure map §5. SD-25 (item 20) chose "One state rule" for the gate family.
+- **Families at candidate 22:**
   - matching clause (§6), D1-D3 change rule (§1.2, §10.2) and content identity (§1.5): no blocker of their own in the last four reviews, both families' reviewers included;
-  - **gate family (§5.2, §5.5, §7.5, §10.2-§10.3): repaired by SD-25, unreviewed.** Candidate 21 deletes the prospective frame clauses. One S0 rule says which records act in a state (admitted-frame records everywhere; frame records in the frames of their own lineage and, after it integrates, in the admitted state), read by support (`base`), supersession, veto relief (`stands⁻`), disposition (§6.7), gate eligibility, answering and run membership; adverse records stay outside it. A revision run is identified by the event that starts it, `rid_G(s) = (s, ι)` with `ι` the starting request's bound obligation (an integration's enactment lineage, a cutover's requesting obligation) or an absorption's entry; records name their run. Withdrawn capability (disclosed): a pending lineage's frame records no longer support another candidate's frame records.
+  - **gate family: SD-26 repair at candidate 22, unreviewed.** The unit of the acting rule and of a run is one producing task's transformation with its clean rebases (§5.2); integration runs are named by that task, cutover runs by the task carrying it out, other events by their entry (§10.2); a second integration of one enactment is refused (§8.3 step 7, `OBLIGATION_REENACTED`); R12 lists the narrowing of workplan §6.9 rule 1. Earlier state, at candidate 21: **repaired by SD-25.** Candidate 21 deletes the prospective frame clauses. One S0 rule says which records act in a state (admitted-frame records everywhere; frame records in the frames of their own lineage and, after it integrates, in the admitted state), read by support (`base`), supersession, veto relief (`stands⁻`), disposition (§6.7), gate eligibility, answering and run membership; adverse records stay outside it. A revision run is identified by the event that starts it, `rid_G(s) = (s, ι)` with `ι` the starting request's bound obligation (an integration's enactment lineage, a cutover's requesting obligation) or an absorption's entry; records name their run. Withdrawn capability (disclosed): a pending lineage's frame records no longer support another candidate's frame records.
   - non-blocking repairs at candidate 21: partition precedence and residual subtraction (N6), admitted records evaluated in the frame at hand (N1), accumulation disclosure (N2), polarity and audit-map wording (N3), B1-A..D and region-isolation discriminators (N4).
 - **Commit attribution:** family-only trailer (`Co-Authored-By: Claude`).
 
 ## 3. Next work, in order
 
-### 3.1 Review of candidate 21
+### 3.1 Review of candidate 22
 
 Run the review from its handoff: a same-family sub-agent launched by the authoring session (method of earlier rounds), or a different-family reviewer the stakeholder engages; the stakeholder decides which. On a NO-PASS in the gate family, check first whether the defect is in the acting rule or `rid` themselves (a SD-25 realization defect, repair locally) or shows the rule cannot work (return to the stakeholder with the SD-25 alternatives: gates after integration, exact-transformation reuse).
 
@@ -36,7 +36,7 @@ Run the review from its handoff: a same-family sub-agent launched by the authori
 - the partial reversal of SD-17: red-then-green iterations stop mechanically only under a bounded reproduction; in scientific code with incompleteness markers most closures are unbounded (alternatives: an adverse-only exact read core for qualified tracing runners, or judgment-only staleness);
 - SD-24 as realized: only a qualified decision's own author or the owner lifts a qualification;
 - exact content identity's cost (line-ending and mode churn are revisions);
-- SD-25's consequences (withdrawn cross-candidate reliance; a frame `REJECT` on an unchanged subject outlives its abandoned candidate; gate-member accumulation);
+- SD-26's cost (a fresh acceptance and gate per replacement iteration) and SD-25's consequences (withdrawn cross-candidate reliance; a frame `REJECT` on an unchanged subject outlives its abandoned candidate; gate-member accumulation);
 - whether to confirm or reverse each author choice listed in closure map §5;
 - a final different-family confirmation Review before G1.
 
@@ -58,5 +58,5 @@ Unchanged: update coordination state; present G1 criteria (workplan §25 criteri
 | Reconstruct parents | done |
 | Draft the Manual | done |
 | Closure map | done |
-| Freeze and independent Review | in progress (candidate 21 frozen after SD-25; review pending) |
+| Freeze and independent Review | in progress (candidate 22 frozen after SD-26; review pending) |
 | Coordination state and G1 presentation | pending |
