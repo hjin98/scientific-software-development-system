@@ -49,7 +49,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 4 | subject-boundary rule | §4.1 | CARRIED |
 | 4 | consumption classes; equivalence-path composition | §4.4 | DECIDED |
 | 4 | widening chain and closure algorithm | §4.5, §4.6 | CARRIED |
-| 5 | recorded anchors and assessed content as content identities; `on`; `home`, `about` in S0 | §6.3-§6.5, §6.8 (`adm`) | CARRIED; `on` split REFINED (R1: `on⁺ = on⁻ ∧ …` by construction; one recorded basis read by currency, matching, floor and class; re-resolution under the frozen context; construction rule: `on⁻` compares only tree-resident terms, external pins and unpinnable reads enter only `on⁺`, c6da678 B1 and SD-12; guard: `on⁻` depends only on the record, re-resolved under its own named system version, and the compared bytes, cc005db B2 and SD-13) |
+| 5 | recorded anchors and assessed content as content identities; `on`; `home`, `about` in S0 | §6.3-§6.5, §6.8 (`adm`) | CARRIED; `on` split REFINED (R1: `on⁺ = on⁻ ∧ …` by construction; one recorded basis read by currency, matching, floor and class; re-resolution under the frozen context; construction rule: `on⁻` compares only tree-resident terms, external pins and unpinnable reads enter only `on⁺`, c6da678 B1 and SD-12; guard: `on⁻` depends only on the record, re-resolved under its own resolution context recorded by value, and the compared bytes, cc005db B2 and SD-13; environment entries only in `on⁺`, pure scope-term resolvers, mechanical staleness only for fixed-environment specifications (§6.6 (0)), d837363 B1-B2 and SD-15) |
 | 5 | configuration matching; evaluated-outcome declarations including canonical numerical forms | §6.5, §17.1, §17.3 | DECIDED |
 | 5 | failing-output naming and comparison | §6.5, §17.3 | DECIDED |
 | 5 | output identity across specification revisions | §6.5 (`output_renames`) | DECIDED |
@@ -94,7 +94,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 9 | residual-risk disclosure | §9.4 | DECIDED (where it is stated) |
 | 10 | interface operations | §16.1 | CARRIED |
 | 10 | query classes | §16.2 | DECIDED |
-| 10 | brief and gate templates (Channel C; §19.2 activation, injection, delegation schema) | §16.3, §16.5-§16.7, §13.5 | DECIDED |
+| 10 | brief and gate templates (Channel C; §19.2 activation, injection, delegation schema) | §16.3, §16.5-§16.7, §13.5 (revising review for D1/D2 revisions outside `AUTHOR` items and gate statement of absent assessments, d837363 B3 and SD-16) | DECIDED |
 | 10 | epistemic labels | §16.2 | CARRIED |
 | 10 | read recording | §16.4 | DECIDED |
 | 10 | transports and bootstrap locator | §16.10 | DECIDED |
@@ -105,7 +105,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 12 | intake detection | §18.1 | CARRIED |
 | 12 | static classification | §18.2 | DECIDED |
 | 12 | dispositions; trust/quarantine | §18.3 | CARRIED |
-| 12 | structural quarantine views; adoption and realignment requests | §18.4, §18.5 (contrary dispositions after an enacted adoption; `QUARANTINE` effect through `ok`, cc005db N5) | CARRIED + DECIDED |
+| 12 | structural quarantine views; adoption and realignment requests | §18.4, §18.5 (contrary dispositions in both orders; `QUARANTINE` effect through `ok`; disposition targets, cc005db N5, d837363 N3) | CARRIED + DECIDED |
 | 12 | policy for mechanical adoption of governance-neutral deltas | §18.4 (`intake.neutral_auto`, default false) | DECIDED + DEFAULT |
 | 13 | governance modes | §19.1 | CARRIED |
 | 13 | legacy and external acceptance import scope | §19.2, §20.2 | CARRIED |
@@ -139,7 +139,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 20 | external units, external acceptance import, cross-repository boundary | §20 | DECIDED (pin grammar) / CARRIED |
 | 21 | every Manual decision delegated by §19.1 and §19.2 | §29.7 table | DECIDED |
 | 22 | minimum-justified-architecture reassessment of every primitive, component and persistent surface | §30 (statements updated for R1 and R9, b595f2c N7) | DECIDED (two removals: R4, R5) |
-| 23 | system role templates, obligation kinds, record kinds, outcomes, write-scope rules | §12.3 (reviewer and principal `TASK_RESULT`, b595f2c B4), §10.2 (including `AUTHOR`, `DOCUMENT`; 6ff4ed1 B4), §13.2 domain rule (no D1-D3 unit outside `AUTHOR`, b595f2c B3 and N8), §1.2 effect-keyed write set (every unit whose owned content, declarations, regions, membership or signature differs, by any route, c6da678 B3, cc005db B1 and SD-14) | DECIDED |
+| 23 | system role templates, obligation kinds, record kinds, outcomes, write-scope rules | §12.3 (reviewer and principal `TASK_RESULT`, b595f2c B4), §10.2 (including `AUTHOR`, `DOCUMENT`; 6ff4ed1 B4), §13.2 domain rule (no D1-D3 unit outside `AUTHOR`, b595f2c B3 and N8), §1.2 effect-keyed write set (every unit whose owned content, declaration keys, semantic declarations, regions, membership or signature differs between the current head and the merged tree, by any route, c6da678 B3, cc005db B1, SD-14, d837363 B4); cross-domain structural changes have no agent route (d837363 N2) | DECIDED |
 | 23 | separation constraints and context-lineage provenance | §12.2, §12.3 | DECIDED |
 | 23 | limits on policy extension; standing-plan designation | §12.3, §12.5 | DECIDED |
 | 24 | contract schema; lint rules | §13.1, §13.2 | DECIDED |
@@ -259,7 +259,7 @@ has:
 | Finding | Manual disposition |
 |---|---|
 | N1 historical adoption provenance | Not closable by the Manual. Recorded as an open provenance item in §32.2 and §32.4; only a stakeholder restatement or recovered authentic evidence closes it. The Phase C task (2026-10-15) itself binds 7.2.1 through the handoff the stakeholder directed to be followed. |
-| N2 completeness polarity; cyclic prefixes | R1 (`on⁺`/`on⁻` named at every use, §6.5-§6.8; after the 6ff4ed1 Review's B1, `on⁺ ⇒ on⁻` holds by construction and neither predicate reads effective structure; after the b595f2c Review's B1, the execution basis is recorded once at the reviewed granularity with a frozen resolution context, SD-11); R2 (cycle clamp, §5.6); R3 (corrupt prefixes, §5.7); real-owner discriminators with both differing-old-content and yielding-present-content runs and an alternate tree differing only outside the recorded regions (including another span of a recorded file), the b595f2c trajectory with its sibling, ignored-file and prefix-addition variants, the c6da678 external-input trajectory with its unpinnable-read variants, the cc005db system-version trajectory, plus negative discriminators against global fallback and against discarding observations or staling unrelated passing evidence (§31.3). The global-fallback hypothesis stays rejected. |
+| N2 completeness polarity; cyclic prefixes | R1 (`on⁺`/`on⁻` named at every use, §6.5-§6.8; after the 6ff4ed1 Review's B1, `on⁺ ⇒ on⁻` holds by construction and neither predicate reads effective structure; after the b595f2c Review's B1, the execution basis is recorded once at the reviewed granularity with a frozen resolution context, SD-11); R2 (cycle clamp, §5.6); R3 (corrupt prefixes, §5.7); real-owner discriminators with both differing-old-content and yielding-present-content runs and an alternate tree differing only outside the recorded regions (including another span of a recorded file), the b595f2c trajectory with its sibling, ignored-file and prefix-addition variants, the c6da678 external-input trajectory with its unpinnable-read variants, the cc005db system-version trajectory, the d837363 environment and host-resolver trajectories, plus negative discriminators against global fallback and against discarding observations or staling unrelated passing evidence (§31.3). The global-fallback hypothesis stays rejected. |
 | N3 diagnostic and reader limits | §31.3 lists what the model does not cover and moves those cases to real owners; §29.6 and §32.2 disclose the lenient-reader residual. |
 | N4 practical cost/applicability | §32.3 keeps every workplan §26 reopen condition and adds those the Manual's decisions create (fence frequency after R4; manifest and scope-term expressiveness; partition rules); §31.9 measures, never claims. |
 
@@ -271,6 +271,7 @@ Prior closures (Y1/Y2 and earlier) are carried unchanged in §6; the convergence
 - The **[proposed default]** values: derivation checkpoint interval (§5.9), budgets (§13.7), mutation threshold (§14.5), `HARD` qualification thresholds (§14.7), takeover wait (§22.3), deployment-class parameters (§23.3), entropy threshold (§24.1), cutover reconstruction minimum (§19.5). The 168-hour time-bound cap (§6.9) is a D3 decision, not a default; the stakeholder may still ask to change it.
 - The decision recorded in §0.3 R4 accepts a human decision after every crash inside the publication window, and discloses VM-level snapshot and resume of a running Admission process as outside the crash model (§32.2).
 - The decision recorded in §0.3 R9: a standing adverse judgment (for example one reviewer's `NO_PASS` or one qualified `FAIL`) blocks the contrary passing judgment until its human author reassesses, the owner adjudicates or a challenge against it is upheld (an agent's judgment cannot be reassessed by its author, whose task has ended), which trades some adjudication work for never resolving a disagreement by re-dispatch or order.
+- The SD-15 restriction: a failure becomes stale mechanically only when its specification fixes its environment; every other failure stays counted until the owner disposes of it, trading owner work for soundness (§6.6 (0), §32.2-§32.3).
 - Product scope: the Manual marks **no** inspectability surface beyond the requested deliverable (§0.5); none needs product-scope acceptance.
 - N1 restatement, if the stakeholder chooses to close it.
 
