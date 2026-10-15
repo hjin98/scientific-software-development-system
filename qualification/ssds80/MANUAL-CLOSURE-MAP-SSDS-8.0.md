@@ -45,7 +45,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 3 | challenge inquiry-status attribute | §3.4 `CHALLENGE.inquiry`, §2.2 `CHALLENGES.inquiry` | DECIDED (R7 for the content relation) |
 | 3 | compatibility contract | §3.6 | DECIDED |
 | 4 | basis composition and mode assignment per kind | §4.1, §4.3 | DECIDED |
-| 4 | executed content (execution basis, observed runner reads, whole-tree fallback) and each assessment's reading | §6.3 (recorded once at the reviewed granularity: unit, read, widened and pin entries with a frozen resolution context; read entries over the realization's tree, files absent from it are external reads; residual-part identity; per-polarity value when a frozen analyzer cannot re-resolve, c6da678 N6-N8; an execution whose runner class does not observe every read outside the tree recorded as unpinnable, 1ffbbf0 B1 and SD-18), §4.1 `execution` mode, §17.2, §17.5 | CARRIED + DECIDED (recording form; 6ff4ed1 B1, b595f2c B1, SD-11) |
+| 4 | executed content (execution basis, observed runner reads, whole-tree fallback) and each assessment's reading | §6.3 (recorded once at the reviewed granularity: unit, read, widened and pin entries with a frozen resolution context; read entries over the realization's tree, files absent from it are external reads; residual-part identity; per-polarity value when a frozen analyzer cannot re-resolve, c6da678 N6-N8; an execution whose runner class does not observe every read outside the tree recorded as unpinnable, 1ffbbf0 B1 and SD-18; reads through symbolic links record every traversed link and the target, 798b2b4 B4), §4.1 `execution` mode, §17.2, §17.5 | CARRIED + DECIDED (recording form; 6ff4ed1 B1, b595f2c B1, SD-11) |
 | 4 | subject-boundary rule | §4.1 | CARRIED |
 | 4 | consumption classes; equivalence-path composition | §4.4 | DECIDED |
 | 4 | widening chain and closure algorithm | §4.5, §4.6 | CARRIED |
@@ -60,7 +60,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 5 | system cap on the time bound for `INCOMPLETE` | §6.9 (168 hours) | DECIDED |
 | 5 | replicate rules for nondeterministic specifications | §6.10, §17.1, §17.3 (ensemble granularity, seed policy) | DECIDED |
 | 5 | admitted and frame anchor sets, lineage, admitted-obligation latch in `starts` | §6.4 | CARRIED |
-| 5 | `ev`, `undisputed`, `disp`, `eff` in S2 | §5.5, §6.7 (`ACC` and gate decisions of `NATIVE` D1/D2 subjects filtered by `holds`, an S0/S1 constant, 71cf9b3 B2 and SD-21; S11 restated as R10) | CARRIED + REFINED (R10) |
+| 5 | `ev`, `undisputed`, `disp`, `eff` in S2 | §5.5, §6.7 (`ACC` and gate decisions of `NATIVE` D1/D2 subjects current only within the revision run, a `tgt` condition, 71cf9b3 B2, 798b2b4 B2, SD-21 and SD-22; S11 restated as R10) | CARRIED + REFINED (R10) |
 | 5 | strata S0-S3 with `Σ`, `Q`, `aff`, `τ`, `well_formed`, `ok`, `E`, `pub` in S0 and `cont` in S1 | §5.2-§5.5, §5.8 | CARRIED |
 | 5 | polarity classification of every record kind | §5.4, §3.4 | DECIDED (complete table) |
 | 5 | fixed predicate templates and adoption-time stratification check | §5.1 | DECIDED |
@@ -82,7 +82,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 6 | fencing absorptions and fence commits; late-publication detection | §22.3 (fence commit format) | DECIDED / CARRIED |
 | 6 | operational takeover wait | §22.3 (300 s) | DEFAULT |
 | 6 | ABA policy | §22.3 | CARRIED |
-| 7 | obligation rules, including retirement, split and retargeting of evidence obligations carrying failing assessments | §10.2 (revising review derived in any frame where `ACCEPT` or `GATE` lacks a counting revision-assessment record for exactly its revision; predecessor defined as a machinery-supplied set, 1ffbbf0 B2, N3 and SD-19; a record counts only with the current predecessor and while it stands, 86ab683 B1, N6 and SD-20; one state condition read by Admission, readiness and validity, predecessor one class rule over acceptance records, obligations parameterized by it, 71cf9b3 B1-B2, N1-N4 and SD-21) | DECIDED |
+| 7 | obligation rules, including retirement, split and retargeting of evidence obligations carrying failing assessments | §10.2 (revising review derived in any frame where `ACCEPT` or `GATE` lacks a counting revision-assessment record for exactly its revision; predecessor defined as a machinery-supplied set, 1ffbbf0 B2, N3 and SD-19; a record counts only with the current predecessor and while it stands, 86ab683 B1, N6 and SD-20; 71cf9b3 B1-B2 and SD-21; replaced by the revision run, an S0 target condition every consumer reads, with obligations parameterized by the run and the predecessor a machinery-computed display, 798b2b4 B1-B3, N1-N4 and SD-22) | DECIDED |
 | 7 | readiness | §10.3 | CARRIED |
 | 7 | three-valued discharge, provisional propagation, risk-override scope | §10.4 (plus `REFUSED` for an adverse answer under the §5.5 `same` test, named in R9, c6da678 N5), §10.5 | CARRIED + REFINED (R9; b595f2c B4) / DECIDED (override scope grammar) |
 | 7 | iteration/attempt identity | §10.3 (every task ends in one `TASK_RESULT`; judgment obligations answered once and never re-dispatched) | DECIDED (b595f2c B4) |
@@ -94,7 +94,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 9 | residual-risk disclosure | §9.4 | DECIDED (where it is stated) |
 | 10 | interface operations | §16.1 | CARRIED |
 | 10 | query classes | §16.2 | DECIDED |
-| 10 | brief and gate templates (Channel C; §19.2 activation, injection, delegation schema) | §16.3, §16.5-§16.7, §13.5 (revising review for D1/D2 revisions outside `AUTHOR` items and gate statement of absent assessments, d837363 B3 and SD-16; passing acceptances and gate `ACCEPT`s of a D1/D2 revision, in every frame, refused unless a revision-assessment record for exactly that revision counts (current predecessor, standing; SD-20), and supporting validity only while they hold (SD-21), however it was produced; only a record carrying the slot answers the revising review, §10.2, §8.3 step 7, 53669a5 B2, 1ffbbf0 B2 and SD-19) | DECIDED |
+| 10 | brief and gate templates (Channel C; §19.2 activation, injection, delegation schema) | §16.3, §16.5-§16.7, §13.5 (revising review for D1/D2 revisions outside `AUTHOR` items and gate statement of absent assessments, d837363 B3 and SD-16; passing acceptances and gate `ACCEPT`s of a D1/D2 revision, in every frame, refused unless a revision-assessment record for exactly that revision counts (current predecessor, standing; SD-20), and current only within the revision run in which they were made (SD-22), however it was produced; only a record carrying the slot answers the revising review, §10.2, §8.3 step 7, 53669a5 B2, 1ffbbf0 B2 and SD-19) | DECIDED |
 | 10 | epistemic labels | §16.2 | CARRIED |
 | 10 | read recording | §16.4 | DECIDED |
 | 10 | transports and bootstrap locator | §16.10 | DECIDED |
@@ -112,7 +112,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 13 | external consultation supersession | §20.2 | CARRIED |
 | 13 | reconstruction status; structural refinement | §19.3 | CARRIED |
 | 13 | promotion, demotion, restoration, carve-out | §19.4, §19.6 | CARRIED / DECIDED (`LEGACY_RELEASE`) |
-| 13 | cutover and quiescence | §19.5 (conditions, quiescence record; owner acceptance bound to the cutover admission with its revision-assessment record, 86ab683 N1; trigger stated in §10.2, re-cutover predecessor by the class rule, 71cf9b3 N4) | DECIDED |
+| 13 | cutover and quiescence | §19.5 (conditions, quiescence record; owner acceptance bound to the cutover admission with its revision-assessment record, 86ab683 N1; trigger stated in §10.2 and §19.5 for any requested cutover, 71cf9b3 N4, 798b2b4 N4) | DECIDED |
 | 13 | genesis | §19.9 (contents, FF-001 procedure, shadow genesis) | DECIDED |
 | 14 | Git entry format | §21.2 | DECIDED |
 | 14 | per-host Admission identity and the publication-attempt record (intactness across processes, copied or restored state, key-preserving host replacement) | §22.3 | REFINED (R4: incarnation; no durable record) |
@@ -157,7 +157,7 @@ Disposition codes: **DECIDED** — the Manual fixes the architecture choice; **C
 | 26 | routing table; escalation floors; coordination outcome table | §15.3-§15.5 | CARRIED |
 | 26 | materiality reclassification | §15.6 | CARRIED |
 | 26 | review, decision and inspector templates; digest; impact ranking | §16.5, §16.7, §16.8 | DECIDED (ranking key) |
-| 27 | doctrine-realization map with E0-E3 per duty of every 7.2.1 role and specialist entrypoint | §29.2-§29.5 (claims re-bound after b595f2c B3, B4 and N6; §29.4 revising row and §29.5 documentation row re-bound after 53669a5 B2 and N8, and §29.4 again after 1ffbbf0 B2, 86ab683 B1, N6 and 71cf9b3 B2) | DECIDED |
+| 27 | doctrine-realization map with E0-E3 per duty of every 7.2.1 role and specialist entrypoint | §29.2-§29.5 (claims re-bound after b595f2c B3, B4 and N6; §29.4 revising row and §29.5 documentation row re-bound after 53669a5 B2 and N8, and §29.4 again after 1ffbbf0 B2, 86ab683 B1, N6, 71cf9b3 B2 and 798b2b4 B1-B3) | DECIDED |
 | 27 | disclosed list of duties that stay E3 | §29.6 | DECIDED |
 
 ## 2. Architecture 1.6.0 (workplan §16.2)
@@ -273,7 +273,7 @@ Prior closures (Y1/Y2 and earlier) are carried unchanged in §6; the convergence
 - The decision recorded in §0.3 R9: a standing adverse judgment (for example one reviewer's `NO_PASS` or one qualified `FAIL`) blocks the contrary passing judgment until its human author reassesses, the owner adjudicates or a challenge against it is upheld (an agent's judgment cannot be reassessed by its author, whose task has ended), which trades some adjudication work for never resolving a disagreement by re-dispatch or order.
 - SD-17, which withdrew the SD-15 restriction: a failure becomes stale mechanically only through runs that match the failing realization on its pins and on every execution attribute its runner class records; variation in an attribute no runner class records is a disclosed residual, so a failure it causes can be made stale (§6.5, §17.5, §32.2). Projects choose what each runner class records.
 - SD-18: runner classes that do not observe every read outside the tree support no mechanical stop; their failures, red-then-green iterations included, go to the owner (§17.5, §32.2-§32.3).
-- SD-16, SD-19, SD-20 and SD-21 as realized: no `NATIVE` D1/D2 revision, however produced and in whatever frame, can be gate-accepted or accepted unless a revision-assessment record for exactly that revision counts (its machinery-supplied predecessor is the current one and the record stands), and its acceptance and gate decision support validity only while that holds with an unchanged predecessor. A revert of D1/D2 authority to an earlier accepted revision therefore needs a new revising review, acceptance and gate. A tension recorded later does not invalidate a record; the gate core shows it. No human override exists (§8.3 step 7, §10.2, §5.5); adding one is a stakeholder decision. Every re-identification and nested-only revision also needs its record.
+- SD-16, SD-19 and SD-22 as realized: no `NATIVE` D1/D2 revision, however produced and in whatever frame, can be gate-accepted or accepted unless a revision-assessment record for exactly that revision counts (in its revision run, standing), and its acceptance and gate decision are current only within that run. A revert of D1/D2 authority, or any other change of its revision, therefore needs a new revising review, acceptance and gate. The predecessor is a machinery-computed display the reviser may extend, not an equality condition (SD-22 replaced SD-20's equality and SD-21's `holds`). A tension recorded later does not invalidate a record; the gate core shows it. No human override exists (§8.3 step 7, §10.2, §5.2); adding one is a stakeholder decision. Every re-identification and nested-only revision also needs its record.
 - Product scope: the Manual marks **no** inspectability surface beyond the requested deliverable (§0.5); none needs product-scope acceptance.
 - N1 restatement, if the stakeholder chooses to close it.
 
