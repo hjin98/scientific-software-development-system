@@ -1,0 +1,85 @@
+# Independent D3 Review handoff — SSDS 8 Architecture Manual, candidate b595f2c
+
+This is the complete prompt for the independent D3 Review of the second candidate of the proposed SSDS 8 Architecture Manual (Phase C, gate G1), after the NO-PASS Review of candidate 6ff4ed1. By stakeholder direction (SD-8, SD-9; Phase C handoff §8 step 4) the Review runs as a fresh-context sub-agent launched by the authoring session. The Manual's author and this reviewer are of the Claude family, the same family as the workplan's earlier semantic author; the Phase B reviewer was of the GPT family. Fresh context does not establish epistemic independence: the corpus, the inherited workplan framing, the model family and the toolchain are shared dependencies the record must state. This handoff names the candidate, the governing sources and the method; it gives none of the author's conclusions. Everything below the line is the prompt.
+
+
+---
+
+You are performing an **independent D3 falsification Review** under the Scientific Software Development Protocol (SSDP), governing version **7.2.1**. You did not author the candidate and you have none of the authoring conversation. Your job is to try to break the candidate, not to confirm it. Do not modify any file except the one Review record you write. Do not commit or push.
+
+## 1. What you are reviewing
+
+- **Repository (local checkout):** `/home/user/scientific-software-development-system` (GitHub `hjin98/scientific-software-development-system`)
+- **Branch:** `ssds-8.0-graph-native-architecture`
+- **Candidate commit:** `b595f2c5794ad906cb3b9b89ba15fe2c5be1e784`. Review exactly this commit, by `git show b595f2c5794ad906cb3b9b89ba15fe2c5be1e784:<path>` or a `git archive` snapshot. Later commits, including the one adding this handoff, are not part of the candidate.
+- **Primary subject:** `orchestrator/docs/ssds-8.0-architecture.md` (blob `08270e2a6fc5bb015d793021f3933a9bafcf623c`), the proposed SSDS 8 Architecture Manual.
+- **Review aid (in scope, not authority):** `qualification/ssds80/MANUAL-CLOSURE-MAP-SSDS-8.0.md` (blob `f6568e50a04a7b42634f40b886351375d2611887`).
+- **Parent contract:** `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`, design revision 23, Phase B semantic candidate `e23f14208be869e6a78cfd7b312e447254ee1851` (blob `610f373b97fb8152d2a5742e17fa172e12204756`); at the Manual candidate its blob is `91bde236465178f20c7348280e036d2884dfc216`, differing from the Phase B candidate only by Review/lifecycle coordination text. Its §21 is the complete list of closure obligations; §16.2 and §18 are the inheritance owners; §25 defines the gates.
+- **Phase B Review:** `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md` (PASS on the workplan; findings N1-N4 carried to the Manual).
+- **Previous Manual candidate and Review:** `6ff4ed1eeb91db5aff262eda8c85693dd50f0360`, reviewed NO-PASS in `qualification/ssds80/MANUAL-REVIEW-SSDS-8.0-6FF4ED1-NO-PASS.md` (blockers B1-B4, non-blocking N1-N12). The changes since are `git diff 6ff4ed1eeb91db5aff262eda8c85693dd50f0360 b595f2c5794ad906cb3b9b89ba15fe2c5be1e784`; read them to see what changed, but judge the whole candidate.
+- **Phase C task handoff:** `qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md` (what the Manual owes).
+- **Frozen predecessor architecture:** `orchestrator/docs/architecture.md` (Architecture 1.6.0, blob `39e6de727f6c35402962509d30d947962992eaad`).
+- **Also relevant:** `qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md` (stakeholder instructions, verbatim); `qualification/ssds80/s1_disagreement_model_check.py` (a bounded diagnostic); `PROJECT-ENGINEERING-MEMORY.md`; `tests/test_protocol_80_orchestrator_consolidation.py`.
+
+**Scope.** The whole Manual as the proposed durable D3 owner:
+
+- **(a) closure:** whether every workplan §21 item, with every subordinate clause, and every §16.2 row (both tables) is substantively resolved in the Manual, not merely routed; whether material decisions are distinguished from delegated D4 choices; whether the Manual over-specifies incidental D4 machinery or under-specifies something an implementer would have to decide architecturally;
+- **(b) fidelity to the reviewed contract:** whether the Manual restates the Phase B-reviewed workplan contracts without silent semantic change, and whether each clause the Manual presents as a refinement of the workplan (its §0.3) is a sound refinement that preserves every owner-required property, or is a change that needs to be surfaced differently;
+- **(c) adequacy:** whether the Manual, read as one coherent architecture, can be concretized by a conforming implementation that still violates a governing invariant (out-of-matrix);
+- **(d) inheritance and capability transfer:** against Architecture 1.6.0, workplan §18 (`workplans/archive/SSDP-8.0-DETERMINISTIC-CONTROL-PLANE-AND-MANDATORY-ORCHESTRATOR-CONSOLIDATED.md`, `workplans/archive/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE-BEFE678-HYPOTHESIS.md`) and the PEM Historical Applicability Set;
+- **(e) the qualification design** and **(f) the doctrine-realization map** against the 7.2.1 role and specialist entrypoints;
+- **(g) O1 scientific inspectability content** and product-scope marks.
+
+## 2. Governing authority
+
+Governing protocol: SSDP **7.2.1**. Accepted-current identities are owned by `PROTOCOL-RELEASE-STATE.yaml`: public source `aaeaf8b6b2121b9fb8aba31917c8265649c43954`, recovery `efdd1b59a7592b1cecef0a0013c35b54a7a6315d`. Read governing owners **at the public-source commit** with `git show <ref>:<path>`:
+
+- `source/roles/software-design/SKILL.md`, the D3 role entrypoint; enter it and follow its routing (its entry contract and scientific checks are expanded in `dist/skills/software-design/SKILL.md` at the same commit);
+- `source/shared/references/architecture-and-design.md` first, and `source/shared/references/abstraction-and-concretization.md`;
+- further owners as their concern is material: `workflow-and-workplans.md`, `evidence-evolution-and-dependencies.md`, `semantic-definition-and-traceability.md`, `convergence-and-cycle-economy.md`, `project-engineering-memory.md`, `storage-and-io.md`, `concurrency-and-orchestration.md`, `security-and-trust-boundaries.md`, `protocol-versioning-and-compatibility.md`, `testing-and-validation.md`, `scientific-inspectability-and-initiative.md`;
+- for the doctrine-realization map: every role and specialist entrypoint under `source/roles/` and `source/specialists/`, with `source/shared/fragments/scientific-checks.md` and `dist/skills/*/SKILL.md` for their expanded text.
+
+Treat as **hypotheses to test, never as authority or evidence of adequacy**: the previous Manual Review record and its repair directions; the Manual's own refinement table, decision markers, minimum-architecture pass and qualification claims; the closure map; commit messages; this handoff's description of scope; the workplan's §0.1 and §27 rationale; the diagnostic model's reported results; and every prior Review record in `qualification/ssds80/`. Reconstruct independently.
+
+**Stakeholder authority.** The stakeholder decision record holds instructions verbatim and accepts the revision-5 design principles; the doctrine-realization objective is an aspiration whose machine limits must be tested. Judge whether the Manual faithfully realizes them and whether anything attributed to them exceeds what they say. Acceptance of the Manual, of proposed default values and of product scope belongs to the stakeholder, not to D3 Review.
+
+## 3. Method
+
+1. Enter the D3 role as `software-design/SKILL.md` directs. Cite exact owner text, at the governing commit, for each owner you rely on.
+2. **Closure audit.** For each workplan §21 item and clause, and each §16.2 row, locate the Manual's answer yourself (use the closure map only to find text faster, and check the map's claims). A route, a restatement of the obligation, or "delegated" where the decision is architectural is not closure.
+3. **Falsify; don't read for conformance.** Construct concrete trajectories that obey every local rule of the Manual yet violate a governing invariant (Manual §0.4, which restates workplan §2), an accepted owner, or the stakeholder's direction. For each claimed guarantee ask what mechanism enforces it and whether a locally compliant actor, a restrictive operation turned permissive, a recovery path, a cross-stratum interaction, a schema or grammar edge case, or a component boundary can defeat it. Include at least: the derivation's single-valuedness and stratification; the partition and scope-identity rules; the publication, fencing and currentness contracts; loss boundaries; role, envelope and independence enforcement; the gate and escalation floors.
+4. **Previous findings.** Re-derive each blocker (B1-B4) and non-blocking finding (N1-N12) of the previous Manual Review against this candidate and state closed, partly closed or open, with basis. Do not assume the repairs are adequate because they follow that record's suggested directions; that record shares this reviewer's model family.
+5. **Regression against prior closures.** The assessment-disagreement family (workplan §6.6, Manual §6) recurred in every workplan revision from 10 to 22 before the Phase B PASS. Re-verify that every closure recorded in the Phase B Review §3 still holds in the Manual's text, and attack the family **in both directions**: a live failure hidden (the permissive direction) and a settled failure resurrected or a stop withdrawn without cause (the restrictive direction). Specifically re-test Phase B N2 (completeness polarity, with an alternate tree differing only outside a recorded narrow basis, for both a differing old-content run and a yielding present-content run, under a completeness judgment that becomes `P`, blocked, revoked or loss-withheld) and the fail-closed treatment of support cycles and corrupt prefixes. The completeness-polarity clause has now produced findings in four successive reviews (`ef8445a` N2, `552ac01` N2, Phase B N2, `6ff4ed1` B1): attack the repaired matching predicates at family level, including every way an observation's matching can change without its content changing (structure, governed boundary, analyzers, scope membership, completeness standing, loss boundaries, frames, rebases) and every way content can change without matching noticing.
+6. **Convergence.** Read `convergence-and-cycle-economy.md` ("Active simplification trigger", "Review strategy after recurrence"). If you find a defect in the §6 family, assess it at family level before proposing repair, prefer repair directions that remove mechanism, and say whether it is a clean local defect or a non-local recurrence. Do not propose another latch or exception without that assessment.
+7. **Minimum architecture and capability transfer.** Whether every primitive, component and persistent surface is still the minimum justified one; whether any mechanism the Manual removes or replaces drops a capability an owner requires; whether the 1.6.0 supersession preserves the version-bound Core and frozen profiles (PEM PC-001).
+8. **Qualification adequacy.** Whether the qualification design could discriminate the defects it targets at real owners, or whether green fixtures could coexist with them (PEM DS-001); whether anything is claimed as executed that is not.
+9. Run, at the candidate: `python3 -m unittest tests.test_protocol_80_orchestrator_consolidation -v`; `git diff --check 6ff4ed1eeb91db5aff262eda8c85693dd50f0360 b595f2c5794ad906cb3b9b89ba15fe2c5be1e784`; `git diff --stat fad3ee410ab9df0d94740cebb6969e161911b126 b595f2c5794ad906cb3b9b89ba15fe2c5be1e784` (to confirm what the candidate adds); and confirm `orchestrator/docs/architecture.md` and everything under `source/` and `dist/` are byte-unchanged from `fad3ee410ab9df0d94740cebb6969e161911b126`. Running the diagnostic model is optional: its model file is unchanged since the Phase B Review, and it does not model the Manual's new clauses. None of these checks establishes semantic adequacy.
+10. Classify every finding by its **earliest owner** as a **blocker** (must be repaired before a PASS) or **non-blocking**. Give each blocker a concrete trajectory, the violated owner text, a minimum repair direction and a discriminator. Raise a **SERIOUS CHALLENGE** first if accepted governing authority itself is materially false, contradictory, ambiguous, inadequate or unrealizable. A blocker is a defect that lets a conforming implementation violate a governing invariant, a §21 obligation left unresolved, an unsurfaced semantic change to the reviewed contract, or a contradiction an implementer cannot resolve without choosing between two statements. Editorial defects are non-blocking unless they make a material rule ambiguous.
+11. Do not manufacture closure, and do not withhold a PASS for evidence that belongs to later gates (G2-G4) or for runtime evidence the Manual correctly marks unexecuted. A PASS here is technical evidence for G1 only: it accepts no architecture, product scope or default value and authorizes no D4.
+
+**Scientific checks for this Review.** This task reviews D3 authority for software that mediates scientific evidence; it produces, runs or reviews no realized scientific results. In your record, state your material findings or that you have none; state that you produced, ran or reviewed no realized results (or give a null envelope if you did); state whether you evaluated more than one variant of anything and, if so, count, kind and criterion; and if you relied on accepted D1/D2 authority for a consequential judgment, report your tension search. Report unanswered parts as gaps.
+
+## 4. Output
+
+Write exactly one Markdown file, `qualification/ssds80/MANUAL-REVIEW-SSDS-8.0-B595F2C-PASS.md` or `qualification/ssds80/MANUAL-REVIEW-SSDS-8.0-B595F2C-NO-PASS.md`, structured as:
+
+1. title and an indented header block: GOVERNING SSDP, REPOSITORY, BRANCH, CANDIDATE (full SHA), SCOPE, MANUAL blob, PARENT WORKPLAN and Phase B candidate, governing public-source and recovery refs, prior reviews (hypothesis only), REVIEW METHOD, **REVIEWER** (your model family only, never a model name or identifier, and that you are a fresh-context sub-agent launched by the authoring session);
+2. `## SERIOUS CHALLENGE`;
+3. `## Verdict` (PASS or NO-PASS);
+4. blockers, each with trajectory, violated owner text quoted, earliest owner, minimum repair direction and a required discriminator;
+5. non-blocking findings;
+6. closure audit: §21 items and §16.2 rows not substantively resolved, or "none found" with the basis;
+7. assessment of each Manual refinement (§0.3 R1-R7): sound, unsound, or a change needing different treatment;
+8. re-verification of the previous Manual Review's B1-B4 and N1-N12, the Phase B closures and N1-N4 carry-forward;
+9. out-of-matrix trajectories attempted, including those that held;
+10. minimum-architecture and capability-transfer assessment;
+11. qualification-design adequacy;
+12. doctrine-realization map and O1 assessment;
+13. what you verified and how; what you could not verify;
+14. scientific-checks answers (method, last paragraph);
+15. common-mode note: you share the Manual author's model family and were launched from this handoff by the authoring session; the Phase B reviewer was of another family;
+16. D4 statement.
+
+Write scratch files only under `/tmp/ssds80-manual-review-b595f2c/`. No other agent or author scratch files are part of your task context.
+
+End the file with exactly one trailing newline. Return to the caller only the record path, the verdict and a one-paragraph summary of blockers.
