@@ -1,5 +1,7 @@
 # SSDS 8.0 revise/review loop — session continuation hand-off
 
+> **Phase C (2026-10-15 onward):** Phase B below is closed. The current work is the Architecture Manual repair/review loop; continue from `qualification/ssds80/PHASE-C-CONTINUATION-HANDOFF-SSDS-8.0.md`.
+
 This file lets a new session (any account) continue the stakeholder-directed revise/review cycle for the SSDS 8.0 architecture workplan. It is coordination state, not authority: the workplan, its Review records and `PROTOCOL-RELEASE-STATE.yaml` own everything stated here.
 
 ## Standing instruction
