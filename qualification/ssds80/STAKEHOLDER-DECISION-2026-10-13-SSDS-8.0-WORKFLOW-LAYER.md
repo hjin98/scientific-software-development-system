@@ -48,6 +48,8 @@ Earlier the same day, on looking for a third reviewer family: "Anthropic and Ope
 
 **9. Choice after the Manual `b595f2c` Review (2026-10-15).** Asked how Phase C should continue after the second independent Review of the proposed Architecture Manual found blocker B1, the fifth successive finding in the assessment-disagreement matching clause, with the options "Subtractive repair (Recommended)" (record the execution basis once, at the reviewed unit/region granularity, with the resolution context frozen at realization, every consumer reading that one record, and narrow matching kept under completeness), "Subtractive + drop narrow match", "Different-family review first" and "Pause; reconsider above §6.6", the stakeholder chose "Subtractive repair (Recommended)".
 
+**10. Choice after the Manual `c6da678` Review (2026-10-15).** Asked how Phase C should continue after the third independent Review of the proposed Architecture Manual found blocker B1, the sixth successive finding in the matching clause (inputs from outside the repository entered the adverse matching predicate with the permissive polarity), with the options "Subtractive repair (Recommended)" (the adverse predicate compares only in-repository recorded terms; pins and unpinnable reads move to the permissive side only; one construction rule stated for the whole family; then a fresh same-family re-review), "Subtractive + drop narrow match", "Different-family review first" and "Pause; reconsider above §6.6", the stakeholder chose "Subtractive repair (Recommended)".
+
 ## Decisions adopted
 
 | # | Decision | Realized in (workplan) |
@@ -63,6 +65,7 @@ Earlier the same day, on looking for a third reviewer family: "Anthropic and Ope
 | SD-9 | Revisions and Reviews are done in the software-design (D3) role under the governing 7.2.1 owners, applying the convergence owner, including its active simplification rule, when issues do not converge or keep resurfacing | workplan §0.1 (revision 21 onward), §27.36; `REVIEW-HANDOFF-SSDS-8.0-REVISION-21.md` and later (method step 5) |
 | SD-10 | After revision 22's NO-PASS, continue with the subtractive repair (revision 23) rather than removing assessor-read staleness, changing reviewer family or pausing | workplan §0.1 (revision 23), §27.40 |
 | SD-11 | After the Manual `b595f2c` NO-PASS (B1), apply the subtractive repair: one recorded execution basis at the reviewed granularity with a frozen resolution context, read by every consumer, keeping narrow matching under completeness, rather than dropping narrow matching, a different-family Review first, or pausing | Architecture Manual §0.3 R1, §6.3, §6.5, §17.2 |
+| SD-12 | After the Manual `c6da678` NO-PASS (B1), apply the subtractive repair: `on⁻` compares only tree-resident recorded terms; external pins and unpinnable reads enter only the permissive predicate; one construction rule for the family; then a fresh same-family re-review, rather than dropping narrow matching, a different-family Review first, or pausing | Architecture Manual §0.3 R1, §6.3, §6.5, §31.3 |
 
 ## Not covered
 
