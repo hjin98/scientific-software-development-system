@@ -23,10 +23,12 @@ What is modelled, in four families (the first checked by check_all, the others b
                  u1..u3 (S1, S2, S3, S12 = the subject, SX = the tree); judgments on sub-scopes
                  compose by union; one analyzer declaration (actor M, no requirement); the
                  consumer is the §4.6 closure bound of each unit.
-           PLAN  a PLAN_ACCEPTANCE (plan-coverage family): one item, revisions i0 ⊑ i1 ⊑ i2 by
-                 the tightening order and an incomparable i1x; an acceptance claims the revision
-                 it names and the current revision it covers; supersession on the exact target
-                 only while that revision is current.
+           PLAN  a PLAN_ACCEPTANCE (plan-coverage family): item A with i0 ⊑ i1 ⊑ i2 ⊑ i3, an R2
+                 amendment iQ ⊑ i3 incomparable with i0..i2, and an isolated i1x; item B with b1.
+                 A rejection of r* denies r* and every tighter revision no judge accepted having
+                 seen it; an acceptance of r claims r and the covered current revision; so it is
+                 reached when r* = r, or r ⊑ cur, r* ⊑ cur and r* ⋢ r. Supersession on the exact
+                 target while its basis holds (each named revision ⊑ cur).
            The one reach rule (SD-29) for the composing kinds: z is reached when some set of
            asserting judgments of the kind, with z, claims what the objection denies and
            without z does not (Ledger.composed_reach with the per-kind Ledger.derives).
@@ -164,11 +166,12 @@ def req(z) -> bool:
     return requirement(z.kind)
 
 
-# ---- plan items (§11.2, §13.4): item A has i0 ⊑ i1 ⊑ i2 ⊑ i3 and i1x (a prose change of i0,
-# comparable with nothing); item B has b1 only. A plan judgment's target is a tuple of (item, revision).
-TIGHT = {("i0", "i1"), ("i1", "i2"), ("i2", "i3"), ("i0", "i2"), ("i0", "i3"), ("i1", "i3")}
+# ---- plan items (§11.2, §13.4): item A has i0 ⊑ i1 ⊑ i2 ⊑ i3, iQ ⊑ i3 with iQ incomparable with
+# i0, i1, i2 (an R2 amendment), and i1x (a prose change of i0, comparable with nothing); item B has b1
+# only. A plan judgment's target is a tuple of (item, revision).
+TIGHT = {("i0", "i1"), ("i1", "i2"), ("i2", "i3"), ("i0", "i2"), ("i0", "i3"), ("i1", "i3"), ("iQ", "i3")}
 PLAN_CUR = ["i2"]  # item A's current revision in the scenario being evaluated; item B's is b1
-ITEM_REVS = {"A": ("i0", "i1", "i2", "i3", "i1x"), "B": ("b1",)}
+ITEM_REVS = {"A": ("i0", "i1", "i2", "i3", "iQ", "i1x"), "B": ("b1",)}
 
 
 def tight(r: str, r2: str) -> bool:
@@ -179,32 +182,37 @@ def plan_cur(item: str) -> str:
     return PLAN_CUR[0] if item == "A" else "b1"
 
 
-def plan_claims(z) -> set:
-    """What a plan acceptance claims (§5.10 (b)): the item revisions it names and every revision on the
-    tightening path from a named one to the item's current revision, through which its coverage passes."""
-    out = set()
-    for it, r in z.target:
-        out.add((it, r))
-        if "plan_reach_names_only" in MUT:
-            continue
-        for r2 in ITEM_REVS[it]:
-            if not tight(r, r2):
-                continue
-            if "plan_reach_any_tighter" in MUT:  # bf23372 N1: every tighter revision
-                out.add((it, r2))
-            elif "plan_reach_current_only" in MUT:  # 34803df B1: only the current revision
-                if r2 == plan_cur(it):
-                    out.add((it, r2))
-            elif tight(r2, plan_cur(it)):
-                out.add((it, r2))
-    return out
+def plan_reached(rs: str, r: str, it: str) -> bool:
+    """§5.10 (b) plan row. A rejection of rs denies rs and every tighter revision no judge has accepted
+    (a tightening keeps the rejected controls); an acceptance of r claims r and, by coverage, the
+    current revision. So it is reached when rs = r, or when its coverage of cur carries the rejected
+    controls its judge did not see: r ⊑ cur, rs ⊑ cur and rs ⋢ r."""
+    cur = plan_cur(it)
+    if rs == r:
+        return True
+    if "plan_reach_names_only" in MUT:
+        return False
+    if "plan_reach_any_tighter" in MUT:  # bf23372 N1 / 0d2b35e option C: the preservation reading
+        return tight(r, rs)
+    if "plan_reach_current_only" in MUT:  # 34803df B1
+        return rs == cur and tight(r, cur)
+    if "plan_reach_path_only" in MUT:  # 0d2b35e B1: r ⊑ rs ⊑ cur
+        return tight(r, rs) and tight(rs, cur)
+    return tight(r, cur) and tight(rs, cur) and not tight(rs, r)
+
+
+def plan_reaches(j, z) -> bool:
+    hits = [any(it2 == it and plan_reached(rs, r, it) for it2, r in z.target) for it, rs in j.target]
+    if "plan_rejection_denies_set" in MUT:  # 34803df B1(b): the named set only as a whole
+        return all(hits)
+    return any(hits)
 
 
 def reach(j: J, z: J) -> bool:
     if j.kind != z.kind:
         return False
     if j.kind == "PLAN":
-        return bool(plan_claims(z) & set(j.target))
+        return plan_reaches(j, z)
     if j.kind == "REV":
         return j.target[1] == z.target[1]
     if j.kind == "ACC":
@@ -223,8 +231,10 @@ def supersession_target_ok(r: J, x: J) -> bool:
         return r.target == x.target
     if r.kind in ("ACC", "EQ", "COMP"):
         return r.target == x.target  # EQ: the exact (endpoints, class); COMP: (scope, class)
-    if r.kind == "PLAN":  # the target, only while every rejected item revision is current
-        return r.target == x.target and all(plan_cur(it) == rv for it, rv in x.target)
+    if r.kind == "PLAN":  # the target, while its basis holds (Admission step 6: each named revision ⊑ cur)
+        if "plan_supersession_current_only" in MUT:  # 0d2b35e N1: only while every named revision is current
+            return r.target == x.target and all(plan_cur(it) == rv for it, rv in x.target)
+        return r.target == x.target and all(tight(rv, plan_cur(it)) for it, rv in x.target)
     return r.target[0] == x.target[0]  # GATE: same revision, any run
 
 
@@ -436,9 +446,7 @@ class Ledger:
             return set().union(*(SCOPES[q.target[0]] for q in S)) >= X if S else False
         if j.kind == "PLAN":
             # a rejection denies each item revision it names; acceptances do not compose
-            if "plan_rejection_denies_set" in MUT:  # 34803df B1(b): the named set only as a whole
-                return any(set(j.target) <= plan_claims(q) for q in S)
-            return any(plan_claims(q) & set(j.target) for q in S)
+            return any(plan_reaches(j, q) for q in S)
         return False
 
     def composed_reach(self, j: J, z: J, G: str) -> bool:
@@ -562,11 +570,17 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
     if j.kind == "COMP":
         return oracle_covers(L, j, z, G)
     if j.kind == "PLAN":
-        # a rejected item revision contradicts an acceptance of that item that names it, or whose
-        # coverage of the current revision is carried through it (named ⊑ rejected ⊑ current)
+        # inheritance: the rejection denies every revision that keeps the rejected controls, except
+        # what a judge accepted having seen them; an acceptance is consumed for the current revision
         for it, rj in j.target:
+            cur = plan_cur(it)
+            denied = {x for x in ITEM_REVS[it] if x == rj or (rj, x) in TIGHT}
             for it2, rz in z.target:
-                if it2 == it and (rz == rj or ((rz, rj) in TIGHT and (rj == plan_cur(it) or (rj, plan_cur(it)) in TIGHT))):
+                if it2 != it:
+                    continue
+                seen = rz in denied  # its judge saw content keeping the rejected controls
+                covers_cur = rz == cur or (rz, cur) in TIGHT
+                if rz == rj or (covers_cur and cur in denied and not seen):
                     return True
         return False
     if j.kind == "REV":
@@ -900,10 +914,10 @@ def comp_scenarios():
 
 # plan acceptance coverage: items A (tightening chain) and B; issuable iff a supporting acceptance covers cur
 def plan_scenarios():
-    accs = [("p0", (("A", "i0"),)), ("p1", (("A", "i1"),)), ("p2", (("A", "i2"),)),
+    accs = [("p0", (("A", "i0"),)), ("p1", (("A", "i1"),)), ("p2", (("A", "i2"),)), ("pQ", (("A", "iQ"),)),
             ("pab", (("A", "i1"), ("B", "b1")))]
     rejections = [(("A", r),) for r in ITEM_REVS["A"]] + [(("A", "i1"), ("B", "b1")), (("B", "b1"),)]
-    for cur in ("i1", "i2", "i3", "i1x"):
+    for cur in ("i1", "i2", "i3", "iQ", "i1x"):
         for mask in range(1, 1 << len(accs)):
             chosen = [a for i, a in enumerate(accs) if mask >> i & 1]
             for variant in ("P", "U", "pend"):
@@ -994,7 +1008,7 @@ def check_family(name: str, limit_fail: int = 5, verbose: bool = True) -> dict:
             for j in L.js:
                 if not (j.adverse and L.adjudicate(j, G)):
                     continue
-                if j.kind == "PLAN" and not all(plan_cur(it) == rv for it, rv in j.target):
+                if j.kind == "PLAN" and not all(tight(rv, plan_cur(it)) for it, rv in j.target):
                     fix = [C("cf", "j", "P"), Adj("af", "cf", True, "O")]
                 else:
                     fix = [J("fix", j.kind, j.target, False, "O", frame, (j.id,))]
@@ -1061,6 +1075,10 @@ MUTATIONS = {
                                 "a plan rejection reaches only coverage of the current revision (34803df B1)"),
     "plan_rejection_denies_set": (("plan-coverage",),
                                   "a plan rejection denies its named set only as a whole (34803df B1(b))"),
+    "plan_reach_path_only": (("plan-coverage",),
+                             "a plan rejection reaches only acceptances below it on the path to cur (0d2b35e B1)"),
+    "plan_supersession_current_only": (("plan-coverage",),
+                                       "a plan rejection is superseded only while its revisions are current (0d2b35e N1)"),
     "eq_authors_to_side_only": (("equivalence-chain",),
                                 "equivalence authors measured on r_to's differing content only (34803df B2)"),
 }
