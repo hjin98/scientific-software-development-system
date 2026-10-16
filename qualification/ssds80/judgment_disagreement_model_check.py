@@ -19,6 +19,15 @@ What is modelled (one subject, one gate, one plan item):
            O  the owner (human, R3, independent)      P  an attested-fresh agent (R2)
            U  an agent with UNKNOWN lineage (R2; never independent)
            Q  an owner execution with UNKNOWN lineage (R2; never independent)
+           EQ    an EQUIVALENCE (second family, check_eq): target = (r_from, r_to, class) on one
+                 unit with revisions r0..r3, cur(u) = r3; classes K, K2 (consumers) and ED
+                 (editorial, covering both); reach = every passing judgment on a chain joining
+                 the objection's two revisions, read in either direction, every hop covering
+                 its class, the other hops asserting (R14); supersession on the exact target.
+           PLAN  a PLAN_ACCEPTANCE (third family, check_plan): one item, revisions i0 ⊑ i1 ⊑ i2
+                 by the tightening order and an incomparable i1x; reach = every passing
+                 acceptance naming or covering the rejected revision (R14); supersession on
+                 the exact target only while that revision is current.
   frames   adm (admitted frame), pend (a pending enactment's frame), aband (abandoned)
   states   D (the admitted state) and F (the pending enactment's frame)
   records  judgments (pass/adverse, optional supersedes), blocking challenges with a
@@ -26,17 +35,29 @@ What is modelled (one subject, one gate, one plan item):
            of an upholding, and a challenge of a dismissal.
 
 Invariants (Manual §5.10 (g)), each checked against an oracle written from the
-protected properties rather than from the §5.10 formulas:
+protected properties rather than from the §5.10 formulas. The oracle reuses the model's
+helpers for acting, supersession, S1 status (in_force, contested) and the independence
+test, so a mistake in one of those can agree on both sides; it is independent only in how
+it combines them (and, for EQ, in enumerating vertex sequences instead of searching edges):
   I1/I3  base(z) equals the oracle in both directions: a passing judgment supports iff it
          acts, is independent, is not withdrawn, and every objection reaching it was ended
          by an independent author/owner record that judged the objection's own target
          (withdrawing it), or, for a transformation review, z's exact target (relief), or by
          an eligible upheld challenge.
-  I2     records with nonind and inadmissible adjudications change no derived value.
+  I2     records with nonind and inadmissible adjudications change no support value (base, sat,
+         issuability, gterm); a non-independent contrary pass still derives the owner's obligation.
   I4     every veto can be lifted by an admissible record in the state where it bites.
   I5     passing and superseding records of pending/abandoned frames change nothing in D.
-  I6     the admitted set does not depend on admission order.
+  I6     the admitted set (and, for EQ, the admitted state's outputs) is the same under two
+         sampled reference-respecting permutations per case; not every order is tried.
   I7     no admitted adjudication is below its chain's class or dependent on authors(root).
+  I8     (EQ) the owner's adjudication obligation is derived exactly when a standing objection
+         contradicts a passing judgment acting in the state, directly or through a chain.
+
+Not modelled: evidence assessments, completeness, plan acceptance, intake, product scope,
+qualified or provisional values, integration and rebase transitions, loss boundaries,
+before-image bases, changing authorship, full Admission, and more than one resolving record.
+A green run says nothing about those.
 
 Sensitivity: --mutations re-introduces earlier defects one at a time; each must be caught
 by at least one invariant, or the check reports the model insensitive to it.
@@ -101,12 +122,25 @@ def independent(actor: str, authors=AUTHORS) -> bool:
 
 
 def requirement(kind: str) -> bool:
-    return kind in ("REV", "ACC")
+    return kind in ("REV", "ACC", "EQ", "PLAN")  # EQ: every modelled equivalence is about the change
+
+
+# ---- plan items (§11.2, §13.4): i0 ⊑ i1 ⊑ i2; i1x (a prose change of i0) is comparable with nothing
+TIGHT = {("i0", "i1"), ("i1", "i2"), ("i0", "i2")}
+PLAN_CUR = ["i2"]  # the item's current revision in the scenario being evaluated
+
+
+def tight(r: str, r2: str) -> bool:
+    return r == r2 or (r, r2) in TIGHT
 
 
 def reach(j: J, z: J) -> bool:
     if j.kind != z.kind:
         return False
+    if j.kind == "PLAN":
+        if "plan_reach_names_only" in MUT:  # the a6ed164 rule: revisions both name
+            return z.target == j.target
+        return tight(z.target[0], j.target[0])  # z names or covers the rejected revision
     if j.kind == "REV":
         return j.target[1] == z.target[1]
     if j.kind == "ACC":
@@ -123,8 +157,10 @@ def supersession_target_ok(r: J, x: J) -> bool:
         if "wide_review_supersession" in MUT:  # 051cce3 B1: same changed content, any item/base
             return r.target[1] == x.target[1]
         return r.target == x.target
-    if r.kind == "ACC":
-        return r.target == x.target
+    if r.kind in ("ACC", "EQ"):
+        return r.target == x.target  # EQ: the exact (endpoints, class) target
+    if r.kind == "PLAN":  # the target, only while the rejected revision is current
+        return r.target == x.target and PLAN_CUR[0] == x.target[0]
     return r.target[0] == x.target[0]  # GATE: same revision, any run
 
 
@@ -268,11 +304,71 @@ class Ledger:
                 return True
         return False
 
+    def reaches(self, j: J, z: J, G: str) -> bool:
+        if j.kind == "EQ" and z.kind == "EQ":
+            return self.eq_reach(j, z, G)
+        return reach(j, z)
+
     def vetoed(self, z: J, G: str) -> bool:
         if z.adverse:
             return False
-        return any(j.adverse and reach(j, z) and self.stands(j, G) and not self.relieved(j, z, G)
+        return any(j.adverse and self.reaches(j, z, G) and self.stands(j, G) and not self.relieved(j, z, G)
                    for j in self.js)
+
+    # ---- §5.10 (a) equivalence chains (R14)
+    def asserts(self, q: J, G: str) -> bool:
+        return (q.kind == "EQ" and not q.adverse and self.acts(q, G) and not self.superseded(q, G)
+                and self.status1(q.id) == "CLEAR" and not self.nonind(q))
+
+    def eq_reach(self, j: J, z: J, G: str) -> bool:
+        """z lies on a chain joining j's two revisions whose other hops assert, every hop covering j's class."""
+        a, b, c = j.target
+        if "endpoint_only_equivalence_reach" in MUT:  # a6ed164 B1: the same endpoints only
+            return z.target[:2] == (a, b) and covers(z.target[2], c)
+        ignore_class = "chain_ignores_class" in MUT
+        if not ignore_class and not covers(z.target[2], c):
+            return False
+        edges = [(z.target[0], z.target[1], True)] + [
+            (q.target[0], q.target[1], False) for q in self.js
+            if q is not z and self.asserts(q, G) and (ignore_class or covers(q.target[2], c))]
+        directed = "directed_chain_only" in MUT  # a path reading: hops only in their recorded direction
+
+        def walk(v, goal, seen, used):
+            if v == goal:
+                return used
+            for x, y, isz in edges:
+                for s_, t_ in (((x, y),) if directed else ((x, y), (y, x))):
+                    if s_ == v and t_ not in seen and walk(t_, goal, seen | {t_}, used or isz):
+                        return True
+            return False
+        return walk(a, b, {a}, False) or (directed and walk(b, a, {b}, False))
+
+    def adjudicate(self, j: J, G: str) -> bool:
+        """§5.10 (f): a standing adverse judgment that vetoes a passing judgment acting in G."""
+        if not j.adverse or not self.stands(j, G):
+            return False
+        for z in self.js:
+            if z.adverse or z.kind != j.kind or not self.acts(z, G):
+                continue
+            if "obligation_direct_only" in MUT and set(z.target[:2]) != set(j.target[:2]):
+                continue
+            if self.reaches(j, z, G) and not self.relieved(j, z, G):
+                return True
+        return False
+
+    def sat(self, r: str, k: str, G: str) -> bool:
+        """§4.4: an equivalence path of supporting hops from r to cur(u) covering class k."""
+        if r == CUR:
+            return True
+        hops = [q for q in self.js if q.kind == "EQ" and not q.adverse and covers(q.target[2], k)
+                and self.base(q, G)]
+
+        def walk(v, seen):
+            if v == CUR:
+                return True
+            return any(q.target[0] == v and q.target[1] not in seen and walk(q.target[1], seen | {q.target[1]})
+                       for q in hops)
+        return walk(r, {r})
 
     def base(self, z: J, G: str) -> bool:
         if not self.acts(z, G) or self.superseded(z, G):
@@ -298,6 +394,15 @@ class Ledger:
         return tuple(out)
 
 
+# ---- equivalence classes (§4.4)
+REVS = ("r0", "r1", "r2", "r3")
+CUR = "r3"
+
+
+def covers(c: str, k: str) -> bool:
+    return k not in ("EXACT", "PLAN_CONTROL") and (c == k or c in ("ED", "REP"))
+
+
 # ---- oracle (written from the protected properties, not from §5.10's formulas)
 def oracle_base(L: Ledger, z: J, G: str) -> bool:
     if z.adverse or not L.acts(z, G) or L.superseded(z, G):
@@ -309,8 +414,14 @@ def oracle_base(L: Ledger, z: J, G: str) -> bool:
     for j in L.js:
         if not j.adverse or j.kind != z.kind:
             continue
-        same = (j.target[1] == z.target[1]) if j.kind == "REV" else (
-            j.target == z.target if j.kind == "ACC" else j.target[0] == z.target[0])
+        if j.kind == "EQ":
+            same = oracle_joins(L, j, z, G)
+        elif j.kind == "PLAN":
+            # z's conclusion holds for every revision its order covers; a rejection of one contradicts it
+            same = j.target[0] in {r for r in ("i0", "i1", "i2", "i1x") if tight(z.target[0], r)}
+        else:
+            same = (j.target[1] == z.target[1]) if j.kind == "REV" else (
+                j.target == z.target if j.kind == "ACC" else j.target[0] == z.target[0])
         if not same:
             continue
         if not oracle_resolved(L, j, z, G):
@@ -331,8 +442,10 @@ def oracle_resolved(L: Ledger, j: J, z: J, G: str) -> bool:
             return True  # route 3: the author's or owner's pass of z's exact target
         if j.id in y.supersedes and j.kind == "REV" and y.target == j.target:
             return True  # routes 1-2: withdrawal by judging the objection's own target
-        if j.id in y.supersedes and j.kind == "ACC" and y.target == j.target:
+        if j.id in y.supersedes and j.kind in ("ACC", "EQ") and y.target == j.target:
             return True
+        if j.id in y.supersedes and j.kind == "PLAN" and y.target == j.target:
+            return True  # admitted only while j's revision was current
         if j.id in y.supersedes and j.kind == "GATE" and y.target[0] == j.target[0]:
             return True
     # route 4: an eligible upheld challenge, in force and uncontested
@@ -344,6 +457,54 @@ def oracle_resolved(L: Ledger, j: J, z: J, G: str) -> bool:
                 if independent(a.actor) and ACTORS[a.actor][3] >= ACTORS[j.actor][3]:
                     return True
     return False
+
+
+def oracle_asserts(L: Ledger, q: J, G: str) -> bool:
+    return (q.kind == "EQ" and not q.adverse and L.acts(q, G) and not L.superseded(q, G)
+            and L.status1(q.id) == "CLEAR" and independent(q.actor))
+
+
+def oracle_joins(L: Ledger, j: J, z: J, G: str) -> bool:
+    """Protected property: z helps assert, read in either direction and composed with other
+    asserting judgments of a covering class, that j's two revisions are equivalent for j's class.
+    Enumerates vertex sequences a, ..., b directly instead of searching edges."""
+    a, b, c = j.target
+    if not covers(z.target[2], c):
+        return False
+    pairs = {frozenset(q.target[:2]) for q in L.js
+             if q is not z and oracle_asserts(L, q, G) and covers(q.target[2], c)}
+    zp = frozenset(z.target[:2])
+    inner = [r for r in REVS if r not in (a, b)]
+    for n in range(len(inner) + 1):
+        for mid in itertools.permutations(inner, n):
+            seq = (a,) + mid + (b,)
+            steps = [frozenset(seq[i:i + 2]) for i in range(len(seq) - 1)]
+            for i, st in enumerate(steps):
+                if st == zp and all(t in pairs for m, t in enumerate(steps) if m != i):
+                    return True
+    return False
+
+
+def oracle_sat(L: Ledger, r: str, k: str, G: str) -> bool:
+    frontier, seen = [r], {r}
+    while frontier:
+        v = frontier.pop()
+        if v == CUR:
+            return True
+        for q in L.js:
+            if (q.kind == "EQ" and not q.adverse and q.target[0] == v and covers(q.target[2], k)
+                    and q.target[1] not in seen and oracle_base(L, q, G)):
+                seen.add(q.target[1])
+                frontier.append(q.target[1])
+    return False
+
+
+def oracle_disagreement(L: Ledger, j: J, G: str) -> bool:
+    """The owner must be asked whenever a standing objection contradicts an acting passing judgment."""
+    if oracle_resolved(L, j, j, G):
+        return False
+    return any(not z.adverse and z.kind == "EQ" and L.acts(z, G) and oracle_joins(L, j, z, G)
+               for z in L.js)
 
 
 # ---- scenario generation
@@ -460,6 +621,226 @@ def check_all(limit_fail: int = 5, verbose: bool = True) -> dict:
     return {"n": n, "fails": fails, "examples": examples}
 
 
+# ---- equivalence chains (R14): one unit u with revisions r0..r3, cur(u) = r3
+EQ_HOPS = [("h01", ("r0", "r1", "K")), ("h12", ("r1", "r2", "K")), ("h23", ("r2", "r3", "K")),
+           ("h13", ("r1", "r3", "K")), ("h02", ("r0", "r2", "ED")), ("h03", ("r0", "r3", "K2"))]
+EQ_CONSUMERS = [("r0", "K"), ("r1", "K"), ("r2", "K"), ("r0", "K2"), ("r0", "ED")]
+
+
+def eq_scenarios():
+    hop_sets = []
+    for mask in range(1 << len(EQ_HOPS)):
+        chosen = [h for i, h in enumerate(EQ_HOPS) if mask >> i & 1]
+        variants = [[J(hid, "EQ", t, False, "P") for hid, t in chosen]]
+        if any(hid == "h12" for hid, _ in chosen):
+            for actor, frame in (("U", "adm"), ("A", "adm"), ("P", "pend")):
+                variants.append([J(hid, "EQ", t, False, actor if hid == "h12" else "P",
+                                   frame if hid == "h12" else "adm") for hid, t in chosen])
+        hop_sets.extend(variants)
+    objections = [None]
+    for a, b in itertools.permutations(REVS, 2):
+        for cls in ("K", "K2", "ED"):
+            for obj in (("H", "P") if cls == "K" else ("H",)):
+                objections.append(J("j", "EQ", (a, b, cls), True, obj))
+    for hops in hop_sets:
+        for j in objections:
+            if j is None:
+                yield hops
+                continue
+            endings = [()]
+            for ra, rf, sup in itertools.product(("O", "H", "P", "Q"), ("adm", "pend", "aband"), (True, False)):
+                endings.append((J("y", "EQ", j.target, False, ra, rf, ("j",) if sup else ()),))
+            other = "K2" if j.target[2] != "K2" else "K"
+            endings.append((J("y", "EQ", j.target[:2] + (other,), False, "O", "adm", ("j",)),))
+            for ua in ("H", "O", "U", "A"):
+                for up in (True, False):
+                    endings.append((C("c1", "j", "P"), Adj("a1", "c1", up, ua)))
+            for e in endings:
+                yield hops + [j] + list(e)
+
+
+def support(outputs: tuple) -> tuple:
+    """Invariant (g)2 concerns support, not obligations: a non-independent contrary pass still asks the owner."""
+    return tuple(o for o in outputs if not o[0].startswith("adj"))
+
+
+def eq_outputs(L: Ledger, G: str, ids=None) -> tuple:
+    out = [(z.id, L.base(z, G)) for z in sorted(L.js, key=lambda r: r.id)
+           if not z.adverse and (ids is None or z.id in ids)]
+    out += [(f"sat{r}{k}", L.sat(r, k, G)) for r, k in EQ_CONSUMERS]
+    out += [(f"adj{j.id}", L.adjudicate(j, G)) for j in L.js if j.adverse]
+    return tuple(out)
+
+
+def check_eq(limit_fail: int = 5, verbose: bool = True) -> dict:
+    fails: dict[str, int] = {}
+    examples: dict[str, list] = {}
+    rng = random.Random(11)
+    n = 0
+    for recs in eq_scenarios():
+        n += 1
+        L = Ledger(recs)
+
+        def note(inv, msg):
+            fails[inv] = fails.get(inv, 0) + 1
+            if len(examples.setdefault(inv, [])) < limit_fail:
+                examples[inv].append((msg, list(recs)))
+
+        for G in ("D", "F"):
+            for z in L.js:
+                if not z.adverse and L.base(z, G) != oracle_base(L, z, G):
+                    note("I1/I3", f"{G}: base({z.id})={L.base(z, G)} oracle={oracle_base(L, z, G)}")
+            for r, k in EQ_CONSUMERS:
+                if L.sat(r, k, G) != oracle_sat(L, r, k, G):
+                    note("I1/I3", f"{G}: sat({r},{k})={L.sat(r, k, G)} oracle={oracle_sat(L, r, k, G)}")
+            for j in L.js:
+                if j.adverse and L.adjudicate(j, G) != oracle_disagreement(L, j, G):
+                    note("I8", f"{G}: adjudication obligation {L.adjudicate(j, G)} oracle "
+                               f"{oracle_disagreement(L, j, G)}")
+        # I2: nonind records change nothing
+        keep = [r for r in recs if not (isinstance(r, J) and not r.adverse and L.nonind(r))]
+        L2 = Ledger(keep)
+        ids = {r.id for r in keep}
+        for G in ("D", "F"):
+            if support(eq_outputs(L, G, ids)) != support(eq_outputs(L2, G, ids)):
+                note("I2", f"{G}: removing nonind records changed outputs")
+        # I4: liftable where it bites
+        for G in ("D", "F"):
+            frame = "adm" if G == "D" else "pend"
+            for j in L.js:
+                if not (j.adverse and L.adjudicate(j, G)):
+                    continue
+                L3 = Ledger(recs + [J("fix", "EQ", j.target, False, "O", frame, (j.id,))])
+                if "fix" not in L3.adm or L3.adjudicate(j, G) or any(
+                        L3.vetoed(z, G) for z in L3.js if z.id != "fix" and not z.adverse):
+                    note("I4", f"{G}: objection {j.id} not liftable by the owner's adjudication")
+        # I5: pending/abandoned passing and superseding records change nothing in D
+        local = [r for r in recs if not (isinstance(r, J) and not r.adverse and r.frame != "adm")]
+        if eq_outputs(L, "D", {r.id for r in local}) != eq_outputs(Ledger(local), "D", {r.id for r in local}):
+            note("I5", "pending/abandoned records changed the admitted state")
+        # I6: admitted set and admitted outputs under two sampled reference-respecting orders
+        for _ in range(2):
+            perm = recs[:]
+            rng.shuffle(perm)
+            perm.sort(key=lambda r: (0 if isinstance(r, J) and not r.supersedes else 1 if isinstance(r, J)
+                                     else 2 if isinstance(r, C) else 3))
+            Lp = Ledger(perm)
+            if set(Lp.adm) != set(L.adm) or eq_outputs(Lp, "D") != eq_outputs(L, "D"):
+                note("I6", "admission order changed the admitted set or outputs")
+        # I7
+        for a in L.ads:
+            if not independent(a.actor) or ACTORS[a.actor][3] < ACTORS[L.adm["j"].actor][3]:
+                note("I7", f"adjudication {a.id} ineligible but admitted")
+    if verbose:
+        print(f"equivalence-chain scenarios: {n}")
+    return {"n": n, "fails": fails, "examples": examples}
+
+
+# ---- plan acceptance coverage (R14 sibling): one item, issuable iff a supporting acceptance covers cur
+def plan_scenarios():
+    accs = [("p0", "i0"), ("p1", "i1"), ("p2", "i2")]
+    for cur in ("i1", "i2", "i1x"):
+        for mask in range(1, 1 << len(accs)):
+            chosen = [a for i, a in enumerate(accs) if mask >> i & 1]
+            for variant in ("P", "U", "pend"):
+                if variant != "P" and len(chosen) > 2:
+                    continue
+                zs = [J(pid, "PLAN", (r,), False, "U" if variant == "U" and k == 0 else "P",
+                        "pend" if variant == "pend" and k == 0 else "adm") for k, (pid, r) in enumerate(chosen)]
+                for rej in (None, "i0", "i1", "i2", "i1x"):
+                    if rej is None:
+                        yield cur, zs
+                        continue
+                    j = J("j", "PLAN", (rej,), True, "H")
+                    endings = [()]
+                    for ra, rf, sup in itertools.product(("O", "H", "P", "Q"), ("adm", "pend", "aband"), (True, False)):
+                        endings.append((J("y", "PLAN", (rej,), False, ra, rf, ("j",) if sup else ()),))
+                    for ua in ("H", "O", "U", "A"):
+                        for up in (True, False):
+                            endings.append((C("c1", "j", "P"), Adj("a1", "c1", up, ua)))
+                    for e in endings:
+                        yield cur, zs + [j] + list(e)
+
+
+def plan_issuable(L: Ledger, G: str) -> bool:
+    return any(z.kind == "PLAN" and not z.adverse and tight(z.target[0], PLAN_CUR[0]) and L.base(z, G)
+               for z in L.js)
+
+
+def oracle_issuable(L: Ledger, G: str) -> bool:
+    return any(z.kind == "PLAN" and not z.adverse and tight(z.target[0], PLAN_CUR[0]) and oracle_base(L, z, G)
+               for z in L.js)
+
+
+def plan_outputs(L: Ledger, G: str, ids=None) -> tuple:
+    out = [(z.id, L.base(z, G)) for z in sorted(L.js, key=lambda r: r.id)
+           if not z.adverse and (ids is None or z.id in ids)]
+    out.append(("issuable", plan_issuable(L, G)))
+    out += [(f"adj{j.id}", L.adjudicate(j, G)) for j in L.js if j.adverse]
+    return tuple(out)
+
+
+def check_plan(limit_fail: int = 5, verbose: bool = True) -> dict:
+    fails: dict[str, int] = {}
+    examples: dict[str, list] = {}
+    rng = random.Random(13)
+    n = 0
+    for cur, recs in plan_scenarios():
+        n += 1
+        PLAN_CUR[0] = cur
+        L = Ledger(recs)
+
+        def note(inv, msg):
+            fails[inv] = fails.get(inv, 0) + 1
+            if len(examples.setdefault(inv, [])) < limit_fail:
+                examples[inv].append((f"cur={cur} {msg}", list(recs)))
+
+        for G in ("D", "F"):
+            for z in L.js:
+                if not z.adverse and L.base(z, G) != oracle_base(L, z, G):
+                    note("I1/I3", f"{G}: base({z.id})={L.base(z, G)} oracle={oracle_base(L, z, G)}")
+            if plan_issuable(L, G) != oracle_issuable(L, G):
+                note("I1/I3", f"{G}: issuable={plan_issuable(L, G)} oracle={oracle_issuable(L, G)}")
+            for j in L.js:
+                if not j.adverse:
+                    continue
+                want = not oracle_resolved(L, j, j, G) and any(
+                    not z.adverse and L.acts(z, G) and j.target[0] in
+                    {r for r in ("i0", "i1", "i2", "i1x") if tight(z.target[0], r)} for z in L.js)
+                if L.adjudicate(j, G) != want:
+                    note("I8", f"{G}: adjudication obligation {L.adjudicate(j, G)} oracle {want}")
+        keep = [r for r in recs if not (isinstance(r, J) and not r.adverse and L.nonind(r))]
+        ids = {r.id for r in keep}
+        for G in ("D", "F"):
+            if support(plan_outputs(L, G, ids)) != support(plan_outputs(Ledger(keep), G, ids)):
+                note("I2", f"{G}: removing nonind records changed outputs")
+        for G in ("D", "F"):
+            for j in L.js:
+                if j.adverse and L.adjudicate(j, G):
+                    L3 = Ledger(recs + [C("cf", "j", "P"), Adj("af", "cf", True, "O")])
+                    if "af" not in L3.adm or L3.adjudicate(j, G):
+                        note("I4", f"{G}: objection {j.id} not liftable by an upheld challenge")
+        local = [r for r in recs if not (isinstance(r, J) and not r.adverse and r.frame != "adm")]
+        lid = {r.id for r in local}
+        if plan_outputs(L, "D", lid) != plan_outputs(Ledger(local), "D", lid):
+            note("I5", "pending/abandoned records changed the admitted state")
+        for _ in range(2):
+            perm = recs[:]
+            rng.shuffle(perm)
+            perm.sort(key=lambda r: (0 if isinstance(r, J) and not r.supersedes else 1 if isinstance(r, J)
+                                     else 2 if isinstance(r, C) else 3))
+            Lp = Ledger(perm)
+            if set(Lp.adm) != set(L.adm) or plan_outputs(Lp, "D") != plan_outputs(L, "D"):
+                note("I6", "admission order changed the admitted set or outputs")
+        for a in L.ads:
+            if not independent(a.actor) or ACTORS[a.actor][3] < ACTORS[L.adm["j"].actor][3]:
+                note("I7", f"adjudication {a.id} ineligible but admitted")
+    PLAN_CUR[0] = "i2"
+    if verbose:
+        print(f"plan-coverage scenarios: {n}")
+    return {"n": n, "fails": fails, "examples": examples}
+
+
 MUTATIONS = {
     "relief_ignores_nonind": "a non-independent owner pass relieves (9e5a763 B1)",
     "wide_review_supersession": "review supersession on same content, any item/base (051cce3 B1)",
@@ -469,7 +850,15 @@ MUTATIONS = {
     "frame_acts_everywhere": "frame records act in the admitted state (b46c250 B1)",
     "base_ignores_nonind": "base ignores non-independence (29da56e B1(g))",
     "no_class_check": "adjudication class not checked (51070e5 B1)",
+    "endpoint_only_equivalence_reach": "equivalence veto reaches only the same endpoints (a6ed164 B1)",
+    "directed_chain_only": "an objection blocks only chains read in their recorded direction (a6ed164 B1 siblings)",
+    "chain_ignores_class": "an objection blocks chains whose hops do not cover its class (a6ed164 B1 controls)",
+    "obligation_direct_only": "a blocked chain derives no adjudication obligation (a6ed164 B1 routing)",
+    "plan_reach_names_only": "a plan rejection reaches only acceptances naming its revision, not covering it",
 }
+PLAN_MUTATIONS = {"plan_reach_names_only"}
+EQ_MUTATIONS = {"endpoint_only_equivalence_reach", "directed_chain_only", "chain_ignores_class",
+                "obligation_direct_only"}
 
 
 def main() -> int:
@@ -478,12 +867,15 @@ def main() -> int:
     args = ap.parse_args()
     MUT.clear()
     res = check_all()
-    ok = not res["fails"]
+    res_eq = check_eq()
+    res_plan = check_plan()
+    ok = not res["fails"] and not res_eq["fails"] and not res_plan["fails"]
     if ok:
-        print("unmutated §5.10 rules: every invariant holds")
+        print("unmutated §5.10 rules: every modelled invariant holds")
     else:
-        print("unmutated §5.10 rules: INVARIANT FAILURES", res["fails"])
-        for inv, ex in res["examples"].items():
+        print("unmutated §5.10 rules: INVARIANT FAILURES", res["fails"], res_eq["fails"], res_plan["fails"])
+        for inv, ex in (list(res["examples"].items()) + list(res_eq["examples"].items())
+                        + list(res_plan["examples"].items())):
             for msg, recs in ex[:2]:
                 print(" ", inv, msg)
                 for r in recs:
@@ -492,7 +884,9 @@ def main() -> int:
         for m, why in MUTATIONS.items():
             MUT.clear()
             MUT.add(m)
-            r = check_all(verbose=False)
+            # a mutation changes only its own family's code, so only that family is re-run
+            r = (check_eq(verbose=False) if m in EQ_MUTATIONS else
+                 check_plan(verbose=False) if m in PLAN_MUTATIONS else check_all(verbose=False))
             caught = sorted(r["fails"])
             print(f"mutation {m}: {'caught by ' + ', '.join(caught) if caught else 'NOT CAUGHT'} ({why})")
             ok = ok and bool(caught)
