@@ -25,10 +25,10 @@ What is modelled, in four families (the first checked by check_all, the others b
                  consumer is the §4.6 closure bound of each unit.
            PLAN  a PLAN_ACCEPTANCE (plan-coverage family): item A with i0 ⊑ i1 ⊑ i2 ⊑ i3, an R2
                  amendment iQ ⊑ i3 incomparable with i0..i2, and an isolated i1x; item B with b1.
-                 A rejection of r* denies r* and every tighter revision no judge accepted having
-                 seen it; an acceptance of r claims r and the covered current revision; so it is
-                 reached when r* = r, or r ⊑ cur, r* ⊑ cur and r* ⋢ r. Supersession on the exact
-                 target while its basis holds (each named revision ⊑ cur).
+                 A rejection of r* denies r* and every tighter revision; an acceptance of r claims
+                 r and the covered current revision; so it is reached when r* = r, or r ⊑ cur and
+                 r* ⊑ cur (SD-30); the rejecter's or owner's acceptance of a reached target relieves
+                 it (route 3). Supersession on the exact target while its basis holds.
            The one reach rule (SD-29) for the composing kinds: z is reached when some set of
            asserting judgments of the kind, with z, claims what the objection denies and
            without z does not (Ledger.composed_reach with the per-kind Ledger.derives).
@@ -183,10 +183,10 @@ def plan_cur(item: str) -> str:
 
 
 def plan_reached(rs: str, r: str, it: str) -> bool:
-    """§5.10 (b) plan row. A rejection of rs denies rs and every tighter revision no judge has accepted
-    (a tightening keeps the rejected controls); an acceptance of r claims r and, by coverage, the
-    current revision. So it is reached when rs = r, or when its coverage of cur carries the rejected
-    controls its judge did not see: r ⊑ cur, rs ⊑ cur and rs ⋢ r."""
+    """§5.10 (b) plan row (SD-30). A rejection of rs denies rs and every tighter revision (a tightening
+    keeps the rejected controls); an acceptance of r claims r and, by coverage, the current revision.
+    So it is reached when rs = r, or when r ⊑ cur and rs ⊑ cur; a revert below rs releases it. Only
+    the rejecter or the owner relieves a reached target (route 3, Ledger.relieved)."""
     cur = plan_cur(it)
     if rs == r:
         return True
@@ -198,7 +198,9 @@ def plan_reached(rs: str, r: str, it: str) -> bool:
         return rs == cur and tight(r, cur)
     if "plan_reach_path_only" in MUT:  # 0d2b35e B1: r ⊑ rs ⊑ cur
         return tight(r, rs) and tight(rs, cur)
-    return tight(r, cur) and tight(rs, cur) and not tight(rs, r)
+    if "plan_fresh_acceptance_exempt" in MUT:  # 83a82df B1: any acceptance of a tighter revision exempt
+        return tight(r, cur) and tight(rs, cur) and not tight(rs, r)
+    return tight(r, cur) and tight(rs, cur)
 
 
 def plan_reaches(j, z) -> bool:
@@ -375,10 +377,10 @@ class Ledger:
         return True
 
     def relieved(self, j: J, z: J, G: str) -> bool:
-        if j.kind != "REV":
+        if j.kind not in ("REV", "PLAN") or (j.kind == "PLAN" and "plan_no_relief" in MUT):
             return False
         for y in self.js:
-            if (not y.adverse and y.kind == "REV" and y.target == z.target
+            if (not y.adverse and y.kind == j.kind and y.target == z.target
                     and (y.actor == j.actor or ACTORS[y.actor][2]) and self.acts(y, G)
                     and not self.superseded(y, G) and self.status1(y.id) == "CLEAR"
                     and ("relief_ignores_nonind" in MUT or not self.nonind(y))):  # 9e5a763 B1
@@ -570,17 +572,16 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
     if j.kind == "COMP":
         return oracle_covers(L, j, z, G)
     if j.kind == "PLAN":
-        # inheritance: the rejection denies every revision that keeps the rejected controls, except
-        # what a judge accepted having seen them; an acceptance is consumed for the current revision
+        # inheritance: the rejection denies every revision that keeps the rejected controls; an
+        # acceptance is consumed for the current revision; who may relieve is oracle_resolved's
         for it, rj in j.target:
             cur = plan_cur(it)
             denied = {x for x in ITEM_REVS[it] if x == rj or (rj, x) in TIGHT}
             for it2, rz in z.target:
                 if it2 != it:
                     continue
-                seen = rz in denied  # its judge saw content keeping the rejected controls
                 covers_cur = rz == cur or (rz, cur) in TIGHT
-                if rz == rj or (covers_cur and cur in denied and not seen):
+                if rz == rj or (covers_cur and cur in denied):
                     return True
         return False
     if j.kind == "REV":
@@ -617,7 +618,7 @@ def oracle_resolved(L: Ledger, j: J, z: J, G: str) -> bool:
     for y in L.js:
         if not eligible_resolver(y):
             continue
-        if j.kind == "REV" and y.target == z.target:
+        if j.kind in ("REV", "PLAN") and y.kind == j.kind and y.target == z.target:
             return True  # route 3: the author's or owner's pass of z's exact target
         if j.id in y.supersedes and j.kind in ("REV", "ACC", "EQ", "COMP", "PLAN") and y.target == j.target:
             return True  # routes 1-2: withdrawal by judging the objection's own target
@@ -706,11 +707,10 @@ def oracle_bound(L: Ledger, u: str, G: str) -> str:
 
 
 def oracle_disagreement(L: Ledger, j: J, G: str) -> bool:
-    """The owner must be asked whenever a standing objection contradicts an acting passing judgment."""
-    if oracle_resolved(L, j, j, G):
-        return False
+    """The owner must be asked whenever a standing objection contradicts an acting passing judgment
+    for which it is not resolved (relief is per target, so resolution is asked of each judgment)."""
     return any(not z.adverse and z.kind == j.kind and L.acts(z, G) and oracle_same(L, j, z, G)
-               for z in L.js)
+               and not oracle_resolved(L, j, z, G) for z in L.js)
 
 
 # ---- scenario generation
@@ -928,7 +928,10 @@ def plan_scenarios():
                 yield cur, zs
                 for rej in rejections:
                     j = J("j", "PLAN", rej, True, "H")
-                    for e in endings_for(j):
+                    fresh = [(J("y", "PLAN", (("A", cur),), False, a, f),)
+                             for a, fs in (("H", ("adm", "pend")), ("O", ("adm", "pend")), ("P", ("adm",)),
+                                           ("Q", ("adm",))) for f in fs]
+                    for e in endings_for(j) + fresh:
                         yield cur, zs + [j] + list(e)
 
 
@@ -1077,6 +1080,9 @@ MUTATIONS = {
                                   "a plan rejection denies its named set only as a whole (34803df B1(b))"),
     "plan_reach_path_only": (("plan-coverage",),
                              "a plan rejection reaches only acceptances below it on the path to cur (0d2b35e B1)"),
+    "plan_fresh_acceptance_exempt": (("plan-coverage",),
+                                     "any acceptance of a revision tighter than the rejected one is exempt (83a82df B1)"),
+    "plan_no_relief": (("plan-coverage",), "plan acceptance has no per-target relief (83a82df option 2)"),
     "plan_supersession_current_only": (("plan-coverage",),
                                        "a plan rejection is superseded only while its revisions are current (0d2b35e N1)"),
     "eq_authors_to_side_only": (("equivalence-chain",),
