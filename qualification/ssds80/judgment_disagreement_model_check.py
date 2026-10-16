@@ -94,8 +94,20 @@ ACTORS = {
     "U": (False, False, False, 2),
     "Q": (False, False, True, 2),
     "M": (False, False, False, 0),  # machinery (an analyzer completeness declaration): no requirement
+    "C": (True, True, False, 3),    # the human who authored r0's content; never acts in a scenario
 }
-AUTHORS = frozenset({"A"})  # authors(x) of every modelled content
+AUTHORS = frozenset({"A"})  # authors(x) of every modelled content except an equivalence's endpoints
+# the authors of each equivalence-family revision's differing content (r0 by C, the later ones by A)
+REV_AUTHORS = {"r0": frozenset({"C"}), "r1": frozenset({"A"}), "r2": frozenset({"A"}), "r3": frozenset({"A"})}
+
+
+def authors_of(z) -> frozenset:
+    """§5.10 (a) authors: for an EQUIVALENCE, the content differing between its endpoints, on either side."""
+    if getattr(z, "kind", None) == "EQ":
+        if "eq_authors_to_side_only" in MUT:  # 34803df B2: only r_to's content that differs from r_from
+            return REV_AUTHORS[z.target[1]]
+        return REV_AUTHORS[z.target[0]] | REV_AUTHORS[z.target[1]]
+    return AUTHORS
 
 MUT: set[str] = set()
 
@@ -152,22 +164,47 @@ def req(z) -> bool:
     return requirement(z.kind)
 
 
-# ---- plan items (§11.2, §13.4): i0 ⊑ i1 ⊑ i2; i1x (a prose change of i0) is comparable with nothing
-TIGHT = {("i0", "i1"), ("i1", "i2"), ("i0", "i2")}
-PLAN_CUR = ["i2"]  # the item's current revision in the scenario being evaluated
+# ---- plan items (§11.2, §13.4): item A has i0 ⊑ i1 ⊑ i2 ⊑ i3 and i1x (a prose change of i0,
+# comparable with nothing); item B has b1 only. A plan judgment's target is a tuple of (item, revision).
+TIGHT = {("i0", "i1"), ("i1", "i2"), ("i2", "i3"), ("i0", "i2"), ("i0", "i3"), ("i1", "i3")}
+PLAN_CUR = ["i2"]  # item A's current revision in the scenario being evaluated; item B's is b1
+ITEM_REVS = {"A": ("i0", "i1", "i2", "i3", "i1x"), "B": ("b1",)}
 
 
 def tight(r: str, r2: str) -> bool:
     return r == r2 or (r, r2) in TIGHT
 
 
+def plan_cur(item: str) -> str:
+    return PLAN_CUR[0] if item == "A" else "b1"
+
+
+def plan_claims(z) -> set:
+    """What a plan acceptance claims (§5.10 (b)): the item revisions it names and every revision on the
+    tightening path from a named one to the item's current revision, through which its coverage passes."""
+    out = set()
+    for it, r in z.target:
+        out.add((it, r))
+        if "plan_reach_names_only" in MUT:
+            continue
+        for r2 in ITEM_REVS[it]:
+            if not tight(r, r2):
+                continue
+            if "plan_reach_any_tighter" in MUT:  # bf23372 N1: every tighter revision
+                out.add((it, r2))
+            elif "plan_reach_current_only" in MUT:  # 34803df B1: only the current revision
+                if r2 == plan_cur(it):
+                    out.add((it, r2))
+            elif tight(r2, plan_cur(it)):
+                out.add((it, r2))
+    return out
+
+
 def reach(j: J, z: J) -> bool:
     if j.kind != z.kind:
         return False
     if j.kind == "PLAN":
-        if "plan_reach_names_only" in MUT:  # the a6ed164 rule: revisions both name
-            return z.target == j.target
-        return tight(z.target[0], j.target[0])  # z names or covers the rejected revision
+        return bool(plan_claims(z) & set(j.target))
     if j.kind == "REV":
         return j.target[1] == z.target[1]
     if j.kind == "ACC":
@@ -186,8 +223,8 @@ def supersession_target_ok(r: J, x: J) -> bool:
         return r.target == x.target
     if r.kind in ("ACC", "EQ", "COMP"):
         return r.target == x.target  # EQ: the exact (endpoints, class); COMP: (scope, class)
-    if r.kind == "PLAN":  # the target, only while the rejected revision is current
-        return r.target == x.target and PLAN_CUR[0] == x.target[0]
+    if r.kind == "PLAN":  # the target, only while every rejected item revision is current
+        return r.target == x.target and all(plan_cur(it) == rv for it, rv in x.target)
     return r.target[0] == x.target[0]  # GATE: same revision, any run
 
 
@@ -241,7 +278,7 @@ class Ledger:
             if isinstance(root, tuple):  # mutated reference set: the raiser
                 authors = frozenset({root[1]})
             else:
-                authors = AUTHORS
+                authors = authors_of(root)
             if not independent(rec.actor, authors):
                 return False
             if "no_class_check" not in MUT and ACTORS[rec.actor][3] < chain_cls:
@@ -254,13 +291,13 @@ class Ledger:
                 return False
             if not (rec.actor == x.actor or ACTORS[rec.actor][2]):
                 return False
-            if req(rec) and not independent(rec.actor):
+            if req(rec) and not independent(rec.actor, authors_of(rec)):
                 return False
         return True
 
     # ---- S0
     def nonind(self, z: J) -> bool:
-        return req(z) and not independent(z.actor)
+        return req(z) and not independent(z.actor, authors_of(z))
 
     def acts(self, r: J, G: str) -> bool:
         if r.frame == "adm":
@@ -398,12 +435,10 @@ class Ledger:
                 return any(SCOPES[q.target[0]] == X for q in S)
             return set().union(*(SCOPES[q.target[0]] for q in S)) >= X if S else False
         if j.kind == "PLAN":
-            rj = j.target[0]
-            if "plan_reach_names_only" in MUT:
-                return any(q.target[0] == rj for q in S)
-            if "plan_reach_any_tighter" in MUT:  # bf23372 N1: coverage of every tighter revision
-                return any(tight(q.target[0], rj) for q in S)
-            return any(q.target[0] == rj or (rj == PLAN_CUR[0] and tight(q.target[0], PLAN_CUR[0])) for q in S)
+            # a rejection denies each item revision it names; acceptances do not compose
+            if "plan_rejection_denies_set" in MUT:  # 34803df B1(b): the named set only as a whole
+                return any(set(j.target) <= plan_claims(q) for q in S)
+            return any(plan_claims(q) & set(j.target) for q in S)
         return False
 
     def composed_reach(self, j: J, z: J, G: str) -> bool:
@@ -513,6 +548,13 @@ def oracle_req(z: J) -> bool:
     return z.actor != "M" and z.kind in ("REV", "ACC", "EQ", "PLAN", "COMP")
 
 
+def oracle_authors(z) -> frozenset:
+    """Whoever authored content that differs between an equivalence's endpoints, whichever side."""
+    if z.kind == "EQ":
+        return frozenset().union(*(REV_AUTHORS[r] for r in z.target[:2]))
+    return AUTHORS
+
+
 def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
     """Does z, as its kind composes, help claim what j denies?"""
     if j.kind == "EQ":
@@ -520,9 +562,13 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
     if j.kind == "COMP":
         return oracle_covers(L, j, z, G)
     if j.kind == "PLAN":
-        # an acceptance claims its named revision, and the item's current revision when tighter
-        claims = {z.target[0]} | ({PLAN_CUR[0]} if tight(z.target[0], PLAN_CUR[0]) else set())
-        return j.target[0] in claims
+        # a rejected item revision contradicts an acceptance of that item that names it, or whose
+        # coverage of the current revision is carried through it (named ⊑ rejected ⊑ current)
+        for it, rj in j.target:
+            for it2, rz in z.target:
+                if it2 == it and (rz == rj or ((rz, rj) in TIGHT and (rj == plan_cur(it) or (rj, plan_cur(it)) in TIGHT))):
+                    return True
+        return False
     if j.kind == "REV":
         return j.target[1] == z.target[1]
     if j.kind == "ACC":
@@ -536,7 +582,7 @@ def oracle_base3(L: Ledger, z: J, G: str) -> int:
     st = L.status1(z.id)
     if st in ("REVOKED", "BLOCKED"):
         return 0
-    if oracle_req(z) and not independent(z.actor):
+    if oracle_req(z) and not independent(z.actor, oracle_authors(z)):
         return 0
     for j in L.js:
         if j.adverse and j.kind == z.kind and oracle_same(L, j, z, G) and not oracle_resolved(L, j, z, G):
@@ -553,7 +599,7 @@ def oracle_resolved(L: Ledger, j: J, z: J, G: str) -> bool:
         return (not y.adverse and L.acts(y, G) and not L.superseded(y, G)
                 and L.status1(y.id) == "CLEAR"
                 and (y.actor == j.actor or ACTORS[y.actor][2])
-                and (not oracle_req(y) or independent(y.actor)))
+                and (not oracle_req(y) or independent(y.actor, oracle_authors(y))))
     for y in L.js:
         if not eligible_resolver(y):
             continue
@@ -569,7 +615,7 @@ def oracle_resolved(L: Ledger, j: J, z: J, G: str) -> bool:
             continue
         for a in L.ads:
             if a.challenge == c.id and a.upheld and L.in_force(a) and not L.contested(a):
-                if independent(a.actor) and ACTORS[a.actor][3] >= ACTORS[j.actor][3]:
+                if independent(a.actor, oracle_authors(j)) and ACTORS[a.actor][3] >= ACTORS[j.actor][3]:
                     return True
     return False
 
@@ -577,7 +623,8 @@ def oracle_resolved(L: Ledger, j: J, z: J, G: str) -> bool:
 def oracle_asserts(L: Ledger, q: J, G: str) -> bool:
     """An asserting judgment is one base would let support, ignoring vetoes: provisional included."""
     return (not q.adverse and L.acts(q, G) and not L.superseded(q, G)
-            and L.status1(q.id) in ("CLEAR", "PROVISIONAL") and not (oracle_req(q) and not independent(q.actor)))
+            and L.status1(q.id) in ("CLEAR", "PROVISIONAL")
+            and not (oracle_req(q) and not independent(q.actor, oracle_authors(q))))
 
 
 def oracle_joins(L: Ledger, j: J, z: J, G: str) -> bool:
@@ -808,6 +855,8 @@ def eq_scenarios():
                 hop_sets.append([J(hid, "EQ", t, False, actor if hid == "h12" else "P",
                                    frame if hid == "h12" else "adm") for hid, t in chosen.items()])
             hop_sets.append(plain + provisional("h12"))
+            # the author of r1 records the r0 -> r1 change's equivalence with reversed endpoints
+            hop_sets.append(plain + [J("h10", "EQ", ("r1", "r0", "K"), False, "A")])
             if "h01" in chosen:
                 hop_sets.append(plain + provisional("h12") + provisional("h01"))
     objections = []
@@ -849,32 +898,35 @@ def comp_scenarios():
                 yield None, recs + [j] + list(e)
 
 
-# plan acceptance coverage: one item, issuable iff a supporting acceptance covers its current revision
+# plan acceptance coverage: items A (tightening chain) and B; issuable iff a supporting acceptance covers cur
 def plan_scenarios():
-    accs = [("p0", "i0"), ("p1", "i1"), ("p2", "i2")]
-    for cur in ("i1", "i2", "i1x"):
+    accs = [("p0", (("A", "i0"),)), ("p1", (("A", "i1"),)), ("p2", (("A", "i2"),)),
+            ("pab", (("A", "i1"), ("B", "b1")))]
+    rejections = [(("A", r),) for r in ITEM_REVS["A"]] + [(("A", "i1"), ("B", "b1")), (("B", "b1"),)]
+    for cur in ("i1", "i2", "i3", "i1x"):
         for mask in range(1, 1 << len(accs)):
             chosen = [a for i, a in enumerate(accs) if mask >> i & 1]
             for variant in ("P", "U", "pend"):
                 if variant != "P" and len(chosen) > 2:
                     continue
-                zs = [J(pid, "PLAN", (r,), False, "U" if variant == "U" and k == 0 else "P",
-                        "pend" if variant == "pend" and k == 0 else "adm") for k, (pid, r) in enumerate(chosen)]
+                zs = [J(pid, "PLAN", t, False, "U" if variant == "U" and k == 0 else "P",
+                        "pend" if variant == "pend" and k == 0 else "adm") for k, (pid, t) in enumerate(chosen)]
                 yield cur, zs
-                for rej in ("i0", "i1", "i2", "i1x"):
-                    j = J("j", "PLAN", (rej,), True, "H")
+                for rej in rejections:
+                    j = J("j", "PLAN", rej, True, "H")
                     for e in endings_for(j):
                         yield cur, zs + [j] + list(e)
 
 
-def plan_issuable(L: Ledger, G: str) -> int:
-    return max([L.base3(z, G) for z in L.js if z.kind == "PLAN" and not z.adverse
-                and tight(z.target[0], PLAN_CUR[0])] or [0])
+def plan_issuable(item: str):
+    def model(L: Ledger, G: str) -> int:
+        return max([L.base3(z, G) for z in L.js if z.kind == "PLAN" and not z.adverse
+                    and any(it == item and tight(r, plan_cur(it)) for it, r in z.target)] or [0])
 
-
-def oracle_issuable(L: Ledger, G: str) -> int:
-    return max([oracle_base3(L, z, G) for z in L.js if z.kind == "PLAN" and not z.adverse
-                and tight(z.target[0], PLAN_CUR[0])] or [0])
+    def oracle(L: Ledger, G: str) -> int:
+        return max([oracle_base3(L, z, G) for z in L.js if z.kind == "PLAN" and not z.adverse
+                    and any(it == item and tight(r, plan_cur(it)) for it, r in z.target)] or [0])
+    return model, oracle
 
 
 FAMILIES = {
@@ -885,7 +937,7 @@ FAMILIES = {
     "completeness-cover": (comp_scenarios, [(f"bound({u})", (lambda u: lambda L, G: L.bound(u, G))(u),
                                              (lambda u: lambda L, G: oracle_bound(L, u, G))(u))
                                             for u in ("u1", "u2", "u3")]),
-    "plan-coverage": (plan_scenarios, [("issuable", plan_issuable, oracle_issuable)]),
+    "plan-coverage": (plan_scenarios, [(f"issuable({it})",) + plan_issuable(it) for it in ("A", "B")]),
 }
 
 
@@ -942,7 +994,7 @@ def check_family(name: str, limit_fail: int = 5, verbose: bool = True) -> dict:
             for j in L.js:
                 if not (j.adverse and L.adjudicate(j, G)):
                     continue
-                if j.kind == "PLAN" and PLAN_CUR[0] != j.target[0]:
+                if j.kind == "PLAN" and not all(plan_cur(it) == rv for it, rv in j.target):
                     fix = [C("cf", "j", "P"), Adj("af", "cf", True, "O")]
                 else:
                     fix = [J("fix", j.kind, j.target, False, "O", frame, (j.id,))]
@@ -966,7 +1018,8 @@ def check_family(name: str, limit_fail: int = 5, verbose: bool = True) -> dict:
                 note("I6", "admission order changed the admitted set or outputs")
         # I7
         for a in L.ads:
-            if not independent(a.actor) or ACTORS[a.actor][3] < ACTORS[L.adm["j"].actor][3]:
+            if (not independent(a.actor, oracle_authors(L.adm["j"]))
+                    or ACTORS[a.actor][3] < ACTORS[L.adm["j"].actor][3]):
                 note("I7", f"adjudication {a.id} ineligible but admitted")
     PLAN_CUR[0] = "i2"
     if verbose:
@@ -1004,6 +1057,12 @@ MUTATIONS = {
                                        "the analyzer identity is compared by the reach (bf23372 B1(b))"),
     "requirement_request_colocated": (("equivalence-chain", "completeness-cover"),
                                       "equivalence/completeness requirement only for a co-submitted change (bf23372 B2)"),
+    "plan_reach_current_only": (("plan-coverage",),
+                                "a plan rejection reaches only coverage of the current revision (34803df B1)"),
+    "plan_rejection_denies_set": (("plan-coverage",),
+                                  "a plan rejection denies its named set only as a whole (34803df B1(b))"),
+    "eq_authors_to_side_only": (("equivalence-chain",),
+                                "equivalence authors measured on r_to's differing content only (34803df B2)"),
 }
 
 
