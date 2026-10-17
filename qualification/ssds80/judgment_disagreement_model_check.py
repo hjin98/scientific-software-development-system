@@ -13,7 +13,7 @@ What is modelled, in four families (the first checked by check_all, the others b
                  change); reach = the same changed content under any item, revision or plan
                  (SD-34); supersession on the exact target; per-target relief (route 3).
            ACC   an ACCEPTANCE: target = (subject, revision content); s2 re-identifies s1 with
-                 identical content; reach = the same revision content in any subject;
+                 identical content; reach = the same subject triple only (S10);
                  supersession on the exact target.
            GATE  a GATE_DECISION: target = (revision, run); reach and supersession
                  target = same revision in any run; no independence requirement;
@@ -258,11 +258,11 @@ def reach(j: J, z: J) -> bool:
             return j.target[1] == z.target[1] and (ji == zi or jpc == zpc)
         return j.target[1] == z.target[1]
     if j.kind == "ACC":
-        # target (subject, revision content): the same content in any subject (item 31); s2 is s1
-        # re-identified with byte-identical content
-        if "acceptance_reach_same_subject" in MUT:
-            return j.target == z.target
-        return j.target[1] == z.target[1]
+        # target (subject, revision content): the same subject triple only (S10); s2, s1 re-identified
+        # with byte-identical content, is a control the objection does not reach
+        if "acceptance_reach_by_content" in MUT:  # edabd81 N2: content keying across subjects
+            return j.target[1] == z.target[1]
+        return j.target == z.target
     if "gate_run_veto" in MUT:  # 362af9f B1-A: veto keyed on the run-parameterized obligation
         return j.target == z.target
     return j.target[0] == z.target[0]
@@ -632,8 +632,8 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
         # part of the claim (SD-34). This restates the row: the claim and the formula coincide here
         return j.target[1] == z.target[1]
     if j.kind == "ACC":
-        # what an acceptance judges is the subject revision's content, whichever subject names it
-        return j.target[1] == z.target[1]
+        # an acceptance attaches to one exact subject (S10): content identity never transfers it
+        return j.target == z.target
     return j.target[0] == z.target[0]
 
 
@@ -1141,8 +1141,8 @@ MUTATIONS = {
                                         "a decision imports the revision assessment's currency, not its standing (653e88c B1)"),
     "gate_basis_identity_all": (("gate-basis",),
                                 "identity mode on the gate's required premises too (d94a293 negative control)"),
-    "acceptance_reach_same_subject": ((CORE,),
-                                      "an acceptance veto reaches only the same subject, not a re-identified one (item 31)"),
+    "acceptance_reach_by_content": ((CORE,),
+                                    "an acceptance veto keyed on content across subjects, against S10 (edabd81 N2)"),
     "review_reach_item_or_prose": ((CORE,),
                                    "a review veto reaches re-identified items only with identical prose and contract (913db8f B1)"),
     "review_reach_same_item_only": ((CORE,),
@@ -1177,7 +1177,7 @@ def gate_basis(core: list) -> tuple:
             mode = "identity"
         elif role == "required":
             mode = "record"
-        elif role == "revision":  # §4.1 standing: the decision relies on the assessment standing (SD-36)
+        elif role == "revision":  # §4.1 standing: the decision relies on the assessment standing (item 31)
             mode = "record" if "revision_assessment_record_mode" in MUT else "standing"
         else:
             mode = "identity"
