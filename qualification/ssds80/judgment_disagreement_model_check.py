@@ -23,14 +23,15 @@ What is modelled, in four families (the first checked by check_all, the others b
                  u1..u3 (S1, S2, S3, S12 = the subject, SX = the tree); judgments on sub-scopes
                  compose by union; one analyzer declaration (actor M, no requirement); the
                  consumer is the §4.6 closure bound of each unit.
-           PLAN  a PLAN_ACCEPTANCE (plan-coverage family): item A with i0 ⊑ i1 ⊑ i2 ⊑ i3, an R2
-                 amendment iQ ⊑ i3 incomparable with i0..i2, and an isolated i1x; item B with b1.
-                 i0L lies between i0 and i1 (a loosening within i0's bounds). A rejection of r*
-                 denies r* and every tighter revision; an acceptance of r claims r, every tighter
-                 revision and the covered current one; so it is reached when r* = r, r ⊑ r*, or
-                 r ⊑ cur and r* ⊑ cur (SD-30, SD-31); the rejecter's or owner's acceptance of a
-                 reached target relieves it (route 3). Supersession on the exact target while its
-                 basis holds.
+           PLAN  a PLAN_ACCEPTANCE (plan-coverage family), on field values (SD-32): item A's
+                 revisions are (prose, budget, scope), r ⊑ r2 iff same prose, budget not greater
+                 and scope a subset; seven revisions, among them an R2 amendment incomparable with
+                 the accepted one, tightenings, a loosening and a prose edit, each also current;
+                 item B has one revision. A rejection of r* reaches every acceptance of a revision
+                 with a common tightening (same prose and fixed fields); the current revision is
+                 not read; the rejecter's or owner's acceptance of a reached target relieves it
+                 (route 3). The oracle builds the common tightening from the field values.
+                 Supersession on the exact target while its basis holds.
            The one reach rule (SD-29) for the composing kinds: z is reached when some set of
            asserting judgments of the kind, with z, claims what the objection denies and
            without z does not (Ledger.composed_reach with the per-kind Ledger.derives).
@@ -168,18 +169,22 @@ def req(z) -> bool:
     return requirement(z.kind)
 
 
-# ---- plan items (§11.2, §13.4): item A has i0 ⊑ i1 ⊑ i2 ⊑ i3, iQ ⊑ i3 with iQ incomparable with
-# i0, i1, i2 (an R2 amendment), and i1x (a prose change of i0, comparable with nothing); item B has b1
-# only. A plan judgment's target is a tuple of (item, revision).
-# i0L is a loosening of i1 back within i0's bounds: i0 ⊑ i0L ⊑ i1
-TIGHT = {("i0", "i1"), ("i1", "i2"), ("i2", "i3"), ("i0", "i2"), ("i0", "i3"), ("i1", "i3"), ("iQ", "i3"),
-         ("i0", "i0L"), ("i0L", "i1"), ("i0L", "i2"), ("i0L", "i3")}
-PLAN_CUR = ["i2"]  # item A's current revision in the scenario being evaluated; item B's is b1
-ITEM_REVS = {"A": ("i0", "i0L", "i1", "i2", "i3", "iQ", "i1x"), "B": ("b1",)}
+# ---- plan items (§11.2, §13.4), on field values (SD-32). An item revision of A is (prose, budget,
+# write scope); r ⊑ r2 (r2 tightens r) iff the prose is byte-identical, budget(r2) <= budget(r) and
+# scope(r2) ⊆ scope(r). Item B has one revision. A plan judgment's target is a tuple of (item, revision).
+AB, ABC, A_ = frozenset("ab"), frozenset("abc"), frozenset("a")
+PLAN_REVS = {
+    "a10ab": ("P", 10, AB), "a6ab": ("P", 6, AB), "a5ab": ("P", 5, AB), "a5a": ("P", 5, A_),
+    "a5abc": ("P", 5, ABC), "a10abc": ("P", 10, ABC), "x10ab": ("Q", 10, AB),  # x10ab: a prose edit
+    "b1": ("B", 1, frozenset("z")),
+}
+PLAN_CUR = ["a5ab"]  # item A's current revision in the scenario being evaluated; item B's is b1
+ITEM_REVS = {"A": ("a10ab", "a6ab", "a5ab", "a5a", "a5abc", "a10abc", "x10ab"), "B": ("b1",)}
 
 
 def tight(r: str, r2: str) -> bool:
-    return r == r2 or (r, r2) in TIGHT
+    (p1, b1, s1), (p2, b2, s2) = PLAN_REVS[r], PLAN_REVS[r2]
+    return p1 == p2 and b2 <= b1 and s2 <= s1
 
 
 def plan_cur(item: str) -> str:
@@ -187,27 +192,26 @@ def plan_cur(item: str) -> str:
 
 
 def plan_reached(rs: str, r: str, it: str) -> bool:
-    """§5.10 (b) plan row (SD-30, SD-31). A rejection of rs denies rs and every tighter revision (a
-    tightening keeps the rejected controls); an acceptance of r claims r, every tighter revision (its
-    conclusion still applies under tighter controls) and, by coverage, the current revision. So it is
-    reached when rs = r, r ⊑ rs, or r ⊑ cur and rs ⊑ cur; a revert does not release it. Only the
-    rejecter or the owner relieves a reached target (route 3, Ledger.relieved)."""
+    """§5.10 (b) plan row (SD-32). A rejection of rs denies rs and every tighter revision; an acceptance
+    of r claims r and every tighter revision; they contradict exactly when the two have a common
+    tightening, which by §13.4 is byte-identical prose and equal fixed fields (here: the prose). The
+    current revision is not read. Only the rejecter or the owner relieves a reached target (route 3)."""
     cur = plan_cur(it)
-    if rs == r:
-        return True
     if "plan_reach_names_only" in MUT:
-        return False
-    if "plan_reach_any_tighter" in MUT:  # bf23372 N1: preservation alone, without inheritance to cur
+        return rs == r
+    if "plan_reach_any_tighter" in MUT:  # bf23372 N1: preservation alone
         return tight(r, rs)
     if "plan_reach_current_only" in MUT:  # 34803df B1
-        return rs == cur and tight(r, cur)
+        return rs == r or (rs == cur and tight(r, cur))
     if "plan_reach_path_only" in MUT:  # 0d2b35e B1: r ⊑ rs ⊑ cur
-        return tight(r, rs) and tight(rs, cur)
-    if "plan_fresh_acceptance_exempt" in MUT:  # 83a82df B1: any acceptance of a tighter revision exempt
-        return tight(r, cur) and tight(rs, cur) and not tight(rs, r)
-    if "plan_revert_exemption" in MUT:  # e548472 B1 (SD-30's rule): a revert below rs releases it
-        return tight(r, cur) and tight(rs, cur)
-    return tight(r, rs) or (tight(r, cur) and tight(rs, cur))
+        return rs == r or (tight(r, rs) and tight(rs, cur))
+    if "plan_fresh_acceptance_exempt" in MUT:  # 83a82df B1
+        return rs == r or (tight(r, cur) and tight(rs, cur) and not tight(rs, r))
+    if "plan_revert_exemption" in MUT:  # e548472 B1 (SD-30's rule)
+        return rs == r or (tight(r, cur) and tight(rs, cur))
+    if "plan_cur_join" in MUT:  # 4c52205 B1 (SD-31's rule): the join read at the current revision only
+        return rs == r or tight(r, rs) or (tight(r, cur) and tight(rs, cur))
+    return PLAN_REVS[r][0] == PLAN_REVS[rs][0]  # same prose and fixed fields: a common tightening
 
 
 def plan_reaches(j, z) -> bool:
@@ -579,17 +583,17 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
     if j.kind == "COMP":
         return oracle_covers(L, j, z, G)
     if j.kind == "PLAN":
-        # inheritance: the rejection denies every revision that keeps the rejected controls; an
-        # acceptance is consumed for the current revision; who may relieve is oracle_resolved's
+        # claims: an acceptance of rz asserts every tightening of rz acceptable; a rejection of rj
+        # denies every tightening of rj. They contradict iff some revision tightens both: build the
+        # candidate meet from the field values and test it against both (not the row's formula)
         for it, rj in j.target:
-            cur = plan_cur(it)
-            denied = {x for x in ITEM_REVS[it] if x == rj or (rj, x) in TIGHT}
             for it2, rz in z.target:
                 if it2 != it:
                     continue
-                covers_cur = rz == cur or (rz, cur) in TIGHT
-                claims_rj = (rz, rj) in TIGHT  # its conclusion still applies under the tighter rj (§7.9)
-                if rz == rj or claims_rj or (covers_cur and cur in denied):
+                (pz, bz, sz), (pj, bj, sj) = PLAN_REVS[rz], PLAN_REVS[rj]
+                meet = (pz, min(bz, bj), sz & sj)
+                if (meet[0] == pz and meet[1] <= bz and meet[2] <= sz
+                        and meet[0] == pj and meet[1] <= bj and meet[2] <= sj):
                     return True
         return False
     if j.kind == "REV":
@@ -922,10 +926,10 @@ def comp_scenarios():
 
 # plan acceptance coverage: items A (tightening chain) and B; issuable iff a supporting acceptance covers cur
 def plan_scenarios():
-    accs = [("p0", (("A", "i0"),)), ("p1", (("A", "i1"),)), ("p2", (("A", "i2"),)), ("pQ", (("A", "iQ"),)),
-            ("pab", (("A", "i1"), ("B", "b1")))]
-    rejections = [(("A", r),) for r in ITEM_REVS["A"]] + [(("A", "i1"), ("B", "b1")), (("B", "b1"),)]
-    for cur in ("i0", "i0L", "i1", "i2", "i3", "iQ", "i1x"):
+    accs = [("p10ab", (("A", "a10ab"),)), ("p5abc", (("A", "a5abc"),)), ("p6ab", (("A", "a6ab"),)),
+            ("px", (("A", "x10ab"),)), ("pab", (("A", "a10ab"), ("B", "b1")))]
+    rejections = [(("A", r),) for r in ITEM_REVS["A"]] + [(("A", "a10ab"), ("B", "b1")), (("B", "b1"),)]
+    for cur in ITEM_REVS["A"]:
         for mask in range(1, 1 << len(accs)):
             chosen = [a for i, a in enumerate(accs) if mask >> i & 1]
             for variant in ("P", "U", "pend"):
@@ -987,7 +991,7 @@ def check_family(name: str, limit_fail: int = 5, verbose: bool = True) -> dict:
     n = 0
     for cur, recs in gen():
         n += 1
-        PLAN_CUR[0] = cur or "i2"
+        PLAN_CUR[0] = cur or "a5ab"
         L = Ledger(recs)
 
         def note(inv, msg):
@@ -1046,7 +1050,7 @@ def check_family(name: str, limit_fail: int = 5, verbose: bool = True) -> dict:
             if (not independent(a.actor, oracle_authors(L.adm["j"]))
                     or ACTORS[a.actor][3] < ACTORS[L.adm["j"].actor][3]):
                 note("I7", f"adjudication {a.id} ineligible but admitted")
-    PLAN_CUR[0] = "i2"
+    PLAN_CUR[0] = "a5ab"
     if verbose:
         print(f"{name} scenarios: {n}")
     return {"n": n, "fails": fails, "examples": examples}
@@ -1091,6 +1095,8 @@ MUTATIONS = {
     "plan_fresh_acceptance_exempt": (("plan-coverage",),
                                      "any acceptance of a revision tighter than the rejected one is exempt (83a82df B1)"),
     "plan_no_relief": (("plan-coverage",), "plan acceptance has no per-target relief (83a82df option 2)"),
+    "plan_cur_join": (("plan-coverage",),
+                      "a plan rejection reaches incomparable acceptances only while cur joins them (4c52205 B1)"),
     "plan_revert_exemption": (("plan-coverage",),
                               "a revert or loosening below a rejected revision releases it (e548472 B1)"),
     "plan_supersession_current_only": (("plan-coverage",),
