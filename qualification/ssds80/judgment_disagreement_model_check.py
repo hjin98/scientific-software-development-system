@@ -511,7 +511,7 @@ class Ledger:
         if not j.adverse or not self.stands(j, G):
             return False
         for z in self.js:
-            if z.adverse or z.kind != j.kind or not self.acts(z, G):
+            if z.adverse or z.kind != j.kind or not self.acts(z, G) or self.superseded(z, G):
                 continue
             if "obligation_direct_only" in MUT and j.kind == "EQ" and set(z.target[:2]) != set(j.target[:2]):
                 continue
@@ -755,8 +755,8 @@ def oracle_bound(L: Ledger, u: str, G: str) -> str:
 def oracle_disagreement(L: Ledger, j: J, G: str) -> bool:
     """The owner must be asked whenever a standing objection contradicts an acting passing judgment
     for which it is not resolved (relief is per target, so resolution is asked of each judgment)."""
-    return any(not z.adverse and z.kind == j.kind and L.acts(z, G) and oracle_same(L, j, z, G)
-               and not oracle_resolved(L, j, z, G) for z in L.js)
+    return any(not z.adverse and z.kind == j.kind and L.acts(z, G) and not L.superseded(z, G)
+               and oracle_same(L, j, z, G) and not oracle_resolved(L, j, z, G) for z in L.js)
 
 
 # ---- scenario generation
