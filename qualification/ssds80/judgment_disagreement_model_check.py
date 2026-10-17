@@ -8,10 +8,10 @@ never show that the design is right or that a production owner behaves this way.
 
 What is modelled, in four families (the first checked by check_all, the others by check_family):
   kinds    REV   a transformation REVIEW: target (item revision, changed content, base); item
-                 revisions i1, i2 (an amendment of item I's contract) and k1 (I re-identified
-                 as K with i1's prose and contract); reach = the same changed content under the
-                 same item at any revision or under an item revision with the same prose and
-                 contract (SD-33); supersession on the exact target; per-target relief (route 3).
+                 revisions i1, i2 (an amendment of item I's contract), k1 (I re-identified as K
+                 with i1's prose and contract) and k2 (re-identified with a one-byte heading
+                 change); reach = the same changed content under any item, revision or plan
+                 (SD-34); supersession on the exact target; per-target relief (route 3).
            ACC   an ACCEPTANCE: target = subject revision; reach = same revision;
                  supersession on the exact target.
            GATE  a GATE_DECISION: target = (revision, run); reach and supersession
@@ -229,8 +229,9 @@ def plan_reaches(j, z) -> bool:
 
 
 # a transformation review's item revision: (plan item, its prose and contract). i2 amends item I's
-# contract; k1 re-identifies I as item K with i1's prose and contract (SD-33)
-REV_ITEMS = {"i1": ("I", "pc1"), "i2": ("I", "pc2"), "k1": ("K", "pc1")}
+# contract; k1 re-identifies I as item K with i1's prose and contract; k2 re-identifies it with a
+# one-byte heading change (SD-34)
+REV_ITEMS = {"i1": ("I", "pc1"), "i2": ("I", "pc2"), "k1": ("K", "pc1"), "k2": ("K2", "pc3")}
 
 
 def reach(j: J, z: J) -> bool:
@@ -239,12 +240,13 @@ def reach(j: J, z: J) -> bool:
     if j.kind == "PLAN":
         return plan_reaches(j, z)
     if j.kind == "REV":
-        # the same changed-unit content, under the same plan item at any revision or under any item
-        # revision with the same prose and contract (SD-33)
+        # the same changed-unit content, under any item, revision or plan (SD-34)
         (ji, jpc), (zi, zpc) = REV_ITEMS[j.target[0]], REV_ITEMS[z.target[0]]
         if "review_reach_same_item_only" in MUT:  # 5895687 B1(b): keyed on the item's identity
             return j.target[1] == z.target[1] and ji == zi
-        return j.target[1] == z.target[1] and (ji == zi or jpc == zpc)
+        if "review_reach_item_or_prose" in MUT:  # 913db8f B1 (SD-33's rule)
+            return j.target[1] == z.target[1] and (ji == zi or jpc == zpc)
+        return j.target[1] == z.target[1]
     if j.kind == "ACC":
         return j.target == z.target
     if "gate_run_veto" in MUT:  # 362af9f B1-A: veto keyed on the run-parameterized obligation
@@ -612,10 +614,9 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
                     return True
         return False
     if j.kind == "REV":
-        # what the review judged: this content, for this item's lineage or for this prose and contract
-        judged_for = {("item", REV_ITEMS[j.target[0]][0]), ("pc", REV_ITEMS[j.target[0]][1])}
-        z_for = {("item", REV_ITEMS[z.target[0]][0]), ("pc", REV_ITEMS[z.target[0]][1])}
-        return j.target[1] == z.target[1] and bool(judged_for & z_for)
+        # what the review judged is the changed content itself; the item it was produced for is not
+        # part of the claim (SD-34). This restates the row: the claim and the formula coincide here
+        return j.target[1] == z.target[1]
     if j.kind == "ACC":
         return j.target == z.target
     return j.target[0] == z.target[0]
@@ -746,7 +747,7 @@ def oracle_disagreement(L: Ledger, j: J, G: str) -> bool:
 # ---- scenario generation
 def scenarios():
     tgt = {
-        "REV": [("i1", "c1", "b1"), ("i2", "c1", "b2"), ("i1", "c2", "b1"), ("k1", "c1", "b1")],
+        "REV": [("i1", "c1", "b1"), ("i2", "c1", "b2"), ("i1", "c2", "b1"), ("k1", "c1", "b1"), ("k2", "c1", "b1")],
         "ACC": [("r1",), ("r2",)],
         "GATE": [("r1", "p1"), ("r1", "p2"), ("r2", "p2")],
     }
@@ -1115,6 +1116,8 @@ MUTATIONS = {
     "plan_no_relief": (("plan-coverage",), "plan acceptance has no per-target relief (83a82df option 2)"),
     "plan_reach_same_item_only": (("plan-coverage",),
                                   "a plan rejection reaches only acceptances of the same item (5895687 B1)"),
+    "review_reach_item_or_prose": ((CORE,),
+                                   "a review veto reaches re-identified items only with identical prose and contract (913db8f B1)"),
     "review_reach_same_item_only": ((CORE,),
                                     "a review veto reaches only the same plan item, not a re-identified one (5895687 B1(b))"),
     "plan_cur_join": (("plan-coverage",),
