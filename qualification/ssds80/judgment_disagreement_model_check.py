@@ -78,11 +78,10 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
          value reads only its required premises, never what is merely shown.
   I10    (gate-basis) liveness: while the revision assessment counts and the required evidence
          holds, a fresh gate decision is admissible, so a ready gate obligation is answerable.
-  I13-I17 (obligation-routing) after integration, current-state discharge (SD-36, SD-37): no derived
-         obligation waits on a route without an admissible answer; a stale item review has one route;
-         re-dispatch only when an integrated enactment's outputs moved, and never discharge before the
-         re-work integrates; a REFUSED event-keyed obligation stays derived; discharge reads the
-         evidence of every subject an integrated enactment changed.
+  I13-I18 (obligation-routing) after integration (SD-36 to SD-38), over units and revisions: every OPEN
+         obligation has a route and every derived REVALIDATE an admissible answer; one route at a time;
+         never discharged while out(o) moved, re-dispatched only then; a REFUSED event-keyed obligation
+         stays derived; an adverse revalidation of an integrated item starts the next iteration.
   I8     (composing families) the owner's adjudication obligation is derived exactly when a
          standing objection contradicts a passing judgment acting in the state.
 
@@ -1146,20 +1145,22 @@ MUTATIONS = {
                                         "a decision imports the revision assessment's currency, not its standing (653e88c B1)"),
     "gate_basis_identity_all": (("gate-basis",),
                                 "identity mode on the gate's required premises too (d94a293 negative control)"),
-    "review_after_integration": (("obligation-routing",),
-                                 "REVIEW(X) stays derived after integration: its REVALIDATE strands (f185036 B1(a))"),
-    "ji_never_ends": (("obligation-routing",),
-                      "JOINT_INVARIANT(i, k) outlives a later change in its scope (f185036 B1(a))"),
-    "spec_never_ends": (("obligation-routing",),
-                        "SPEC_REVIEW(spec, r) outlives the specification's move (f185036 B1(a))"),
-    "both_routes": (("obligation-routing",),
-                    "re-dispatch and the review's REVALIDATE both derived (f185036 B1(b))"),
-    "redispatch_on_reads": (("obligation-routing",),
-                            "re-dispatch on any change the item read, not only its outputs (f185036 N1; SD-37)"),
-    "revalidate_after_move": (("obligation-routing",),
-                              "a superseding review admitted after the outputs moved (§8.3 step 6)"),
-    "subject_last_enactment": (("obligation-routing",),
-                               "subject(o) read from the latest enactment only (f185036 B1(c))"),
+    "all_enactment_reviews": (("obligation-routing",),
+                              "every enactment's review relied on: an earlier one's REVALIDATE strands (8f4e75d B1(a))"),
+    "moved_as_event": (("obligation-routing",),
+                       "moved read as an event since the latest integration, not as a state (8f4e75d B1(b))"),
+    "review_covers_own_delta": (("obligation-routing",),
+                                "a re-dispatched enactment's review covers only its own delta (8f4e75d B1(b))"),
+    "adverse_no_route": (("obligation-routing",),
+                         "an adverse revalidation of an integrated item leaves no route (8f4e75d B1(c))"),
+    "overtake_two_routes": (("obligation-routing",),
+                            "a plain overtake derives drift and COORDINATE(plan) (8f4e75d B1(d))"),
+    "investigator_generic": (("obligation-routing",),
+                             "an investigator item re-dispatched on a read-only change (8f4e75d B1(e))"),
+    "ji_full_delta_minimum": (("obligation-routing",),
+                              "the joint-invariant review's minimum covers outputs outside the scope (8f4e75d B1(f))"),
+    "revalidate_despite_move": (("obligation-routing",),
+                                "REVALIDATE derived although the item's outputs moved (f185036 B1(b))"),
     "refused_retired": (("obligation-routing",),
                         "a later change in scope retires a REFUSED obligation (494c810 B1(a))"),
     "acceptance_reach_by_content": ((CORE,),
@@ -1303,144 +1304,157 @@ def check_gate_basis(limit_fail: int = 5, verbose: bool = True) -> dict:
 
 
 ROUTING = "obligation-routing"
-# Current-state discharge after integration (§10.4, SD-36, SD-37): an item I integrated as X (review R,
-# subject s0), a joint-invariant obligation JI(i, k1) answered by rJ1, and SPEC_REVIEW(spec, r1) answered
-# by rS1. Events after the integration:
+# Current-state discharge after integration (§10.4, SD-36 to SD-38), stated over units and revisions so
+# that answerability is computed from each record's basis entries (§4.3, §8.3 step 6), not from the rule.
+# Units: u, v (outputs of the first enactment X1), g (read by every review), w (outside the joint
+# invariant's scope). An item obligation (IMPLEMENT, or a findings-only INVESTIGATE with no outputs) has
+# integrated enactments, each with its own review; a joint-invariant obligation JI(i, k1) is answered by rJ1.
 RT_EVENTS = (
-    "change_outputs",   # a later admitted or absorbed change moves output content of X
-    "change_reads",     # a later change moves only what X's implementer or reviewer read
-    "change_gov",       # a governing change makes R non-current, outputs unchanged
-    "break_evidence",   # an absorbed change breaks I's required evidence on s0, outputs unchanged
-    "revalidate_R",     # R's reviewer's superseding review (needs X's outputs current)
-    "rerun_fixed",      # the evidence route restores the evidence
-    "redispatch_noop",  # a re-dispatched enactment integrates with no change
-    "redispatch_other", # ... changing only another subject s1
-    "redispatch_real",  # ... repairing s0 (outputs and evidence restored, reviewed)
-    "ji_scope_change",  # a later change in i's scope derives JI(i, k2)
-    "ji_gov",           # a governing change makes rJ1 non-current, scope unchanged
-    "ji_revalidate",    # rJ1's reviewer's superseding review (needs the scope current)
-    "ji_refuse",        # a standing adverse answer on JI(i, k1): REFUSED
-    "spec_move",        # the specification moves to r2 (SPEC_REVIEW(spec, r2) derived)
-    "spec_ctx",         # a context change makes rS1 non-current, spec unchanged
-    "spec_revalidate",  # rS1's author's superseding review (needs the spec at r1)
-    "spec_refuse",      # a standing adverse answer on SPEC_REVIEW(spec, r1)
+    "move_u", "move_v",     # a later admitted change moves an output unit
+    "revert_u",             # a later change returns u to its revision after the latest integration
+    "move_g",               # a later change moves only what the reviews read
+    "revalidate_pass",      # the relied-on review's author supersedes it with a passing review
+    "revalidate_adverse",   # ... with a NO_PASS (or the re-attestation is not COMPLETE)
+    "dispatch",             # the ready route is taken: a new enactment re-doing the moved outputs
+    "dispatch_empty",       # ... integrating an empty transformation (the content already meets the contract)
+    "overtake",             # a plain overtake: a foreign push absorbs over the latest integration, moving u
+    "ji_move_w",            # a later change moves only k1's output outside the invariant's scope
+    "ji_move_scope",        # a later change in the invariant's scope (derives JI(i, k2))
+    "ji_refuse",            # a standing adverse answer on JI(i, k1)
 )
 
 
 def rt_scenarios():
     evs = list(RT_EVENTS)
-    yield ()
-    for n in (1, 2, 3):
-        for seq in itertools.permutations(evs, n):
-            yield seq
+    for kind in ("IMPLEMENT", "INVESTIGATE"):
+        yield kind, ()
+        for n in (1, 2, 3, 4):
+            for seq in itertools.product(evs, repeat=n):
+                if len(set(seq)) >= n - 1:  # at most one repeated event per sequence
+                    yield kind, seq
 
 
-def rt_derive(seq):
-    """§10.2-§10.4 as written: the obligations derived after the events, each with its state
-    (DISCHARGED, READY, WAITING:<route>, REFUSED), and the routes derived for them."""
-    st = dict(outputs_moved=False, R_current=True, ev_fail=False, subjects={"s0"}, last_subjects={"s0"},
-              ji_scope=False, rJ1_current=True, ji_refused=False,
-              spec_moved=False, rS1_current=True, spec_refused=False, review_obligation=False)
+class RtState:
+    def __init__(self, kind):
+        self.kind = kind
+        self.cur = {"u": 1, "v": 1, "g": 1, "w": 1}
+        delta = set() if kind == "INVESTIGATE" else {"u", "v"}
+        # each enactment: its changed units and the review relied on, with that review's basis entries
+        self.enact = [{"delta": delta, "review": self.review(delta)}]
+        self.base = {x: self.cur[x] for x in delta}  # out(o) at the latest integration
+        self.overtaken = False
+        self.ji = {"scope_moved": False, "refused": False,
+                   "minimum": {x: 1 for x in (("u", "w") if "ji_full_delta_minimum" in MUT else ("u",))} | {"s": 1}}
+        self.cur["s"] = 1  # the invariant's scope context
+        self.ji_scope_revs = {"u": 1, "s": 1}
 
-    def item_ready():
-        return item_state()[0] == "READY"
+    def review(self, delta, outputs=None):
+        entries = {x: self.cur[x] for x in (outputs if outputs is not None else delta)}
+        entries["g"] = self.cur["g"]
+        return {"entries": entries, "adverse": False}
 
-    def discharged():
-        subs = st["last_subjects"] if "subject_last_enactment" in MUT else st["subjects"]
-        return st["R_current"] and not (st["ev_fail"] and "s0" in subs)
+    def out(self):
+        units = set()
+        for e in self.enact:
+            units |= e["delta"]
+        return units
 
-    def item_state():
-        if discharged():
-            return ("DISCHARGED", set())
-        if st["outputs_moved"] or "redispatch_on_reads" in MUT:
+    def moved(self):
+        if "moved_as_event" in MUT:
+            return getattr(self, "touched_after", False)
+        return any(self.cur[x] != self.base[x] for x in self.out())
+
+    def current(self, rv):
+        return not rv["adverse"] and all(self.cur[x] == r for x, r in rv["entries"].items())
+
+    def relied(self):
+        """The reviews the item's discharge relies on (§10.4): the latest enactment's only."""
+        if "all_enactment_reviews" in MUT:
+            return [e["review"] for e in self.enact]
+        return [self.enact[-1]["review"]]
+
+    def answerable(self, rv):
+        # a superseding review of the same target needs that review's content entries on its target's
+        # outputs to hold; context entries are re-read at the new basis
+        return all(self.cur[x] == r for x, r in rv["entries"].items() if x != "g")
+
+    def item(self):
+        """(state, routes): DISCHARGED, or OPEN with its derived routes."""
+        relied = self.relied()
+        latest = self.enact[-1]["review"]
+        if all(self.current(r) for r in relied):
+            return ("DISCHARGED", set())  # the reviewed predicate: a current passing review (§10.4)
+        if self.moved() and not ("investigator_generic" in MUT and self.kind == "INVESTIGATE"):
             routes = {"REDISPATCH"}
-            if "both_routes" in MUT and not st["R_current"]:
-                routes.add("REVALIDATE(R)")
-            return ("READY", routes)
-        routes = set()
-        if not st["R_current"]:
-            routes.add("REVALIDATE(R)")
-        if st["ev_fail"]:
-            routes.add("RERUN")
-        return ("WAITING", routes)
+            if self.overtaken and "overtake_two_routes" in MUT:
+                routes.add("COORDINATE")
+            if "revalidate_despite_move" in MUT:
+                routes |= {("REVALIDATE", id(r)) for r in relied if not self.current(r)}
+            return ("OPEN", routes)
+        if latest["adverse"]:
+            return ("OPEN", set() if "adverse_no_route" in MUT else {"ITERATE"})
+        routes = {("REVALIDATE", id(r)) for r in relied if not self.current(r)}
+        if "investigator_generic" in MUT and self.kind == "INVESTIGATE":
+            routes.add("REDISPATCH")
+        return ("OPEN", routes)
+
+
+def rt_derive(kind, seq):
+    st = RtState(kind)
     for e in seq:
-        if e == "change_outputs":
-            st["outputs_moved"] = True; st["R_current"] = False
-        elif e in ("change_reads", "change_gov"):
-            st["R_current"] = False
-        elif e == "break_evidence":
-            st["ev_fail"] = True
-        elif e == "revalidate_R":
-            if not st["outputs_moved"] or "revalidate_after_move" in MUT:
-                st["R_current"] = True
-        elif e == "rerun_fixed":
-            if not st["outputs_moved"]:
-                st["ev_fail"] = False
-        elif e in ("redispatch_noop", "redispatch_other", "redispatch_real"):
-            if not item_ready():
-                continue  # only a ready obligation is dispatched
-            new = {"redispatch_noop": set(), "redispatch_other": {"s1"}, "redispatch_real": {"s0"}}[e]
-            st["subjects"] |= new; st["last_subjects"] = new
-            st["outputs_moved"] = False  # moved since the latest integration of the obligation: not yet
-            st["R_current"] = True       # the new enactment's own review
-            if e == "redispatch_real":
-                st["ev_fail"] = False
-        elif e == "ji_scope_change":
-            st["ji_scope"] = True; st["rJ1_current"] = False
-        elif e == "ji_gov":
-            st["rJ1_current"] = False
-        elif e == "ji_revalidate":
-            if not st["ji_scope"]:
-                st["rJ1_current"] = True
+        state, routes = st.item()
+        if e in ("move_u", "move_v", "move_g", "ji_move_w"):
+            x = {"move_u": "u", "move_v": "v", "move_g": "g", "ji_move_w": "w"}[e]
+            st.cur[x] += 1
+            if x in st.out():
+                st.touched_after = True
+        elif e == "revert_u":
+            if "u" in st.base and st.cur["u"] != st.base["u"]:
+                st.cur["u"] = st.base["u"]
+                st.touched_after = True
+        elif e == "overtake":
+            if "u" in st.out():
+                st.cur["u"] += 1; st.overtaken = True; st.touched_after = True
+        elif e in ("revalidate_pass", "revalidate_adverse"):
+            targets = [r for r in st.relied() if not st.current(r) and ("REVALIDATE", id(r)) in routes]
+            for r in targets:
+                if st.answerable(r):  # Admission step 6
+                    r["entries"] = {x: st.cur[x] for x in r["entries"]}
+                    r["adverse"] = e == "revalidate_adverse"
+        elif e in ("dispatch", "dispatch_empty"):
+            if not routes & {"REDISPATCH", "ITERATE"}:
+                continue  # only a ready route is taken
+            moved = {x for x in st.out() if st.cur[x] != st.base[x]}
+            delta = set() if e == "dispatch_empty" else (moved or st.enact[-1]["delta"])
+            if e == "dispatch":
+                for x in delta:
+                    st.cur[x] += 1  # the re-work writes new content
+            outputs = delta if "review_covers_own_delta" in MUT else (st.out() | delta)
+            st.enact.append({"delta": delta, "review": st.review(delta, outputs)})
+            st.base = {x: st.cur[x] for x in st.out()}
+            st.overtaken = False; st.touched_after = False
+        elif e == "ji_move_scope":
+            st.cur["s"] += 1
         elif e == "ji_refuse":
-            st["ji_refused"] = True
-        elif e == "spec_move":
-            st["spec_moved"] = True; st["rS1_current"] = False
-        elif e == "spec_ctx":
-            st["rS1_current"] = False
-        elif e == "spec_revalidate":
-            if not st["spec_moved"]:
-                st["rS1_current"] = True
-        elif e == "spec_refuse":
-            st["spec_refused"] = True
-    obs = {}
-    obs["IMPLEMENT(I)"] = item_state()
-    if "review_after_integration" in MUT:
-        obs["REVIEW(X)"] = ("DISCHARGED", set()) if st["R_current"] else ("WAITING", {"REVALIDATE(R)"})
-    for name, scope_key, cur_key, ref_key, route, never in (
-            ("JOINT_INVARIANT(i,k1)", "ji_scope", "rJ1_current", "ji_refused", "REVALIDATE(rJ1)", "ji_never_ends"),
-            ("SPEC_REVIEW(spec,r1)", "spec_moved", "rS1_current", "spec_refused", "REVALIDATE(rS1)", "spec_never_ends")):
-        if st[ref_key] and ("refused_retired" not in MUT or not st[scope_key]):
-            obs[name] = ("REFUSED", set())
-        elif st[scope_key] and never not in MUT:
-            continue  # a later change in the same scope derived its own obligation: this one ends
-        elif st[cur_key]:
-            obs[name] = ("DISCHARGED", set())
-        else:
-            obs[name] = ("WAITING", {route})
+            st.ji["refused"] = True
+        if st.cur["u"] != st.ji_scope_revs["u"] or st.cur["s"] != st.ji_scope_revs["s"]:
+            st.ji["scope_moved"] = True  # any admitted change touching the scope derives JI(i, k2) (§9.2)
+    obs = {"ITEM": st.item()}
+    ji = st.ji
+    if ji["refused"] and ("refused_retired" not in MUT or not ji["scope_moved"]):
+        obs["JI"] = ("REFUSED", set())
+    elif not ji["scope_moved"]:
+        cur = all(st.cur[x] == r for x, r in ji["minimum"].items())
+        obs["JI"] = ("DISCHARGED", set()) if cur else ("OPEN", {"REVALIDATE_JI"})
     return obs, st
 
 
-def rt_answerable(route, st):
-    """Whether a route has an admissible answer in the final state (§8.3 step 6): a superseding review
-    needs the content it judged current; a re-dispatch and an evidence rerun are always answerable."""
-    if route == "REVALIDATE(R)":
-        return not st["outputs_moved"]
-    if route == "REVALIDATE(rJ1)":
-        return not st["ji_scope"]
-    if route == "REVALIDATE(rS1)":
-        return not st["spec_moved"]
-    return True
-
-
 def check_routing(limit_fail: int = 5, verbose: bool = True) -> dict:
-    """I13 no stranded obligation: every derived obligation that is neither discharged nor REFUSED is
-    ready or waits on routes that each have an admissible answer. I14 one route: an item whose review is
-    stale is never both re-dispatched and asked to revalidate. I15 re-dispatch only when an integrated
-    enactment's outputs moved since the obligation's latest integration (SD-37), and then never
-    discharged before re-work integrates. I16 a REFUSED
-    event-keyed obligation stays derived whatever later change in its scope occurs. I17 the item's
-    discharge reads the evidence of every subject its integrated enactments changed."""
+    """Properties, not a restated rule. I13 every OPEN obligation has a route, and every derived
+    REVALIDATE has an admissible answer (its target's output entries hold). I14 at most one route at a
+    time. I15 never DISCHARGED while some unit of out(o) differs from its revision at the latest
+    integration, and re-dispatched only then. I16 a REFUSED event-keyed obligation stays derived. I18 an
+    adverse revalidation of an integrated item starts the next iteration (SD-38)."""
     fails: dict[str, int] = {}
     examples: dict[str, list] = {}
     n = 0
@@ -1449,25 +1463,33 @@ def check_routing(limit_fail: int = 5, verbose: bool = True) -> dict:
         fails[inv] = fails.get(inv, 0) + 1
         if len(examples.setdefault(inv, [])) < limit_fail:
             examples[inv].append((msg, []))
-    for seq in rt_scenarios():
+    for kind, seq in rt_scenarios():
         n += 1
-        obs, st = rt_derive(seq)
-        for name, (state, routes) in obs.items():
-            if state in ("WAITING", "READY") and (not routes or not all(rt_answerable(r, st) for r in routes)):
-                fail("I13", f"{ROUTING} {seq}: {name} {state} on {sorted(routes)} with no admissible answer")
-        state, routes = obs["IMPLEMENT(I)"]
-        if "REDISPATCH" in routes and "REVALIDATE(R)" in routes:
-            fail("I14", f"{ROUTING} {seq}: re-dispatch and REVALIDATE(R) both derived")
-        if state == "READY" and not st["outputs_moved"]:
-            fail("I15", f"{ROUTING} {seq}: re-dispatched although no output moved")
-        if state == "DISCHARGED" and st["outputs_moved"]:
-            fail("I15", f"{ROUTING} {seq}: discharged on a review of outputs that have since moved")
-        if st["ji_refused"] and obs.get("JOINT_INVARIANT(i,k1)", ("",))[0] != "REFUSED":
-            fail("I16", f"{ROUTING} {seq}: REFUSED JOINT_INVARIANT retired")
-        if st["spec_refused"] and obs.get("SPEC_REVIEW(spec,r1)", ("",))[0] != "REFUSED":
-            fail("I16", f"{ROUTING} {seq}: REFUSED SPEC_REVIEW retired")
-        if state == "DISCHARGED" and st["ev_fail"]:
-            fail("I17", f"{ROUTING} {seq}: discharged with failing evidence on s0")
+        obs, st = rt_derive(kind, seq)
+        state, routes = obs["ITEM"]
+        tag = f"{ROUTING} {kind} {seq}"
+        moved_state = any(st.cur[x] != st.base[x] for x in st.out())
+        if state == "OPEN" and not routes:
+            fail("I13", f"{tag}: item OPEN with no route")
+        for r in routes:
+            if isinstance(r, tuple):
+                rv = next((e["review"] for e in st.enact if id(e["review"]) == r[1]), None)
+                if rv is None or not all(st.cur[x] == v for x, v in rv["entries"].items() if x != "g"):
+                    fail("I13", f"{tag}: REVALIDATE of a review whose target's outputs moved")
+        if len(routes) > 1:
+            fail("I14", f"{tag}: several routes {sorted(map(str, routes))}")
+        if state == "DISCHARGED" and moved_state:
+            fail("I15", f"{tag}: discharged while out(o) moved")
+        if "REDISPATCH" in routes and not moved_state:
+            fail("I15", f"{tag}: re-dispatched although out(o) is at its latest-integration revisions")
+        if st.enact[-1]["review"]["adverse"] and not moved_state and routes != {"ITERATE"}:
+            fail("I18", f"{tag}: adverse revalidation without the NO-PASS iteration")
+        if "JI" in obs:
+            js, jr = obs["JI"]
+            if js == "OPEN" and not all(st.cur[x] == v for x, v in st.ji["minimum"].items() if x != "s"):
+                fail("I13", f"{tag}: JOINT_INVARIANT(i, k1) waits on an unanswerable REVALIDATE")
+        if st.ji["refused"] and obs.get("JI", ("",))[0] != "REFUSED":
+            fail("I16", f"{tag}: REFUSED JOINT_INVARIANT retired")
     if verbose:
         print(f"{ROUTING} scenarios: {n}")
     return {"n": n, "fails": fails, "examples": examples}
