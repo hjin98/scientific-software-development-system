@@ -76,6 +76,11 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
   I7     no admitted adjudication is below its chain's class or dependent on authors(root).
   I9     (gate-basis) current() is never asked of a record outside its domain; a gate decision's
          value reads only its required premises, never what is merely shown.
+  I11    (obligation-lifecycle) an enacted obligation's discharge after integration equals the
+         protected properties: never on unpublished work, never closing provisional work unqualified,
+         never reopened by content or a later run, reopened by an unresolved adverse event against what
+         closed it and restored by its resolution, not lowered by a refreshing supersession, and
+         standing while some review satisfying its review term stands.
   I10    (gate-basis) liveness: while the revision assessment counts and the required evidence
          holds, a fresh gate decision is admissible, so a ready gate obligation is answerable.
   I8     (composing families) the owner's adjudication obligation is derived exactly when a
@@ -1137,6 +1142,22 @@ MUTATIONS = {
                                   "a plan rejection reaches only acceptances of the same item (5895687 B1)"),
     "gate_basis_record_all": (("gate-basis",),
                               "record mode on every record of the evidence core shown (d94a293 B1)"),
+    "lifecycle_non_latched": (("obligation-lifecycle",),
+                              "discharge not latched: later content reopens integrated work (82d618c B1)"),
+    "latch_at_admission": (("obligation-lifecycle",),
+                           "latch at the integrating admission: a fenced item stays closed (095ce55 B1(a))"),
+    "latch_freezes_inputs": (("obligation-lifecycle",),
+                             "every input frozen at the latch: revocations reopen nothing (095ce55 B1(c))"),
+    "latch_reads_tgt": (("obligation-lifecycle",),
+                        "the latched reading keeps the run test: a later run reopens (c77447b B1(b))"),
+    "refresh_is_withdrawal": (("obligation-lifecycle",),
+                              "a refreshing supersession counts as a withdrawal (3940dbc B1(a))"),
+    "latch_drops_qualification": (("obligation-lifecycle",),
+                                  "a provisional discharge latches as unqualified (3940dbc B1(b))"),
+    "latch_every_reference": (("obligation-lifecycle",),
+                              "every record the request referenced must stand: one revoked review of two reopens (3940dbc B1(d))"),
+    "records_only_latch_at_answer": (("obligation-lifecycle",),
+                                     "a frame-answered review latches before the rebase (3940dbc B1(c))"),
     "revision_assessment_record_mode": (("gate-basis",),
                                         "a decision imports the revision assessment's currency, not its standing (653e88c B1)"),
     "gate_basis_identity_all": (("gate-basis",),
@@ -1281,9 +1302,175 @@ def check_gate_basis(limit_fail: int = 5, verbose: bool = True) -> dict:
     return {"n": n, "fails": fails, "examples": examples}
 
 
+
+# ---- obligation lifecycle after integration (§10.4, refinement R15): an enacted obligation's discharge
+LIFECYCLE = "obligation-lifecycle"
+# The lines the discharge predicate read at D_k: a review R, a gate decision G, the produced subject
+# triple S. Events after the integration; each names the line it acts on (None: no line).
+LC_EVENTS = {
+    "content_change": None,      # a later item edits the integrated content
+    "run_change": None,          # a later revision run of the same subject (a second AUTHOR revision)
+    "refresh_U": "G",            # the gate's author supersedes it with an unqualified passing decision
+    "refresh_Q": "G",            # ... with a QUALIFIED passing decision
+    "revalidate_R": "R",         # a passing review superseding R (revalidation): a continuation
+    "revoke_R": "R",             # a challenge against R upheld
+    "counter_R": "R",            # a counter-challenge against that upholding upheld (restores)
+    "block_R": "R",              # an open blocking challenge against R
+    "override_R": "R",           # a risk override of that challenge (P)
+    "dismiss_R": "R",            # that challenge dismissed (restores)
+    "veto_R": "R",               # a standing peer adverse judgment on R's target
+    "adjudicate_R": "R",         # the owner's adjudication for R ends that veto (restores)
+    "adverse_sup_R": "R",        # the owner supersedes R with an adverse record
+    "loss_R": "R",               # a loss boundary withholds R
+    "requalify_R": "R",          # R requalified (restores)
+    "revoke_S": "S",             # a challenge against the produced subject triple upheld
+    "revoke_R2": "R2",           # a challenge upheld against a second review satisfying the same term
+    "rollback": "ALL",           # a rollback MODE_TRANSITION reverses the cutover that enacted it
+}
+LC_RESTORES = {"counter_R": "revoke_R", "dismiss_R": "block_R", "adjudicate_R": "veto_R",
+               "requalify_R": "loss_R", "override_R": "block_R"}
+
+
+def lc_scenarios():
+    starts = []
+    for pub in ("PUBLISHED", "OVERTAKEN"):
+        for gq in ("U", "Q"):
+            for so in ("CLEAR", "OVERRIDDEN"):
+                for two in (False, True):
+                    starts.append(("ITEM", pub, gq, so, False, two))
+    for pub in ("PUBLISHED", "OVERTAKEN"):
+        for frame in (True, False):
+            starts.append(("JI", pub, "U", "CLEAR", frame, False))
+    evs = list(LC_EVENTS)
+    seqs = [()] + [(a,) for a in evs] + [(a, b) for a in evs for b in evs if a != b] + \
+        [(a, b, c) for a, b, c in itertools.product(evs, evs, evs) if len({a, b, c}) == 3
+         and (b in LC_RESTORES or c in LC_RESTORES)]
+    for st in starts:
+        for seq in seqs:
+            yield st, seq
+
+
+def lc_value(start, seq) -> int:
+    """§10.4 as written: v_k is the predicate's value at D_k; only T latches; a latched value is lowered
+    and restored only by events against the lines the predicate read; a passing supersession by the
+    record's author or the owner, or a requalification, continues its line."""
+    kind, pub, gq, so, frame_concurrent, two = start
+    if pub != "PUBLISHED" and "latch_at_admission" not in MUT:
+        return 0  # a fenced or OVERTAKEN integration never latches: the obligation is OPEN
+    if kind == "JI" and frame_concurrent and "records_only_latch_at_answer" not in MUT:
+        return 0  # a frame answer stale after the rebase: its predicate fails at D_k, nothing latches
+    line = {"R": 2, "G": 1 if gq == "Q" else 2, "S": 1 if so == "OVERRIDDEN" else 2}
+    if two:
+        line["R2"] = 2
+    if "latch_drops_qualification" in MUT:
+        line = {k: 2 for k in line}
+    vk = min(line.values())
+    if vk < 2 and "latch_drops_qualification" not in MUT:
+        # not latched: the reviewed current-state predicate; a content change makes its judgments stale
+        return 0 if any(e in ("content_change", "run_change") for e in seq) else vk
+    if "lifecycle_non_latched" in MUT and any(e in ("content_change", "run_change") for e in seq):
+        return 0
+    if "latch_freezes_inputs" in MUT:
+        return vk
+    open_events = {k: set() for k in line}   # unresolved adverse events per line
+    capped = {k: line[k] for k in line}       # 1 where the line's latest record is provisional or qualified
+
+    def value(ln):
+        return 0 if open_events[ln] else capped[ln]
+    for e in seq:
+        tgt = LC_EVENTS[e]
+        if e == "run_change" and "latch_reads_tgt" in MUT:
+            open_events["G"].add("run_change")
+        if tgt is None or tgt not in line and tgt != "ALL":
+            continue
+        if tgt == "ALL":
+            for ln in open_events:
+                open_events[ln].add("rollback")
+            continue
+        if e in ("refresh_U", "refresh_Q", "revalidate_R"):
+            if "refresh_is_withdrawal" in MUT:
+                open_events[tgt].add(e)
+                continue
+            # a continuation is a fresh record of the same target: it ends what acted on the old record
+            # (revocation, block, loss) but not what acts on the target (a veto, an adverse supersession)
+            open_events[tgt] -= {"revoke_R", "block_R", "loss_R"}
+            capped[tgt] = 1 if e == "refresh_Q" else 2
+            continue
+        if e in LC_RESTORES:
+            cause = LC_RESTORES[e]
+            if cause in open_events[tgt]:
+                open_events[tgt].discard(cause)
+                if e == "override_R":
+                    capped[tgt] = min(capped[tgt], 1)
+            continue
+        open_events[tgt].add(e)
+    for ln in line:
+        line[ln] = value(ln)
+    if two and "latch_every_reference" not in MUT:
+        # the review term is an existential: the best line among the reviews satisfying it at D_k
+        line["R"] = max(line["R"], line.pop("R2"))
+    return min(line.values())
+
+
+def lc_oracle(start, seq) -> int:
+    """Protected properties (reviewed §7.4, SD-24, the workflow owner): a closure never stands on
+    work that is not in the published tree; a provisional closure is never closed unqualified; once
+    closed, content and later runs never reopen it, while an unresolved adverse event against what
+    closed it does, and its resolution restores it; refreshing what closed it is not an adverse event."""
+    kind, pub, gq, so, frame_concurrent, two = start
+    if pub != "PUBLISHED" or (kind == "JI" and frame_concurrent):
+        return 0
+    provisional = gq == "Q" or so == "OVERRIDDEN"
+    if provisional:
+        return 0 if ("content_change" in seq or "run_change" in seq) else 1
+    status = {"R": [], "G": [], "S": [], "R2": []}  # unresolved adverse events per line
+    qual = {"R": 2, "G": 2, "S": 2, "R2": 2}
+    for e in seq:
+        if e == "rollback":
+            return 0
+        if e in ("refresh_U", "revalidate_R", "refresh_Q"):
+            ln = LC_EVENTS[e]
+            # adverse events on the old record die with it; those on the target reach its successor
+            status[ln] = [x for x in status[ln] if x in ("veto_R", "adverse_sup_R")]
+            qual[ln] = 1 if e == "refresh_Q" else 2
+        elif e in ("counter_R", "dismiss_R", "adjudicate_R", "requalify_R"):
+            cause = {"counter_R": "revoke_R", "dismiss_R": "block_R", "adjudicate_R": "veto_R",
+                     "requalify_R": "loss_R"}[e]
+            if cause in status["R"]:
+                status["R"].remove(cause)
+        elif e == "override_R":
+            if "block_R" in status["R"]:
+                status["R"].remove("block_R")
+                qual["R"] = min(qual["R"], 1)
+        elif LC_EVENTS[e] in status:
+            status[LC_EVENTS[e]].append(e)
+    # the closure stands on some passing review that still stands, and on every other premise
+    review = max(0 if status["R"] else qual["R"], (0 if status["R2"] else qual["R2"]) if two else 0)
+    others = [0 if status[k] else qual[k] for k in ("G", "S")]
+    return min([review] + others)
+
+
+def check_lifecycle(limit_fail: int = 5, verbose: bool = True) -> dict:
+    fails: dict[str, int] = {}
+    examples: dict[str, list] = {}
+    n = 0
+    for start, seq in lc_scenarios():
+        n += 1
+        got, want = lc_value(start, seq), lc_oracle(start, seq)
+        if got != want:
+            fails["I11"] = fails.get("I11", 0) + 1
+            if len(examples.setdefault("I11", [])) < limit_fail:
+                examples["I11"].append((f"{LIFECYCLE} {start} {seq}: value {got} oracle {want}", []))
+    if verbose:
+        print(f"{LIFECYCLE} scenarios: {n}")
+    return {"n": n, "fails": fails, "examples": examples}
+
+
 def run_family(name: str, verbose: bool = True) -> dict:
     if name == GATE_BASIS:
         return check_gate_basis(verbose=verbose)
+    if name == LIFECYCLE:
+        return check_lifecycle(verbose=verbose)
     return check_all(verbose=verbose) if name == CORE else check_family(name, verbose=verbose)
 
 
@@ -1292,7 +1479,7 @@ def main() -> int:
     ap.add_argument("--mutations", action="store_true", help="also check that each mutation is caught")
     args = ap.parse_args()
     MUT.clear()
-    results = [run_family(f) for f in (CORE,) + tuple(FAMILIES) + (GATE_BASIS,)]
+    results = [run_family(f) for f in (CORE,) + tuple(FAMILIES) + (GATE_BASIS, LIFECYCLE)]
     ok = not any(r["fails"] for r in results)
     if ok:
         print("unmutated §5.10 rules: every modelled invariant holds")
