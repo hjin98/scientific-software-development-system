@@ -10,8 +10,9 @@ What is modelled, in four families (the first checked by check_all, the others b
   kinds    REV   a transformation REVIEW: target (item revision, changed content, base); item
                  revisions i1, i2 (an amendment of item I's contract), k1 (I re-identified as K
                  with i1's prose and contract) and k2 (re-identified with a one-byte heading
-                 change); reach = the same changed content under any item, revision or plan
-                 (SD-34); supersession on the exact target; per-target relief (route 3).
+                 change); reach = every review whose output content entries name the vetoed
+                 change's units at the same content, under any item, revision or plan (SD-34,
+                 SD-41), with a re-dispatched review over out(o) that keeps or re-does the content; supersession on the exact target; per-target relief (route 3).
            ACC   an ACCEPTANCE: target = (subject, revision content); s2 re-identifies s1 with
                  identical content; reach = the same subject triple only (S10);
                  supersession on the exact target.
@@ -81,7 +82,8 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
   I13-I15, I18 (obligation-routing) §10.4's list against every section's own claim (SD-36 to SD-40): every
          OPEN obligation has exactly one route; no REVALIDATE of an integrated review or task result; a
          reopened integrated item is re-dispatched within budget unless a fence, a pending candidate or a
-         principal's decision comes first; an answered decision ends its route.
+         principal's decision comes first; a pending candidate is never discarded; a kept fence's route
+         ends once decided. Section claims enter only under mutations (b365947 N1).
   I8     (composing families) the owner's adjudication obligation is derived exactly when a
          standing objection contradicts a passing judgment acting in the state.
 
@@ -246,6 +248,19 @@ def plan_reaches(j, z) -> bool:
 # contract; k1 re-identifies I as item K with i1's prose and contract; k2 re-identifies it with a
 # one-byte heading change (SD-34)
 REV_ITEMS = {"i1": ("I", "pc1"), "i2": ("I", "pc2"), "k1": ("K", "pc1"), "k2": ("K2", "pc3")}
+# a review's content: (changed entries, output content entries). c1 and c2 are first enactments (their
+# output entries are their change); c1v is a re-dispatched enactment that changed only v, so its review's
+# output entries name all of out(o) = {u, v} with u still at c1's content; cv2 re-did u (SD-41, b365947 B2)
+REV_CONTENT = {"c1": ({("u", 1)}, {("u", 1)}), "c2": ({("u", 2)}, {("u", 2)}),
+               "c1v": ({("v", 1)}, {("u", 1), ("v", 1)}), "cv2": ({("u", 2)}, {("u", 2), ("v", 1)})}
+
+
+def review_reached(j_content: str, z_content: str) -> bool:
+    """A transformation review's veto reaches a review whose output content entries name each of the
+    vetoed transformation's changed units at the same content (SD-41)."""
+    if "review_reach_changed_only" in MUT:  # b365947 B2: the same changed content only
+        return j_content == z_content
+    return REV_CONTENT[j_content][0] <= REV_CONTENT[z_content][1]
 
 
 def reach(j: J, z: J) -> bool:
@@ -257,10 +272,10 @@ def reach(j: J, z: J) -> bool:
         # the same changed-unit content, under any item, revision or plan (SD-34)
         (ji, jpc), (zi, zpc) = REV_ITEMS[j.target[0]], REV_ITEMS[z.target[0]]
         if "review_reach_same_item_only" in MUT:  # 5895687 B1(b): keyed on the item's identity
-            return j.target[1] == z.target[1] and ji == zi
+            return review_reached(j.target[1], z.target[1]) and ji == zi
         if "review_reach_item_or_prose" in MUT:  # 913db8f B1 (SD-33's rule)
-            return j.target[1] == z.target[1] and (ji == zi or jpc == zpc)
-        return j.target[1] == z.target[1]
+            return review_reached(j.target[1], z.target[1]) and (ji == zi or jpc == zpc)
+        return review_reached(j.target[1], z.target[1])
     if j.kind == "ACC":
         # target (subject, revision content): the same subject triple only (S10); s2, s1 re-identified
         # with byte-identical content, is a control the objection does not reach
@@ -632,9 +647,12 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
                     return True
         return False
     if j.kind == "REV":
-        # what the review judged is the changed content itself; the item it was produced for is not
-        # part of the claim (SD-34). This restates the row: the claim and the formula coincide here
-        return j.target[1] == z.target[1]
+        # what a review judged is the content its output entries name (SD-41); an adverse review denies
+        # its target's change, a passing one asserts every entry it names; the item it was produced for
+        # is not part of the claim (SD-34). The claim and the formula coincide here
+        denied = REV_CONTENT[j.target[1]][0]
+        asserted = REV_CONTENT[z.target[1]][1]
+        return all(e in asserted for e in denied)
     if j.kind == "ACC":
         # an acceptance attaches to one exact subject (S10): content identity never transfers it
         return j.target == z.target
@@ -766,7 +784,8 @@ def oracle_disagreement(L: Ledger, j: J, G: str) -> bool:
 # ---- scenario generation
 def scenarios():
     tgt = {
-        "REV": [("i1", "c1", "b1"), ("i2", "c1", "b2"), ("i1", "c2", "b1"), ("k1", "c1", "b1"), ("k2", "c1", "b1")],
+        "REV": [("i1", "c1", "b1"), ("i2", "c1", "b2"), ("i1", "c2", "b1"), ("k1", "c1", "b1"), ("k2", "c1", "b1"),
+                ("i1", "c1v", "b1"), ("i1", "cv2", "b1")],
         "ACC": [("s1", "r1"), ("s1", "r2"), ("s2", "r1")],
         "GATE": [("r1", "p1"), ("r1", "p2"), ("r2", "p2")],
     }
@@ -1159,6 +1178,8 @@ MUTATIONS = {
                                      "an adverse item-level review iterates parts that stay discharged (eb86a71 B1(e))"),
     "decline_allowed_for_items": (("obligation-routing",),
                                   "a DECLINE answers an item obligation's decision and leaves it OPEN (eb86a71 N2)"),
+    "review_reach_changed_only": ((CORE,),
+                                  "a review veto reaches only the same changed content, not output entries (b365947 B2)"),
     "acceptance_reach_by_content": ((CORE,),
                                     "an acceptance veto keyed on content across subjects, against S10 (edabd81 N2)"),
     "review_reach_item_or_prose": ((CORE,),
@@ -1300,11 +1321,11 @@ def check_gate_basis(limit_fail: int = 5, verbose: bool = True) -> dict:
 
 
 ROUTING = "obligation-routing"
-# Routes of an item obligation (§10.4, SD-36 to SD-40) and of a joint-invariant obligation, over a state
-# with an integrated enactment, an optional pending candidate, fences, the iteration budget, amendments,
-# the principal's decisions and a two-part partition. Each section's own route claim (§11.5 rebase, §13.7
-# iteration and budget, §22.3 fences, §4.1 and §10.2 REVALIDATE, §10.2 COORDINATE(plan) rows, §15.5
-# outcomes) is written as that section states it and checked against §10.4's list.
+# Routes of an item obligation (§10.4, SD-36 to SD-40), over a state with an integrated enactment, an
+# optional single pending candidate, fences, the iteration budget, amendments, the principal's decisions
+# and a two-part partition modelled as one obligation. claims() adds another section's route only under
+# a mutation re-introducing an earlier round's defect: unmutated, the list is compared with itself, not
+# with the other sections' current text (b365947 N1; SD-41 accepted the routing residual by a bounded stop).
 RT_EVENTS = (
     "move_out",          # a later change moves out(o)
     "move_read",         # a later change moves only what the reviews read
@@ -1513,11 +1534,12 @@ def rt_derive(kind, seq):
 
 
 def check_routing(limit_fail: int = 5, verbose: bool = True) -> dict:
-    """Properties over §10.4's list and every section's own claim. I13 every OPEN obligation has a route.
-    I14 exactly one route (no section claims a route the list does not give). I15 an integrated
+    """Properties over §10.4's list (and, under a mutation, an earlier round's section claim). I13 every
+    OPEN obligation has a route. I14 exactly one route. I15 an integrated
     obligation whose predicate fails is never waiting on a REVALIDATE of its integrated review or task
     result (SD-40), and is re-dispatched within budget unless a fence, a pending candidate or a
-    principal's decision comes first. I18 an answered decision ends its route."""
+    principal's decision comes first. I18 a pending candidate is never discarded, a kept fence's route ends
+    once decided, and an adverse item-level review naming a part never leaves the item discharged."""
     fails: dict[str, int] = {}
     examples: dict[str, list] = {}
     n = 0
