@@ -38,6 +38,10 @@ What is modelled, in four families (the first checked by check_all, the others b
            The one reach rule (SD-29) for the composing kinds: z is reached when some set of
            asserting judgments of the kind, with z, claims what the objection denies and
            without z does not (Ledger.composed_reach with the per-kind Ledger.derives).
+           GATE basis (gate-basis family, SD-35): a gate decision whose basis is built from
+                 the evidence core shown (required evidence, a revision assessment, a non-required
+                 realization, challenges, a standing gate rejection); current() is computed over
+                 that basis and must never be asked of a challenge-tier record (I9).
   actors   A  the content's author (human, R3)       H  an independent human (R3)
            O  the owner (human, R3, independent)      P  an attested-fresh agent (R2)
            U  an agent with UNKNOWN lineage (R2; never independent)
@@ -69,6 +73,8 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
          is the same under two sampled reference-respecting permutations per case; not
          every order is tried.
   I7     no admitted adjudication is below its chain's class or dependent on authors(root).
+  I9     (gate-basis) current() is never asked of a record outside its domain; a gate decision's
+         value reads only its required premises, never what is merely shown.
   I8     (composing families) the owner's adjudication obligation is derived exactly when a
          standing objection contradicts a passing judgment acting in the state.
 
@@ -129,6 +135,7 @@ class J:  # judgment
     actor: str
     frame: str = "adm"  # adm | pend | aband
     supersedes: tuple = ()
+    basis: tuple = ()  # gate-basis family only: ((mode, record id), ...), mode record | identity
 
 
 @dataclass(frozen=True)
@@ -1116,6 +1123,10 @@ MUTATIONS = {
     "plan_no_relief": (("plan-coverage",), "plan acceptance has no per-target relief (83a82df option 2)"),
     "plan_reach_same_item_only": (("plan-coverage",),
                                   "a plan rejection reaches only acceptances of the same item (5895687 B1)"),
+    "gate_basis_record_all": (("gate-basis",),
+                              "record mode on every record of the evidence core shown (d94a293 B1)"),
+    "gate_basis_identity_all": (("gate-basis",),
+                                "identity mode on the gate's required premises too (d94a293 negative control)"),
     "review_reach_item_or_prose": ((CORE,),
                                    "a review veto reaches re-identified items only with identical prose and contract (913db8f B1)"),
     "review_reach_same_item_only": ((CORE,),
@@ -1131,7 +1142,114 @@ MUTATIONS = {
 }
 
 
+# ---- gate basis (§4.3, §5.5, §16.6; SD-35): a gate decision's basis from the evidence core shown
+GATE_BASIS = "gate-basis"
+
+
+class OutOfDomain(Exception):
+    """current() asked of a record outside its domain (support-tier and observation records)."""
+
+
+def gate_basis(core: list) -> tuple:
+    """core: [(record id, role)], role required | revision | shown. SD-35: record only on the
+    required supporting premises; identity on every other displayed item."""
+    out = []
+    for rid, role in core:
+        if "gate_basis_record_all" in MUT:  # d94a293 B1: record on every record of the core shown
+            mode = "record"
+        elif "gate_basis_identity_all" in MUT:  # negative control: required support dropped
+            mode = "identity"
+        else:
+            mode = "record" if role in ("required", "revision") else "identity"
+        out.append((mode, rid))
+    return tuple(out)
+
+
+def current3(L: Ledger, x, G: str) -> int:
+    """§5.5 current(x) = base(x) ∧ ⋀ sat(e), sat(record y) = current(y), sat(identity y) = T."""
+    if not isinstance(x, J):
+        raise OutOfDomain(getattr(x, "id", "?"))
+    v = L.base3(x, G)
+    for mode, rid in x.basis:
+        if mode == "identity":
+            continue
+        y = L.adm.get(rid)
+        if not isinstance(y, J):
+            raise OutOfDomain(rid)
+        v = min(v, current3(L, y, G))
+    return v
+
+
+def gate_basis_scenarios():
+    for fe, ce, ra, n, cn, r, sup, actor in itertools.product(
+            ("adm", "pend"), (False, True), (None, "adm", "pend"), (None, "adm", "pend"), (False, True),
+            (None, "adm", "aband"), (False, True), ("H", "O")):
+        if (cn and n is None) or (sup and r is None):
+            continue
+        recs = [J("e", "EV", ("ev",), False, "P", fe)]
+        core = [("e", "required")]
+        if ce:
+            recs.append(C("c_e", "e", "P"))
+            core.append(("c_e", "shown"))
+        if ra:
+            recs.append(J("ra", "RA", ("r1",), False, "P", ra))
+            core.append(("ra", "revision"))
+        if n:
+            recs.append(J("n", "EV", ("ev2",), False, "P", n))
+            core.append(("n", "shown"))
+        if cn:
+            recs.append(C("c_n", "n", "P"))
+            core.append(("c_n", "shown"))
+        if r:
+            recs.append(J("r", "GATE", ("r1", "p2"), True, "H", r))
+            core.append(("r", "shown"))
+        recs.append(J("h", "GATE", ("r1", "p2"), False, actor, "adm", ("r",) if sup else (), gate_basis(core)))
+        yield core, recs
+
+
+def oracle_gate(L: Ledger, h: J, core: list, G: str) -> int:
+    """The gate supports as its own standing allows, capped by its required premises only;
+    what is merely shown never lowers it (the protected property behind SD-35)."""
+    v = L.base3(h, G)
+    for rid, role in core:
+        if role in ("required", "revision"):
+            v = min(v, oracle_base3(L, L.adm[rid], G))
+    return v
+
+
+def check_gate_basis(limit_fail: int = 5, verbose: bool = True) -> dict:
+    fails: dict[str, int] = {}
+    examples: dict[str, list] = {}
+    n = 0
+    for core, recs in gate_basis_scenarios():
+        n += 1
+        L = Ledger(recs)
+
+        def note(inv, msg):
+            fails[inv] = fails.get(inv, 0) + 1
+            if len(examples.setdefault(inv, [])) < limit_fail:
+                examples[inv].append((f"gate-basis {msg}", list(recs)))
+        h = L.adm.get("h")
+        if h is None:
+            note("I1/I3", "the gate decision was not admitted")
+            continue
+        for G in ("D", "F"):
+            try:
+                got = current3(L, h, G)
+            except OutOfDomain as e:
+                note("I9", f"{G}: current() of {e} outside its domain")
+                continue
+            want = oracle_gate(L, h, core, G)
+            if got != want:
+                note("I1/I3", f"{G}: current(h)={got} oracle={want}")
+    if verbose:
+        print(f"{GATE_BASIS} scenarios: {n}")
+    return {"n": n, "fails": fails, "examples": examples}
+
+
 def run_family(name: str, verbose: bool = True) -> dict:
+    if name == GATE_BASIS:
+        return check_gate_basis(verbose=verbose)
     return check_all(verbose=verbose) if name == CORE else check_family(name, verbose=verbose)
 
 
@@ -1140,7 +1258,7 @@ def main() -> int:
     ap.add_argument("--mutations", action="store_true", help="also check that each mutation is caught")
     args = ap.parse_args()
     MUT.clear()
-    results = [run_family(f) for f in (CORE,) + tuple(FAMILIES)]
+    results = [run_family(f) for f in (CORE,) + tuple(FAMILIES) + (GATE_BASIS,)]
     ok = not any(r["fails"] for r in results)
     if ok:
         print("unmutated §5.10 rules: every modelled invariant holds")
