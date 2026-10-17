@@ -12,7 +12,8 @@ What is modelled, in four families (the first checked by check_all, the others b
                  with i1's prose and contract) and k2 (re-identified with a one-byte heading
                  change); reach = the same changed content under any item, revision or plan
                  (SD-34); supersession on the exact target; per-target relief (route 3).
-           ACC   an ACCEPTANCE: target = subject revision; reach = same revision;
+           ACC   an ACCEPTANCE: target = (subject, revision content); s2 re-identifies s1 with
+                 identical content; reach = the same revision content in any subject;
                  supersession on the exact target.
            GATE  a GATE_DECISION: target = (revision, run); reach and supersession
                  target = same revision in any run; no independence requirement;
@@ -75,6 +76,8 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
   I7     no admitted adjudication is below its chain's class or dependent on authors(root).
   I9     (gate-basis) current() is never asked of a record outside its domain; a gate decision's
          value reads only its required premises, never what is merely shown.
+  I10    (gate-basis) liveness: while the revision assessment counts and the required evidence
+         holds, a fresh gate decision is admissible, so a ready gate obligation is answerable.
   I8     (composing families) the owner's adjudication obligation is derived exactly when a
          standing objection contradicts a passing judgment acting in the state.
 
@@ -255,7 +258,11 @@ def reach(j: J, z: J) -> bool:
             return j.target[1] == z.target[1] and (ji == zi or jpc == zpc)
         return j.target[1] == z.target[1]
     if j.kind == "ACC":
-        return j.target == z.target
+        # target (subject, revision content): the same content in any subject (item 31); s2 is s1
+        # re-identified with byte-identical content
+        if "acceptance_reach_same_subject" in MUT:
+            return j.target == z.target
+        return j.target[1] == z.target[1]
     if "gate_run_veto" in MUT:  # 362af9f B1-A: veto keyed on the run-parameterized obligation
         return j.target == z.target
     return j.target[0] == z.target[0]
@@ -625,7 +632,8 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
         # part of the claim (SD-34). This restates the row: the claim and the formula coincide here
         return j.target[1] == z.target[1]
     if j.kind == "ACC":
-        return j.target == z.target
+        # what an acceptance judges is the subject revision's content, whichever subject names it
+        return j.target[1] == z.target[1]
     return j.target[0] == z.target[0]
 
 
@@ -755,7 +763,7 @@ def oracle_disagreement(L: Ledger, j: J, G: str) -> bool:
 def scenarios():
     tgt = {
         "REV": [("i1", "c1", "b1"), ("i2", "c1", "b2"), ("i1", "c2", "b1"), ("k1", "c1", "b1"), ("k2", "c1", "b1")],
-        "ACC": [("r1",), ("r2",)],
+        "ACC": [("s1", "r1"), ("s1", "r2"), ("s2", "r1")],
         "GATE": [("r1", "p1"), ("r1", "p2"), ("r2", "p2")],
     }
     objectors = {"REV": ["H", "P"], "ACC": ["H", "P"], "GATE": ["H"]}
@@ -826,7 +834,11 @@ def check_all(limit_fail: int = 5, verbose: bool = True) -> dict:
                 if z.kind == "REV":
                     fix = J("fix", z.kind, z.target, False, "O", frame)
                 elif z.kind == "ACC":
-                    fix = J("fix", z.kind, z.target, False, "O", frame, tuple(j.id for j in L.js if j.adverse))
+                    # the owner's adjudication on the objection's own target withdraws it everywhere,
+                    # the re-identified subject included (supersession target: the exact target)
+                    adv = [j for j in L.js if j.adverse]
+                    fix = J("fix", z.kind, adv[0].target if adv else z.target, False, "O", frame,
+                            tuple(j.id for j in adv))
                 else:
                     fix = J("fix", z.kind, z.target, False, "O", frame, tuple(j.id for j in L.js if j.adverse))
                 L3 = Ledger(recs + [fix])
@@ -1125,8 +1137,12 @@ MUTATIONS = {
                                   "a plan rejection reaches only acceptances of the same item (5895687 B1)"),
     "gate_basis_record_all": (("gate-basis",),
                               "record mode on every record of the evidence core shown (d94a293 B1)"),
+    "revision_assessment_record_mode": (("gate-basis",),
+                                        "a decision imports the revision assessment's currency, not its standing (653e88c B1)"),
     "gate_basis_identity_all": (("gate-basis",),
                                 "identity mode on the gate's required premises too (d94a293 negative control)"),
+    "acceptance_reach_same_subject": ((CORE,),
+                                      "an acceptance veto reaches only the same subject, not a re-identified one (item 31)"),
     "review_reach_item_or_prose": ((CORE,),
                                    "a review veto reaches re-identified items only with identical prose and contract (913db8f B1)"),
     "review_reach_same_item_only": ((CORE,),
@@ -1159,8 +1175,12 @@ def gate_basis(core: list) -> tuple:
             mode = "record"
         elif "gate_basis_identity_all" in MUT:  # negative control: required support dropped
             mode = "identity"
+        elif role == "required":
+            mode = "record"
+        elif role == "revision":  # §4.1 standing: the decision relies on the assessment standing (SD-36)
+            mode = "record" if "revision_assessment_record_mode" in MUT else "standing"
         else:
-            mode = "record" if role in ("required", "revision") else "identity"
+            mode = "identity"
         out.append((mode, rid))
     return tuple(out)
 
@@ -1176,15 +1196,15 @@ def current3(L: Ledger, x, G: str) -> int:
         y = L.adm.get(rid)
         if not isinstance(y, J):
             raise OutOfDomain(rid)
-        v = min(v, current3(L, y, G))
+        v = min(v, L.base3(y, G) if mode == "standing" else current3(L, y, G))  # sat(standing y) = base(y)
     return v
 
 
 def gate_basis_scenarios():
-    for fe, ce, ra, n, cn, r, sup, actor in itertools.product(
-            ("adm", "pend"), (False, True), (None, "adm", "pend"), (None, "adm", "pend"), (False, True),
-            (None, "adm", "aband"), (False, True), ("H", "O")):
-        if (cn and n is None) or (sup and r is None):
+    for fe, ce, ra, rd, n, cn, r, sup, actor in itertools.product(
+            ("adm", "pend"), (False, True), (None, "adm", "pend"), ("adm", "pend"), (None, "adm", "pend"),
+            (False, True), (None, "adm", "aband"), (False, True), ("H", "O")):
+        if (cn and n is None) or (sup and r is None) or (ra is None and rd == "pend"):
             continue
         recs = [J("e", "EV", ("ev",), False, "P", fe)]
         core = [("e", "required")]
@@ -1192,7 +1212,10 @@ def gate_basis_scenarios():
             recs.append(C("c_e", "e", "P"))
             core.append(("c_e", "shown"))
         if ra:
-            recs.append(J("ra", "RA", ("r1",), False, "P", ra))
+            # the revision assessment is a task result with its own basis: a read the reviser made,
+            # which a later governing or read change makes non-current (rd pending: stale in D)
+            recs.append(J("rd", "EV", ("read",), False, "P", rd))
+            recs.append(J("ra", "RA", ("r1",), False, "P", ra, (), (("record", "rd"),)))
             core.append(("ra", "revision"))
         if n:
             recs.append(J("n", "EV", ("ev2",), False, "P", n))
@@ -1242,6 +1265,17 @@ def check_gate_basis(limit_fail: int = 5, verbose: bool = True) -> dict:
             want = oracle_gate(L, h, core, G)
             if got != want:
                 note("I1/I3", f"{G}: current(h)={got} oracle={want}")
+            # I10 liveness: while the assessment counts and the required evidence holds, a fresh
+            # gate decision on the same core is admissible (its basis holds), so GATE is answerable
+            premises = min([oracle_base3(L, L.adm[rid], G) for rid, role in core if role in ("required", "revision")])
+            if premises > 0 and not any(isinstance(L.adm.get(x), J) and L.adm[x].adverse for x in ("r",)):
+                fresh = J("h2", "GATE", ("r1", "p2"), False, "O", "adm", (), gate_basis(core))
+                L2 = Ledger(recs + [fresh])
+                try:
+                    if "h2" in L2.adm and current3(L2, L2.adm["h2"], G) == 0:
+                        note("I10", f"{G}: GATE ready but no admissible answer (fresh decision not current)")
+                except OutOfDomain:
+                    pass
     if verbose:
         print(f"{GATE_BASIS} scenarios: {n}")
     return {"n": n, "fails": fails, "examples": examples}
