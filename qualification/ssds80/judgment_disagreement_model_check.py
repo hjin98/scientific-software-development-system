@@ -78,11 +78,10 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
          value reads only its required premises, never what is merely shown.
   I10    (gate-basis) liveness: while the revision assessment counts and the required evidence
          holds, a fresh gate decision is admissible, so a ready gate obligation is answerable.
-  I13-I16, I18 (obligation-routing) the union of every owning section's route triggers (SD-36 to SD-39):
-         every OPEN obligation has a route and every derived REVALIDATE an admissible answer; exactly
-         one route; never discharged while out(o) moved, re-dispatched only then; a REFUSED event-keyed
-         obligation stays derived and its decision lapses once made; a standing adverse review iterates
-         within budget, else COORDINATE(plan); a fence precedes every other route.
+  I13-I15, I18 (obligation-routing) §10.4's list against every section's own claim (SD-36 to SD-40): every
+         OPEN obligation has exactly one route; no REVALIDATE of an integrated review or task result; a
+         reopened integrated item is re-dispatched within budget unless a fence, a pending candidate or a
+         principal's decision comes first; an answered decision ends its route.
   I8     (composing families) the owner's adjudication obligation is derived exactly when a
          standing objection contradicts a passing judgment acting in the state.
 
@@ -1146,34 +1145,20 @@ MUTATIONS = {
                                         "a decision imports the revision assessment's currency, not its standing (653e88c B1)"),
     "gate_basis_identity_all": (("gate-basis",),
                                 "identity mode on the gate's required premises too (d94a293 negative control)"),
-    "refused_trigger_all": (("obligation-routing",),
-                            "every REFUSED event-keyed obligation owes a decision, REVIEW(X) included (093164f B1(a))"),
-    "ji_task_result_record": (("obligation-routing",),
-                              "the joint-invariant review's record entry on the task result (093164f B1(b))"),
-    "key_domain_unstated": (("obligation-routing",),
-                            "the post-integration exclusion applied to a pending candidate (093164f B1(c))"),
-    "fence_drift_both": (("obligation-routing",),
-                         "drift ready while a fence awaits its human decision (093164f B1(d))"),
-    "budget_drift_both": (("obligation-routing",),
-                          "drift and COORDINATE(plan) both live at budget exhaustion (093164f B1(e))"),
-    "iteration_on_event": (("obligation-routing",),
-                           "the NO-PASS iteration keyed on the revalidation event (093164f B1(f))"),
-    "all_enactment_reviews": (("obligation-routing",),
-                              "every enactment's review relied on: an earlier one's REVALIDATE strands (8f4e75d B1(a))"),
-    "review_covers_own_delta": (("obligation-routing",),
-                                "a re-dispatched enactment's review covers only its own delta (8f4e75d B1(b))"),
-    "adverse_no_route": (("obligation-routing",),
-                         "an adverse revalidation of an integrated item leaves no route (8f4e75d B1(c))"),
-    "overtake_two_routes": (("obligation-routing",),
-                            "a plain overtake derives drift and COORDINATE(plan) (8f4e75d B1(d))"),
-    "investigator_generic": (("obligation-routing",),
-                             "an investigator item re-dispatched on a read-only change (8f4e75d B1(e))"),
-    "revalidate_despite_move": (("obligation-routing",),
-                                "REVALIDATE derived although the item's outputs moved (f185036 B1(b))"),
-    "refused_retired": (("obligation-routing",),
-                        "a later change in scope retires a REFUSED obligation (494c810 B1(a))"),
-    "adjudication_ignored": (("obligation-routing",),
-                             "an open veto of the latest review leaves the item with no adjudication route (093164f N4)"),
+    "revalidate_after_integration": (("obligation-routing",),
+                                     "REVALIDATE of an integrated review or task result (SD-37/SD-38 waiting route; SD-40)"),
+    "r2_instead_clause": (("obligation-routing",),
+                          "an R2 amendment of an integrated obligation routed to the principal instead (eb86a71 B1(a))"),
+    "rebase_before_first_only": (("obligation-routing",),
+                                 "a pending candidate of an integrated obligation re-dispatched over (eb86a71 B1(b))"),
+    "pending_ignored": (("obligation-routing",),
+                        "the list ignores a pending candidate of an integrated obligation (eb86a71 B1(b))"),
+    "kept_fence_persists": (("obligation-routing",),
+                            "a kept fence's route outlives its decision (eb86a71 B1(c))"),
+    "item_review_parts_discharged": (("obligation-routing",),
+                                     "an adverse item-level review iterates parts that stay discharged (eb86a71 B1(e))"),
+    "decline_allowed_for_items": (("obligation-routing",),
+                                  "a DECLINE answers an item obligation's decision and leaves it OPEN (eb86a71 N2)"),
     "acceptance_reach_by_content": ((CORE,),
                                     "an acceptance veto keyed on content across subjects, against S10 (edabd81 N2)"),
     "review_reach_item_or_prose": ((CORE,),
@@ -1315,31 +1300,38 @@ def check_gate_basis(limit_fail: int = 5, verbose: bool = True) -> dict:
 
 
 ROUTING = "obligation-routing"
-# Routes of an item obligation and of a joint-invariant obligation, each derived by the trigger of the
-# section that owns it (§10.2 REVALIDATE and COORDINATE(plan) rows, §10.4 drift, §11.5 rebase, §13.7
-# iteration and budget, §22.3 fences); the properties then check the union, so a route another section
-# derives cannot be missed. Units: u, v (outputs of the first enactment), g (read by every review),
-# w (outside the joint invariant's scope), s (the invariant's scope context).
+# Routes of an item obligation (§10.4, SD-36 to SD-40) and of a joint-invariant obligation, over a state
+# with an integrated enactment, an optional pending candidate, fences, the iteration budget, amendments,
+# the principal's decisions and a two-part partition. Each section's own route claim (§11.5 rebase, §13.7
+# iteration and budget, §22.3 fences, §4.1 and §10.2 REVALIDATE, §10.2 COORDINATE(plan) rows, §15.5
+# outcomes) is written as that section states it and checked against §10.4's list.
 RT_EVENTS = (
-    "move_u", "move_v", "revert_u", "move_g",
-    "revalidate_pass",      # the latest review's author supersedes it with a passing review
-    "revalidate_adverse",   # ... with a NO_PASS
-    "peer_adverse",         # a peer's or human's adverse review of the latest transformation (veto open)
-    "owner_upholds",        # the owner's adjudication upholds that veto
-    "reattest_incomplete",  # the latest task result's re-attestation is not COMPLETE
-    "dispatch",             # the ready route is taken: a new enactment re-doing the moved outputs
-    "dispatch_empty",       # ... integrating an empty transformation
-    "overtake",             # a plain overtake moving u
-    "fence",                # the latest integration is fenced (human decision awaited)
-    "keep_fence",           # the human keeps the fence
-    "ji_move_w", "ji_move_scope", "ji_refuse", "decide",  # decide: the principal answers an owed decision
+    "move_out",          # a later change moves out(o)
+    "move_read",         # a later change moves only what the reviews read
+    "adverse_in",        # a standing adverse review of the latest integrated enactment, findings in scope
+    "adverse_out",       # ... with findings outside the item's write scope or obligations
+    "peer_veto",         # a peer's adverse review whose veto awaits the owner
+    "r1_tighten",        # an R1 tightening adding a HARD check the integrated content fails
+    "r2_amend",          # an R2 amendment: a new key and so a new obligation
+    "dispatch",          # the item's route is taken: a new task, whose candidate is then pending
+    "cand_pass",         # the pending candidate's result is clean and its review passes
+    "cand_nopass",       # ... its review is NO_PASS with findings in scope
+    "cand_incomplete",   # ... its result is INCOMPLETE
+    "cand_discrepancy",  # ... its conformance has a DISCREPANCY
+    "cand_rebase_conflict", "cand_rebase_read",  # a rebase conflicting with its own units / over a read
+    "cand_revalidate",   # the candidate's reviewer revalidates it
+    "cand_integrate",    # the pending candidate integrates
+    "fence", "keep_fence", "reapply_fence",  # the latest integration fenced; the human keeps it / re-applies
+    "decide_amend",      # the principal's AMEND answers an owed decision (withdrawal included)
+    "decide_decline",    # the principal's DECLINE
+    "item_review_adverse_p1", "item_review_adverse_none",  # partitioned: findings naming part 1 / no part
 )
-RT_BUDGET = 2
+RT_BUDGET = 3
 
 
 def rt_scenarios():
     evs = list(RT_EVENTS)
-    for kind in ("IMPLEMENT", "INVESTIGATE", "PENDING"):
+    for kind in ("IMPLEMENT", "PARTITIONED", "FIRST"):
         yield kind, ()
         for n in (1, 2, 3):
             for seq in itertools.product(evs, repeat=n):
@@ -1349,227 +1341,183 @@ def rt_scenarios():
 class RtState:
     def __init__(self, kind):
         self.kind = kind
-        self.cur = {"u": 1, "v": 1, "g": 1, "w": 1, "s": 1}
-        delta = set() if kind == "INVESTIGATE" else {"u", "v"}
-        # a findings-only investigation's reviewed result counts as its integration (SD-39); a PENDING
-        # item has a reviewed candidate that is not yet integrated
-        self.integrated = kind != "PENDING"
-        tr = {"entries": {x: 1 for x in delta | {"g"}}, "incomplete": False}
-        self.enact = [{"delta": delta, "task_result": tr, "review": self.review(delta, tr)}]
-        self.base = {x: 1 for x in delta}
+        self.integrated = kind != "FIRST"
+        self.discharged_base = self.integrated  # the latest integrated enactment's predicate held
+        self.moved = False
+        self.read_moved = False
+        self.adverse = None        # None | "in" | "out"
+        self.veto_open = False
+        self.tightened = False
+        self.retired = False       # an R2 amendment or a withdrawal ended this obligation
         self.iterations = 1
-        self.fence = None  # None | "await" | "kept"
-        self.ji = {"refused": False, "decided": False,
-                   "entries": {"u": 1, "s": 1} | ({"w": 1} if "ji_task_result_record" in MUT else {})}
-        self.ji_scope_revs = {"u": 1, "s": 1}
-        self.ji_ended = False
+        self.cand = {"state": "review"} if kind == "FIRST" else None
+        self.fence = None          # None | "await" | "kept" | "decided"
+        self.coord_answered = set()
+        self.declined = set()
+        self.parts_adverse = None  # partition: None | "p1" | "none"
 
-    def review(self, outputs, tr):
-        return {"entries": {x: self.cur[x] for x in outputs} | {"g": self.cur["g"]}, "tr": tr,
-                "adverse": False, "veto_open": False}
-
-    def out(self):
-        units = set()
-        for e in self.enact:
-            units |= e["delta"]
-        return units
-
-    def moved(self):
-        return self.integrated and any(self.cur[x] != self.base[x] for x in self.out())
-
-    def holds(self, entries):
-        return all(self.cur[x] == r for x, r in entries.items())
-
-    def latest(self):
-        return self.enact[-1]
-
-    def review_current(self):
-        rv = self.latest()["review"]
-        return not rv["adverse"] and not rv["veto_open"] and self.holds(rv["entries"]) \
-            and self.holds(rv["tr"]["entries"]) and not rv["tr"]["incomplete"]
-
-    def standing_adverse(self):
-        rv = self.latest()["review"]
-        return rv["adverse"] or rv["tr"]["incomplete"]
+    # -- the predicate of the latest integrated enactment (§10.4) --
+    def holds(self):
+        return self.integrated and self.discharged_base and not self.moved and not self.read_moved \
+            and self.adverse is None and not self.veto_open and not self.tightened \
+            and self.parts_adverse is None
 
     def budget_left(self):
         return self.iterations < RT_BUDGET
 
-    # ---- the triggers, one per owning section ----
-    def t_22_3_fence(self):
+    def cand_routes(self):
+        """A pending candidate's ordinary routes (before integration, §11.5, §13.7, §4.1)."""
+        c = self.cand["state"]
+        if c == "discrepancy":
+            return {"COORDINATE:discrepancy"}
+        if c in ("nopass", "incomplete", "conflict"):
+            return {"ITERATE"} if self.budget_left() else {"COORDINATE:budget"}
+        if c == "stale":
+            return {"REVALIDATE:candidate"}
+        if c == "review":
+            return {"REVIEW:candidate"}
+        if c == "clean":
+            return {"INTEGRATE:candidate"}
+        return set()
+
+    def list_route(self):
+        """§10.4's ordered list: the first that applies is the only route."""
+        if self.retired:
+            return ("RETIRED", set())
         if self.fence == "await":
-            return {"HUMAN_FENCE_DECISION"}
-        if self.fence == "kept":
-            return {"COORDINATE:fence"}
-        return set()
+            return ("OPEN", {"HUMAN_FENCE_DECISION"})
+        if self.fence == "kept" and "fence" not in self.coord_answered:
+            return ("OPEN", {"COORDINATE:fence"})
+        if self.holds():
+            return ("DISCHARGED", set())
+        if self.cand is not None and "pending_ignored" not in MUT:
+            return ("OPEN", self.cand_routes())
+        if not self.integrated:
+            return ("OPEN", {"DISPATCH"})
+        if self.parts_adverse == "none":
+            return ("OPEN", set() if "budget" in self.coord_answered and False else {"COORDINATE:item_review"})
+        if self.adverse == "out":
+            return ("OPEN", {"COORDINATE:out_of_scope"})
+        if not self.budget_left():
+            return ("OPEN", {"COORDINATE:budget"})
+        return ("OPEN", {"REDISPATCH"})
 
-    def t_10_4_drift(self):
-        if self.fence and "fence_drift_both" not in MUT:
-            return set()
-        if self.review_current() or not self.moved():
-            return set()
-        if not self.budget_left() and "budget_drift_both" not in MUT:
-            return set()
-        return {"REDISPATCH"}
-
-    def t_13_7_iterate_and_budget(self):
-        routes = set()
-        if self.fence or self.review_current():
-            return routes
-        owes_new_task = self.moved() or self.standing_adverse()
-        if "iteration_on_event" in MUT:
-            owes_new_task = self.moved() or getattr(self, "author_adverse", False) or self.latest()["task_result"]["incomplete"]
-        if owes_new_task and not self.budget_left():
-            routes.add("COORDINATE:budget")
-        elif self.standing_adverse() and not self.moved() and \
-                not ("iteration_on_event" in MUT and not getattr(self, "author_adverse", False)
-                     and not self.latest()["task_result"]["incomplete"]):
-            if "adverse_no_route" not in MUT:
-                routes.add("ITERATE")
-        return routes
-
-    def pending_conflict(self):
-        return not self.integrated and any(self.cur[x] != self.base[x] for x in self.latest()["delta"])
-
-    def t_11_5_rebase(self):
-        # a rebase over a change to one of the candidate's own changed units does not apply cleanly:
-        # a new implementer iteration (K3)
-        return {"ITERATE"} if self.pending_conflict() and not self.review_current() else set()
-
-    def t_10_2_revalidate(self):
-        if self.fence or self.review_current() or self.standing_adverse() or self.pending_conflict() \
-                or self.latest()["review"]["veto_open"]:
-            return set()
-        if self.integrated:
-            if self.moved() and "revalidate_despite_move" not in MUT:
-                return set()
-        elif "key_domain_unstated" in MUT:
-            return set()  # the post-integration exclusion read as covering a pending candidate
-        rv = self.latest()["review"]
-        extra = set()
-        if "all_enactment_reviews" in MUT and any(not self.holds(e["review"]["entries"]) for e in self.enact[:-1]):
-            extra = {"REVALIDATE:earlier_review"}
-        if "investigator_generic" in MUT and self.kind == "INVESTIGATE":
-            extra |= {"REDISPATCH"}
-        if not self.holds(rv["tr"]["entries"]):
-            return {"REVALIDATE:task_result"} | extra  # the review waits on it (§4.1, §11.5)
-        return {"REVALIDATE:review"} | extra
-
-    def t_10_2_adjudicate(self):
-        # a peer's veto of the latest review awaits the owner's adjudication (ADJUDICATE_DISAGREEMENT)
-        rv = self.latest()["review"]
-        if rv["veto_open"] and not self.fence and not self.moved() and not self.standing_adverse() \
-                and "adjudication_ignored" not in MUT:
-            return {"ADJUDICATE_DISAGREEMENT"}
-        return set()
-
-    def t_10_2_coordinate_overtaken(self):
-        return {"COORDINATE:overtaken"} if getattr(self, "overtaken", False) and "overtake_two_routes" in MUT \
-            and not self.review_current() else set()
-
-    def t_10_2_coordinate_refused(self):
-        # the REFUSED decision trigger: post-integration event-keyed kinds only (SD-39)
-        if "refused_trigger_all" in MUT and self.standing_adverse() and not self.fence:
-            return {"COORDINATE:refused"}
-        return set()
-
-    def item_routes(self):
-        return (self.t_22_3_fence() | self.t_10_4_drift() | self.t_13_7_iterate_and_budget() | self.t_11_5_rebase()
-                | self.t_10_2_revalidate() | self.t_10_2_coordinate_refused() | self.t_10_2_coordinate_overtaken()
-                | self.t_10_2_adjudicate())
+    # -- each section's own claim, as that section states it --
+    def claims(self):
+        out = set()
+        st, route = self.list_route()
+        if self.retired:
+            return out
+        # §10.2 REVALIDATE row and §4.1: none for an integrated obligation's review or task result (SD-40)
+        if "revalidate_after_integration" in MUT and self.integrated and (self.read_moved or self.tightened) \
+                and self.cand is None:
+            out.add("REVALIDATE:integrated")
+        # §10.2 COORDINATE row and §4.1: an R2 amendment of an integrated obligation routes to the
+        # principal "instead" (the eb86a71 clause), unless deleted
+        if "r2_instead_clause" in MUT and getattr(self, "r2_seen", False):
+            out.add("COORDINATE:r2")
+        # §11.5: a pending candidate's rebase routes, read as applying only before first integration
+        if "rebase_before_first_only" in MUT and self.cand is not None and self.integrated:
+            out.add("REDISPATCH")
+        # §22.3: the human's fence decision and a kept fence's COORDINATE(plan); with "re-apply" as an
+        # outcome, a decided kept fence would keep its route (eb86a71 B1 (c))
+        if "kept_fence_persists" in MUT and self.fence == "decided":
+            out.add("COORDINATE:fence")
+        # §13.7: an adverse item-level review iterates the parts it names; without the part's predicate
+        # failing, the part's own list holds it discharged (eb86a71 B1 (e))
+        if "item_review_parts_discharged" in MUT and self.parts_adverse == "p1":
+            out.add("ITERATE:part_without_carrier")
+        return out
 
     def item(self):
-        if not self.fence and self.review_current():
-            return ("DISCHARGED", set())
-        return ("OPEN", self.item_routes())
-
-    def ji_obligation(self):
-        if self.ji["refused"] and not (self.ji_ended and "refused_retired" in MUT):
-            return ("REFUSED", set() if self.ji["decided"] else {"COORDINATE:refused"})
-        if self.ji_ended:
-            return None
-        if self.holds(self.ji["entries"]):
-            return ("DISCHARGED", set())
-        return ("OPEN", {"REVALIDATE:ji"})
+        st, route = self.list_route()
+        return st, route | self.claims()
 
 
 def rt_derive(kind, seq):
     st = RtState(kind)
     for e in seq:
         state, routes = st.item()
-        if e in ("move_u", "move_v", "move_g", "ji_move_w"):
-            st.cur[{"move_u": "u", "move_v": "v", "move_g": "g", "ji_move_w": "w"}[e]] += 1
-        elif e == "revert_u":
-            if st.cur["u"] != 1:
-                st.cur["u"] = st.base.get("u", 1)
-        elif e == "overtake":
-            if st.integrated and "u" in st.out():
-                st.cur["u"] += 1
-                st.overtaken = True
+        if st.retired:
+            break
+        if e == "move_out" and st.integrated:
+            st.moved = True
+        elif e == "move_read" and st.integrated:
+            st.read_moved = True
+            if st.cand is not None and st.cand["state"] in ("review", "clean"):
+                st.cand["state"] = "stale"
+        elif e == "adverse_in" and st.integrated:
+            st.adverse = "in"
+        elif e == "adverse_out" and st.integrated:
+            st.adverse = "out"
+        elif e == "peer_veto" and st.integrated:
+            st.veto_open = True
+        elif e == "r1_tighten" and st.integrated:
+            st.tightened = True
+        elif e == "r2_amend":
+            st.r2_seen = True
+            if "r2_instead_clause" not in MUT:
+                st.retired = True  # a new key: this obligation is no longer derived; the new one is dispatched
+        elif e == "dispatch":
+            if routes & {"REDISPATCH", "DISPATCH", "ITERATE"} and st.cand is None:
+                st.cand = {"state": "review"}
+                st.iterations += 1
+            elif "ITERATE" in routes and st.cand is not None:
+                st.cand = {"state": "review"}
+                st.iterations += 1
+        elif e in ("cand_pass", "cand_nopass", "cand_incomplete", "cand_discrepancy",
+                   "cand_rebase_conflict", "cand_rebase_read"):
+            if st.cand is not None and st.cand["state"] in ("review", "clean", "stale"):
+                st.cand["state"] = {"cand_pass": "clean", "cand_nopass": "nopass", "cand_incomplete": "incomplete",
+                                    "cand_discrepancy": "discrepancy", "cand_rebase_conflict": "conflict",
+                                    "cand_rebase_read": "stale"}[e]
+        elif e == "cand_revalidate":
+            if st.cand is not None and st.cand["state"] == "stale":
+                st.cand["state"] = "clean"
+        elif e == "cand_integrate":
+            if st.cand is not None and st.cand["state"] == "clean" and st.fence in (None, "decided"):
+                st.cand = None
+                st.integrated = True; st.discharged_base = True
+                st.moved = st.read_moved = st.tightened = False
+                st.adverse = None; st.veto_open = False; st.parts_adverse = None
         elif e == "fence":
             if st.integrated and st.fence is None:
                 st.fence = "await"
         elif e == "keep_fence":
             if st.fence == "await":
-                st.fence = "kept"
-        elif e in ("revalidate_pass", "revalidate_adverse"):
-            if "REVALIDATE:review" in routes:
-                rv = st.latest()["review"]
-                if all(st.cur[x] == r for x, r in rv["entries"].items() if x != "g"):  # Admission step 6
-                    rv["entries"] = {x: st.cur[x] for x in rv["entries"]}
-                    rv["adverse"] = e == "revalidate_adverse"
-                    st.author_adverse = rv["adverse"]
-            elif "REVALIDATE:task_result" in routes and e == "revalidate_pass":
-                tr = st.latest()["task_result"]
-                tr["entries"] = {x: st.cur[x] for x in tr["entries"]}
-        elif e == "peer_adverse":
-            if st.integrated:
-                st.latest()["review"]["veto_open"] = True
-        elif e == "owner_upholds":
-            rv = st.latest()["review"]
-            if rv["veto_open"]:
-                rv["veto_open"] = False; rv["adverse"] = True  # a standing adverse review
-        elif e == "reattest_incomplete":
-            if "REVALIDATE:task_result" in routes:
-                st.latest()["task_result"]["incomplete"] = True
-        elif e in ("dispatch", "dispatch_empty"):
-            if not routes & {"REDISPATCH", "ITERATE"}:
-                continue
-            moved = {x for x in st.out() if st.cur[x] != st.base.get(x)}
-            delta = set() if e == "dispatch_empty" else (moved or st.latest()["delta"])
-            if e == "dispatch":
-                for x in delta:
-                    st.cur[x] += 1
-            st.iterations += 1
-            tr = {"entries": {x: st.cur[x] for x in delta | {"g"}}, "incomplete": False}
-            outputs = delta if "review_covers_own_delta" in MUT else (st.out() | delta)
-            st.enact.append({"delta": delta, "task_result": tr, "review": st.review(outputs, tr)})
-            st.integrated = True; st.overtaken = False
-            st.base = {x: st.cur[x] for x in st.out()}
-            st.author_adverse = False
-        elif e == "ji_move_scope":
-            st.cur["s"] += 1
-        elif e == "ji_refuse":
-            st.ji["refused"] = True
-        elif e == "decide":
-            if st.ji["refused"]:
-                st.ji["decided"] = True
-        if st.cur["u"] != st.ji_scope_revs["u"] or st.cur["s"] != st.ji_scope_revs["s"]:
-            st.ji_ended = True  # a later change in the scope derived JOINT_INVARIANT(i, k2) (§9.2)
-    obs = {"ITEM": st.item()}
-    ji = st.ji_obligation()
-    if ji is not None:
-        obs["JI"] = ji
-    return obs, st
+                st.fence = "kept"; st.moved = True  # the fence restores the earlier tree: out(o) moved
+        elif e == "reapply_fence":
+            if st.fence == "await":
+                st.fence = None  # an ordinary revalidated admission onto the fence: the integration stands
+        elif e == "decide_amend":
+            if any(r.startswith("COORDINATE") for r in routes):
+                if "COORDINATE:fence" in routes:
+                    st.coord_answered.add("fence"); st.fence = "decided"
+                st.retired = True  # an AMEND: an R2 amendment or a withdrawal ends this obligation
+        elif e == "decide_decline":
+            if "COORDINATE:fence" in routes:
+                st.coord_answered.add("fence"); st.fence = "decided"  # resume: the item's own route follows
+            elif any(r.startswith("COORDINATE") for r in routes):
+                if "decline_allowed_for_items" in MUT:
+                    st.declined |= {r for r in routes if r.startswith("COORDINATE")}
+                    st.coord_answered |= {r.split(":")[1] for r in routes if r.startswith("COORDINATE")}
+                    if "COORDINATE:fence" in routes:
+                        st.fence = "decided"
+        elif e in ("item_review_adverse_p1", "item_review_adverse_none"):
+            if st.kind == "PARTITIONED" and st.integrated:
+                st.parts_adverse = "p1" if e.endswith("p1") else "none"
+    state, routes = st.item()
+    if "decline_allowed_for_items" in MUT and st.declined and state == "OPEN":
+        routes = {r for r in routes if r not in st.declined}  # a declined decision is answered: no route
+    return {"ITEM": (state, routes)}, st
 
 
 def check_routing(limit_fail: int = 5, verbose: bool = True) -> dict:
-    """Properties over the union of every section's routes. I13 every OPEN obligation has a route and
-    every derived REVALIDATE has an admissible answer. I14 exactly one route per OPEN obligation. I15
-    never DISCHARGED while out(o) moved; re-dispatched only then. I16 a REFUSED event-keyed obligation
-    stays derived, and its owed decision lapses once made. I18 a standing adverse review of the latest
-    transformation or an incomplete re-attestation starts the next iteration within budget, else
-    COORDINATE(plan); a fence awaiting or kept takes precedence over every other route."""
+    """Properties over §10.4's list and every section's own claim. I13 every OPEN obligation has a route.
+    I14 exactly one route (no section claims a route the list does not give). I15 an integrated
+    obligation whose predicate fails is never waiting on a REVALIDATE of its integrated review or task
+    result (SD-40), and is re-dispatched within budget unless a fence, a pending candidate or a
+    principal's decision comes first. I18 an answered decision ends its route."""
     fails: dict[str, int] = {}
     examples: dict[str, list] = {}
     n = 0
@@ -1581,46 +1529,24 @@ def check_routing(limit_fail: int = 5, verbose: bool = True) -> dict:
     for kind, seq in rt_scenarios():
         n += 1
         obs, st = rt_derive(kind, seq)
-        tag = f"{ROUTING} {kind} {seq}"
         state, routes = obs["ITEM"]
-        moved = st.integrated and any(st.cur[x] != st.base[x] for x in st.out())
-        adverse = st.latest()["review"]["adverse"] or st.latest()["task_result"]["incomplete"]
+        tag = f"{ROUTING} {kind} {seq}"
         if state == "OPEN" and not routes:
-            fail("I13", f"{tag}: item OPEN with no route")
-        if "REVALIDATE:earlier_review" in routes:
-            fail("I13", f"{tag}: REVALIDATE of an earlier enactment's review, never answerable after drift")
-        if state == "OPEN" and st.latest()["review"]["veto_open"] and not moved and not st.fence and \
-                not adverse and routes != {"ADJUDICATE_DISAGREEMENT"} and \
-                not (st.iterations >= RT_BUDGET and routes == {"COORDINATE:budget"}):
-            fail("I13", f"{tag}: an open veto of the latest review not routed to its adjudication {sorted(routes)}")
-        if "REVALIDATE:review" in routes:
-            rv = st.latest()["review"]
-            if not all(st.cur[x] == r for x, r in rv["entries"].items() if x != "g"):
-                fail("I13", f"{tag}: REVALIDATE of a review whose target's outputs moved")
-        if not st.integrated and any(st.cur[x] != st.base[x] for x in st.latest()["delta"]) and \
-                state == "OPEN" and routes != {"ITERATE"}:
-            fail("I13", f"{tag}: a pending candidate whose own units moved does not iterate {sorted(routes)}")
+            fail("I13", f"{tag}: OPEN with no route")
         if state == "OPEN" and len(routes) > 1:
             fail("I14", f"{tag}: several routes {sorted(routes)}")
-        if state == "DISCHARGED" and moved:
-            fail("I15", f"{tag}: discharged while out(o) moved")
-        if "REDISPATCH" in routes and not moved:
-            fail("I15", f"{tag}: re-dispatched although out(o) has not moved")
-        if st.fence and routes and not routes <= {"HUMAN_FENCE_DECISION", "COORDINATE:fence"}:
-            fail("I18", f"{tag}: a route other than the fence's while fenced {sorted(routes)}")
-        if state == "OPEN" and adverse and not moved and not st.fence and \
-                routes != ({"ITERATE"} if st.iterations < RT_BUDGET else {"COORDINATE:budget"}):
-            fail("I18", f"{tag}: standing adverse review without its iteration {sorted(routes)}")
-        if "JI" in obs:
-            js, jr = obs["JI"]
-            if js == "OPEN" and not all(st.cur[x] == r for x, r in st.ji["entries"].items()):
-                pass
-            if js == "OPEN" and "w" in st.ji["entries"] and st.cur["w"] != 1 and not st.ji_ended:
-                fail("I13", f"{tag}: JOINT_INVARIANT(i, k1) waits on an unanswerable REVALIDATE")
-            if js == "REFUSED" and st.ji["decided"] and jr:
-                fail("I16", f"{tag}: the decision owed on a REFUSED obligation does not lapse")
-        if st.ji["refused"] and obs.get("JI", ("",))[0] != "REFUSED":
-            fail("I16", f"{tag}: REFUSED JOINT_INVARIANT retired")
+        if any(r == "REVALIDATE:integrated" for r in routes):
+            fail("I15", f"{tag}: REVALIDATE of an integrated review or task result")
+        if state == "OPEN" and st.integrated and st.cand is None and not st.fence in ("await", "kept") \
+                and st.budget_left() and st.adverse != "out" and st.parts_adverse != "none" \
+                and routes != {"REDISPATCH"}:
+            fail("I15", f"{tag}: a reopened integrated item not re-dispatched {sorted(routes)}")
+        if st.cand is not None and "REDISPATCH" in routes:
+            fail("I18", f"{tag}: re-dispatched while a candidate is pending, discarding it")
+        if st.fence == "decided" and "COORDINATE:fence" in routes:
+            fail("I18", f"{tag}: a kept fence's route outlives its decision")
+        if st.kind == "PARTITIONED" and st.parts_adverse == "p1" and state == "DISCHARGED":
+            fail("I18", f"{tag}: an adverse item-level review naming a part leaves the item discharged")
     if verbose:
         print(f"{ROUTING} scenarios: {n}")
     return {"n": n, "fails": fails, "examples": examples}
