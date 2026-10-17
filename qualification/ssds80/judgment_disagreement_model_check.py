@@ -81,7 +81,8 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
          never reopened by content or a later run, reopened by an unresolved adverse event against what
          closed it and restored by its resolution, not lowered by a refreshing supersession, and
          standing while some review satisfying its review term stands; a lowered obligation waits
-         while every lowering has an open route and otherwise goes to the principal.
+         while every lowering has an open route someone can still answer, otherwise a decision is
+         owed, and only that decision (or the events' resolution) ends the lowered state.
   I12    (obligation-lifecycle) a latched obligation is never ready again.
   I10    (gate-basis) liveness: while the revision assessment counts and the required evidence
          holds, a fresh gate decision is admissible, so a ready gate obligation is answerable.
@@ -1166,6 +1167,18 @@ MUTATIONS = {
                                 "a continuation or requalification restores after its content moved (3876473 B1(b))"),
     "dispute_terms_not_lines": (("obligation-lifecycle",),
                                 "dispositions and same-content failures are not lines (3876473 B1(d))"),
+    "successor_retires": (("obligation-lifecycle",),
+                          "a discharged successor of the same kind retires a lowered obligation (494c810 B1(a))"),
+    "waits_after_move": (("obligation-lifecycle",),
+                         "a lowered obligation waits on a route no admissible answer can take (494c810 B1(b))"),
+    "owner_ends_veto_after_move": (("obligation-lifecycle",),
+                                   "the owner's passing record ends a veto after its content moved (494c810 N1)"),
+    "late_failure_ignored": (("obligation-lifecycle",),
+                             "a failure on the read revision after a later change is ignored (494c810 N1)"),
+    "decision_retires_unrouted": (("obligation-lifecycle",),
+                                  "a decision retires an obligation no decision is owed on (494c810 B1(c))"),
+    "peer_qualification_ignored": (("obligation-lifecycle",),
+                                   "a later qualified decision on the same gate and triple is ignored (494c810 N2)"),
     "records_only_latch_at_answer": (("obligation-lifecycle",),
                                      "a frame-answered review latches before the rebase (3940dbc B1(c))"),
     "revision_assessment_record_mode": (("gate-basis",),
@@ -1319,35 +1332,43 @@ LIFECYCLE = "obligation-lifecycle"
 # existential term), a gate decision G, the produced subject revision S and the evidence term E (its
 # passing assessment and, where one was relied on, the disposition of a counting failing assessment).
 LC_EVENTS = (
-    "content_change",    # a later item edits the integrated content: fresh records on it are now stale
+    "content_change",    # a later item edits the integrated content: support records on it are now stale
     "run_change",        # a later revision run of the same subject (a second AUTHOR revision)
     "rework",            # new work by the implementer claiming the obligation (refused once latched)
     "refresh_U",         # the gate's author supersedes it with an unqualified passing decision
     "refresh_Q",         # ... with a QUALIFIED passing decision
+    "peer_Q_G",          # another eligible holder's QUALIFIED decision on the same gate and triple
     "revalidate_R",      # the reviewer's passing reassessment superseding R
     "revoke_R",          # a challenge against R upheld
-    "counter_R",         # a counter-challenge against that upholding upheld
+    "counter_R",         # a counter-challenge against that upholding upheld (challenge tier)
     "block_R",           # an open blocking challenge against R
     "override_R",        # a risk override of that challenge (P, inside the override's scope)
-    "dismiss_R",         # that challenge dismissed
-    "veto_R",            # a standing peer adverse judgment on R's target (ADJUDICATE_DISAGREEMENT open)
-    "adjudicate_R",      # the owner's adjudication ends that veto
+    "dismiss_R",         # that challenge dismissed (challenge tier)
+    "veto_R",            # a standing peer adverse judgment on R's target (ADJUDICATE_DISAGREEMENT)
+    "adjudicate_R",      # the owner ends that veto by a passing record (support tier)
     "uphold_veto_R",     # the owner's adjudication upholds it
     "adverse_sup_R",     # the owner supersedes R with an adverse record
-    "loss_R",            # a loss boundary withholds R (REQUALIFY open)
-    "requalify_R",       # R requalified
+    "loss_R",            # a loss boundary withholds R (REQUALIFY)
+    "requalify_R",       # R requalified by a fresh record (support tier)
     "requalify_fail_R",  # REQUALIFY closed without a requalification
     "revoke_R2",         # a challenge upheld against the second review
     "revoke_G",          # a challenge upheld against the gate decision
     "revoke_S",          # a challenge upheld against the produced subject revision
     "expire_S",          # the risk override of the produced revision's challenge lapses
-    "fail_E",            # a new counting failing assessment on the same claim content
-    "dispose_E",         # its disposition
+    "fail_E",            # a new counting failing assessment on the claim revision the predicate read
+    "dispose_E",         # its disposition (support tier)
     "revoke_D",          # the disposition relied on at D_m revoked
     "rollback",          # a rollback MODE_TRANSITION reverses the cutover that enacted the obligation
+    "successor",         # a later obligation of the same kind on the same scope is discharged
+    "decide_amend",      # the principal's COORDINATION_DECISION AMEND (an R2 amendment or withdrawal)
+    "decide_resolved",   # the principal's COORDINATION_DECISION RESOLVED_BY
+    "human_decides",     # an authenticated human judgment answering the escalated attention
 )
 LC_SECOND = {"refresh_U", "refresh_Q", "revalidate_R", "counter_R", "override_R", "dismiss_R",
-             "adjudicate_R", "uphold_veto_R", "requalify_R", "requalify_fail_R", "expire_S", "dispose_E"}
+             "adjudicate_R", "uphold_veto_R", "requalify_R", "requalify_fail_R", "expire_S", "dispose_E",
+             "decide_amend", "decide_resolved", "human_decides", "successor"}
+LC_SUPPORT_ANSWERS = {"refresh_U", "refresh_Q", "revalidate_R", "adjudicate_R", "requalify_R", "dispose_E"}
+LC_DECISIONS = {"decide_amend", "decide_resolved", "human_decides"}
 
 
 def lc_scenarios():
@@ -1372,11 +1393,13 @@ def lc_scenarios():
 
 
 def lc_value(start, seq):
-    """§10.4 as written: (value, route). Every discharged value latches at D_m once published; the
-    latched value is the predicate's terms recomputed over machinery-computed lines; a line is lowered by
-    an unresolved adverse event and restored by its resolution; a continuation, admissible only while its
-    content is current, ends record-level events; a lowered latched obligation is never ready again: it
-    waits while every lowering has an open route, and otherwise goes to the principal (coord)."""
+    """§10.4 as written: (value, route). Every discharged value latches at D_m; it is recomputed over
+    machinery-computed lines, lowered by unresolved adverse events and restored by their resolution; a
+    support-tier answer (a continuation, the owner's ending of a veto, a requalification, a disposition)
+    is admissible only while the content it judges is current; a lowered latched obligation is never ready
+    again: it waits while each lowered term has a line whose events all have their own route open and
+    whose content has not moved, and otherwise it is routed to a decision, whose AMEND or RESOLVED_BY
+    (or the human's judgment) retires it; nothing else retires it."""
     kind, pub, gq, so, frame, two, disp, permit = start
     if pub != "PUBLISHED" and "latch_at_admission" not in MUT:
         return (0, "unlatched")  # a fenced or OVERTAKEN integration never latches: the obligation is OPEN
@@ -1399,7 +1422,48 @@ def lc_value(start, seq):
         return (vk, "none")
     causes = {k: {} for k in cap}  # line -> {cause: "wait" (its own route is open) | "stand"}
     moved = False
+    peer_floor = [2]  # later eligible decisions on the same gate and triple enter gterm's minimum
+
+    def state():
+        def val(ln):
+            return 0 if causes[ln] else (min(cap[ln], peer_floor[0]) if ln == "G" else cap[ln])
+
+        def waits(ln):
+            if moved and "waits_after_move" not in MUT:
+                return False  # no support-tier answer to its events can be admitted: they stand
+            return bool(causes[ln]) and all(v == "wait" for v in causes[ln].values())
+        terms = [["R", "R2"] if two else ["R"], ["G"], ["S"], ["E"]]
+        if "latch_every_reference" in MUT and two:
+            terms = [["R"], ["R2"], ["G"], ["S"], ["E"]]
+        tv = [max(val(ln) for ln in t) for t in terms]
+        value = min(tv)
+        routed = "ready" if "lowered_becomes_ready" in MUT else "coord"
+        if value == 2:
+            return (2, "none")
+        if value == 1:
+            if tv[1] == 1 and not permit:  # a qualification outside its permitted scope
+                return (0, routed)
+            return (1, "none")
+        lowered = [t for t, v in zip(terms, tv) if v == 0]
+        if all(any(waits(ln) for ln in t) for t in lowered):
+            return (0, "wait")
+        return (0, routed)
     for e in seq:
+        admissible = not (moved and e in LC_SUPPORT_ANSWERS)
+        if e == "adjudicate_R" and "owner_ends_veto_after_move" in MUT:
+            admissible = True
+        if e in LC_SUPPORT_ANSWERS and e != "adjudicate_R" and "continuation_after_move" in MUT:
+            admissible = True
+        if e in LC_DECISIONS:
+            if state()[1] in ("coord", "ready") or "decision_retires_unrouted" in MUT:
+                return (0, "retired")
+            continue  # no decision is owed on an obligation that is not routed
+        if e == "successor":
+            if "successor_retires" in MUT and state()[0] == 0:
+                return (0, "retired")
+            continue
+        if not admissible:
+            continue
         if e == "content_change":
             moved = True
         elif e == "run_change":
@@ -1407,14 +1471,15 @@ def lc_value(start, seq):
                 causes["G"]["run"] = "stand"
         elif e in ("refresh_U", "refresh_Q", "revalidate_R"):
             ln = "R" if e == "revalidate_R" else "G"
-            if moved and "continuation_after_move" not in MUT:
-                continue  # a fresh record on moved content is refused as stale (§8.3 step 6)
             if "refresh_is_withdrawal" in MUT:
                 causes[ln]["withdrawn"] = "stand"
                 continue
             for c in ("revoke", "block", "loss"):  # record-level events die with the superseded record
                 causes[ln].pop(c, None)
             cap[ln] = 1 if e == "refresh_Q" else 2
+        elif e == "peer_Q_G":
+            if "peer_qualification_ignored" not in MUT:
+                peer_floor[0] = 1  # another holder's record: the gate author's refresh does not lift it
         elif e == "rollback":
             for ln in causes:
                 causes[ln]["rollback"] = "stand"
@@ -1442,7 +1507,7 @@ def lc_value(start, seq):
         elif e == "loss_R":
             causes["R"]["loss"] = "wait"
         elif e == "requalify_R":
-            if causes["R"].get("loss") == "wait" and (not moved or "continuation_after_move" in MUT):
+            if causes["R"].get("loss") == "wait":
                 del causes["R"]["loss"]
         elif e == "requalify_fail_R":
             if causes["R"].get("loss") == "wait":
@@ -1459,47 +1524,26 @@ def lc_value(start, seq):
                 cap["S"] = 2
                 causes["S"]["block"] = "wait"  # the challenge blocks again, its adjudication open
         elif e == "fail_E":
-            if not moved and "dispute_terms_not_lines" not in MUT:
-                causes["E"]["fail"] = "wait"  # on later content it is not an event (item 31)
+            if "dispute_terms_not_lines" not in MUT and not (moved and "late_failure_ignored" in MUT):
+                causes["E"]["fail"] = "wait"  # on the revision read at D_m, whatever moved since
         elif e == "dispose_E":
             causes["E"].pop("fail", None)
         elif e == "revoke_D":
             if disp and "dispute_terms_not_lines" not in MUT:
                 causes["E"]["disp"] = "stand"
         # "rework" changes nothing: a latched obligation is never claimed again
-    if moved and causes["R"].get("loss") == "wait" and "continuation_after_move" not in MUT:
-        causes["R"]["loss"] = "stand"  # no requalification of moved content can be admitted
-
-    def val(ln):
-        return 0 if causes[ln] else cap[ln]
-
-    def waits(ln):
-        return bool(causes[ln]) and all(v == "wait" for v in causes[ln].values())
-    terms = [["R", "R2"] if two else ["R"], ["G"], ["S"], ["E"]]
-    if "latch_every_reference" in MUT and two:
-        terms = [["R"], ["R2"], ["G"], ["S"], ["E"]]
-    tv = [max(val(ln) for ln in t) for t in terms]
-    value = min(tv)
-    if value == 2:
-        return (2, "none")
-    if value == 1:
-        if tv[1] == 1 and not permit:  # a qualification outside its permitted scope
-            return (0, "ready" if "lowered_becomes_ready" in MUT else "coord")
-        return (1, "none")
-    lowered = [t for t, v in zip(terms, tv) if v == 0]
-    if all(any(waits(ln) for ln in t) for t in lowered):
-        return (0, "wait")
-    return (0, "ready" if "lowered_becomes_ready" in MUT else "coord")
+    return state()
 
 
 def lc_oracle(start, seq):
     """Protected properties (reviewed §7.4, SD-24, the workflow and concurrency owners), stated over
     record histories rather than lines: a closure never stands on unpublished work or on provisional work
-    outside its permission; once closed, content and later runs never reopen it; a finding upheld or open
+    outside its permission; once closed, content and later runs never lower it; a finding upheld or open
     against the latest record of a premise, or against its target, takes the closure away and its
-    resolution gives it back; a fresh record of the same premise by its author or the owner, possible only
-    while the content it judges is current, leaves findings on the old record behind; once taken away, the
-    closure is never re-dispatched: it waits on an open adjudication route, or the principal decides."""
+    resolution gives it back; a fresh supporting record (a refresh, an ending of a veto, a
+    requalification, a disposition) can be admitted only while the content it judges is current; once
+    taken away, the closure is never re-dispatched: it waits only on an open route someone can still
+    answer, and otherwise a decision is owed, and only that decision ends it."""
     kind, pub, gq, so, frame, two, disp, permit = start
     if pub != "PUBLISHED" or (kind == "JI" and frame) or (gq == "Q" and not permit):
         return (0, "unlatched")
@@ -1511,12 +1555,39 @@ def lc_oracle(start, seq):
     on_target = {k: {} for k in hist}
     current_content = True
     rolled = False
+    gate_floor = 2  # the minimum over later eligible decisions on the same gate and triple
+
+    def verdict():
+        def premise(k):
+            found = list(hist[k][-1]["f"].values()) + list(on_target[k].values()) + \
+                (["upheld"] if rolled else [])
+            if "upheld" in found or (found and not current_content):
+                return ("down", "stand")
+            if found:
+                return ("down", "wait")
+            return (min(hist[k][-1]["lvl"], gate_floor) if k == "G" else hist[k][-1]["lvl"], None)
+        reviews = [premise("R")] + ([premise("R2")] if two else [])
+        up = [p[0] for p in reviews if p[0] != "down"]
+        review = (max(up), None) if up else ("down", "wait" if any(p[1] == "wait" for p in reviews) else "stand")
+        prem = [review, premise("G"), premise("S"), premise("E")]
+        down = [p for p in prem if p[0] == "down"]
+        if down:
+            return (0, "wait" if all(p[1] == "wait" for p in down) else "coord")
+        level = min(p[0] for p in prem)
+        if level == 1 and prem[1][0] == 1 and not permit:
+            return (0, "coord")
+        return (level, "none")
     for e in seq:
         R = hist["R"][-1]["f"]
-        if e == "content_change":
+        if e in ("decide_amend", "decide_resolved", "human_decides"):
+            if verdict()[1] == "coord":
+                return (0, "retired")
+        elif e == "content_change":
             current_content = False
         elif e in ("refresh_U", "refresh_Q", "revalidate_R") and current_content:
             hist["R" if e == "revalidate_R" else "G"].append({"lvl": 1 if e == "refresh_Q" else 2, "f": {}})
+        elif e == "peer_Q_G":
+            gate_floor = 1
         elif e == "revoke_R":
             R["challenge"] = "upheld"
         elif e == "counter_R" and R.get("challenge") == "upheld":
@@ -1530,7 +1601,7 @@ def lc_oracle(start, seq):
             R.pop("blocking", None)
         elif e == "veto_R":
             on_target["R"]["veto"] = "open"
-        elif e == "adjudicate_R" and on_target["R"].get("veto") == "open":
+        elif e == "adjudicate_R" and on_target["R"].get("veto") == "open" and current_content:
             del on_target["R"]["veto"]
         elif e == "uphold_veto_R" and on_target["R"].get("veto") == "open":
             on_target["R"]["veto"] = "upheld"
@@ -1551,35 +1622,15 @@ def lc_oracle(start, seq):
         elif e == "expire_S" and hist["S"][-1].get("ov"):
             hist["S"][-1].update(ov=False, lvl=2)
             hist["S"][-1]["f"]["blocking"] = "open"
-        elif e == "fail_E" and current_content:
+        elif e == "fail_E":
             on_target["E"]["failure"] = "open"
-        elif e == "dispose_E":
+        elif e == "dispose_E" and current_content:
             on_target["E"].pop("failure", None)
         elif e == "revoke_D" and disp:
             on_target["E"]["disposition"] = "upheld"
         elif e == "rollback":
             rolled = True
-    if not current_content and hist["R"][-1]["f"].get("withheld") == "open":
-        hist["R"][-1]["f"]["withheld"] = "upheld"  # a withheld record whose content moved cannot be requalified
-
-    def premise(k):
-        found = list(hist[k][-1]["f"].values()) + list(on_target[k].values()) + (["upheld"] if rolled else [])
-        if "upheld" in found:
-            return ("down", "stand")
-        if found:
-            return ("down", "wait")
-        return (hist[k][-1]["lvl"], None)
-    reviews = [premise("R")] + ([premise("R2")] if two else [])
-    up = [p[0] for p in reviews if p[0] != "down"]
-    review = (max(up), None) if up else ("down", "wait" if any(p[1] == "wait" for p in reviews) else "stand")
-    prem = [review, premise("G"), premise("S"), premise("E")]
-    down = [p for p in prem if p[0] == "down"]
-    if down:
-        return (0, "wait" if all(p[1] == "wait" for p in down) else "coord")
-    level = min(p[0] for p in prem)
-    if level == 1 and prem[1][0] == 1 and not permit:
-        return (0, "coord")
-    return (level, "none")
+    return verdict()
 
 
 def check_lifecycle(limit_fail: int = 5, verbose: bool = True) -> dict:
