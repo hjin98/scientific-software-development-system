@@ -87,3 +87,32 @@ def closure_order_independent(start, prereqs, chains, complete, tree) -> bool:
     for perm in itertools.permutations(sorted(start)):
         results.add(closure(list(perm), prereqs, chains, complete, tree))
     return len(results) == 1
+
+
+# --- §5.5-§5.6: the support tier as a monotone system with the SCC clamp ---------------------------
+
+ORDER = {"F": 0, "P": 1, "T": 2}
+NAME = {0: "F", 1: "P", 2: "T"}
+
+
+def evaluate_support(nodes, deps, base, clamp=True):
+    """nodes: names; deps: node -> list of nodes it needs (all must hold: min); base: node -> F/P/T.
+    Settled (Manual §5.6, R2): every node of a non-trivial strongly connected component is forced to
+    F before anything else; the rest is evaluated once in dependency order (the least fixed point).
+    clamp=False is the reviewed workplan's literal reading, iterating from the top, under which a
+    self-supporting cycle can stay above F."""
+    edges = {(a, b) for a in nodes for b in deps.get(a, [])}
+    val = {}
+    if clamp:
+        for comp in sccs(nodes, edges):
+            if len(comp) > 1 or any((n, n) in edges for n in comp):
+                for n in comp:
+                    val[n] = 0
+    # greatest-from-top iteration for unclamped nodes reproduces the self-support hazard
+    cur = {n: val.get(n, ORDER[base[n]]) for n in nodes}
+    for _ in range(len(nodes) + 1):
+        for n in nodes:
+            if n in val:
+                continue
+            cur[n] = min([ORDER[base[n]]] + [cur[d] for d in deps.get(n, [])])
+    return {n: NAME[v] for n, v in cur.items()}

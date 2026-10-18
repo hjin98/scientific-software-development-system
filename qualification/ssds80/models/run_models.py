@@ -11,7 +11,8 @@ Exit 0 iff
      counterexample (9431629 B1, the SD-46 cases, f044820 B1, 8c1f2f2 B1) is reproduced as a
      failure of the rule it refuted;
   4. with --seeds, the regression seeds still pass: item_review_history_probe.py, and the
-     review-scope and obligation-routing families of judgment_disagreement_model_check.py.
+     review-scope and obligation-routing families of judgment_disagreement_model_check.py, and
+     s1_disagreement_model_check.py at depth 3.
 
 What this can discriminate: the selection of judged content from explicit integration histories
 and its authors; the owner exception's scope; which ending routes are admissible and independent
@@ -37,7 +38,7 @@ from framework import Enactment, History, ending_routes  # noqa: E402
 from rules import RULESETS  # noqa: E402
 import cases_s2  # noqa: E402
 import cases_s3  # noqa: E402
-S5_MODULES = ["cases_s5_1", "cases_s5_2_4"]
+S5_MODULES = ["cases_s5_1", "cases_s5_2_4", "cases_s5_6", "cases_s5_7"]
 from routing import findings_survive, issuable_after, keeps_obligation, route, stranded  # noqa: E402
 from judgment import S2_RULESETS, routes_per_state, waiting_literal_f, waiting_per_state  # noqa: E402
 
@@ -121,6 +122,9 @@ def evaluate_s2(rs: dict) -> dict[str, str]:
 
 def seeds() -> list[str]:
     errors = []
+    s1 = os.path.join(os.path.dirname(HERE), "s1_disagreement_model_check.py")
+    if subprocess.run([sys.executable, "-I", s1, "--depth", "3"], capture_output=True).returncode != 0:
+        errors.append("seed s1_disagreement_model_check.py --depth 3 failed")
     probe = os.path.join(os.path.dirname(HERE), "item_review_history_probe.py")
     if subprocess.run([sys.executable, "-I", probe], capture_output=True).returncode != 0:
         errors.append("seed item_review_history_probe.py failed")

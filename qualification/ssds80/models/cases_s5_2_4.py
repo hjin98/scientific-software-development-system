@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from cases_s5_1 import S5Case
-from relations import closure, closure_order_independent, legal
+from relations import closure, closure_order_independent, evaluate_support, legal
 
 N = ["a", "b", "c"]
 CASES = [
@@ -46,4 +46,21 @@ CASES += [
            "removing a completeness judgment never shrinks the closure (conservative direction)", True,
            {"settled": lambda: closure(["a"], PRE, CH, {frozenset({"a"})}, T)[0]
             >= closure(["a"], PRE, CH, {frozenset({"a"}), frozenset({"b"})}, T)[0]}),
+]
+
+CASES += [
+    S5Case("mutual_acceptance_forced_false",
+           "two acceptances each supporting the other's subject: the cycle is forced to F, never presented "
+           "at P or T (Manual §5.6, R2)", {"ja": "F", "vb": "F", "jb": "F", "va": "F"},
+           {"settled": lambda: evaluate_support(["ja", "vb", "jb", "va"],
+                                                {"ja": ["vb"], "vb": ["jb"], "jb": ["va"], "va": ["ja"]},
+                                                {"ja": "T", "vb": "T", "jb": "T", "va": "T"}),
+            "no_clamp": lambda: evaluate_support(["ja", "vb", "jb", "va"],
+                                                 {"ja": ["vb"], "vb": ["jb"], "jb": ["va"], "va": ["ja"]},
+                                                 {"ja": "T", "vb": "T", "jb": "T", "va": "T"}, clamp=False)},
+           {"no_clamp": "workplan §6.6 cycle clause read literally (refinement R2)"}),
+    S5Case("provisional_propagates_by_min",
+           "a risk-overridden (P) premise makes every dependent P, never T (min-propagation)",
+           {"a": "P", "b": "P", "c": "T"},
+           {"settled": lambda: evaluate_support(["a", "b", "c"], {"b": ["a"]}, {"a": "P", "b": "T", "c": "T"})}),
 ]
