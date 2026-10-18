@@ -36,7 +36,7 @@ The `83a82df` Review found the fourth defect in a row in the plan row; by the st
 
 ### 3.1 GPT-family G1 Review of candidate 63 (pending)
 
-The stakeholder chose SD-48 (record item 44): narrow the owner exception to the workplan's scope, an author never independent elsewhere, closure waiting for an eligible judge via human attention; the full `--mutations` run first (green: seven families, 54 mutation jobs caught); then a GPT-family G1 Review, from `qualification/ssds80/MANUAL-REVIEW-HANDOFF-SSDS-8.0-8C1F2F2.md`. When the record arrives, handle it as §3.1m states for candidate 62.
+The stakeholder chose SD-48 (record item 44): narrow the owner exception to the workplan's scope, an author never independent elsewhere, closure waiting for an eligible judge via human attention; the full `--mutations` run first (green: seven families, 54 mutation jobs caught); then a GPT-family G1 Review, from `qualification/ssds80/MANUAL-REVIEW-HANDOFF-SSDS-8.0-8C1F2F2.md`. When the record arrives, handle it as §3.1n states (commit unedited, verify, classify by the revised criterion 11, present choices for any G1 blocker, register entries for mechanism findings).
 
 ### 3.1m GPT-family G1 Review of candidate 62 (done, NO-PASS; resolved by SD-48)
 
