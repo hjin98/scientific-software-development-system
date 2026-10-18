@@ -2,7 +2,7 @@ Governing SSDP version: 7.2.1.
 
 # SSDS 8.0 Phase C — session continuation hand-off (Architecture Manual repair/review loop)
 
-This file lets a new session continue Phase C, the proposed SSDS 8 Architecture Manual, from where the authoring session stopped on 2026-10-15 (updated after candidate 64's PASS). It is coordination state, not authority. The governing owners are the Phase C task handoff `qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md`, the workplan, the Review records, the stakeholder decision record and `PROTOCOL-RELEASE-STATE.yaml`. Read the Phase C handoff first; this file states only the delta since then.
+This file lets a new session continue Phase C, the proposed SSDS 8 Architecture Manual, from where the authoring session stopped on 2026-10-15 (updated after G1 acceptance, SD-50). It is coordination state, not authority. The governing owners are the Phase C task handoff `qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md`, the workplan, the Review records, the stakeholder decision record and `PROTOCOL-RELEASE-STATE.yaml`. Read the Phase C handoff first; this file states only the delta since then.
 
 ## 1. Standing instructions (unchanged)
 
@@ -34,9 +34,9 @@ This file lets a new session continue Phase C, the proposed SSDS 8 Architecture 
 
 The `83a82df` Review found the fourth defect in a row in the plan row; by the stop rule it went to the stakeholder, who chose SD-30 (record item 25). Candidate 37 realizes it; its Review is the different-family Review SD-30 names.
 
-### 3.0a G1 decision (pending the stakeholder)
+### 3.0a G1 accepted; Phase C closed (SD-50)
 
-Candidate 64 passed its GPT-family G1 Review. G1 criterion 12, explicit stakeholder acceptance, is open; the decision brief lists the criteria, costs, defaults and open items. On a decision: record it verbatim as a new item and SD row; on acceptance, mark the Manual and workplan revision 24 accepted with their bounded impact, then begin the G2 shadow workplan; D4 stays not authorized until G2.
+The stakeholder chose (record item 46): "Accept G1: the SSDS 8 Architecture Manual at dddfedf and workplan revision 24, with the proposed defaults. Record the decision and begin the G2 shadow workplan." The Manual and workplan revision 24 are marked accepted (lifecycle lines only), the index routes `ssds-8.0-shadow` to `workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md` (revision 0, proposed, unreviewed), and its next action is Stage S step S1 (model framework, RR-10). This Phase C hand-off is history from here; continue G2 from that workplan. D4 stays NOT AUTHORIZED until G2.
 
 ### 3.1 GPT-family G1 Review of candidate 64 (done, PASS)
 
@@ -163,4 +163,4 @@ Unchanged: update coordination state; present G1 criteria (workplan §25 criteri
 | Draft the Manual | done |
 | Closure map | done |
 | Freeze and independent Review | done: candidate 64 (`dddfedf`) PASS |
-| Coordination state and G1 presentation | presented on candidate 64 (`G1-DECISION-BRIEF-SSDS-8.0-DDDFEDF.md`); stakeholder decision pending |
+| Coordination state and G1 presentation | done: G1 accepted (SD-50); G2 shadow workplan opened |

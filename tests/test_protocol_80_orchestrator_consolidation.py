@@ -8,6 +8,7 @@ ACTIVE = ROOT / "workplans/active"
 ARCHIVE = ROOT / "workplans/archive"
 INDEX = ACTIVE / "SSDP-6.1-7.0-WORKPLAN-AUTHORITY-INDEX.md"
 SSDS8 = "SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md"
+SSDS8_SHADOW = "SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md"
 SSDS8_HYPOTHESIS = "SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE-BEFE678-HYPOTHESIS.md"
 CONSOLIDATED = "SSDP-8.0-DETERMINISTIC-CONTROL-PLANE-AND-MANDATORY-ORCHESTRATOR-CONSOLIDATED.md"
 PREFIX = "SSDP-7.0-DETERMINISTIC-CONTROL-PLANE-AND-MANDATORY-ORCHESTRATOR-MIGRATION"
@@ -33,20 +34,29 @@ def frontmatter(path: Path) -> dict:
 
 
 class Protocol80OrchestratorConsolidationTests(unittest.TestCase):
-    """The deterministic-orchestrator line has one current, unauthorized handoff.
+    """The deterministic-orchestrator line has one current architecture handoff and no authorized D4.
 
     These checks read frontmatter and file placement only. Whether the handoff
     or the index is semantically adequate is owned by independent Review.
     """
 
-    def test_single_proposed_unauthorized_ssds8_handoff(self) -> None:
+    def test_single_g1_accepted_unauthorized_ssds8_handoff(self) -> None:
+        # G1 accepted the architecture (SD-50); D4 stays unauthorized until G2.
         meta = frontmatter(ACTIVE / SSDS8)
         self.assertEqual(meta["workplan_id"], Path(SSDS8).stem)
         self.assertEqual(meta["protocol_version"], "7.2.1")
         self.assertEqual(meta["target_system_version"], "8.0.0")
-        self.assertEqual(meta["status"], "proposed")
-        self.assertEqual(meta["d3_architecture_state"], "proposed")
+        self.assertEqual(meta["status"], "accepted")
+        self.assertEqual(meta["d3_architecture_state"], "accepted-current")
         self.assertEqual(meta["implementation_handoff"], "not-authorized")
+
+    def test_g2_shadow_workplan_is_proposed_and_unauthorized(self) -> None:
+        meta = frontmatter(ACTIVE / SSDS8_SHADOW)
+        self.assertEqual(meta["workplan_id"], Path(SSDS8_SHADOW).stem)
+        self.assertEqual(meta["protocol_version"], "7.2.1")
+        self.assertEqual(meta["status"], "proposed")
+        self.assertEqual(meta["implementation_handoff"], "not-authorized")
+        self.assertEqual(frontmatter(INDEX)["current_handoffs"]["ssds-8.0-shadow"], f"workplans/active/{SSDS8_SHADOW}")
 
     def test_superseded_lineage_is_closed_and_archived(self) -> None:
         meta = frontmatter(ACTIVE / SSDS8)

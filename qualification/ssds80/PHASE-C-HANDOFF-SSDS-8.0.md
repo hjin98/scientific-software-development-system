@@ -2,7 +2,7 @@
 
 Governing SSDP version: **7.2.1**. Role: **software-design (D3)**.
 
-**Phase B is PASS; the architecture remains PROPOSED. Phase C and gate G1 are open. D4 is NOT AUTHORIZED.** This is a coordination handoff for the next Phase C task, not an Architecture Manual, acceptance record or implementation authorization. The present stakeholder request is to prepare, commit and push this handoff; it does not start Manual authoring or any implementation.
+**Update 2026-10-18: Phase C is closed and gate G1 is ACCEPTED (SD-50, stakeholder decision record item 46): the Architecture Manual at `dddfedf72ed9711b8fcd46865b5c99eb50771ac5` passed its independent G1 Review and the stakeholder accepted it with workplan design revision 24. G2 is open (`workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md`); D4 is NOT AUTHORIZED.** The text below is the original Phase C handoff, kept as the record of what Phase C owed. **Phase B is PASS; the architecture remains PROPOSED. Phase C and gate G1 are open. D4 is NOT AUTHORIZED.** This is a coordination handoff for the next Phase C task, not an Architecture Manual, acceptance record or implementation authorization. The present stakeholder request is to prepare, commit and push this handoff; it does not start Manual authoring or any implementation.
 
 ## 1. Objective and authority snapshot
 
@@ -155,7 +155,7 @@ This handoff reviews no realized scientific result, selects no scientific analys
 | Boundary | Required evidence / authority | State at this handoff |
 |---|---|---|
 | Phase B | Exact-candidate independent D3 Review, including Phase A reconciliation | PASS record published; architecture still proposed |
-| G1 | Workplan §25 criteria **1-8, 11, 12**; accepted Manual closes §21, independent Review and explicit stakeholder acceptance | OPEN |
+| G1 | Workplan §25 criteria **1-8, 11, 12**; accepted Manual closes §21, independent Review and explicit stakeholder acceptance | ACCEPTED 2026-10-18 (SD-50) |
 | G2 | G1 plus criteria **13-14**: independently reviewed shadow D3→D4 workplan and explicit stakeholder shadow authorization | OPEN; **D4 NOT AUTHORIZED** |
 | G3 | G2 plus criteria **9, 10, 15**: live/real-owner shadow evidence and independent implementation Review | Future; no execution claimed |
 | G4 | G3 plus criterion **16**, per subject: cutover/quiescence, demonstrated rollback and required human/project approval | Future; no native authority |

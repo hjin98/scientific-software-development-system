@@ -2,7 +2,7 @@
 kind: architecture-manual
 architecture_id: SSDS-ARCHITECTURE-MANUAL
 manual_version: 1.0.0
-status: proposed
+status: accepted-current
 protocol_version: 7.2.1
 target_system_version: 8.0.0
 governing_workplan: workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md
@@ -15,7 +15,8 @@ closure_map: qualification/ssds80/MANUAL-CLOSURE-MAP-SSDS-8.0.md
 mechanism_catalogue: orchestrator/docs/ssds-8.0-mechanism-catalogue.md
 level: architecture (SD-47, stakeholder decision record item 43)
 supersedes_on_acceptance: SDP-ORCHESTRATOR architecture 1.6.0, for SSDS-governed scopes only (§26.4)
-gate: G1-open
+gate: G1-accepted
+accepted_at_g1: SD-50 (stakeholder decision record item 46), semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5, blob b4077eb5879570b0aee56b068be8588beeaa5e9e
 d4: not-authorized
 active_serious_challenge: none
 ---
@@ -23,7 +24,7 @@ active_serious_challenge: none
 # SSDS 8 Architecture Manual
 
 ```text
-STATUS: PROPOSED. Not accepted-current. Gate G1 is open. SSDS 8 D4 is NOT AUTHORIZED.
+STATUS: ACCEPTED-CURRENT at gate G1 (SD-50, 2026-10-18). SSDS 8 D4 is NOT AUTHORIZED (gate G2).
 GOVERNING PROTOCOL: SSDP 7.2.1 (release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0
 BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic candidate
@@ -34,13 +35,14 @@ BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic c
 LEVEL: architecture. Mechanism is in orchestrator/docs/ssds-8.0-mechanism-catalogue.md, non-authoritative,
        carried to G2 (§0.1).
 SERIOUS CHALLENGE: none
-ACCEPTANCE: requires an independent D3 Review of this exact Manual candidate with no surviving G1 blocker
-            (workplan §25 criterion 11 as revised), and explicit stakeholder acceptance of this major
-            architectural change (workplan §25, G1). Technical Review alone accepts no marked product-scope
-            item (§0.5).
+ACCEPTANCE: G1 accepted by the stakeholder (stakeholder decision record item 46, SD-50) on semantic
+            candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5 after the independent D3 Review
+            qualification/ssds80/MANUAL-REVIEW-SSDS-8.0-DDDFEDF-DIFFERENT-FAMILY-PASS.md, with the §0.6
+            defaults as proposed. Later commits change lifecycle lines only unless an accepted change says
+            otherwise. No product-scope item is marked (§0.5); the mechanism catalogue is not accepted.
 ```
 
-This Manual is the proposed single owner of SSDS 8 durable architecture: the components and what each owns, the authority boundaries between them, the invariants every realization must keep, and the decision taken on each question the workplan's §21 leaves to it. When accepted it owns that architecture; until then it is a proposal and binds no implementation. The exact mechanism that realizes these decisions (syntax, schemas, field lists, algorithms, validation orders, route tables) is not here: it is in the mechanism catalogue, as proposed material that G2 accepts, replaces or drops against executable models (§0.1). The SSDS 8.0 workplan remains the cycle contract that produced this Manual; its rationale and review records are history, never proof of adequacy.
+This Manual is the single owner of SSDS 8 durable architecture: the components and what each owns, the authority boundaries between them, the invariants every realization must keep, and the decision taken on each question the workplan's §21 leaves to it. When accepted it owns that architecture; until then it is a proposal and binds no implementation. The exact mechanism that realizes these decisions (syntax, schemas, field lists, algorithms, validation orders, route tables) is not here: it is in the mechanism catalogue, as proposed material that G2 accepts, replaces or drops against executable models (§0.1). The SSDS 8.0 workplan remains the cycle contract that produced this Manual; its rationale and review records are history, never proof of adequacy.
 
 ## Part 0. Orientation
 
