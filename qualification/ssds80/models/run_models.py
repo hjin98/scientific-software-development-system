@@ -174,9 +174,11 @@ def main() -> int:
         routes = routes_per_state(q.objection)
         lit = bool(routes) or waiting_literal_f(q.objection)
         per = bool(routes) or waiting_per_state(q.objection)
-        print(f"G1 QUESTION {q.name}: routes {sorted(routes)}; (h)(4) with (f) as written: "
-              f"{'holds' if lit else 'FALSE'}; read per route and state: {'holds' if per else 'FALSE'}")
-        print(f"    {q.why}")
+        print(f"Q1 {q.name}: routes {sorted(routes)}; (h)(4) with (f) as at dddfedf: "
+              f"{'holds' if lit else 'FALSE'}; with amendment A1 (per route and state): "
+              f"{'holds' if per else 'FALSE'}")
+        # the dddfedf reading must reproduce the gap, and the amended reading must close it
+        ok &= (not lit) and per
     if "--seeds" in sys.argv:
         errs = seeds()
         for e in errs:

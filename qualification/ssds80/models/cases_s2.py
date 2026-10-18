@@ -195,7 +195,7 @@ ROUTE_CASES = [
 ]
 
 
-# --- a question for G1 found by S2 (workplan §4.3 stop rule) --------------------------------------
+# --- G1 question Q1, resolved by amendment A1 (SD-51) -----------------------------------------------
 
 @dataclass
 class G1Question:
@@ -214,5 +214,6 @@ G1_QUESTIONS = [
                "authored the NO_PASS's content. No route record acts there, yet §5.10 (f)'s "
                "'No eligible judge', read as written, does not hold because O is qualified and not an "
                "author. Read literally, (h)(4) is then false; read per route and per state (eligible "
-               "'there'), the objection waits and (h)(4) holds."),
+               "'there'), the objection waits and (h)(4) holds. Amendment A1 (SD-51) adopts the per-route, "
+               "per-state reading in §5.10 (f)."),
 ]

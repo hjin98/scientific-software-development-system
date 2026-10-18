@@ -29,7 +29,7 @@ GOVERNS: the settlement of the mechanism catalogue against executable design mod
          the plan for shadow implementation, Phases D-H (Stage D, only after G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: the stakeholder's choice on G1 question Q1 (§4.6); S2 is otherwise done (§4.5); S3 may start.
+NEXT ACTION: Manual amendment A1 (SD-51, Q1) awaits its GPT-family review and acceptance (§4.6); S3 proceeds meanwhile.
 ```
 
 ## 0. Purpose and authority
@@ -99,7 +99,7 @@ One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REP
 | §5.10 (c) objection, (e) enforcement points, (f) S3 consequences | **ACCEPT** | §5.10 (d), (f), (g) | — (unchanged by S2) | — |
 | §5.10 (d) the four routes | **ACCEPT**, with each route's independence measured over what its record judges (the objection's `W` for reassessment, supersession and adjudication; the relieved target's `W` for relief) and its record acting where the veto bites (§5.2, §7.5) | §5.10 (e), (f) | route cases (`reached_larger_judged_set`, `abandoned_review_frame`, `relief_basis_moved`) | RR-11 (routes) |
 | §5.10 (g) invariants | **REPLACE** by the Manual's (h) 1-9 | §5.10 (h) | S1 and S2 cases | — |
-| §5.10 (d)/(h)(4) liftable or waiting, per state | **BLOCKED on Q1** (§4.6): the waiting state is realized per route and per state, which (h)(4) needs; §5.10 (f)'s definition of "No eligible judge" reads per actor | §5.10 (f), (h)(4) | `G1_QUESTIONS` in `cases_s2.py` | RR-11 (waiting), pending |
+| §5.10 (d)/(h)(4) liftable or waiting, per state | **ACCEPT** the per-route, per-state waiting state, realizing Manual amendment A1 (SD-51; pending its review and acceptance): an objection or obligation waits on human attention when no actor is eligible for any route there | §5.10 (f), (h)(4) as amended | `G1_QUESTIONS` in `cases_s2.py`: the dddfedf reading reproduces the gap, the amended one closes it | RR-11 (waiting), pending A1's acceptance |
 | §7.1 transformation identity "fixed by the task result that first submits the candidate"; §5.2 a later identical submission joins that enactment | **ACCEPT** with one addition: a result submitting an already-bound `(B, C, A)` under a different scope or work key is refused (`REF_*` family), so each identity has one producing context | §5.10 (b) ("a fact of `id(X)`") | binding cases | RR-2 (context discriminator) |
 | §8.3 step 2 retained-field recomputation | **DROP**: there is no `retained` field | §5.10 (b) | transformation cases | RR-2 |
 | §8.3 step 3 independence and supersession authority | **ACCEPT**, with the narrow owner exception | §5.10 (f) | S1 objection cases | RR-11 |
@@ -126,9 +126,9 @@ What S1 can discriminate: judged-content selection from explicit histories and i
 
 The framework gained `models/judgment.py` (transformation `W` and the integration support check, the one-context binding, typed targets with answering and relief, and route enumeration per state: independence over what each route record judges, acting per Manual §5.2 and §7.5, relief basis) and `models/cases_s2.py` (7 transformation, 3 binding, 5 target and 7 route cases, expectations written from the Manual). Result: the settled mechanism meets all 22 S2 cases and the S1 cases; the catalogue's reading misses the 11 S2 cases that name it (over-exclusion by same-key work in another scope, `STALE_RETAINED`'s over-refusal, two producing contexts for one identity, the joint-invariant and high-consequence target collisions, relief across colliding targets, and four route-eligibility cases); seeds pass. §4.2's rows record the dispositions. RR-1, RR-2 and RR-3 are settled pending this workplan's Review; RR-11 is settled except the waiting state, which is blocked on Q1.
 
-### 4.6 G1 question Q1 (open; the stakeholder's choice)
+### 4.6 G1 question Q1 (resolved by SD-51; amendment A1 pending review and acceptance)
 
-S2's route model found a lawful state in which the accepted Manual's §5.10 (h)(4) ("liftable or waiting") is false if §5.10 (f)'s "No eligible judge" is read as written. A standing NO-PASS was recorded in the frame of transformation X, which was abandoned; it vetoes the passing review of a re-dispatch Z that keeps the rejected content. Its author was an agent whose task has ended. The owner O is qualified and did not author the NO-PASS's judged content, but a supersession of a judgment about X must declare X's frame (§7.5) and so never acts in Z's; O authored part of Z's judged content, so O cannot relieve Z's review; the policy adjudicator H authored the NO-PASS's content. No route record can act there. Yet (f) says an obligation waits only when every qualified actor is among the authors, which O is not; so the state neither has an ending record nor is waiting. Read per route and per state ("no eligible independent judge for any of those routes exists there", as (h)(4) words it), the objection waits and (h)(4) holds. The model case is `G1_QUESTIONS` in `models/cases_s2.py`; the runner prints both readings. By §4.3 this reopens G1 at §5.10 for the stakeholder to choose the direction; S2 records the waiting state as blocked, and S3 does not depend on it.
+S2's route model found a lawful state in which the accepted Manual's §5.10 (h)(4) ("liftable or waiting") is false if §5.10 (f)'s "No eligible judge" is read as written. A standing NO-PASS was recorded in the frame of transformation X, which was abandoned; it vetoes the passing review of a re-dispatch Z that keeps the rejected content. Its author was an agent whose task has ended. The owner O is qualified and did not author the NO-PASS's judged content, but a supersession of a judgment about X must declare X's frame (§7.5) and so never acts in Z's; O authored part of Z's judged content, so O cannot relieve Z's review; the policy adjudicator H authored the NO-PASS's content. No route record can act there. Yet (f) says an obligation waits only when every qualified actor is among the authors, which O is not; so the state neither has an ending record nor is waiting. Read per route and per state ("no eligible independent judge for any of those routes exists there", as (h)(4) words it), the objection waits and (h)(4) holds. The model case is `G1_QUESTIONS` in `models/cases_s2.py`; the runner prints both readings. By §4.3 this reopened G1 at §5.10. The stakeholder chose SD-51 (record item 47): amend §5.10 (f) so that eligibility is per route and per state (independent of what the route's record judges, acting there, basis admissible). Amendment A1 makes that change in §5.10 (f), (h)(4), §10.2 and §10.3; its GPT-family review of the delta and the stakeholder's acceptance are pending, and until then the dddfedf text governs. The runner now requires the dddfedf reading to reproduce the gap and the amended reading to close it.
 
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
 
@@ -165,6 +165,6 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 0, proposed, unreviewed |
-| Stage S | S1 done (§4.4); S2 done except Q1 (§4.5, §4.6); S3 not started |
+| Stage S | S1 done (§4.4); S2 done, its waiting row pending amendment A1 (§4.5, §4.6); S3 in progress |
 | Stage D | not authorized |
 | G2 | open |
