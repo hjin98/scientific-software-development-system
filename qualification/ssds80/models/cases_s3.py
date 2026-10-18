@@ -84,12 +84,38 @@ S3_CASES = [
 
 
 @dataclass
+class IdentityCase:
+    name: str
+    change: str              # "tighten", "loosen", "prose", "fixed_field"
+    keeps: bool              # the obligation (out(o), subjects, iteration count) survives
+    issuable: str
+    why: str
+    refutes: dict = field(default_factory=dict)
+
+
+IDENTITY_CASES = [
+    IdentityCase("tightening_keeps", "tighten", True, "issuable",
+                 "an R1 tightening keeps the obligation and the plan acceptance"),
+    IdentityCase("loosening_keeps_and_waits", "loosen", True, "waits for plan acceptance",
+                 "A2: the key governs, so a wider write scope or a larger budget keeps the obligation and "
+                 "its iteration count (a budget cannot be reset by loosening); the R2 change needs a new "
+                 "plan acceptance before the item is issuable",
+                 {CAT: "RR-4 (SD-41 a) / Q2"}),
+    IdentityCase("prose_change_new", "prose", False, "waits for plan acceptance",
+                 "a prose change starts new work and a new obligation"),
+    IdentityCase("fixed_field_change_new", "fixed_field", False, "waits for plan acceptance",
+                 "a fixed-field change starts new work and a new obligation"),
+]
+
+
+@dataclass
 class RoutingG1Question:
     name: str
     why: str
 
 
-S3_G1_QUESTIONS = [
+# Q2, resolved by amendment A2 (SD-52); kept as the record of the question
+S3_RESOLVED_QUESTIONS = [
     RoutingG1Question(
         "r2_amendment_keeping_prose_and_fixed_fields",
         "RR-4 (SD-41 a). Manual §10.4 says an item obligation's identity is 'its item and the prose and "

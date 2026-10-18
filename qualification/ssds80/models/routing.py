@@ -125,3 +125,26 @@ def findings_survive(s: ItemState, r: str, decisions: set) -> bool:
         if not (keys & (decisions | s.answered)):
             return False
     return True
+
+
+# --- RR-4: item-obligation identity under an amendment (Manual §10.4 as amended by A2, SD-52) ----
+
+def amendment_class(change: str) -> str:
+    """§13.4: tightening is R1; every other change (a loosening, a prose or fixed-field change) is R2."""
+    return "R1" if change == "tighten" else "R2"
+
+
+def keeps_obligation(change: str, reading: str) -> bool:
+    """Whether the amended item keeps its obligation (out(o), subjects, iteration count).
+
+    settled (A2): the identity key (item, prose, fixed fields) governs, so only a prose or
+    fixed-field change derives a new obligation. catalogue / dddfedf R2 clause: every R2 amendment
+    derives a new one."""
+    if reading == "settled":
+        return change in ("tighten", "loosen")
+    return amendment_class(change) == "R1"
+
+
+def issuable_after(change: str) -> str:
+    """§11.2, §11.4: an R1 tightening keeps the plan acceptance; any R2 needs a new one first."""
+    return "issuable" if amendment_class(change) == "R1" else "waits for plan acceptance"

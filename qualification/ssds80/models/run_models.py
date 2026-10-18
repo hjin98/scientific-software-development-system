@@ -37,7 +37,7 @@ from framework import Enactment, History, ending_routes  # noqa: E402
 from rules import RULESETS  # noqa: E402
 import cases_s2  # noqa: E402
 import cases_s3  # noqa: E402
-from routing import findings_survive, route, stranded  # noqa: E402
+from routing import findings_survive, issuable_after, keeps_obligation, route, stranded  # noqa: E402
 from judgment import S2_RULESETS, routes_per_state, waiting_literal_f, waiting_per_state  # noqa: E402
 
 
@@ -207,8 +207,17 @@ def main() -> int:
             for c in unrep:
                 print(f"    NOT REPRODUCED: {c}")
             ok &= not unrep
-    for q in cases_s3.S3_G1_QUESTIONS:
-        print(f"G1 QUESTION (S3) {q.name}: {q.why}")
+    for reading in ("catalogue", "settled"):
+        misses = {c.name: c for c in cases_s3.IDENTITY_CASES
+                  if keeps_obligation(c.change, reading) != c.keeps or issuable_after(c.change) != c.issuable}
+        print(f"S3 identity {reading}: {len(misses)} miss(es) {sorted(misses)}")
+        if reading == "settled":
+            ok &= not misses
+        else:
+            unrep = [c.name for c in cases_s3.IDENTITY_CASES if reading in c.refutes and c.name not in misses]
+            ok &= not unrep
+            for c in unrep:
+                print(f"    NOT REPRODUCED: {c}")
     if "--seeds" in sys.argv:
         errs = seeds()
         for e in errs:

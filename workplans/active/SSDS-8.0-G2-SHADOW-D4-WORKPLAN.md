@@ -29,7 +29,7 @@ GOVERNS: the settlement of the mechanism catalogue against executable design mod
          the plan for shadow implementation, Phases D-H (Stage D, only after G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: the stakeholder's choice on G1 question Q2 (§4.8); amendment A1 (SD-51, Q1) awaits its GPT-family review (§4.6).
+NEXT ACTION: Manual amendments A1 and A2 (SD-51, SD-52) await one GPT-family delta review and acceptance (§4.6, §4.8); S4 and S5 proceed meanwhile.
 ```
 
 ## 0. Purpose and authority
@@ -111,7 +111,7 @@ One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REP
 | §10.2 `COORDINATE(plan)` row and §15.5 decisions with no report | **REPLACE** the keying: a decision owed for an item route is keyed on (condition, item revision), so an amendment after which the condition still holds derives a new decision; **ACCEPT** the outcomes, and that `ESCALATE` answers no item route | §10.2, §10.3 (no stranded obligation), §15.5 | S3 `budget_answered_condition_holds`, `budget_open` | RR-5 |
 | §10.4 route 4 for an item-level review naming no part; §13.7 partition | **REPLACE**: a partitioned item keeps its own obligation as the composite of its parts and the item-level review; its predicate fails while the item-level review is adverse, and it carries route 4's `COORDINATE(plan)` for findings naming no part (a part whose outputs are named takes its own route) | §10.4, §13.7 | S3 `item_level_no_part`, `partitioned_all_good` | RR-6 |
 | §10.4 route 4 for out-of-scope adverse reviews | **REPLACE**: every standing out-of-scope adverse review of any integrated enactment is admitted as a routed finding (its out-of-scope findings are report records, Manual §15.1) with its own `COORDINATE(plan)` keyed on that review, beside the item's single route; for the latest enactment, when no open candidate is pending, that decision is also the item's route 4; an answered one lets the item's route continue | §10.4 (findings never retired), A8, §15.1 | S3 `oos_on_earlier_enactment`, `oos_latest_masked_by_pending`, `oos_latest`, `oos_latest_answered` | RR-8 |
-| §10.4 item-obligation identity under an R2 amendment keeping the prose and fixed fields | **BLOCKED on Q2** (§4.8) | §10.4 | `S3_G1_QUESTIONS` in `cases_s3.py` | RR-4, pending |
+| §10.4 item-obligation identity under an R2 amendment keeping the prose and fixed fields | **REPLACE** by the identity key, realizing Manual amendment A2 (SD-52; pending its review and acceptance): a tightening or a loosening-only amendment keeps the obligation, `out(o)`, subjects and iteration count, the loosened item waiting for a new plan acceptance; only a prose or fixed-field change derives a new obligation | §10.4 as amended | `IDENTITY_CASES` in `cases_s3.py` (a direct test of the decision; its routing consequences are the S3 budget and drift cases) | RR-4, pending A2's acceptance |
 
 ### 4.3 Stop rules
 
@@ -139,9 +139,9 @@ S2's route model found a lawful state in which the accepted Manual's §5.10 (h)(
 
 `models/routing.py` models an item obligation after integration (fence, predicate, iteration candidates, budget, partition and item-level review, out-of-scope adverse reviews, answered decisions) and derives its single route and the open decision obligations under the catalogue's reading and the settled one; `models/cases_s3.py` holds 13 cases with expectations from the Manual's principles (no stranded obligation, findings survive to their owner and are never retired by a later obligation, a pending candidate keeps its routes, drift re-dispatches). The settled routing meets all 13; the catalogue's misses every case that names it. RR-5 to RR-8 are settled pending this workplan's Review (§4.2). RR-4 is not a routing mechanism: it is G1 question Q2.
 
-### 4.8 G1 question Q2 (open; the stakeholder's choice)
+### 4.8 G1 question Q2 (resolved by SD-52; amendment A2 pending review and acceptance)
 
-Manual §10.4 says an item obligation's identity is "its item and the prose and fixed fields of its accepted revision", and that "an R1 tightening keeps it and an R2 amendment derives a new one". By §13.4 an amendment that only loosens a tightenable field (a wider write scope, a larger budget, fewer frozen symbols) is R2, yet keeps the prose and fixed fields. There the two statements disagree: the key keeps the obligation (its `out(o)`, its subjects and its iteration count); the R2 clause derives a new obligation (empty `out(o)`, a fresh budget). No mechanism satisfies both, so the Manual must say which; this is the SD-41 residual (a), now reached by S3. By §4.3 it reopens G1 at §10.4.
+Manual §10.4 says an item obligation's identity is "its item and the prose and fixed fields of its accepted revision", and that "an R1 tightening keeps it and an R2 amendment derives a new one". By §13.4 an amendment that only loosens a tightenable field (a wider write scope, a larger budget, fewer frozen symbols) is R2, yet keeps the prose and fixed fields. There the two statements disagree: the key keeps the obligation (its `out(o)`, its subjects and its iteration count); the R2 clause derives a new obligation (empty `out(o)`, a fresh budget). No mechanism satisfies both, so the Manual must say which; this is the SD-41 residual (a), now reached by S3. By §4.3 it reopened G1 at §10.4. The stakeholder chose SD-52 (record item 48): the identity key governs; a loosening-only amendment keeps the obligation and waits for a new plan acceptance; only a prose or fixed-field change derives a new obligation. Amendment A2 makes that change in §4.1 and §10.4 and is folded into A1 for one delta review.
 
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
 
@@ -178,6 +178,6 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 0, proposed, unreviewed |
-| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done except Q2 (§4.7, §4.8); S4-S5 not started |
+| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done, its identity row pending A2 (§4.7, §4.8); S4-S5 not started |
 | Stage D | not authorized |
 | G2 | open |
