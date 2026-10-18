@@ -1191,6 +1191,12 @@ MUTATIONS = {
                               "the adverse side read as its changed units: an empty change vetoes everything (085c979 B1(b), SC-1)"),
     "judged_all_entries": (("review-scope",),
                            "J read as every entry §4.3 requires: before-images, contract, governing (ad7ece7 B1(b))"),
+    "retained_at_admission": (("review-scope",),
+                              "the retained part read at each judgment's admission (47b9f77 B1 (a))"),
+    "retained_by_obligation": (("review-scope",),
+                               "the retained part keyed on the obligation: a copy or amendment escapes (47b9f77 B1 (b))"),
+    "integrated_review_no_authors": (("review-scope",),
+                                     "an integrated-result review with no authors to be independent of (47b9f77 B2)"),
     "independence_on_delta": (("review-scope",),
                               "independence measured over the change only, not the judged scope (085c979 B1)"),
     "acceptance_reach_by_content": ((CORE,),
@@ -1606,16 +1612,39 @@ RS_SHAPES = {
     "redo_empty_keep_u1v1": ({}, {"u": 1, "v": 1}),
     "redo_u2_keep_v1": ({"u": 2}, {"u": 1, "v": 1}),
     "empty_first": ({}, None),                      # a findings-only or empty first enactment
+    # SD-44: the retained part is keyed on the item revision's prose and fixed fields, not on the
+    # obligation: a new obligation (an R2 amendment of non-key fields, a re-identification, a copy into
+    # another plan, a re-partition) with the same prose and fixed fields keeps the earlier outputs
+    "copy_empty_keep_u1": ({}, {"u": 1}),
+    "copy_v_keep_u1": ({"v": 1}, {"u": 1}),
+    "otherprose_empty": ({}, None),                 # different prose: nothing retained
 }
+# shapes whose obligation is new (its own out(o) empty): under obligation keying they would retain nothing
+RS_NEW_OBLIGATION = {"copy_empty_keep_u1", "copy_v_keep_u1"}
+# the retained part recorded at issue, and how it would read if taken at a later admission instead,
+# after the obligation integrated w at 9 in between (SD-44, 47b9f77 B1 (a))
+RS_GROWS_LATER = {"redo_v_keep_u1": {"w": 9}, "redo_empty_keep_u1": {"w": 9}, "copy_empty_keep_u1": {"w": 9}}
 RS_AUTHORS = {"u": {1: "A", 2: "B"}, "v": {1: "C"}, "w": {9: "D"}}  # who produced each content
 
 
-def rs_entries(shape):
+def rs_retained(shape, when="issue"):
+    delta, out_before = RS_SHAPES[shape]
+    if out_before is None:
+        return {}
+    if "retained_by_obligation" in MUT and shape in RS_NEW_OBLIGATION:
+        return {}  # 47b9f77 B1 (b): a new obligation starts with empty out(o)
+    retained = dict(out_before)
+    if when == "admission" and "retained_at_admission" in MUT:
+        retained.update(RS_GROWS_LATER.get(shape, {}))  # 47b9f77 B1 (a): read at each judgment's admission
+    return retained
+
+
+def rs_entries(shape, when="issue"):
     """The whole §4.3 row for a transformation review, each entry (unit, content, kind): before-images
     and outputs of the changed units, the retained units of out(o) (context by §7.3), the contract item
     revision and the governing closure."""
-    delta, out_before = RS_SHAPES[shape]
-    before = out_before or {}
+    delta, _ = RS_SHAPES[shape]
+    before = rs_retained(shape, when)
     entries = {(u, c, "output") for u, c in delta.items()}
     entries |= {(u, before.get(u, 0), "before") for u in delta}
     for u, c in before.items():
@@ -1625,14 +1654,14 @@ def rs_entries(shape):
     return entries
 
 
-def rs_judged(shape):
+def rs_judged(shape, when="issue"):
     """J (SD-43): an S0 fact fixed at admission, the post-state of Δ(X) ∪ out(o), out(o) empty before
     first integration; §4.3's entries carrying it by role are the outputs and the retained units."""
     if "judged_output_role_only" in MUT:  # 085c979 B1 (a): only output-role entries
-        return {(u, c) for u, c, kind in rs_entries(shape) if kind == "output"}
+        return {(u, c) for u, c, kind in rs_entries(shape, when) if kind == "output"}
     if "judged_all_entries" in MUT:  # ad7ece7 B1 (b): every entry §4.3 requires, whatever its role
-        return {(u, c) for u, c, kind in rs_entries(shape)}
-    return {(u, c) for u, c, kind in rs_entries(shape) if kind in ("output", "retained")}
+        return {(u, c) for u, c, kind in rs_entries(shape, when)}
+    return {(u, c) for u, c, kind in rs_entries(shape, when) if kind in ("output", "retained")}
 
 
 def rs_reach(adverse, passing):
@@ -1643,6 +1672,13 @@ def rs_reach(adverse, passing):
     if not ja:
         return adverse == passing  # an empty judged scope reaches only its own target
     return ja <= rs_judged(passing)
+
+
+def rs_reach_at(adverse, when_a, passing, when_p):
+    ja, jp = rs_judged(adverse, when_a), rs_judged(passing, when_p)
+    if not ja:
+        return adverse == passing
+    return ja <= jp
 
 
 def rs_authors(shape):
@@ -1662,12 +1698,25 @@ def rs_oracle_scope(shape):
     return set(post.items())
 
 
+# integrated-result reviews (joint invariant, high consequence, item level): no J; independence over the
+# content their output entries name (SD-44, 47b9f77 B2)
+RS_INTEGRATED = {"ji_k1": {("u", 1)}, "ji_k2": {("w", 9)}}
+
+
+def rs_integrated_authors(review):
+    if "integrated_review_no_authors" in MUT:
+        return set()
+    return {RS_AUTHORS[u][c] for u, c in RS_INTEGRATED[review]}
+
+
 def check_review_scope(limit_fail: int = 5, verbose: bool = True) -> dict:
     """R1 J equals the post-state the review is asked to judge. R2 continuity: an adverse review reaches
     every passing review whose judged post-state contains all of its own (a re-dispatch keeping rejected
     content does not escape). R3 specificity: it reaches no passing review lacking some of its judged
     content (unrelated or repaired content). R4 an empty judged scope reaches only its own target. R5 a
-    reviewer who authored retained content of J is not independent of it."""
+    reviewer who authored retained content of J is not independent of it. R6 every judgment of one
+    transformation carries the same J, so an adverse one reaches its own target whenever admitted. R7 an
+    integrated-result review's independence is measured over its output-entry content."""
     fails: dict[str, int] = {}
     examples: dict[str, list] = {}
     n = 0
@@ -1676,8 +1725,16 @@ def check_review_scope(limit_fail: int = 5, verbose: bool = True) -> dict:
         fails[inv] = fails.get(inv, 0) + 1
         if len(examples.setdefault(inv, [])) < limit_fail:
             examples[inv].append((msg, []))
+    for r, content in RS_INTEGRATED.items():
+        for reviewer in ("A", "B", "C", "D", "E"):
+            n += 1
+            authored = {RS_AUTHORS[u][c] for u, c in content}
+            if (reviewer in authored) != (reviewer in rs_integrated_authors(r)):
+                fail("R7", f"{REVIEW_SCOPE} {r}: reviewer {reviewer} independence of an integrated-result review misjudged")
     for a in RS_SHAPES:
         n += 1
+        if rs_judged(a, "admission") != rs_judged(a, "issue") or not rs_reach_at(a, "admission", a, "issue"):
+            fail("R6", f"{REVIEW_SCOPE} {a}: two judgments of one transformation carry different J")
         if rs_judged(a) != rs_oracle_scope(a):
             fail("R1", f"{REVIEW_SCOPE} {a}: J {sorted(rs_judged(a))} is not the judged post-state {sorted(rs_oracle_scope(a))}")
         for reviewer in ("A", "B", "C", "D", "E"):
