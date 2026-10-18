@@ -1,4 +1,11 @@
-"""Bounded model check of the SSDS 8 Architecture Manual §5.10 judgment-disagreement layer.
+"""Bounded model check of the SSDS 8 judgment-disagreement layer as the mechanism catalogue states it.
+
+After SD-47 (stakeholder decision record item 43) the rules modelled here are the mechanism
+catalogue's (orchestrator/docs/ssds-8.0-mechanism-catalogue.md, body §5.10 and the sections it
+names: the Manual candidate 61 text), proposed material for G2, not the Architecture Manual's
+architecture decisions; section references below are to that body. Where the catalogue and
+the Manual's one judged-content rule differ, the catalogue's residual register (RR-1, RR-2,
+RR-10) records it.
 
 Companion to s1_disagreement_model_check.py (which models workplan §6.6 assessment
 disagreement). This is a diagnostic transcription of the Manual's written rules, not an

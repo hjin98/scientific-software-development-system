@@ -5,8 +5,9 @@ protocol_version: 7.2.1
 target_system_version: 8.0.0
 status: proposed
 created_date: 2026-10-01
-revised_date: 2026-10-14
-design_revision: 23
+revised_date: 2026-10-18
+design_revision: 24
+revision_24_state: unreviewed stakeholder-directed level split (SD-47); reviewed with the G1 Manual Review
 baseline_reconciliation: protocol-7.2.1 (2026-10-12; section 0.4)
 governing_version_adoption: 6.6.0 -> 7.2.1 by stakeholder instruction 2026-10-12 (section 0.4)
 stakeholder_direction: workflow execution and verification layer, 2026-10-13 (section 0.1; qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md)
@@ -60,8 +61,12 @@ The workplan ID keeps the historical `GRAPH-NATIVE` lexeme for routing stability
 GOVERNING DESIGN PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12, §0.4;
             release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0, the system-level successor to the document-controlled SSDP line
-THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 23; proposed, not accepted-current;
+THIS FILE: single current prospective SSDS 8 architecture handoff, design revision 24; proposed, not accepted-current;
            not an Architecture Manual
+REVISION 24: level split chosen by the stakeholder (2026-10-18, SD-47) after 61 Manual Review rounds without
+           convergence: the Manual decides each §21 item at the architecture level; mechanism material moves to a
+           non-authoritative catalogue carried to G2; G1 blockers are architecture defects, catalogue counterexamples
+           enter a residual register closed at G2 at the same bar (§0.1, §21, §25); unreviewed
 REVISION 23: subtractive repair after the 552ac01 Review (blocker Y; findings N1-N6; §0.1), chosen by the stakeholder
            (2026-10-14): a discriminating reading covers every observation with the outcome it read, on any content,
            under the same reading, and a failure already shown to be the candidate's own is not re-escalated;
@@ -175,7 +180,12 @@ SSDS 8 D4: NOT AUTHORIZED
 | authority envelope vs instruction | a workflow role, bound to each request by an authenticated task envelope, constrains which proposals Admission considers; brief text only informs (A5, §7.5) | on authenticated bindings within the declared trust model (§15.6): an agent mutating plans, contracts, verifiers or out-of-scope content because a prompt was misread, ignored or absent |
 | mechanical conformance vs semantic acceptance | verification is necessary, never sufficient; heuristic checks only point (A7, §7.7) | a passing check, a keyword lint or an agent's own claim standing in for a reviewer's judgment |
 
-### 0.1 Revision 23: what changed and why
+### 0.1 Revisions 24 and 23: what changed and why
+
+**Revision 24 (SD-47, stakeholder decision record item 43).** Phase C's Architecture Manual went through 61 independent Review rounds without converging. Each round closed its blocker and found a close relative at a neighbouring consumer, and each repair added mechanism. The cause was a level error this workplan made possible: §21 asked the Manual to decide exact syntax, schemas, algorithms and route tables, and §25 criterion 11 asked a G1 Review to find no counterexample anywhere in them, by search over prose. That is D4-level concretization judged at a D3 gate. Under the convergence owner's rule (simplification before another additive repair; escalation changes the method, never the pass threshold), the stakeholder chose three changes. (A) One provenance rule decides what every review or conformance judgment judges and whom it must be independent of. (B) G1 judges the architecture: components and ownership, authority boundaries, invariants and their realizability, and each §21 decision. A counterexample to a mechanism that leaves those intact enters a named residual register and is closed at G2 against an executable model, at the same zero-blocker bar; one that shows an invariant unrealizable, an architectural contradiction or an inadequate Manual decision stays a G1 blocker. (C) The mechanism material leaves the Manual for a non-authoritative mechanism catalogue carried to the G2 shadow workplan, which accepts, replaces or drops each mechanism against executable models. The catalogue is not a D4 specification and authorizes nothing. Revision 24 changes §21's preamble and §25 criteria 2, 4, 11 and 13 only. No semantic clause of revisions 1-23 is withdrawn: where a clause states a mechanism, it now binds as the architecture decision that mechanism realizes. The revision-24 delta is unreviewed and is reviewed with the G1 Manual Review.
+
+**Revision 23.**
+
 
 The `552ac01` Review (a fresh-context sub-agent of the author's model family, under SD-8 and SD-9; `qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md`) returned NO-PASS with one blocker, Y, and six findings, and no Serious Challenge. Y was confirmed against the text. Revision 22 keyed a discriminating reading's coverage on the content it was made on, and its R2 exception on the base. So:
 
@@ -2641,7 +2651,7 @@ SSDS 8.0 does not:
 
 ## 21. Architecture Manual closure obligations (before D4)
 
-The SSDS 8 Architecture Manual, independently reviewed and accepted, SHALL decide and document:
+The SSDS 8 Architecture Manual, independently reviewed and accepted, SHALL decide and document each item below **at the architecture level** (revision 24, SD-47): the component that owns it, the authority boundaries and invariants it must keep, the decision chosen among the alternatives with its reason, and an argument that some mechanism realizes it. Exact syntax, schemas, field lists, algorithms, validation orders and route tables are mechanism. The Manual routes them to the mechanism catalogue (`orchestrator/docs/ssds-8.0-mechanism-catalogue.md`), non-authoritative proposed material carried to the G2 shadow workplan, which accepts, replaces or drops each mechanism against executable models (§25 criterion 13). Where an item's wording names a mechanism, G1 decides the architecture decision that mechanism realizes; the wording stays so that the obligation stays visible.
 
 1. unit model: manifest and anchor declaration syntax (governance-affecting declarations confined to the manifest), content normalization and boundary-marker rules, scope identity, coverage partition and laminarity rules, single-definer rule; effective-structure fold, declaration keys, resolution of effective scopes against observed bytes (`ABSENT`, uncovered region), governance-affecting vs neutral classification algorithm, `aff(Q)`, governance signature and tenure;
 2. relation vocabulary with every type's direction, semantic role, cycle class, permitted classes, layer constraint and completeness eligibility; vocabulary adoption checks; SDG declaration syntax and rules; cycle legality and `well_formed`; boundary-completeness judgment semantics and analyzer completeness declarations;
@@ -2906,18 +2916,18 @@ Qualification binds every claim to the property its method can discriminate (DS-
 Each criterion is assigned to the earliest boundary at which its evidence can exist. No criterion is dropped, and none requires the implementation it would authorize (`f3608f5` Blocker D: revisions 4-6 required shadow-mode evidence before the D4 handoff that builds the shadow system). Each gate includes every earlier gate.
 
 1. the Protocol 7 inheritance reconciliation (Phase A, §0.4) has passed independent Review;
-2. one accepted Architecture Manual resolves every §21 obligation;
+2. one accepted Architecture Manual resolves every §21 obligation at the architecture level (§21 preamble), routing each mechanism to the mechanism catalogue;
 3. exactly one canonical writer exists per ledger, and no document, profile, tracker, scheduler, index or derived view can enact a transition;
-4. the four primitives and their derived semantics are fully specified, including subjects, scope identity, effective structure, quarantine and tenure, relation roles and cycle legality, the four strata, loss-boundary continuity, currency, validity, three-valued discharge and provisional propagation, with the uniqueness argument of §6.6 independently checked;
+4. the four primitives and their derived semantics are specified at the level of their semantics, exact algorithms being catalogue material for criterion 13, including subjects, scope identity, effective structure, quarantine and tenure, relation roles and cycle legality, the four strata, loss-boundary continuity, currency, validity, three-valued discharge and provisional propagation, with the uniqueness argument of §6.6 independently checked;
 5. every §16.2 and §18 inherited guarantee and capability is carried, replaced with equal-or-stronger evidence, retired with accepted reason, or closed by the Manual;
 6. concurrency correctness rests on admission-time validation, with residual risk stated;
 7. intake is the single route for unknown-provenance change, and migration is coverage refinement plus qualified promotion with per-subject cutover;
 8. persistence, quorum admission and currentness qualification, publication and its successor-entry reconciliation, known-loss recovery, confidentiality recovery and evolution are specified, survive loss of any one machine, assert currentness only for quorum-witnessed state, and never let retained authority cross a recorded loss without requalification or accountable attestation;
 9. the agent interface meets the minimum-semantic-burden invariant, demonstrated by live trajectories in shadow mode;
 10. the workflow execution and verification layer (§7.5-§7.10, §9.6-§9.8) is specified by the Manual; every `HARD` template is qualified; signal inertness, never-sufficient verification and non-droppable escalation are demonstrated; and doctrine realization on the 7.x panel is reported against the 7.2.1 baseline, with its limits stated;
-11. independent D3 Review/Challenge finds no blocker or active governing Serious Challenge;
+11. independent D3 Review/Challenge of the Manual finds no blocker or active governing Serious Challenge. A G1 blocker is a defect of the architecture: a contradiction among the Manual's components, ownership, authority boundaries or invariants; an invariant, inherited guarantee or §21 decision shown unrealizable or omitted; or a Manual decision that a conforming realization can satisfy while violating material upstream meaning. A counterexample to a catalogue mechanism that leaves these intact is a residual-register entry, closed under criterion 13 at the same no-blocker bar; review count and recurrence never move a finding between the two (SD-47);
 12. stakeholder acceptance of this major architectural change is explicit;
-13. a D3->D4 workplan for the shadow phases, derived from the accepted Manual and independently reviewed, bounds its scope to shadow operation: no SSDS authority over any subject, no cutover, and the document-controlled baseline keeps governing (§24);
+13. a D3->D4 workplan for the shadow phases, derived from the accepted Manual and independently reviewed, accepts, replaces or drops each mechanism catalogue entry against executable models, closes every residual-register entry, and bounds its scope to shadow operation: no SSDS authority over any subject, no cutover, and the document-controlled baseline keeps governing (§24);
 14. the stakeholder explicitly authorizes that shadow implementation;
 15. an independent implementation Review of the shadow components passes, with the §22 groups executed against the production owners, not fixtures alone (DS-001);
 16. for each subject, the cutover conditions of §12.4, demonstrated rollback (§24) and the required human and project approval hold.
@@ -4024,8 +4034,9 @@ PRIOR REVIEWS: f9d9de8 NO-PASS (repaired by revision 2); 441cf5c NO-PASS (repair
                ba7f738 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-BA7F738-NO-PASS.md), repaired by revision 20;
                947370d NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-947370D-NO-PASS.md), simplified by revision 21;
                ef8445a NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-EF8445A-NO-PASS.md), repaired by revision 22;
-               552ac01 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md); repaired here (§0.1)
-THIS WORKPLAN: design revision 23 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
+               552ac01 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md), repaired by revision 23;
+               revision 24: stakeholder-directed level split after 61 Manual rounds (SD-47; §0.1), unreviewed
+THIS WORKPLAN: design revision 24 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
              not an Architecture Manual; independent Phase B PASS is evidence only
 SSDP 7: closed at 7.2.1; inheritance RECONCILED (§0.4, §19); Stage H obligation discharged under stakeholder
         instruction (§0.2); pre-cutover baseline Protocol 7.2.1 recovery (§24)
