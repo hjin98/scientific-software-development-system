@@ -29,7 +29,7 @@ GOVERNS: the settlement of the mechanism catalogue against executable design mod
          the plan for shadow implementation, Phases D-H (Stage D, only after G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: Stage S step S1 (§4.1).
+NEXT ACTION: Stage S steps S2 and S3 (§4.1); S1 is done (§4.4).
 ```
 
 ## 0. Purpose and authority
@@ -84,6 +84,14 @@ Changing the architecture; native governance of any subject; cutover or rollback
 
 Steps S2 and S3 may run in parallel once S1 exists; S4 follows them; S5 may proceed section by section beside S2-S4 where it does not depend on them.
 
+### 4.4 S1 result (2026-10-18)
+
+The framework is `qualification/ssds80/models/` (`framework.py`: history replay, provenance, the item-level target, actors, policy and the enumeration of admissible independent ending routes; `rules.py`: one rule set per candidate reading, differing only where the candidates differ; `cases.py`: cases whose expectations are written from the Manual's decisions and A5, each naming the rule sets it refutes; `run_models.py`: the runner). Run `python3 -I qualification/ssds80/models/run_models.py --seeds`.
+
+Result: 11 item-level cases and 12 objection cases; framework self-tests pass; the accepted Manual's rule set meets every case; and every known counterexample is reproduced as a failure of the rule it refuted: the 9431629 B1 histories and their drift sibling (candidate 61's latest-change entries), the SD-46 replaced-part and copy cases (SD-46's first wording and candidate 61), the f044820 B1 author-owner trajectory over seven target kinds and its human-reviewer sibling (the general owner exception of candidates 61 and 62), and the 8c1f2f2 B1 no-eligible-judge state with its unknown-lineage sibling (the unconditional liftability invariant of candidates 61-63). The regression seeds pass: `item_review_history_probe.py`, and the review-scope and obligation-routing families of `judgment_disagreement_model_check.py`.
+
+What S1 can discriminate: judged-content selection from explicit histories and its authors; the owner exception's scope; route admissibility and independence for a policy and authorship; whether a stated liftability invariant holds in the waiting state. What it cannot: challenge-tier polarity, acting and frames, supersession chains, basis currency, admission order, routing, evidence disagreement, or any production consumer; and its expectations are the author's reading of the Manual, so a shared misreading would agree on both sides (independent Review checks that). RR-10 is not closed by S1: S2-S4 must extend the framework to the transformation scope (RR-2), target typing (RR-3), state-local route eligibility with acting and basis admissibility (RR-11, dddfedf N4) and routing (RR-4 to RR-8) before the old diagnostic stops being the only coverage of those layers.
+
 ### 4.2 Settled-mechanism register (filled during Stage S)
 
 One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REPLACE` with the replacement, or `DROP` with the reason), the Manual decision it realizes, model evidence (path and result), and the register entries it closes. A `REPLACE` that is simpler than the catalogue clause is preferred to an `ACCEPT` of a complicated one. Empty at revision 0.
@@ -133,6 +141,6 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 0, proposed, unreviewed |
-| Stage S | not started; next is S1 |
+| Stage S | S1 done (§4.4); next S2 and S3 |
 | Stage D | not authorized |
 | G2 | open |
