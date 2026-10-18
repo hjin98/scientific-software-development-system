@@ -79,11 +79,15 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
          value reads only its required premises, never what is merely shown.
   I10    (gate-basis) liveness: while the revision assessment counts and the required evidence
          holds, a fresh gate decision is admissible, so a ready gate obligation is answerable.
-  I13-I15, I18 (obligation-routing) §10.4's list against every section's own claim (SD-36 to SD-40): every
+  I13-I15, I18 (obligation-routing) §10.4's list as transcribed, over its modelled states (SD-36 to SD-41): every
          OPEN obligation has exactly one route; no REVALIDATE of an integrated review or task result; a
          reopened integrated item is re-dispatched within budget unless a fence, a pending candidate or a
          principal's decision comes first; a pending candidate is never discarded; a kept fence's route
          ends once decided. Section claims enter only under mutations (b365947 N1).
+  R1-R5  (review-scope) the judged scope J of a transformation review, built from §4.3's entries and
+         §7.3's roles, equals the post-state it is asked to judge; an adverse review reaches every
+         passing review whose J contains its J, none lacking part of it, and only its own target when
+         its J is empty; independence is measured over the authors of J (SD-42).
   I8     (composing families) the owner's adjudication obligation is derived exactly when a
          standing objection contradicts a passing judgment acting in the state.
 
@@ -248,19 +252,20 @@ def plan_reaches(j, z) -> bool:
 # contract; k1 re-identifies I as item K with i1's prose and contract; k2 re-identifies it with a
 # one-byte heading change (SD-34)
 REV_ITEMS = {"i1": ("I", "pc1"), "i2": ("I", "pc2"), "k1": ("K", "pc1"), "k2": ("K2", "pc3")}
-# a review's content: (changed entries, output content entries). c1 and c2 are first enactments (their
-# output entries are their change); c1v is a re-dispatched enactment that changed only v, so its review's
-# output entries name all of out(o) = {u, v} with u still at c1's content; cv2 re-did u (SD-41, b365947 B2)
+# a review's content: (changed entries, judged scope J). c1 and c2 are first enactments (J is their change);
+# c1v is a re-dispatched enactment that changed only v, so J is out(o) = {u, v} with u still at c1's
+# content; cv2 re-did u (SD-41, SD-42); the review-scope family builds J from §7.3's roles instead
 REV_CONTENT = {"c1": ({("u", 1)}, {("u", 1)}), "c2": ({("u", 2)}, {("u", 2)}),
                "c1v": ({("v", 1)}, {("u", 1), ("v", 1)}), "cv2": ({("u", 2)}, {("u", 2), ("v", 1)})}
 
 
 def review_reached(j_content: str, z_content: str) -> bool:
-    """A transformation review's veto reaches a review whose output content entries name each of the
-    vetoed transformation's changed units at the same content (SD-41)."""
+    """A transformation review's veto reaches a review whose judged scope J contains the vetoed review's
+    J at the same content, when that J is nonempty (SD-42)."""
     if "review_reach_changed_only" in MUT:  # b365947 B2: the same changed content only
         return j_content == z_content
-    return REV_CONTENT[j_content][0] <= REV_CONTENT[z_content][1]
+    jj = REV_CONTENT[j_content][1]
+    return jj <= REV_CONTENT[z_content][1] if jj else j_content == z_content
 
 
 def reach(j: J, z: J) -> bool:
@@ -650,9 +655,9 @@ def oracle_same(L: Ledger, j: J, z: J, G: str) -> bool:
         # what a review judged is the content its output entries name (SD-41); an adverse review denies
         # its target's change, a passing one asserts every entry it names; the item it was produced for
         # is not part of the claim (SD-34). The claim and the formula coincide here
-        denied = REV_CONTENT[j.target[1]][0]
+        denied = REV_CONTENT[j.target[1]][1]
         asserted = REV_CONTENT[z.target[1]][1]
-        return all(e in asserted for e in denied)
+        return all(e in asserted for e in denied) if denied else j.target == z.target
     if j.kind == "ACC":
         # an acceptance attaches to one exact subject (S10): content identity never transfers it
         return j.target == z.target
@@ -1180,6 +1185,12 @@ MUTATIONS = {
                                   "a DECLINE answers an item obligation's decision and leaves it OPEN (eb86a71 N2)"),
     "review_reach_changed_only": ((CORE,),
                                   "a review veto reaches only the same changed content, not output entries (b365947 B2)"),
+    "judged_output_role_only": (("review-scope",),
+                                "J read as §7.3's output-role entries only: a retained unit escapes (085c979 B1(a))"),
+    "adverse_changed_units": (("review-scope",),
+                              "the adverse side read as its changed units: an empty change vetoes everything (085c979 B1(b), SC-1)"),
+    "independence_on_delta": (("review-scope",),
+                              "independence measured over the change only, not the judged scope (085c979 B1)"),
     "acceptance_reach_by_content": ((CORE,),
                                     "an acceptance veto keyed on content across subjects, against S10 (edabd81 N2)"),
     "review_reach_item_or_prose": ((CORE,),
@@ -1574,11 +1585,120 @@ def check_routing(limit_fail: int = 5, verbose: bool = True) -> dict:
     return {"n": n, "fails": fails, "examples": examples}
 
 
+REVIEW_SCOPE = "review-scope"
+# What a transformation review judges (§5.10 (a), SD-42), built from §4.3's required entries and §7.3's
+# roles rather than supplied by hand. A transformation is (its changed units with their post-state
+# content, out(o) of its item obligation before it, or None for a first enactment); its review carries
+# content entries on every changed unit (role output) and, for a re-dispatch, on every unit of out(o)
+# (role context where unchanged). Units u, v, w; contents are small integers.
+RS_SHAPES = {
+    "first_u1": ({"u": 1}, None),
+    "first_u2": ({"u": 2}, None),
+    "first_w9": ({"w": 9}, None),
+    "first_u1w9": ({"u": 1, "w": 9}, None),
+    "redo_v_keep_u1": ({"v": 1}, {"u": 1}),        # a partial re-dispatch keeping u at 1
+    "redo_empty_keep_u1": ({}, {"u": 1}),           # an empty drift transformation keeping u at 1
+    "redo_u2": ({"u": 2}, {"u": 1}),                # a re-dispatch repairing u
+    "redo_empty_keep_u1v1": ({}, {"u": 1, "v": 1}),
+    "redo_u2_keep_v1": ({"u": 2}, {"u": 1, "v": 1}),
+    "empty_first": ({}, None),                      # a findings-only or empty first enactment
+}
+RS_AUTHORS = {"u": {1: "A", 2: "B"}, "v": {1: "C"}, "w": {9: "D"}}  # who produced each content
+
+
+def rs_entries(shape):
+    """The review's required content entries with their §7.3 roles: (unit, content, role)."""
+    delta, out_before = RS_SHAPES[shape]
+    entries = {(u, c, "output") for u, c in delta.items()}
+    if out_before is not None:
+        for u, c in out_before.items():
+            if u not in delta:
+                entries.add((u, c, "context"))  # retained, unchanged: context by §7.3
+    return entries
+
+
+def rs_judged(shape):
+    """J as §5.10 (a) defines it (SD-42): every content entry the review must carry, whatever its role."""
+    if "judged_output_role_only" in MUT:  # 085c979 B1 (a): only output-role entries
+        return {(u, c) for u, c, role in rs_entries(shape) if role == "output"}
+    return {(u, c) for u, c, role in rs_entries(shape)}
+
+
+def rs_reach(adverse, passing):
+    if "adverse_changed_units" in MUT:  # SD-41's literal wording: the adverse side's changed units only
+        ja = {(u, c) for u, c in RS_SHAPES[adverse][0].items()}
+        return ja <= rs_judged(passing)
+    ja = rs_judged(adverse)
+    if not ja:
+        return adverse == passing  # an empty judged scope reaches only its own target
+    return ja <= rs_judged(passing)
+
+
+def rs_authors(shape):
+    if "independence_on_delta" in MUT:
+        units = {(u, c) for u, c in RS_SHAPES[shape][0].items()}
+    else:
+        units = rs_judged(shape)
+    return {RS_AUTHORS[u][c] for u, c in units}
+
+
+def rs_oracle_scope(shape):
+    """What the review is asked to judge, stated without §7.3's roles: the post-state of everything its
+    obligation's outputs now are — its change over the retained outputs."""
+    delta, out_before = RS_SHAPES[shape]
+    post = dict(out_before or {})
+    post.update(delta)
+    return set(post.items())
+
+
+def check_review_scope(limit_fail: int = 5, verbose: bool = True) -> dict:
+    """R1 J equals the post-state the review is asked to judge. R2 continuity: an adverse review reaches
+    every passing review whose judged post-state contains all of its own (a re-dispatch keeping rejected
+    content does not escape). R3 specificity: it reaches no passing review lacking some of its judged
+    content (unrelated or repaired content). R4 an empty judged scope reaches only its own target. R5 a
+    reviewer who authored retained content of J is not independent of it."""
+    fails: dict[str, int] = {}
+    examples: dict[str, list] = {}
+    n = 0
+
+    def fail(inv, msg):
+        fails[inv] = fails.get(inv, 0) + 1
+        if len(examples.setdefault(inv, [])) < limit_fail:
+            examples[inv].append((msg, []))
+    for a in RS_SHAPES:
+        n += 1
+        if rs_judged(a) != rs_oracle_scope(a):
+            fail("R1", f"{REVIEW_SCOPE} {a}: J {sorted(rs_judged(a))} is not the judged post-state {sorted(rs_oracle_scope(a))}")
+        for reviewer in ("A", "B", "C", "D", "E"):
+            n += 1
+            authored = {RS_AUTHORS[u][c] for u, c in rs_oracle_scope(a)}
+            if (reviewer in authored) != (reviewer in rs_authors(a)):
+                fail("R5", f"{REVIEW_SCOPE} {a}: reviewer {reviewer} independence misjudged")
+        for z in RS_SHAPES:
+            n += 1
+            got = rs_reach(a, z)
+            sa, sz = rs_oracle_scope(a), rs_oracle_scope(z)
+            if not sa:
+                if got != (a == z):
+                    fail("R4", f"{REVIEW_SCOPE} adverse {a} -> passing {z}: an empty scope reaches {got}")
+                continue
+            want = sa <= sz
+            if want and not got:
+                fail("R2", f"{REVIEW_SCOPE} adverse {a} -> passing {z}: escapes although it keeps the rejected content")
+            if got and not want:
+                fail("R3", f"{REVIEW_SCOPE} adverse {a} -> passing {z}: vetoes a review lacking the rejected content")
+    if verbose:
+        print(f"{REVIEW_SCOPE} cases: {n}")
+    return {"n": n, "fails": fails, "examples": examples}
+
+
 def run_family(name: str, verbose: bool = True) -> dict:
     if name == GATE_BASIS:
         return check_gate_basis(verbose=verbose)
     if name == ROUTING:
         return check_routing(verbose=verbose)
+    if name == REVIEW_SCOPE:
+        return check_review_scope(verbose=verbose)
     return check_all(verbose=verbose) if name == CORE else check_family(name, verbose=verbose)
 
 
@@ -1587,7 +1707,7 @@ def main() -> int:
     ap.add_argument("--mutations", action="store_true", help="also check that each mutation is caught")
     args = ap.parse_args()
     MUT.clear()
-    results = [run_family(f) for f in (CORE,) + tuple(FAMILIES) + (GATE_BASIS, ROUTING)]
+    results = [run_family(f) for f in (CORE,) + tuple(FAMILIES) + (GATE_BASIS, ROUTING, REVIEW_SCOPE)]
     ok = not any(r["fails"] for r in results)
     if ok:
         print("unmutated §5.10 rules: every modelled invariant holds")
