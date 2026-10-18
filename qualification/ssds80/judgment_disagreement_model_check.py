@@ -1189,6 +1189,8 @@ MUTATIONS = {
                                 "J read as §7.3's output-role entries only: a retained unit escapes (085c979 B1(a))"),
     "adverse_changed_units": (("review-scope",),
                               "the adverse side read as its changed units: an empty change vetoes everything (085c979 B1(b), SC-1)"),
+    "judged_all_entries": (("review-scope",),
+                           "J read as every entry §4.3 requires: before-images, contract, governing (ad7ece7 B1(b))"),
     "independence_on_delta": (("review-scope",),
                               "independence measured over the change only, not the judged scope (085c979 B1)"),
     "acceptance_reach_by_content": ((CORE,),
@@ -1591,6 +1593,8 @@ REVIEW_SCOPE = "review-scope"
 # content, out(o) of its item obligation before it, or None for a first enactment); its review carries
 # content entries on every changed unit (role output) and, for a re-dispatch, on every unit of out(o)
 # (role context where unchanged). Units u, v, w; contents are small integers.
+# each shape: (changed units with post-state content, out(o) before it or None before first integration);
+# RS_BEFORE gives each changed unit's base content (its before-image)
 RS_SHAPES = {
     "first_u1": ({"u": 1}, None),
     "first_u2": ({"u": 2}, None),
@@ -1607,21 +1611,28 @@ RS_AUTHORS = {"u": {1: "A", 2: "B"}, "v": {1: "C"}, "w": {9: "D"}}  # who produc
 
 
 def rs_entries(shape):
-    """The review's required content entries with their §7.3 roles: (unit, content, role)."""
+    """The whole §4.3 row for a transformation review, each entry (unit, content, kind): before-images
+    and outputs of the changed units, the retained units of out(o) (context by §7.3), the contract item
+    revision and the governing closure."""
     delta, out_before = RS_SHAPES[shape]
+    before = out_before or {}
     entries = {(u, c, "output") for u, c in delta.items()}
-    if out_before is not None:
-        for u, c in out_before.items():
-            if u not in delta:
-                entries.add((u, c, "context"))  # retained, unchanged: context by §7.3
+    entries |= {(u, before.get(u, 0), "before") for u in delta}
+    for u, c in before.items():
+        if u not in delta:
+            entries.add((u, c, "retained"))  # retained, unchanged: context by §7.3
+    entries |= {("item", 1, "contract"), ("gov", 1, "governing")}
     return entries
 
 
 def rs_judged(shape):
-    """J as §5.10 (a) defines it (SD-42): every content entry the review must carry, whatever its role."""
+    """J (SD-43): an S0 fact fixed at admission, the post-state of Δ(X) ∪ out(o), out(o) empty before
+    first integration; §4.3's entries carrying it by role are the outputs and the retained units."""
     if "judged_output_role_only" in MUT:  # 085c979 B1 (a): only output-role entries
-        return {(u, c) for u, c, role in rs_entries(shape) if role == "output"}
-    return {(u, c) for u, c, role in rs_entries(shape)}
+        return {(u, c) for u, c, kind in rs_entries(shape) if kind == "output"}
+    if "judged_all_entries" in MUT:  # ad7ece7 B1 (b): every entry §4.3 requires, whatever its role
+        return {(u, c) for u, c, kind in rs_entries(shape)}
+    return {(u, c) for u, c, kind in rs_entries(shape) if kind in ("output", "retained")}
 
 
 def rs_reach(adverse, passing):
@@ -1639,7 +1650,7 @@ def rs_authors(shape):
         units = {(u, c) for u, c in RS_SHAPES[shape][0].items()}
     else:
         units = rs_judged(shape)
-    return {RS_AUTHORS[u][c] for u, c in units}
+    return {RS_AUTHORS.get(u, {}).get(c, "X") for u, c in units}  # X: an author outside the reviewers
 
 
 def rs_oracle_scope(shape):
