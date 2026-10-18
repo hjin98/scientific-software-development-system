@@ -1,0 +1,102 @@
+"""S3 cases (RR-5 to RR-8) with expectations written from the accepted Manual (§10.3, §10.4, A8).
+
+Each case states the route the item obligation must take and which decision obligations must be
+open, from the Manual's principles: every undischarged item has a route or an open decision (no
+stranded obligation); a material finding reaches its owner (A8) and is never retired by a later
+obligation whose judge did not see it; a pending candidate keeps its own routes; drift re-dispatches.
+Residual (a) (RR-4) is a G1 question (S3_G1_QUESTIONS), not a case.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from routing import ItemState
+
+CAT = "catalogue"
+
+
+@dataclass
+class RoutingCase:
+    name: str
+    state: ItemState
+    route_prefix: str              # the item's route must start with this
+    decisions: set                 # decision keys that must be open (settled keying)
+    why: str
+    refutes: dict = field(default_factory=dict)
+
+
+S3_CASES = [
+    # (d) RR-7: a pending candidate that never ends
+    RoutingCase("rejected_candidate_not_pending",
+                ItemState(candidates=[(2, "adverse")]), "re-dispatch", set(),
+                "the latest iteration's candidate was rejected: it is not pending, so the item's drift "
+                "re-dispatches instead of following a dead candidate's routes forever",
+                {CAT: "RR-7 (SD-41 d)"}),
+    RoutingCase("incomplete_candidate_not_pending",
+                ItemState(candidates=[(2, "incomplete")]), "re-dispatch", set(),
+                "an INCOMPLETE or PARTIAL result is closed by its own iteration route", {CAT: "RR-7 (SD-41 d)"}),
+    RoutingCase("open_candidate_keeps_its_routes",
+                ItemState(candidates=[(3, "open")]), "pending-candidate:open", set(),
+                "an open candidate of the latest iteration is never discarded by a re-dispatch"),
+    # (b) RR-5: an answered decision that changes nothing
+    RoutingCase("budget_answered_condition_holds",
+                ItemState(item_rev="r2", budget_spent=True, answered={("budget-spent", "r1")}),
+                "COORDINATE:budget-spent", {("budget-spent", "r2")},
+                "the principal answered the spent-budget decision on r1 with an amendment that kept the "
+                "budget spent (r2): the condition still holds on r2, so a new decision is owed",
+                {CAT: "RR-5 (SD-41 b)"}),
+    RoutingCase("budget_open", ItemState(budget_spent=True), "COORDINATE:budget-spent",
+                {("budget-spent", "r1")}, "a spent budget goes to the principal"),
+    # (c) RR-6: an item-level review whose findings name no part
+    RoutingCase("item_level_no_part",
+                ItemState(partitioned=True, parts_discharged=True, predicate_holds=True,
+                          item_level_adverse_no_part=True),
+                "COORDINATE:item-level-no-part", {("item-level-no-part", "r1")},
+                "every part is discharged, but the item-level review is adverse and names no part: the "
+                "partitioned item's own (composite) obligation carries the decision",
+                {CAT: "RR-6 (SD-41 c)"}),
+    RoutingCase("partitioned_all_good",
+                ItemState(partitioned=True, parts_discharged=True, predicate_holds=True),
+                "discharged", set(), "parts and the item-level review pass"),
+    # (e) RR-8: out-of-scope findings on earlier or masked enactments
+    RoutingCase("oos_on_earlier_enactment",
+                ItemState(oos_adverse=[("rv1", "e1", False)]), "re-dispatch", {("finding", "rv1")},
+                "an out-of-scope NO-PASS on an earlier integrated enactment still reaches the principal "
+                "as a routed finding; the item's own route continues",
+                {CAT: "RR-8 (SD-43, SD-41 e)"}),
+    RoutingCase("oos_latest_masked_by_pending",
+                ItemState(candidates=[(3, "open")], oos_adverse=[("rv2", "e2", True)]),
+                "pending-candidate:open", {("finding", "rv2")},
+                "a pending candidate keeps its routes and the latest enactment's out-of-scope finding is "
+                "still routed (no masking)",
+                {CAT: "RR-8 (SD-43, SD-41 e)"}),
+    RoutingCase("oos_latest", ItemState(oos_adverse=[("rv3", "e3", True)]), "COORDINATE",
+                {("finding", "rv3")}, "route 4: the latest enactment's out-of-scope objection"),
+    RoutingCase("oos_latest_answered",
+                ItemState(oos_adverse=[("rv3", "e3", True)], answered={("finding", "rv3")}),
+                "re-dispatch", set(), "an answered finding decision lets the item's route continue"),
+    # controls
+    RoutingCase("fence_awaiting", ItemState(fence="awaiting"), "human-decision:fence", set(),
+                "a fence awaiting the human comes first"),
+    RoutingCase("discharged", ItemState(predicate_holds=True), "discharged", set(), "the predicate holds"),
+]
+
+
+@dataclass
+class RoutingG1Question:
+    name: str
+    why: str
+
+
+S3_G1_QUESTIONS = [
+    RoutingG1Question(
+        "r2_amendment_keeping_prose_and_fixed_fields",
+        "RR-4 (SD-41 a). Manual §10.4 says an item obligation's identity is 'its item and the prose and "
+        "fixed fields of its accepted revision' and that 'an R1 tightening keeps it and an R2 amendment "
+        "derives a new one'. An amendment that only loosens a tightenable field (a wider write scope, a "
+        "larger budget) is R2 (§13.4) yet keeps the prose and fixed fields, so the two statements "
+        "disagree there: one keeps the obligation, its out(o) and its budget count; the other derives a "
+        "new obligation with an empty out(o) and a fresh budget. No routing mechanism can satisfy both; "
+        "the Manual must say which."),
+]

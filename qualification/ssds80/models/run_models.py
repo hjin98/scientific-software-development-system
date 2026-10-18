@@ -36,6 +36,8 @@ from cases import ITEM_CASES, OBJECTION_CASES  # noqa: E402
 from framework import Enactment, History, ending_routes  # noqa: E402
 from rules import RULESETS  # noqa: E402
 import cases_s2  # noqa: E402
+import cases_s3  # noqa: E402
+from routing import findings_survive, route, stranded  # noqa: E402
 from judgment import S2_RULESETS, routes_per_state, waiting_literal_f, waiting_per_state  # noqa: E402
 
 
@@ -179,6 +181,34 @@ def main() -> int:
               f"{'holds' if per else 'FALSE'}")
         # the dddfedf reading must reproduce the gap, and the amended reading must close it
         ok &= (not lit) and per
+    print(f"S3: {len(cases_s3.S3_CASES)} routing cases")
+    for reading in ("catalogue", "settled"):
+        misses = {}
+        for c in cases_s3.S3_CASES:
+            r, d = route(c.state, reading)
+            probs = []
+            if not r.startswith(c.route_prefix):
+                probs.append(f"route {r}, expected {c.route_prefix}")
+            if d != c.decisions:
+                probs.append(f"open decisions {sorted(d)}, expected {sorted(c.decisions)}")
+            if stranded(c.state, r, d):
+                probs.append("stranded (no route, no open decision)")
+            if not findings_survive(c.state, r, d):
+                probs.append("an out-of-scope finding reaches no decision")
+            if probs:
+                misses[c.name] = "; ".join(probs) + f" ({c.why})"
+        print(f"S3 {reading}: {len(misses)} miss(es)")
+        for case, why in misses.items():
+            print(f"    {case}: {why}")
+        if reading == "settled":
+            ok &= not misses
+        else:
+            unrep = [c.name for c in cases_s3.S3_CASES if reading in c.refutes and c.name not in misses]
+            for c in unrep:
+                print(f"    NOT REPRODUCED: {c}")
+            ok &= not unrep
+    for q in cases_s3.S3_G1_QUESTIONS:
+        print(f"G1 QUESTION (S3) {q.name}: {q.why}")
     if "--seeds" in sys.argv:
         errs = seeds()
         for e in errs:

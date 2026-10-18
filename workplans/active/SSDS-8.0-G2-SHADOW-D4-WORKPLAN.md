@@ -29,7 +29,7 @@ GOVERNS: the settlement of the mechanism catalogue against executable design mod
          the plan for shadow implementation, Phases D-H (Stage D, only after G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: Manual amendment A1 (SD-51, Q1) awaits its GPT-family review and acceptance (§4.6); S3 proceeds meanwhile.
+NEXT ACTION: the stakeholder's choice on G1 question Q2 (§4.8); amendment A1 (SD-51, Q1) awaits its GPT-family review (§4.6).
 ```
 
 ## 0. Purpose and authority
@@ -107,6 +107,11 @@ One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REP
 | §12.2 envelope `retained` field | **DROP** | §12.2 | — | RR-2 |
 | §13.7 item-level review target and entries | **REPLACE** by the typed integrated-result target and `W` over the item revision's work in its scope | §13.7, §5.10 (b) | 11 item cases | RR-1 |
 | §16.5 reviewer selection "independent of `authors(J)`" | **REPLACE** `J` by `W` | §16.5 | — | RR-1, RR-2 |
+| §10.4 the pending candidate (route 3) | **REPLACE**: the pending candidate is the latest iteration's candidate while it is open (result complete, not integrated or refused, no adverse answer to its review); a rejected, `INCOMPLETE` or `PARTIAL` iteration is closed by its own iteration route, so it never masks drift | §10.4 (a pending candidate keeps its own routes; drift re-dispatches) | S3 `rejected_candidate_not_pending`, `incomplete_candidate_not_pending`, `open_candidate_keeps_its_routes` | RR-7 |
+| §10.2 `COORDINATE(plan)` row and §15.5 decisions with no report | **REPLACE** the keying: a decision owed for an item route is keyed on (condition, item revision), so an amendment after which the condition still holds derives a new decision; **ACCEPT** the outcomes, and that `ESCALATE` answers no item route | §10.2, §10.3 (no stranded obligation), §15.5 | S3 `budget_answered_condition_holds`, `budget_open` | RR-5 |
+| §10.4 route 4 for an item-level review naming no part; §13.7 partition | **REPLACE**: a partitioned item keeps its own obligation as the composite of its parts and the item-level review; its predicate fails while the item-level review is adverse, and it carries route 4's `COORDINATE(plan)` for findings naming no part (a part whose outputs are named takes its own route) | §10.4, §13.7 | S3 `item_level_no_part`, `partitioned_all_good` | RR-6 |
+| §10.4 route 4 for out-of-scope adverse reviews | **REPLACE**: every standing out-of-scope adverse review of any integrated enactment is admitted as a routed finding (its out-of-scope findings are report records, Manual §15.1) with its own `COORDINATE(plan)` keyed on that review, beside the item's single route; for the latest enactment, when no open candidate is pending, that decision is also the item's route 4; an answered one lets the item's route continue | §10.4 (findings never retired), A8, §15.1 | S3 `oos_on_earlier_enactment`, `oos_latest_masked_by_pending`, `oos_latest`, `oos_latest_answered` | RR-8 |
+| §10.4 item-obligation identity under an R2 amendment keeping the prose and fixed fields | **BLOCKED on Q2** (§4.8) | §10.4 | `S3_G1_QUESTIONS` in `cases_s3.py` | RR-4, pending |
 
 ### 4.3 Stop rules
 
@@ -129,6 +134,14 @@ The framework gained `models/judgment.py` (transformation `W` and the integratio
 ### 4.6 G1 question Q1 (resolved by SD-51; amendment A1 pending review and acceptance)
 
 S2's route model found a lawful state in which the accepted Manual's §5.10 (h)(4) ("liftable or waiting") is false if §5.10 (f)'s "No eligible judge" is read as written. A standing NO-PASS was recorded in the frame of transformation X, which was abandoned; it vetoes the passing review of a re-dispatch Z that keeps the rejected content. Its author was an agent whose task has ended. The owner O is qualified and did not author the NO-PASS's judged content, but a supersession of a judgment about X must declare X's frame (§7.5) and so never acts in Z's; O authored part of Z's judged content, so O cannot relieve Z's review; the policy adjudicator H authored the NO-PASS's content. No route record can act there. Yet (f) says an obligation waits only when every qualified actor is among the authors, which O is not; so the state neither has an ending record nor is waiting. Read per route and per state ("no eligible independent judge for any of those routes exists there", as (h)(4) words it), the objection waits and (h)(4) holds. The model case is `G1_QUESTIONS` in `models/cases_s2.py`; the runner prints both readings. By §4.3 this reopened G1 at §5.10. The stakeholder chose SD-51 (record item 47): amend §5.10 (f) so that eligibility is per route and per state (independent of what the route's record judges, acting there, basis admissible). Amendment A1 makes that change in §5.10 (f), (h)(4), §10.2 and §10.3; its GPT-family review of the delta and the stakeholder's acceptance are pending, and until then the dddfedf text governs. The runner now requires the dddfedf reading to reproduce the gap and the amended reading to close it.
+
+### 4.7 S3 result (2026-10-18)
+
+`models/routing.py` models an item obligation after integration (fence, predicate, iteration candidates, budget, partition and item-level review, out-of-scope adverse reviews, answered decisions) and derives its single route and the open decision obligations under the catalogue's reading and the settled one; `models/cases_s3.py` holds 13 cases with expectations from the Manual's principles (no stranded obligation, findings survive to their owner and are never retired by a later obligation, a pending candidate keeps its routes, drift re-dispatches). The settled routing meets all 13; the catalogue's misses every case that names it. RR-5 to RR-8 are settled pending this workplan's Review (§4.2). RR-4 is not a routing mechanism: it is G1 question Q2.
+
+### 4.8 G1 question Q2 (open; the stakeholder's choice)
+
+Manual §10.4 says an item obligation's identity is "its item and the prose and fixed fields of its accepted revision", and that "an R1 tightening keeps it and an R2 amendment derives a new one". By §13.4 an amendment that only loosens a tightenable field (a wider write scope, a larger budget, fewer frozen symbols) is R2, yet keeps the prose and fixed fields. There the two statements disagree: the key keeps the obligation (its `out(o)`, its subjects and its iteration count); the R2 clause derives a new obligation (empty `out(o)`, a fresh budget). No mechanism satisfies both, so the Manual must say which; this is the SD-41 residual (a), now reached by S3. By §4.3 it reopens G1 at §10.4.
 
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
 
@@ -165,6 +178,6 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 0, proposed, unreviewed |
-| Stage S | S1 done (§4.4); S2 done, its waiting row pending amendment A1 (§4.5, §4.6); S3 in progress |
+| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done except Q2 (§4.7, §4.8); S4-S5 not started |
 | Stage D | not authorized |
 | G2 | open |
