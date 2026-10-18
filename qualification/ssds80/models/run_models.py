@@ -37,6 +37,7 @@ from framework import Enactment, History, ending_routes  # noqa: E402
 from rules import RULESETS  # noqa: E402
 import cases_s2  # noqa: E402
 import cases_s3  # noqa: E402
+S5_MODULES = ["cases_s5_1"]
 from routing import findings_survive, issuable_after, keeps_obligation, route, stranded  # noqa: E402
 from judgment import S2_RULESETS, routes_per_state, waiting_literal_f, waiting_per_state  # noqa: E402
 
@@ -218,6 +219,27 @@ def main() -> int:
             ok &= not unrep
             for c in unrep:
                 print(f"    NOT REPRODUCED: {c}")
+    for mod_name in S5_MODULES:
+        mod = importlib.import_module(mod_name)
+        misses = {}
+        refuted_missing = []
+        for c in mod.CASES:
+            for reading, fn in c.compute.items():
+                got = fn()
+                if reading == "settled" and got != c.expected:
+                    misses[c.name] = f"settled gives {got!r}, expected {c.expected!r} ({c.why})"
+                if reading in c.refutes and got == c.expected:
+                    refuted_missing.append(f"{c.name} ({reading})")
+            for reading in c.refutes:
+                if reading not in c.compute:
+                    refuted_missing.append(f"{c.name} ({reading} not computed)")
+        print(f"S5 {mod_name}: {len(mod.CASES)} cases; settled misses {len(misses)}; "
+              f"refuted readings not reproduced {len(refuted_missing)}")
+        for k, v in misses.items():
+            print(f"    {k}: {v}")
+        for k in refuted_missing:
+            print(f"    NOT REPRODUCED: {k}")
+        ok &= not misses and not refuted_missing
     if "--seeds" in sys.argv:
         errs = seeds()
         for e in errs:
