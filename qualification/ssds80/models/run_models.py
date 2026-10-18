@@ -35,6 +35,8 @@ sys.path.insert(0, HERE)
 from cases import ITEM_CASES, OBJECTION_CASES  # noqa: E402
 from framework import Enactment, History, ending_routes  # noqa: E402
 from rules import RULESETS  # noqa: E402
+import cases_s2  # noqa: E402
+from judgment import S2_RULESETS, routes_per_state, waiting_literal_f, waiting_per_state  # noqa: E402
 
 
 def self_tests() -> list[str]:
@@ -76,6 +78,44 @@ def evaluate(rs: dict) -> dict[str, str]:
     return misses
 
 
+def evaluate_s2(rs: dict) -> dict[str, str]:
+    """S2 (RR-2, RR-3, RR-11): case name -> miss description."""
+    misses: dict[str, str] = {}
+    for c in cases_s2.TX_CASES:
+        got = {p for _, _, p in rs["j"](c.history_at_issue, c.candidate)}
+        sup = rs["supports"](c.history_at_integration, c.candidate)
+        probs = []
+        if got != c.excluded:
+            probs.append(f"excludes {sorted(got)}, expected {sorted(c.excluded)}")
+        if sup != c.supported:
+            probs.append(f"supports integration {sup}, expected {c.supported}")
+        if probs:
+            misses[c.name] = "; ".join(probs) + f" ({c.why})"
+    for c in cases_s2.BIND_CASES:
+        bound: dict = {}
+        ident = (c.first.base, c.first.delta)
+        rs["bind"](bound, c.first, ident)
+        got = rs["bind"](bound, c.second, (c.second.base, c.second.delta))
+        if got != c.second_admitted:
+            misses[c.name] = f"second admitted {got}, expected {c.second_admitted} ({c.why})"
+    for c in cases_s2.TARGET_CASES:
+        probs = []
+        ans = any(rs["target_of"](r) == c.obligation_target for r in c.reviews)
+        if ans != c.answered:
+            probs.append(f"answered {ans}, expected {c.answered}")
+        if c.relief is not None:
+            rel = c.relief.outcome == "PASS" and rs["target_of"](c.relief) == c.obligation_target
+            if rel != c.relieved:
+                probs.append(f"relieves {rel}, expected {c.relieved}")
+        if probs:
+            misses[c.name] = "; ".join(probs) + f" ({c.why})"
+    for c in cases_s2.ROUTE_CASES:
+        got = set(rs["routes"](c.objection))
+        if got != c.routes:
+            misses[c.name] = f"routes {sorted(got)}, expected {sorted(c.routes)} ({c.why})"
+    return misses
+
+
 def seeds() -> list[str]:
     errors = []
     probe = os.path.join(os.path.dirname(HERE), "item_review_history_probe.py")
@@ -114,6 +154,29 @@ def main() -> int:
         for c in unreproduced:
             print(f"    NOT REPRODUCED: {c} should refute {name} ({cases[c].refutes[name]})")
         ok &= not unreproduced
+    s2 = {c.name: c for c in cases_s2.TX_CASES + cases_s2.BIND_CASES + cases_s2.TARGET_CASES
+          + cases_s2.ROUTE_CASES}
+    print(f"S2: {len(cases_s2.TX_CASES)} transformation, {len(cases_s2.BIND_CASES)} binding, "
+          f"{len(cases_s2.TARGET_CASES)} target, {len(cases_s2.ROUTE_CASES)} route cases")
+    for name, rs in S2_RULESETS.items():
+        misses = evaluate_s2(rs)
+        print(f"S2 {name}: {len(misses)} miss(es)")
+        for case, why in misses.items():
+            print(f"    {case}: {why}")
+        if name == "manual":
+            ok &= not misses
+            continue
+        unreproduced = [c for c, v in s2.items() if name in v.refutes and c not in misses]
+        for c in unreproduced:
+            print(f"    NOT REPRODUCED: {c} should refute {name} ({s2[c].refutes[name]})")
+        ok &= not unreproduced
+    for q in cases_s2.G1_QUESTIONS:
+        routes = routes_per_state(q.objection)
+        lit = bool(routes) or waiting_literal_f(q.objection)
+        per = bool(routes) or waiting_per_state(q.objection)
+        print(f"G1 QUESTION {q.name}: routes {sorted(routes)}; (h)(4) with (f) as written: "
+              f"{'holds' if lit else 'FALSE'}; read per route and state: {'holds' if per else 'FALSE'}")
+        print(f"    {q.why}")
     if "--seeds" in sys.argv:
         errs = seeds()
         for e in errs:
