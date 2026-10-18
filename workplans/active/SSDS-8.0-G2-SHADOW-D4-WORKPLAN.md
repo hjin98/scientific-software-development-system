@@ -29,7 +29,7 @@ GOVERNS: the settlement of the mechanism catalogue against executable design mod
          the plan for shadow implementation, Phases D-H (Stage D, only after G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: Manual amendments A1 and A2 (SD-51, SD-52) await one GPT-family delta review and acceptance (§4.6, §4.8); S4 and S5 proceed meanwhile.
+NEXT ACTION: Manual amendments A1, A2 and A3 await one GPT-family delta review and acceptance (§4.6, §4.8, §4.10); S5 proceeds meanwhile.
 ```
 
 ## 0. Purpose and authority
@@ -120,6 +120,16 @@ One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REP
 | §1.5 content identity, representation, scope identity | **ACCEPT** (one representation, the Git tree entry; a data and runner contract whose risk is in materialization, a Phase D/H runner test) | §1.5 (R6) | inspection; Stage D discriminators: CRLF, mode, symlink, gitlink, LFS and submodule materialization | findings 3540d98 B1, e2154ac B1, e9e6e9f B1 |
 | §1.6 effective structure, quarantine, governance-affecting classification, tenure | **ACCEPT** (definitions over structure comparisons; the risk is in the comparison implementation, a Phase D derivation test) | §1.6 | inspection | — |
 | §1.7-§1.11 semantic declarations, system units, static checks, identity facts, tension locators | **ACCEPT** (formats and checks) | §1.7-§1.11 | inspection | — |
+| §2.1-§2.3 relation classes, vocabulary table, adoption checks | **ACCEPT** (closed vocabulary and its adoption checks; data) | §2.1-§2.3 | inspection | — |
+| §2.4-§2.5 SDGs, cycle legality, well-formedness | **ACCEPT** | §2.4-§2.5 | S5 §2 cycle cases (definitional cycle in one SDG legal; warrant, mixed and cross-SDG cycles illegal; NEUTRAL recursion and `CHALLENGES` excluded) | — |
+| §2.6 completeness and analyzer declarations | **ACCEPT**, composition by union and the analyzer identity as a currency condition | §2.6, §5.10 (c) | regression seed: `judgment_disagreement_model_check.py` completeness-cover family (RR-10 limits) | finding 34803df N3 |
+| §3.1-§3.3, §3.5-§3.6 ledger, envelope, tiers, qualifications, compatibility | **ACCEPT** (schema and floors; data) | §3 | inspection | findings 29da56e N3, 6b986de N4 |
+| §3.4 record kinds, apart from the review-target rows | **ACCEPT** (closed kinds) | §3.4 | inspection | finding 63ddf91 B1 (completeness target with member revisions: closed; completeness-cover seed) |
+| §4.1 basis modes and routes | **ACCEPT** (`content`, `validity`, `execution`, `record`, `standing`, `identity`; every `record` entry with a route; §4.1's route list as amended by A2) | §4.1 | regression seed: gate-basis family (`revision_assessment_record_mode`) | findings 653e88c B1, edabd81 N1, 82d618c N2, 82d618c N5, b46c250 N1 |
+| §4.2 composition | **ACCEPT** | §4.2 | inspection | — |
+| §4.3 per-kind table, apart from the review rows | **ACCEPT**, with gate decisions relying in `record` mode only on required supporting premises | §4.3 (SD-35) | regression seed: gate-basis family | findings d94a293 B1, 653e88c N1, 653e88c N3, 83a82df N2 |
+| §4.4 consumption classes and equivalence paths | **ACCEPT**, hops current, unvetoed and in their recorded direction (cost restored to Manual §32.2 by A3) | §4.4 | regression seed: equivalence-chain family | findings a6ed164 B1, 0d2b35e N2 |
+| §4.5-§4.6 widening chain and closure | **ACCEPT** | §4.5-§4.6 | S5 §4 closure cases (bounded by judgments, widened to a composite, whole tree when unbounded, order independence, losing a judgment only widens) | — |
 
 ### 4.3 Stop rules
 
@@ -161,6 +171,10 @@ S5 settles catalogue sections in dependency order; each records its dispositions
 
 **§1 (2026-10-18).** `models/structure.py` and `models/cases_s5_1.py`: 10 cases, the settled partition and write-set rules meet all of them, and each refuted reading (equal regions with two owners; a residual that subtracts only members; changed-path attribution; base-to-merged comparison; position comparison) fails its case. Findings routed to §1: 3540d98 B4, b46c250 N6, 5c55d4b B2, cc005db B1 and d837363 B4 are closed by the settled mechanism (model cases above); 3540d98 B1, e2154ac B1 and e9e6e9f B1 (one representation that every consumer and runner reads) are closed at the architecture level by Manual §1.5 and carried as Stage D runner discriminators; 6ff4ed1 B3 (analyzer set not bound to the ledger) is closed by Manual §5.9's pinning and goes with §5; workplan 6fe1000 N5 (fail-closed authorship removes agent dispositions over absorbed and legacy content) is the cost Manual §32.2 discloses for §5.10 (f), not a mechanism defect.
 
+**§2-§4 (2026-10-18).** `models/relations.py` and `models/cases_s5_2_4.py`: 11 cases (cycle legality, closure); the settled rules meet all of them. The judgment-layer families of `judgment_disagreement_model_check.py` (core, equivalence-chain, completeness-cover, plan-coverage, gate-basis) remain the regression evidence for §2.6, §4.1, §4.3 and §4.4, within RR-10's limits (hand-chosen tables, shared helpers); their full mutation run was green at candidate 63's tree and the module is unchanged. Findings routed to §2-§4 (32): closed by the S1-S3 models: 9431629 B1, e810508 B2 (item-level judged content), 9431629 N2, ad7ece7 N4, e810508 N4, 051cce3 N1 (typed review targets, S2), ad7ece7 B1 (one judged content, S2), 6b986de B1 (one independence input over `W`, S1-S2), 093164f B1, 8f4e75d B1 (one route statement and settled routing, S3); closed by the settled mechanism with seed evidence: a6ed164 B1 and 0d2b35e N2 (equivalence paths; the hop-direction cost restored to the Manual by A3), 63ddf91 B1 and 34803df N3 (completeness target and analyzer identity), 653e88c B1 and edabd81 N1 (`standing` mode), d94a293 B1, 653e88c N1 and 83a82df N2 (gate basis on required premises), 3540d98 B3 (qualified gate capped, R11); closed at the architecture level by the accepted Manual's text (repaired in later candidates and checked by the G1 Reviews): 29da56e N3 and 6b986de N4 (R3 floors and the chain's class), 82d618c N2 and N5, b46c250 N1 (evaluation in the state at hand), f185036 N1 (drift cost, §32.3); not applicable after SD-47 (findings on the diagnostic's construction, now RR-10): 653e88c N3, ad7ece7 N1, edabd81 N6; disclosed costs carried, not defects: 6b986de N8, 63ddf91 N1 (§32.2); workplan 6fe1000 N8 (residual pre-revision-17 workplan text) concerns the cycle record, not the catalogue.
+
+**A3 (proposed).** While disposing of 0d2b35e N2 the author found that the SD-47 condensation had dropped disclosed costs from Manual §32.2 and §32.3 that the catalogue still states (the equivalence-hop direction, an unpinnable passing realization staying current, `ABSENT` terms raising no finding, fail-closed adverse linking, incidental host reads, attestation challenges, the re-partition consequence of the judged-content rule, plan-rejection reach on control-only branches, a frame `REJECT` after abandonment, and several reopen triggers). Amendment A3 restores them in the Manual's current terms, changing no decision, for review and acceptance with A1 and A2.
+
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
 
 Stage D follows the architecture workplan's Phases D-H (its §23). Each phase is bounded to shadow operation by §2, delivers through the accepted component boundaries (Manual §26), and is accepted only through production-owner evidence and independent implementation Review at G3 (criterion 15). The detailed acceptance program is Manual §31.2 with the catalogue's §31 discriminators as settled in Stage S.
@@ -196,6 +210,6 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 0, proposed, unreviewed |
-| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done, its identity row pending A2 (§4.7, §4.8); S4 index done (§4.9); S5 §1 done (§4.10) |
+| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done, its identity row pending A2 (§4.7, §4.8); S4 index done (§4.9); S5 §1-§4 done (§4.10) |
 | Stage D | not authorized |
 | G2 | open |
