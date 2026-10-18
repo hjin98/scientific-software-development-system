@@ -29,7 +29,8 @@ TARGET: SSDS 8.0.0
 BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic candidate
           e23f14208be869e6a78cfd7b312e447254ee1851, workplan blob 610f373b97fb8152d2a5742e17fa172e12204756,
           independent Phase B D3 Review PASS, qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md;
-          revision 24 is the stakeholder-directed level split, SD-47, unreviewed)
+          revision 24 is the stakeholder-directed level split, SD-47, judged a sound level assignment
+          by the f044820 and 8c1f2f2 Reviews, not yet accepted by the stakeholder)
 LEVEL: architecture. Mechanism is in orchestrator/docs/ssds-8.0-mechanism-catalogue.md, non-authoritative,
        carried to G2 (§0.1).
 SERIOUS CHALLENGE: none
@@ -106,7 +107,7 @@ The Phase B Review passed workplan revision 23. The following decisions go beyon
 | R14 | §6.6 `sat` path composition; closure by completeness | One reach rule: an adverse judgment vetoes every passing judgment of its kind that, alone or composed with others, claims what it denies; what is compared is what each judged, never the name under which it was judged (SD-28 to SD-34, SD-42; §5.10). |
 | R15 | §6.8 step 8 collateral regression | Admission refuses only a request that makes another obligation's passing required evidence fail; discharge is current state, never latched; an obligation reopened by a later change takes the one route its state gives it (SD-36 to SD-41; §8.3, §10.4). |
 
-Every other clause restates the reviewed contract or decides a §21 item inside it. The order in which refinements were made and which Review motivated each are in closure map §7; they are provenance. The stakeholder decisions SD-11 to SD-48 are cited where they apply; SD-47 (record item 43) made this Manual architecture-level and moved the mechanism to the catalogue.
+Every other clause restates the reviewed contract or decides a §21 item inside it. The order in which refinements were made and which Review motivated each are in closure map §7; they are provenance. The stakeholder decisions SD-11 to SD-49 are cited where they apply; SD-47 (record item 43) made this Manual architecture-level and moved the mechanism to the catalogue.
 
 ### 0.4 Governing invariants
 
@@ -450,7 +451,7 @@ S3 holds the non-monotone functions nothing below reads: obligations (including 
 
 For every authenticated input, S0 is a function, S1 a well-founded recursion, S2 the unique least fixed point with the clamp, and S3 a function, in the admitted state and every frame (C2, C3, C8). **Analyzer pinning [D3 decision].** Derivation at a position runs exactly the analyzer set its ruleset pins, never what a host has installed; a host that lacks a required analyzer or system version makes no current assertion. Nondeterministic, expensive or host-dependent analyzer output is recorded as an observation and replayed. Changing the analyzer set is a human-gated ruleset adoption shown its re-acceptance burden. **Caching** is keyed by inputs, and incremental derivation must equal from-scratch derivation. **Checkpoints [D3 decision].** A derivation checkpoint caches derived state under a key recomputed from the ledger before use, carries no currentness, and bounds restart replay (§0.6).
 
-#### 5.10 Judgment disagreement [D3 decision; owner; refinements R8, R9, R12, R13, R14; SD-24 to SD-35, SD-41 to SD-48]
+#### 5.10 Judgment disagreement [D3 decision; owner; refinements R8, R9, R12, R13, R14; SD-24 to SD-35, SD-41 to SD-49]
 
 This section is the **one owner** of judgment disagreement: which outcomes object, what each judgment judged, how far an objection reaches, what ends it and who may end it, how independence is measured, and what follows in S3. Every other section that touches these rules points here; where one restates a consequence, this section governs. Failing evidence assessments keep §6 for start, adverse scope, matching and staleness; their dispositions and the independence of those dispositions are governed here.
 
@@ -501,7 +502,7 @@ No qualified peer supersedes another actor's judgment; a contrary peer judgment 
 1. **No unresolved support.** A passing judgment in the reach of a standing, unrelieved objection supports nothing, alone or through any composition.
 2. **Every route is independent.** No non-independent or refused record ends an objection, supports, supersedes, relieves or disposes.
 3. **Relief stays inside what was judged.** A superseder ends an objection only by judging its own supersession target; a reliever only for its own exact target.
-4. **Liftable where it bites.** For every state in which a standing objection vetoes, some admissible independent record of routes 1-4 would end it there.
+4. **Liftable or waiting [SD-49].** For every state in which a standing objection vetoes, either some admissible independent record of routes 1-4 would end it there, or no eligible independent judge for any of those routes exists there ((f), No eligible judge): the objection is then shown waiting on that named missing judge, human attention is derived, and the vetoed judgment supports nothing meanwhile. Only a change of state that makes an eligible judge available (for example, policy naming one) makes a route admissible; waiting, human attention and a risk override never end the objection.
 5. **State locality.** A permissive record of a pending, abandoned or replaced enactment changes no admitted value; an adverse judgment objects in every state.
 6. **Order independence.** For one admitted set of records, every derived value is the same whatever their admission order.
 7. **Class.** No adjudication below its chain's class is admitted.
@@ -670,7 +671,7 @@ An obligation's identity is deterministic from the rule, target and parameters t
 
 #### 10.3 Readiness
 
-**No stranded obligation [D3 decision; stakeholder record item 31].** In every state a judgment obligation is dispatched only while an answer of its kind with its mechanical minimum can hold at Admission; otherwise it is shown waiting on the failing entry, and the route that restores that entry is derived instead. A judgment obligation with an independence requirement is dispatched only to a judge outside the authors of its judged content; where no eligible judge exists, it is shown waiting on one and human attention is derived (§5.10 (f), SD-48), never dispatched to a judge whose answer would be non-independent. A ready obligation whose every answer Admission must refuse is a defect, and so is a non-current judgment a current obligation depends on with no ready or waiting route. One class waits by design: an adjudication of a disagreement for which neither the owner's supersession nor relief is admissible, because the bases they need no longer hold, waits on an upheld challenge or on the owner's never-lost adverse record, and the vetoed record then blocks no work.
+**No stranded obligation [D3 decision; stakeholder record item 31].** In every state a judgment obligation is dispatched only while an answer of its kind with its mechanical minimum can hold at Admission; otherwise it is shown waiting on the failing entry, and the route that restores that entry is derived instead. A judgment obligation with an independence requirement is dispatched only to a judge outside the authors of its judged content; where no eligible judge exists, it is shown waiting on one and human attention is derived (§5.10 (f), SD-48), never dispatched to a judge whose answer would be non-independent. The same holds for ending a standing objection: §5.10 (h)(4) is the one statement of when an objection is liftable and when it waits on a missing judge, and the owner's adjudication obligation it derives is dispatched only in the first case (SD-49). A ready obligation whose every answer Admission must refuse is a defect, and so is a non-current judgment a current obligation depends on with no ready or waiting route. One class waits by design: an adjudication of a disagreement for which neither the owner's supersession nor relief is admissible, because the bases they need no longer hold, waits on an upheld challenge or on the owner's never-lost adverse record, and the vetoed record then blocks no work.
 
 An obligation is **ready** when every prerequisite it names is valid (or provisional where an override or policy permits) and its plan item, if any, is covered by a current plan acceptance. Readiness is derived from the ledger and content alone; whether a ready obligation is dispatched now is the Dispatcher's operational decision and never feeds back into derived state.
 

@@ -7,7 +7,7 @@ status: proposed
 created_date: 2026-10-01
 revised_date: 2026-10-18
 design_revision: 24
-revision_24_state: unreviewed stakeholder-directed level split (SD-47); reviewed with the G1 Manual Review
+revision_24_state: stakeholder-directed level split (SD-47); judged a sound level assignment by the f044820 and 8c1f2f2 G1 Manual Reviews; not yet accepted
 baseline_reconciliation: protocol-7.2.1 (2026-10-12; section 0.4)
 governing_version_adoption: 6.6.0 -> 7.2.1 by stakeholder instruction 2026-10-12 (section 0.4)
 stakeholder_direction: workflow execution and verification layer, 2026-10-13 (section 0.1; qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md)
@@ -66,7 +66,7 @@ THIS FILE: single current prospective SSDS 8 architecture handoff, design revisi
 REVISION 24: level split chosen by the stakeholder (2026-10-18, SD-47) after 61 Manual Review rounds without
            convergence: the Manual decides each §21 item at the architecture level; mechanism material moves to a
            non-authoritative catalogue carried to G2; G1 blockers are architecture defects, catalogue counterexamples
-           enter a residual register closed at G2 at the same bar (§0.1, §21, §25); unreviewed
+           enter a residual register closed at G2 at the same bar (§0.1, §21, §25); technically reviewed, not accepted
 REVISION 23: subtractive repair after the 552ac01 Review (blocker Y; findings N1-N6; §0.1), chosen by the stakeholder
            (2026-10-14): a discriminating reading covers every observation with the outcome it read, on any content,
            under the same reading, and a failure already shown to be the candidate's own is not re-escalated;
@@ -182,7 +182,7 @@ SSDS 8 D4: NOT AUTHORIZED
 
 ### 0.1 Revisions 24 and 23: what changed and why
 
-**Revision 24 (SD-47, stakeholder decision record item 43).** Phase C's Architecture Manual went through 61 independent Review rounds without converging. Each round closed its blocker and found a close relative at a neighbouring consumer, and each repair added mechanism. The cause was a level error this workplan made possible: §21 asked the Manual to decide exact syntax, schemas, algorithms and route tables, and §25 criterion 11 asked a G1 Review to find no counterexample anywhere in them, by search over prose. That is D4-level concretization judged at a D3 gate. Under the convergence owner's rule (simplification before another additive repair; escalation changes the method, never the pass threshold), the stakeholder chose three changes. (A) One provenance rule decides what every review or conformance judgment judges and whom it must be independent of. (B) G1 judges the architecture: components and ownership, authority boundaries, invariants and their realizability, and each §21 decision. A counterexample to a mechanism that leaves those intact enters a named residual register and is closed at G2 against an executable model, at the same zero-blocker bar; one that shows an invariant unrealizable, an architectural contradiction or an inadequate Manual decision stays a G1 blocker. (C) The mechanism material leaves the Manual for a non-authoritative mechanism catalogue carried to the G2 shadow workplan, which accepts, replaces or drops each mechanism against executable models. The catalogue is not a D4 specification and authorizes nothing. Revision 24 changes §21's preamble and §25 criteria 2, 4, 11 and 13 only. No semantic clause of revisions 1-23 is withdrawn: where a clause states a mechanism, it now binds as the architecture decision that mechanism realizes. The revision-24 delta is unreviewed and is reviewed with the G1 Manual Review.
+**Revision 24 (SD-47, stakeholder decision record item 43).** Phase C's Architecture Manual went through 61 independent Review rounds without converging. Each round closed its blocker and found a close relative at a neighbouring consumer, and each repair added mechanism. The cause was a level error this workplan made possible: §21 asked the Manual to decide exact syntax, schemas, algorithms and route tables, and §25 criterion 11 asked a G1 Review to find no counterexample anywhere in them, by search over prose. That is D4-level concretization judged at a D3 gate. Under the convergence owner's rule (simplification before another additive repair; escalation changes the method, never the pass threshold), the stakeholder chose three changes. (A) One provenance rule decides what every review or conformance judgment judges and whom it must be independent of. (B) G1 judges the architecture: components and ownership, authority boundaries, invariants and their realizability, and each §21 decision. A counterexample to a mechanism that leaves those intact enters a named residual register and is closed at G2 against an executable model, at the same zero-blocker bar; one that shows an invariant unrealizable, an architectural contradiction or an inadequate Manual decision stays a G1 blocker. (C) The mechanism material leaves the Manual for a non-authoritative mechanism catalogue carried to the G2 shadow workplan, which accepts, replaces or drops each mechanism against executable models. The catalogue is not a D4 specification and authorizes nothing. Revision 24 changes §21's preamble and §25 criteria 2, 4, 11 and 13 only. No semantic clause of revisions 1-23 is withdrawn: where a clause states a mechanism, it now binds as the architecture decision that mechanism realizes. The revision-24 delta is reviewed with the G1 Manual Review; the f044820 and 8c1f2f2 Reviews judged it a sound level assignment, and its acceptance is the stakeholder's at G1.
 
 **Revision 23.**
 
@@ -4035,7 +4035,7 @@ PRIOR REVIEWS: f9d9de8 NO-PASS (repaired by revision 2); 441cf5c NO-PASS (repair
                947370d NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-947370D-NO-PASS.md), simplified by revision 21;
                ef8445a NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-EF8445A-NO-PASS.md), repaired by revision 22;
                552ac01 NO-PASS (qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-552AC01-NO-PASS.md), repaired by revision 23;
-               revision 24: stakeholder-directed level split after 61 Manual rounds (SD-47; §0.1), unreviewed
+               revision 24: stakeholder-directed level split after 61 Manual rounds (SD-47; §0.1), technically reviewed, not accepted
 THIS WORKPLAN: design revision 24 with the 7.2.1 inheritance reconciliation; proposed; not accepted-current;
              not an Architecture Manual; independent Phase B PASS is evidence only
 SSDP 7: closed at 7.2.1; inheritance RECONCILED (§0.4, §19); Stage H obligation discharged under stakeholder
