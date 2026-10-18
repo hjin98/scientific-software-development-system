@@ -84,7 +84,7 @@ unions reachable by dynamic programming for covers, widest paths by levels for s
          reopened integrated item is re-dispatched within budget unless a fence, a pending candidate or a
          principal's decision comes first; a pending candidate is never discarded; a kept fence's route
          ends once decided. Section claims enter only under mutations (b365947 N1).
-  R1-R5  (review-scope) the judged scope J of a transformation review, built from §4.3's entries and
+  R1-R9  (review-scope) the judged scope J of a transformation review, built from §4.3's entries and
          §7.3's roles, equals the post-state it is asked to judge; an adverse review reaches every
          passing review whose J contains its J, none lacking part of it, and only its own target when
          its J is empty; independence is measured over the authors of J (SD-42).
@@ -1197,6 +1197,12 @@ MUTATIONS = {
                                "the retained part keyed on the obligation: a copy or amendment escapes (47b9f77 B1 (b))"),
     "integrated_review_no_authors": (("review-scope",),
                                      "an integrated-result review with no authors to be independent of (47b9f77 B2)"),
+    "stale_retained_admitted": (("review-scope",),
+                                "an integration admitted although same-key outputs integrated after its issue (e810508 B1)"),
+    "retained_unchecked": (("review-scope",),
+                           "Admission does not check the envelope's retained units (e810508 N5)"),
+    "item_level_no_entries": (("review-scope",),
+                              "an item-level review with no target or entries to be independent of (e810508 B2)"),
     "independence_on_delta": (("review-scope",),
                               "independence measured over the change only, not the judged scope (085c979 B1)"),
     "acceptance_reach_by_content": ((CORE,),
@@ -1700,13 +1706,35 @@ def rs_oracle_scope(shape):
 
 # integrated-result reviews (joint invariant, high consequence, item level): no J; independence over the
 # content their output entries name (SD-44, 47b9f77 B2)
-RS_INTEGRATED = {"ji_k1": {("u", 1)}, "ji_k2": {("w", 9)}}
+RS_INTEGRATED = {"ji_k1": {("u", 1)}, "ji_k2": {("w", 9)},
+                 "item_level_p1p2": {("u", 1), ("v", 1)}}  # its output entries: the parts' latest outputs
 
 
 def rs_integrated_authors(review):
     if "integrated_review_no_authors" in MUT:
         return set()
+    if "item_level_no_entries" in MUT and review.startswith("item_level"):
+        return set()  # e810508 B2: no target or entries for an item-level review
     return {RS_AUTHORS[u][c] for u, c in RS_INTEGRATED[review]}
+
+
+# retained-unit staleness at integration (SD-45): a transformation issued with U_X, then an enactment for
+# the same prose and fixed fields integrated after its issue (sibling partition part, a copy, a pending
+# sibling candidate); Admission refuses the integration and the item takes a new iteration
+RS_STALE_CASES = {"redo_v_keep_u1": {"w": 9}, "copy_empty_keep_u1": {"v": 1}, "first_u1": {"w": 9}}
+
+
+def rs_integration_admitted(shape, integrated_after_issue):
+    if "stale_retained_admitted" in MUT:
+        return True
+    return not integrated_after_issue
+
+
+def rs_admitted_retained(shape, dispatcher_value):
+    """Admission step 2 recomputes the envelope's retained units at its issued_at_position (SD-45)."""
+    if "retained_unchecked" in MUT:
+        return True
+    return dispatcher_value == rs_retained(shape)
 
 
 def check_review_scope(limit_fail: int = 5, verbose: bool = True) -> dict:
@@ -1716,7 +1744,9 @@ def check_review_scope(limit_fail: int = 5, verbose: bool = True) -> dict:
     content (unrelated or repaired content). R4 an empty judged scope reaches only its own target. R5 a
     reviewer who authored retained content of J is not independent of it. R6 every judgment of one
     transformation carries the same J, so an adverse one reaches its own target whenever admitted. R7 an
-    integrated-result review's independence is measured over its output-entry content."""
+    integrated-result review's independence is measured over its output-entry content, an item-level review's
+    entries naming the parts' latest outputs. R8 an integration whose retained units went stale after issue
+    is refused (a new iteration). R9 Admission checks the envelope's retained units."""
     fails: dict[str, int] = {}
     examples: dict[str, list] = {}
     n = 0
@@ -1731,6 +1761,16 @@ def check_review_scope(limit_fail: int = 5, verbose: bool = True) -> dict:
             authored = {RS_AUTHORS[u][c] for u, c in content}
             if (reviewer in authored) != (reviewer in rs_integrated_authors(r)):
                 fail("R7", f"{REVIEW_SCOPE} {r}: reviewer {reviewer} independence of an integrated-result review misjudged")
+    for a, later in RS_STALE_CASES.items():
+        n += 1
+        if rs_integration_admitted(a, bool(later)):
+            fail("R8", f"{REVIEW_SCOPE} {a}: integrates on a review whose retained units miss {later}, integrated after its issue")
+        if not rs_integration_admitted(a, False):
+            fail("R8", f"{REVIEW_SCOPE} {a}: an integration with current retained units refused")
+    for a in RS_SHAPES:
+        n += 1
+        if rs_retained(a) and rs_admitted_retained(a, {}):
+            fail("R9", f"{REVIEW_SCOPE} {a}: an under-computed retained field admitted")
     for a in RS_SHAPES:
         n += 1
         if rs_judged(a, "admission") != rs_judged(a, "issue") or not rs_reach_at(a, "admission", a, "issue"):
