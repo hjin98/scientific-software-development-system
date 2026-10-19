@@ -21,9 +21,9 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — G2 shadow D3->D4 workplan
 
 ```text
-STATUS: PROPOSED, revision 3, frozen for independent Review (2026-10-19). Revisions 1 (13d67be) and 2
-        (d8ab75c) received independent NO-PASS records; revision 3 repairs d8ab75c B1 (recurrence inside
-        the one chain, §4.13) and B2 (§4.12). Not reviewed. Not authorized.
+STATUS: PROPOSED, revision 3. Independent Review PASS at afd3be2 (criterion 13; qualification/ssds80/
+        G2-WORKPLAN-REVIEW-SSDS-8.0-AFD3BE2-DIFFERENT-FAMILY-PASS.md), with post-review corrections of its
+        non-blocking findings (§4.14). Not authorized: G2 needs the stakeholder's criterion-14 decision.
 GATE: G2 (workplan §25 criteria 13-14) is OPEN. SSDS 8 D4 is NOT AUTHORIZED: nothing in this file
       authorizes implementation until it is independently reviewed and the stakeholder explicitly
       authorizes shadow implementation.
@@ -31,9 +31,9 @@ GOVERNS: the settlement of the mechanism catalogue against executable design mod
          the plan for shadow implementation, Phases D-H (Stage D, only after G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: independent Review of revision 3 with Manual amendments A4-A6 (handoff
-             G2-WORKPLAN-REVIEW-HANDOFF-SSDS-8.0-R3.md); then the stakeholder's G2 decision (criterion 14). A4 and the A1-A3 Review findings N1 and N2 wait for the
-             next Manual amendment batch (§4.10).
+NEXT ACTION: the stakeholder's G2 decision (criterion 14) and acceptance of Manual amendments A4-A6, on
+             qualification/ssds80/G2-DECISION-BRIEF-SSDS-8.0-AFD3BE2.md. Revision 3 and A4-A6 passed independent
+             Review at afd3be2 (§4.14).
 ```
 
 ## 0. Purpose and authority
@@ -275,6 +275,14 @@ The stakeholder chose option 1 (SD-54, record item 50): one post-answer rule, st
 
 **Revision 3 (d8ab75c B1).** The revision 2 Review found that recurrence, modelled as a separate decision keyed on (`recurrence`, condition, revision), came back open with the same key after a human answered it, with no settled continuation. This is the routing family's third round, so revision 3 removes the special case instead of adding one: recurrence is a property of a chain's later decisions (held for human attention, answered only by a human), not a decision of its own, so every decision stays answer-qualified and every answer, before or after the threshold, continues the chain by the same rule. `models/cases_s3.py` adds the Review's discriminator (each chain through the threshold, a human `AMEND` before and after integration, a principal's answer to a held decision, `PARTITION`, `CHALLENGE`, `ESCALATE`, a kept-fence `DECLINE`), and `run_models.py` adds a lifecycle property check that enumerates every answer chain up to length 4 for the three conditions (and a kept fence over a spent budget) and checks seven properties stated from the Manual, not from the rule: never stranded; an answered decision never open again; a wait names an unsettled last answer; no re-dispatch or discharge while the budget is spent; held for human attention exactly after `RECURRENCE` counted answers; the open decision names the last counted answer; the fence passed only after a counted `DECLINE`. The settled rule has no violation in 14,508 chains; revision 2's rule violates P3, P6 and P7. **Provenance (d8ab75c N1).** SD-54's received text fixes the answer-qualified key, the wait for an `AMEND` elsewhere and the kept-fence `DECLINE`; the recurrence threshold and its human hold are the author's proposal, to be accepted or changed by the stakeholder at G2.
 
+### 4.14 The revision 3 Review and its post-review corrections (afd3be2)
+
+The independent Review of revision 3 and of Manual amendments A4-A6 passed both parts with no blocker (`qualification/ssds80/G2-WORKPLAN-REVIEW-SSDS-8.0-AFD3BE2-DIFFERENT-FAMILY-PASS.md`): criterion 13's Review is supplied for the candidate `afd3be2640b6a6e33a3d744efd76d324c6e5931a`, and RR-5, RR-6 and RR-9 can be closed for G2. Its three non-blocking findings, each confirmed by the author, are corrected after the candidate in one commit, kept apart so the stakeholder can accept the reviewed text with or without them:
+
+- N1: A6's sentence (Manual §17.5) said an attribute the Dispatcher cannot request leaves the stop conditions unobtainable for every failure of its class; the Review showed matching executions can still exist (a scheduler that happens to choose the same node). It now says such an attribute can leave matching executions unavailable or hard to obtain, and that observations that do match still serve. No predicate changes.
+- N2: the inventory self-test's restatement probe now runs through the checker's filters, expecting only the annotated title.
+- N3: A4 now cites §5.10 (c) for reach; this file's `NEXT ACTION` no longer says A4 waits for a later batch.
+
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
 
 Stage D builds the shadow system of the architecture workplan's Phases D-H (its §23) within §2. It adds no architecture and no mechanism beyond the settled register (§4.2): every behaviour it builds names the register row it realizes, and a behaviour no row covers goes back to Stage S (§5.6).
@@ -353,10 +361,10 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 | Item | State |
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
-| this workplan | revision 1 NO-PASS (13d67be); revision 2 NO-PASS (d8ab75c: B1 recurrence, B2 seven omissions); revision 3 frozen for independent Review |
+| this workplan | revision 1 NO-PASS (13d67be); revision 2 NO-PASS (d8ab75c); revision 3 PASS (afd3be2), post-review corrections §4.14 |
 | Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 done: Stage D made concrete (§5), register closure (§4.11), revision 1 frozen |
 | Stage D | not authorized |
-| G2 | open |
+| G2 | open: criterion 13 Review PASS (afd3be2); criterion 14 (stakeholder authorization) pending |
 
 **Revision 1 (2026-10-18, S6).** Revision 0 opened the workplan under SD-50 and recorded Stage S as it ran (§4.4-§4.10). Revision 1 adds the register closure (§4.11) and the concrete Stage D plan (§5, replacing revision 0's outline), brings the Stage S results current with SD-53, and freezes the file for independent Review. Nothing in it authorizes Stage D.
 

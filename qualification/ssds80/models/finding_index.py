@@ -497,6 +497,11 @@ _d("D8AB75C", "N1", "NOTED", "the recurrence policy is the author's proposal, pu
 _d("D8AB75C", "N2", "A4", "carried with A4-A6")
 _d("D8AB75C", "N3", "NOTED", "invocation locator: name the handoff commit apart from the candidate")
 
+_d("AFD3BE2", "N1", "CLOSED-ARCH", "A6 restated after review: an unrequestable attribute can leave matching executions "
+   "hard to obtain; observations that match still serve (post-review correction, §4.14)")
+_d("AFD3BE2", "N2", "CLOSED-S5", "finding_inventory_check.py --self-test runs the restatement probe through the filters")
+_d("AFD3BE2", "N3", "CLOSED-CYCLE", "A4 cites §5.10 (c); G2 workplan NEXT ACTION updated (post-review correction, §4.14)")
+
 
 def s1_evidence():
     """(record, finding) -> the s1 diagnostic's named discriminators that reproduce it."""

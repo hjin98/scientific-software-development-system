@@ -111,15 +111,21 @@ def self_test() -> bool:
     dfrows = [row(l) for l in lines if (row(l)[0] or "").endswith("/DF")]
     m2 = main(drop(lambda l: (row(l)[0] or "").endswith("/DF")), quiet=True)
     ok &= len(m2) == len(dfrows) and len(dfrows) >= 9
+    # an earlier-finding restatement is not a finding; an annotated title is (run through main's filters)
     import tempfile
     probe = "- **N3** is closed by the later repair.\n- **N4 (low):** a finding title\n"
-    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as t:
+    d = tempfile.mkdtemp()
+    with open(os.path.join(d, "WORKPLAN-REVIEW-SSDS-8.0-0000000-NO-PASS.md"), "w") as t:
         t.write(probe)
-    hits = [m for m in LINE.finditer(probe)] if False else [l for l in probe.split("\n") if LINE.match(l)]
-    ok &= len(hits) == 2              # both lines are seen; only N4 survives the filters below
-    os.unlink(t.name)
+    global ROOT
+    saved, ROOT = ROOT, d
+    try:
+        m3 = main([], quiet=True)
+    finally:
+        ROOT = saved
+    ok &= [x.split(": ")[1] for x in m3] == ["N4"]
     print(f"inventory self-test: FFBAD17 projection {len(m1)} miss(es), second-record projection {len(m2)} "
-          f"miss(es) of {len(dfrows)} rows; {'OK' if ok else 'FAILED'}")
+          f"miss(es) of {len(dfrows)} rows, filter probe {[x.split(': ')[1] for x in m3]}; {'OK' if ok else 'FAILED'}")
     return ok
 
 
