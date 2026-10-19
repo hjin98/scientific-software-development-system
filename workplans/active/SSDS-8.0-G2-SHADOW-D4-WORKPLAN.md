@@ -158,6 +158,18 @@ One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REP
 | §13.3, §13.5, §13.6 coverage minima, result slots, system contracts | **ACCEPT** (data) | §13.3, §13.5, §13.6 | inspection | — |
 | §13.4 control tightening | **ACCEPT** | §13.4 | S5 §13 `prose_change_is_not_tightening` (the fields-only reading fails it), `narrower_scope_is_tightening`, `wider_scope_is_not_tightening`, `larger_budget_is_not_tightening`, `field_outside_whitelist_is_r2`, `narrower_dependency_allowance_is_tightening` | findings 6ff4ed1 B2, e548472 N3 |
 | §13.7 partition and budgets, apart from the item-level row above | **ACCEPT** | §13.7 | S5 §13 `partition_lint`, `repartition_keeps_discharged_parts`, `repartition_lint_over_undischarged` | findings 051cce3 N2, 63ddf91 N2, 9e5a763 N3, 362af9f N2, 61cd09b N4, f03b15e N2 |
+| §14 conformance, templates, the library, analyzers, the view, `HARD` qualification | **ACCEPT** (set-valued classes; `SIGNAL` changes no disposition; `CLEAN` discharges nothing) | §14 | S5 §14 `conformance_is_a_set` (the first-wins precedence reading fails it), `signal_changes_nothing` | — |
+| §15 reports, routing, escalation floors, principal decisions, recurrence | **ACCEPT** | §15 | S5 §15 `floors_raise_never_lower`; inspection | findings 093164f N1 (§15.5 outcomes); 093164f N2, ad7ece7 N5 not applicable after SD-40/SD-47; c4e8de7 N4-N5 latch (SD-36) |
+| §16 logical operations, query classes, briefs, read recording, inspector, version binding, transports | **ACCEPT** (§16.5 carries every standing rejection naming an asked item at any revision; §16.6 lists every standing adverse judgment in reach) | §16 | inspection; S2 review-target cases | findings 4c52205 N3, e548472 N1, d6734c4 B1, 61cd09b N1, f185036 N3; d94a293 N2 cost (§32.2) |
+| §17 evidence specifications, realization basis, outcomes, admissibility, runners and custody | **ACCEPT** (data and custody; currency by the §6 predicates) | §17 | S5 §6 matching cases; inspection | — |
+| §18 intake detection, classification, dispositions, structural intake and realignment | **ACCEPT** | §18 | inspection | finding 53669a5 B3 (§18.4) |
+| §19 governance modes, legacy reliance, promotion, cutover, carve-out, rollback, genesis | **ACCEPT** (the cutover record is admitted only while its carrier's enactment has not integrated, once, for a carrier of the right kind naming the subject) | §19 | S5 §19 `cutover_record_after_carrier_integrated_refused` | findings 61cd09b B2, f03b15e B2, 63ddf91 N3; f03b15e N3 cost (§19.5, §32.2) |
+| §20 external units, pins, consultation, other ledgers, multi-repository change | **ACCEPT** (data; pins feed §6's `ext`) | §20 | S5 §6 `ext` cases; inspection | — |
+| §21 stores, entry format, append and durability, retention, location, derived index | **ACCEPT** (data and realization choices; Stage D runner discriminators) | §21 | inspection | the historical, provenance and retained-trade-off findings routed here are costs (§32.2, §32.5); 27ef339 B1-B2 closed by S5 §6 and §1 cases; 9431629 N4 by this index |
+| §22 publication, fencing and settlement, commit point | **ACCEPT** | §22 | S5 §22 `publication_classification` | findings 61cd09b N2 (§22.3 fence re-gating, §32.3); 362af9f N1 (re-application a new enactment) |
+| §23 contract, authentication, witnesses, qualification, fresh clone, known loss, continuity, recovery | **ACCEPT** (`q_a + r > N + f`; qualification states; loss bounds) | §23 | S5 §23 `deployment_classes_sound` (brute-force intersection), `qualification_states`, `loss_bounds` | — |
+| §24 confidentiality prevention and breach protocol | **ACCEPT** (data and procedure) | §24 | inspection | — |
+| §25 actor identity, trust roots, protected surfaces, untrusted input | **ACCEPT** (untrusted input is data) | §25 | inspection | — |
 
 ### 4.3 Stop rules
 
@@ -207,6 +219,8 @@ S5 settles catalogue sections in dependency order; each records its dispositions
 
 **§8-§13 (2026-10-18).** `models/work.py` and `models/cases_s5_8_13.py`: 16 cases (never-lost salvage and the non-clean-result refusal, the revision run under a revert, the control-tightening order, ref locality, the domain rule, partition and re-partition lint); the settled rules meet every case and each refuted reading (all-or-nothing admission, acceptance reused by bytes across runs, prose ignored by tightening) fails its case. No finding routed to §8-§13 remains open; 22 of them concern R15's latch, withdrawn by SD-36.
 
+**§14-§25 (2026-10-18).** `models/persistence.py` and `models/cases_s5_14_25.py`: 8 cases (set-valued conformance against a first-wins precedence reading, `SIGNAL` changing nothing, floors that only raise, the cutover carrier window, publication classification, witness-quorum soundness by brute force over small deployments, known-loss bounds, qualification states); the settled rules meet every case and the first-wins precedence reading fails its case; the cutover case encodes the window the two Blockers found missing rather than replaying an earlier reading. Sections 17, 18, 20, 21, 24 and 25 are mainly data, procedure and realization choices accepted on inspection, with their behaviour checked as Stage D runner discriminators. No finding routed to §14-§25 remains open: most of those routed to §21 are the historical, provenance and empirical limits and retained trade-offs that Manual §32.2, §32.3 and §32.5 disclose; the rest are closed by the accepted Manual's text, by S1-S5 cases, or are not applicable after SD-36, SD-40 or SD-47. The open findings left are owned by §0 (9), §30 (1), §31 (29) and §32 (17).
+
 **A3 (proposed).** While disposing of 0d2b35e N2 the author found that the SD-47 condensation had dropped disclosed costs from Manual §32.2 and §32.3 that the catalogue still states (the equivalence-hop direction, an unpinnable passing realization staying current, `ABSENT` terms raising no finding, fail-closed adverse linking, incidental host reads, attestation challenges, the re-partition consequence of the judged-content rule, plan-rejection reach on control-only branches, a frame `REJECT` after abandonment, and several reopen triggers). Amendment A3 restores them in the Manual's current terms, changing no decision, for review and acceptance with A1 and A2.
 
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
@@ -244,6 +258,6 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 0, proposed, unreviewed |
-| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done, its identity row pending A2 (§4.7, §4.8); S4 index done (§4.9); S5 §1-§13 done (§4.10) |
+| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done, its identity row pending A2 (§4.7, §4.8); S4 index done (§4.9); S5 §1-§25 done (§4.10) |
 | Stage D | not authorized |
 | G2 | open |

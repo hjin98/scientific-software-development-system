@@ -286,6 +286,44 @@ _d("F03B15E", "N1", "CLOSED-ARCH", "Manual §10.3 answered by a judgment bound t
 _d("9431629", "N3", "CLOSED-S2-S3", "§8.3 step 7 STALE_RETAINED replaced by the judged-content support check (S2)")
 
 
+# §14-§25
+LIMITS = "historical, provenance and empirical limits carried (Manual §32.2, §32.5, §31.9; register RR-9)"
+for rec, ids in (("085C979", "N4"), ("29DA56E", "N8"), ("51070E5", "N7"), ("6B986DE", "N9"), ("9E5A763", "N5"),
+                 ("A6ED164", "N4"), ("D6734C4", "N3")):
+    _d(rec, ids, "COST", LIMITS)
+TRADE = "retained trade-offs, accepted at G1 (Manual §32.2-§32.3)"
+for rec, ids in (("0D2B35E", "N5"), ("34803DF", "N5"), ("83A82DF", "N5"), ("913DB8F", "N8"), ("BF23372", "N6")):
+    _d(rec, ids, "COST", TRADE)
+_d("9431629", "N4", "CLOSED-S5", "this index and the S5 per-section dispositions (RR-9)")
+_d("8C1F2F2", "N3", "NA-SD47", "closure-map aid")
+_d("DDDFEDF", "N3", "NA-SD47", "closure-map aid")
+_d("DDDFEDF", "N1", "CLOSED-ARCH", "status wording repaired at dddfedf")
+_d("DDDFEDF", "N4", "CLOSED-S2-S3", "§5.10 (d)/(h)(4) per-state row (S2 route cases; A1)")
+_d("27EF339", "B1", "CLOSED-S5", "S5 §6 unbounded_run_still_linked")
+_d("27EF339", "B2", "CLOSED-S5", "S5 §1 span_shift_not_a_change, innermost ownership")
+_d("3876473", "N5", "NA-SD47", "")
+_d("494C810", "N5", "NA-SD47", "")
+_d("8F4E75D", "N6", "NA-SD47", "")
+_d("F03B15E", "N4", "NA-SD47", "")
+_d("AD7ECE7", "N5", "NA-SD47", "dispositions of earlier findings, superseded by this index")
+_d("093164F", "N1", "CLOSED-ARCH", "Manual §15.5 decisions with no report allow the outcomes catalogue §15.5 lists")
+_d("093164F", "N2", "NA-SD47", "re-attestation of integrated results withdrawn (SD-40)")
+_d("362AF9F", "N1", "CLOSED-ARCH", "Manual §5.2, §22.2-§22.3 re-application is a new task and enactment (R12)")
+_d("C4E8DE7", "N4 N5", "NA-LATCH", "")
+_d("4C52205", "N3", "CLOSED-ARCH", "Manual §16.5 carried objections: a standing rejection is carried while it stands")
+_d("E548472", "N1", "CLOSED-ARCH", "Manual §16.5 a finding ends only by an independent, acting, unvetoed RESOLVED")
+_d("D6734C4", "B1", "CLOSED-ARCH", "Manual §16.5 carries every standing rejection naming an asked item at any revision")
+_d("61CD09B", "N1", "CLOSED-ARCH", "Manual §16.6 the core lists every standing adverse judgment in reach")
+_d("D94A293", "N2", "COST", "cross-plan continuity bounded (Manual §32.2)")
+_d("F185036", "N3", "CLOSED-ARCH", "Manual §10.4 drift brief and empty transformation")
+_d("53669A5", "B3", "CLOSED-ARCH", "Manual §18.4 contrary dispositions after ABSORB derive adjudication and realignment")
+_d("61CD09B", "B2", "CLOSED-S5", "S5 §19 cutover_record_after_carrier_integrated_refused")
+_d("F03B15E", "B2", "CLOSED-S5", "S5 §19 cutover_record_after_carrier_integrated_refused")
+_d("F03B15E", "N3", "COST", "fenced cutover half state disclosed (Manual §19.5, §32.2)")
+_d("63DDF91", "N3", "CLOSED-ARCH", "Manual §19.5 cutover carried by an integration; fails closed")
+_d("61CD09B", "N2", "CLOSED-ARCH", "Manual §22.3 fence re-gating stated; §32.3 trigger")
+
+
 def s1_evidence():
     """(record, finding) -> the s1 diagnostic's named discriminators that reproduce it."""
     import subprocess
