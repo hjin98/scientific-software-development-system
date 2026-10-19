@@ -330,15 +330,15 @@ QUAL = ("catalogue §31.4-§31.8 expected values replaced by the settled registe
         "the named discriminators join the Manual §31.2 acceptance program (G2 workplan §5)")
 for rec, ids in (("051CCE3", "N5"), ("29DA56E", "N5"), ("362AF9F", "N6"), ("51070E5", "N3"), ("61CD09B", "N6"),
                  ("63DDF91", "N5"), ("6B986DE", "N6"), ("F03B15E", "N5"), ("F22B4DC", "N5"), ("9E5A763", "N1"),
-                 ("B46C250", "N4"), ("8F4E75D", "N4"), ("B365947", "N4"), ("095CE55", "N7"), ("C77447B", "N5"),
-                 ("D94A293", "N3")):
+                 ("B46C250", "N4"), ("8F4E75D", "N4"), ("B365947", "N4"), ("D94A293", "N3")):
     _d(rec, ids, "STAGE-D", QUAL)
 _d("9431629", "N1", "CLOSED-S2-S3", "S1 item cases construct item-level content from histories (re-dispatched part)")
 for rec, ids in (("085C979", "N1"), ("093164F", "N5"), ("494C810", "N1"), ("8F4E75D", "N5"), ("B365947", "N1"),
                  ("C4E8DE7", "N1"), ("EB86A71", "N6")):
     _d(rec, ids, "NA-RR10", "")
 _d("F044820", "N3", "CLOSED-BY-SEED", "the full --mutations run was executed for candidate 63 (SD-48), green")
-_d("095CE55", "N4 N6", "NA-LATCH", "")
+_d("095CE55", "N4 N6 N7", "NA-LATCH", "")
+_d("C77447B", "N5", "NA-LATCH", "discriminators for the R15 latch blocker")
 _d("494C810", "N4", "NA-LATCH", "")
 _d("C4E8DE7", "N3", "NA-LATCH", "")
 _d("051CCE3", "N4", "CLOSED-ARCH", "Manual §0.3 R8 per-target lifting; §3.4 typed targets")

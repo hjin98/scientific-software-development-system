@@ -6,11 +6,11 @@ target_system_version: 8.0.0
 status: proposed
 created_date: 2026-10-18
 revised_date: 2026-10-18
-revision: 0
+revision: 1
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50, semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5; amendments A1-A3 accepted, SD-53, semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74)
 governing_workplan: workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md (design revision 24, accepted at G1)
 mechanism_input: orchestrator/docs/ssds-8.0-mechanism-catalogue.md (non-authoritative; residual register RR-1 to RR-11)
-stakeholder_record: qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md (item 46, SD-50)
+stakeholder_record: qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md (items 46-49, SD-50 to SD-53)
 gate: G2-open
 implementation_handoff: not-authorized
 active_serious_challenge: none
@@ -21,15 +21,18 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — G2 shadow D3->D4 workplan
 
 ```text
-STATUS: PROPOSED, revision 0 (opened 2026-10-18 under SD-50). Not reviewed. Not authorized.
+STATUS: PROPOSED, revision 1, frozen for independent Review (S6, 2026-10-18; opened under SD-50). Not
+        reviewed. Not authorized.
 GATE: G2 (workplan §25 criteria 13-14) is OPEN. SSDS 8 D4 is NOT AUTHORIZED: nothing in this file
       authorizes implementation until it is independently reviewed and the stakeholder explicitly
       authorizes shadow implementation.
-GOVERNS: the settlement of the mechanism catalogue against executable design models (Stage S, now) and
+GOVERNS: the settlement of the mechanism catalogue against executable design models (Stage S, done at revision 1) and
          the plan for shadow implementation, Phases D-H (Stage D, only after G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: S6, the Stage D plan made concrete and this workplan frozen as revision 1 for independent Review. Manual amendments A1-A3 are accepted (SD-53); A4 and the A1-A3 Review findings N1 and N2 wait for the next amendment batch (§4.10).
+NEXT ACTION: independent Review of revision 1 (handoff G2-WORKPLAN-REVIEW-HANDOFF-SSDS-8.0-R1.md); then the
+             stakeholder's G2 decision (criterion 14). A4 and the A1-A3 Review findings N1 and N2 wait for the
+             next Manual amendment batch (§4.10).
 ```
 
 ## 0. Purpose and authority
@@ -178,7 +181,7 @@ One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REP
 | §29 doctrine realization maps | **ACCEPT** (data; E-level claims measured at G3, Manual §31.9) | §29 | inspection | — |
 | §30 minimum-justified-architecture reassessment | **ACCEPT** | §30 | inspection | finding 362af9f N5 |
 | §31.1-§31.3, §31.9-§31.10 principles, diagnostics, usability, document checks | **ACCEPT**, the diagnostics read as regression seeds (RR-10, S1) | §31 | S1-S5 models; `run_models.py --seeds` | findings 085c979 N1, 093164f N5, 494c810 N1, 8f4e75d N5, b365947 N1, c4e8de7 N1, eb86a71 N6 (RR-10); f044820 N3 (the full mutation run, SD-48) |
-| §31.4-§31.8 acceptance-program groups and their expected values | **REPLACE** the expected values: Stage D takes each case's expected result from this register and the Stage S models, never from the catalogue's tables, several of which encoded blockers repaired later; every discriminator a Review named for these groups joins its group (index rows marked `STAGE-D`) | §31.2 | `G2-S4-FINDING-INDEX.md` (20 `STAGE-D` rows); S1-S5 cases already model several of them | findings 051cce3 N5, 29da56e N5, 362af9f N6, 51070e5 N3, 61cd09b N6, 63ddf91 N5, 6b986de N6, f03b15e N5, f22b4dc N5, 9e5a763 N1, b46c250 N4, 8f4e75d N4, b365947 N4, 095ce55 N7, c77447b N5, d94a293 N3; 9431629 N1 (S1 item cases) |
+| §31.4-§31.8 acceptance-program groups and their expected values | **REPLACE** the expected values: Stage D takes each case's expected result from this register and the Stage S models, never from the catalogue's tables, several of which encoded blockers repaired later; every discriminator a Review named for these groups joins its group (index rows marked `STAGE-D`) | §31.2 | `G2-S4-FINDING-INDEX.md` (18 `STAGE-D` rows, assigned to groups in §5.3); S1-S5 cases already model several of them | findings 051cce3 N5, 29da56e N5, 362af9f N6, 51070e5 N3, 61cd09b N6, 63ddf91 N5, 6b986de N6, f03b15e N5, f22b4dc N5, 9e5a763 N1, b46c250 N4, 8f4e75d N4, b365947 N4, d94a293 N3; 9431629 N1 (S1 item cases); 095ce55 N7, c77447b N5 (discriminators for the withdrawn latch, SD-36) |
 | §32 limits, residual risks, reopen triggers, open uncertainties | **ACCEPT** the catalogue's disclosures as G2 and Stage D runner-design considerations; the Manual's §32 (amended by A3) governs, and the catalogue disclosures it lacks go to the next amendment batch (2a17a83 N1, N2, with A4) | §32 | inspection; comparison in the 2a17a83 Review | findings 085c979 N2, 34803df N4, 47b9f77 N3, 61cd09b N3, 6b986de N3, ad7ece7 N3, b46c250 N2, e810508 N3 (closed by the Manual's text); 83a82df N3 (A3); 82d618c N4 and the trade-off lists 51070e5 N6, 9e5a763 N4, b46c250 N5, e548472 N5, f03b15e N6 (costs); 095ce55 N4, N6, 494c810 N4, c4e8de7 N3 (latch, SD-36) |
 | §33 non-goals | **ACCEPT** | §33 | inspection | — |
 
@@ -198,11 +201,11 @@ What S1 can discriminate: judged-content selection from explicit histories and i
 
 ### 4.5 S2 result (2026-10-18)
 
-The framework gained `models/judgment.py` (transformation `W` and the integration support check, the one-context binding, typed targets with answering and relief, and route enumeration per state: independence over what each route record judges, acting per Manual §5.2 and §7.5, relief basis) and `models/cases_s2.py` (7 transformation, 3 binding, 5 target and 7 route cases, expectations written from the Manual). Result: the settled mechanism meets all 22 S2 cases and the S1 cases; the catalogue's reading misses the 11 S2 cases that name it (over-exclusion by same-key work in another scope, `STALE_RETAINED`'s over-refusal, two producing contexts for one identity, the joint-invariant and high-consequence target collisions, relief across colliding targets, and four route-eligibility cases); seeds pass. §4.2's rows record the dispositions. RR-1, RR-2 and RR-3 are settled pending this workplan's Review; RR-11 is settled except the waiting state, which is blocked on Q1.
+The framework gained `models/judgment.py` (transformation `W` and the integration support check, the one-context binding, typed targets with answering and relief, and route enumeration per state: independence over what each route record judges, acting per Manual §5.2 and §7.5, relief basis) and `models/cases_s2.py` (7 transformation, 3 binding, 5 target and 7 route cases, expectations written from the Manual). Result: the settled mechanism meets all 22 S2 cases and the S1 cases; the catalogue's reading misses the 11 S2 cases that name it (over-exclusion by same-key work in another scope, `STALE_RETAINED`'s over-refusal, two producing contexts for one identity, the joint-invariant and high-consequence target collisions, relief across colliding targets, and four route-eligibility cases); seeds pass. §4.2's rows record the dispositions. RR-1, RR-2 and RR-3 are settled pending this workplan's Review; RR-11 is settled except the waiting state, which is blocked on Q1. (Q1 was resolved by A1, accepted under SD-53; §4.11.)
 
 ### 4.6 G1 question Q1 (resolved by SD-51; amendment A1 accepted, SD-53)
 
-S2's route model found a lawful state in which the accepted Manual's §5.10 (h)(4) ("liftable or waiting") is false if §5.10 (f)'s "No eligible judge" is read as written. A standing NO-PASS was recorded in the frame of transformation X, which was abandoned; it vetoes the passing review of a re-dispatch Z that keeps the rejected content. Its author was an agent whose task has ended. The owner O is qualified and did not author the NO-PASS's judged content, but a supersession of a judgment about X must declare X's frame (§7.5) and so never acts in Z's; O authored part of Z's judged content, so O cannot relieve Z's review; the policy adjudicator H authored the NO-PASS's content. No route record can act there. Yet (f) says an obligation waits only when every qualified actor is among the authors, which O is not; so the state neither has an ending record nor is waiting. Read per route and per state ("no eligible independent judge for any of those routes exists there", as (h)(4) words it), the objection waits and (h)(4) holds. The model case is `G1_QUESTIONS` in `models/cases_s2.py`; the runner prints both readings. By §4.3 this reopened G1 at §5.10. The stakeholder chose SD-51 (record item 47): amend §5.10 (f) so that eligibility is per route and per state (independent of what the route's record judges, acting there, basis admissible). Amendment A1 makes that change in §5.10 (f), (h)(4), §10.2 and §10.3; its GPT-family review of the delta and the stakeholder's acceptance are pending, and until then the dddfedf text governs. The runner now requires the dddfedf reading to reproduce the gap and the amended reading to close it.
+S2's route model found a lawful state in which the accepted Manual's §5.10 (h)(4) ("liftable or waiting") is false if §5.10 (f)'s "No eligible judge" is read as written. A standing NO-PASS was recorded in the frame of transformation X, which was abandoned; it vetoes the passing review of a re-dispatch Z that keeps the rejected content. Its author was an agent whose task has ended. The owner O is qualified and did not author the NO-PASS's judged content, but a supersession of a judgment about X must declare X's frame (§7.5) and so never acts in Z's; O authored part of Z's judged content, so O cannot relieve Z's review; the policy adjudicator H authored the NO-PASS's content. No route record can act there. Yet (f) says an obligation waits only when every qualified actor is among the authors, which O is not; so the state neither has an ending record nor is waiting. Read per route and per state ("no eligible independent judge for any of those routes exists there", as (h)(4) words it), the objection waits and (h)(4) holds. The model case is `G1_QUESTIONS` in `models/cases_s2.py`; the runner prints both readings. By §4.3 this reopened G1 at §5.10. The stakeholder chose SD-51 (record item 47): amend §5.10 (f) so that eligibility is per route and per state (independent of what the route's record judges, acting there, basis admissible). Amendment A1 makes that change in §5.10 (f), (h)(4), §10.2 and §10.3; its GPT-family review of the delta passed (`MANUAL-REVIEW-SSDS-8.0-2A17A83-A1A2A3-DIFFERENT-FAMILY-PASS.md`) and the stakeholder accepted it (SD-53). The runner now requires the dddfedf reading to reproduce the gap and the amended reading to close it.
 
 ### 4.7 S3 result (2026-10-18)
 
@@ -214,7 +217,7 @@ Manual §10.4 says an item obligation's identity is "its item and the prose and 
 
 ### 4.9 S4 result (2026-10-18)
 
-`qualification/ssds80/G2-S4-FINDING-INDEX.md` (generated by `models/finding_index.py`) indexes 490 heading-level findings from 87 Review records: 8 closed by named S1-S3 model cases, 482 open and routed to their owning sections (the largest shares are §5 derivation, 91; §6 assessment disagreement, 74; §10 obligations, 60; §0 refinements, 35; §31 qualification, 29). Extraction is mechanical, so a finding stated only in running prose may be missing; S5 reads each owned record in full before closing its section.
+`qualification/ssds80/G2-S4-FINDING-INDEX.md` (generated by `models/finding_index.py`) indexes 490 heading-level findings from 87 Review records: 8 closed by named S1-S3 model cases, 482 open and routed to their owning sections (the largest shares are §5 derivation, 91; §6 assessment disagreement, 74; §10 obligations, 60; §0 refinements, 35; §31 qualification, 29). Extraction is mechanical, so a finding stated only in running prose may be missing; S5 reads each owned record in full before closing its section. S5 disposed of every finding; the index now covers 493 findings from 88 records, none open (§4.10).
 
 ### 4.10 S5 progress
 
@@ -236,28 +239,87 @@ S5 settles catalogue sections in dependency order; each records its dispositions
 
 **A3 (accepted with A1 and A2, SD-53).** While disposing of 0d2b35e N2 the author found that the SD-47 condensation had dropped disclosed costs from Manual §32.2 and §32.3 that the catalogue still states (the equivalence-hop direction, an unpinnable passing realization staying current, `ABSENT` terms raising no finding, fail-closed adverse linking, incidental host reads, attestation challenges, the re-partition consequence of the judged-content rule, plan-rejection reach on control-only branches, a frame `REJECT` after abandonment, and several reopen triggers). Amendment A3 restores them in the Manual's current terms, changing no decision, for review and acceptance with A1 and A2.
 
+### 4.11 Residual-register closure (S6)
+
+Each entry of catalogue C.2 is closed here for G2 at the same no-blocker bar, pending this workplan's independent Review. Closure is design evidence: the production behaviour each entry concerns is qualified at its real owner in Stage D (§5.3), never by these models (DS-001).
+
+| Entry | Closed by | Evidence | Stage D carry |
+|---|---|---|---|
+| RR-1 item-level review judged content | S2 (§4.5); register rows §3.4, §4.3, §13.7 | S1 item cases (11) built from integration histories; S2 target cases | group 3 history-derived item-level cases |
+| RR-2 transformation judged scope and retained units | S2 (§4.5); register rows §5.10 (b), §8.3 step 2 | S2 transformation and binding cases (10) | group 3 |
+| RR-3 review target typing | S2 (§4.5); register row §3.4 | S2 target cases (5) | groups 3, 5 |
+| RR-4 identity under a loosening amendment | Q2, decided by SD-52, amendment A2 accepted (SD-53); register row §10.4 identity | S3 `IDENTITY_CASES` (4) | group 5: the assembled transition (`out(o)`, subjects, count through amendment, acceptance wait and budget change), which the identity cases do not implement (2a17a83 Review) |
+| RR-5 to RR-8 routing residuals | S3 (§4.7); register rows §10.4 | S3 routing cases (13) | group 5: the real-owner routing replay the register names (§5.4) |
+| RR-9 historical findings | S4 index and S5 (§4.9, §4.10) | `G2-S4-FINDING-INDEX.md`: 493 findings, none open | the 18 `STAGE-D` rows (§5.3) |
+| RR-10 diagnostic construction | S1-S5: models whose expectations are stated from the Manual and from recorded histories; the earlier diagnostics kept as regression seeds | `run_models.py --seeds`; each step's stated limits (§4.4-§4.10) | expected values rule (§5.1 item 3) |
+| RR-11 owner exception, missing-judge waiting, per-state eligibility | S2 (§4.5) and Q1, decided by SD-51, amendment A1 accepted (SD-53) | S2 route cases (7), `G1_QUESTIONS` | group 3: per-record judged content, acting state, class and basis admissibility through the resolver and Dispatcher (2a17a83 Review) |
+
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
 
-Stage D follows the architecture workplan's Phases D-H (its §23). Each phase is bounded to shadow operation by §2, delivers through the accepted component boundaries (Manual §26), and is accepted only through production-owner evidence and independent implementation Review at G3 (criterion 15). The detailed acceptance program is Manual §31.2 with the catalogue's §31 discriminators as settled in Stage S. Each case takes its expected result from the settled-mechanism register (§4.2) and the Stage S models, never from the catalogue's §31.4-§31.8 tables, and every discriminator the finding index marks `STAGE-D` joins its group.
+Stage D builds the shadow system of the architecture workplan's Phases D-H (its §23) within §2. It adds no architecture and no mechanism beyond the settled register (§4.2): every behaviour it builds names the register row it realizes, and a behaviour no row covers goes back to Stage S (§5.6).
 
-| Phase | Scope (shadow, no authority) | Acceptance evidence at G3 |
-|---|---|---|
-| **D** read-only kernel | Content Model, Analyzers, ledger schema and Ledger Store, Derivation over this repository, a shadow genesis from existing history | derivation, structure and relation groups; determinism and replay; currency and widening; incremental equals from-scratch |
-| **E** read-only interface and workflow layer | `open`, `ask`, `read`; briefs, contract lint, conformance views, report routing, decision briefs and the inspector, computed beside document control | interface, workflow-roles, contracts, conformance and escalation groups; live trajectories on the 7.x panel against the 7.2.1 baseline (Manual §31.9) |
-| **F** Admission and Dispatcher in shadow | admission decisions computed beside document control; every material difference classified (SSDS defect, baseline defect, deliberate stronger rule, unresolved judgment) and independently reviewed | admission, publication, crash-window, currentness and loss groups with deterministic failpoints; frames end to end |
-| **G** intake and migration pilot | this repository's legacy documents (Case B) and one external scientific repository (Case C/D), without disturbing production | intake, migration and refinement, cross-repository groups |
-| **H** adversarial and fault qualification | the security, privacy, semantic-adversarial and fault groups | those groups; independent implementation Review |
+### 5.1 Rules for every phase
 
-Stage D adds no architecture. A Stage D finding that a Manual decision fails in practice is a reopen trigger for the Manual (§32.3), not a local patch.
+1. **Delivery.** One distribution, `sdp-orchestrator-ssds`, under `orchestrator/`, with the namespace package `sdp_orchestrator.ssds` and one subpackage per Manual §26.1 component, registered through Core's existing entry-point group `sdp_orchestrator.extensions.v1` (Manual §26.3). No Core change is needed or allowed. The Manual §26.2 fitness checks are written first, in Phase D, and run in repository acceptance for every later change.
+2. **Shadow boundary.** The shadow ledger is at a location designated at shadow genesis (Manual §21.5) that document control never reads. No SSDS process holds a credential that can move a governed ref or write a governed file. Every subject is `LEGACY(p)` or `UNGOVERNED` (§2 item 1). Each phase's acceptance checks this boundary.
+3. **Expected values.** Each acceptance case states its expected result from the register row it tests and the Manual decision behind that row. Stage S cases supply expectations as written (their stated expected outcomes), never by running the model rules on production output, and production code never imports `qualification/ssds80/models/`. The catalogue's §31.4-§31.8 tables do not supply expected values (§4.2). Each group keeps its negative discriminators (Manual §31.2).
+4. **Real owners.** Each group runs at the production owner the catalogue names for it (for example, ledger-only replay as the oracle for publication classification). Fixtures alone qualify only mechanical properties (DS-001).
+5. **Phase Review.** Each phase ends with an independent implementation Review recorded in `qualification/ssds80/`. A phase PASS lets the next phase's dependent work start and accepts nothing; acceptance is G3 (criterion 15). The human gate of the shadow genesis (Phase D) is the stakeholder's.
+6. **Frozen surfaces.** §2 item 6 holds throughout; Core's own suite and the frozen-profile tests run unchanged and pass at every phase (PC-001).
+7. **Campaigns.** A live agent trajectory or any measurement spend (Manual §31.9; Phase E's burden and doctrine measurements; any live agent run in Phase F) is a campaign. It needs a frozen measurement plan (gates calibrated from simulated operating characteristics, instruments validated first, rules, custody and blinding frozen before runs), that plan's independent Review, and the stakeholder's explicit authorization, separate from G2. Without one, a phase runs on recorded histories, this repository's history and synthetic fixtures only.
+
+### 5.2 Phases
+
+Phases run in order; each starts after the previous phase's Review. Register rows are named by catalogue section (§4.2).
+
+| Phase | Builds (shadow, no authority) | Realizes register rows | Exit evidence for G3 |
+|---|---|---|---|
+| **D** read-only kernel | `content`, `analyzers`, `ledger` (schema, chain verification, store, qualification read path), `derivation` (strata S0-S3 and queries), the §26.2 fitness checks, and Admission's genesis path only: the shadow genesis of Manual §19.9 (validation, the human gate, append under its own quorum, `LOCAL_TRUST` allowed), so that only Admission appends from the first entry; derivation reads that genesis with this repository's content and Git history | §1-§7, §19.9, §21, §23 read path, §27-§28 | groups 1, 2 and 3 (derivation halves); determinism and replay; incremental equals from-scratch; a shadow genesis of this repository's history derived end to end |
+| **E** read-only interface and workflow layer | `interface` (`open`, `ask`, `read`; task, review, decision and gate briefs; the inspector view and digest); S3 conformance, routing and escalation views; contract lint | §10-§16, §29 | groups 5 and 6 (derivation halves), with the routing residual replay on recorded histories (§5.4); live trajectories only under an authorized campaign (§5.1 item 7) |
+| **F** Admission and Dispatcher in shadow | `admission` (validation steps, witness quorum, publication and fencing) and `dispatcher` (scheduling, envelopes, designated-runner realizations in sandboxed workspaces without push credentials), computing decisions beside document control | §8-§9, §17, §22-§25 | group 4; the admission halves of groups 2, 3 and 5; every material difference from document control classified (SSDS defect, baseline ambiguity or defect, deliberate stronger rule, unresolved judgment) and independently reviewed |
+| **G** intake and migration pilot | intake, the migration path for this repository's legacy documents (Case B) and one external scientific repository (Case C/D) on a read-only clone with its owner's permission; external units | §18-§20 | group 7, with cutover cases on shadow ledgers and fixtures only (no subject changes mode) |
+| **H** adversarial and fault qualification | adversarial, privacy and fault harnesses over the whole shadow system | §26, and §24-§25 under attack and fault | group 8; the G3 package (§5.5) |
+
+### 5.3 Acceptance groups and the named discriminators
+
+Groups are Manual §31.2's. Stage S cases carry over as expected values (§5.1 item 3); the discriminators are the `STAGE-D` rows of the finding index, each a case its Review found missing from the catalogue's qualification design, with its expected result taken from the register.
+
+| Group | Phase | Stage S cases carried | Review-named discriminators |
+|---|---|---|---|
+| 1 derivation, structure, relations | D | S5 §1 (10), §2-§4 (13) | 3540d98 B1, e2154ac B1, e9e6e9f B1 (one representation read by every consumer and runner, with Phase F); f22b4dc N5 (analyzer re-identification of a D1/D2 revision); b46c250 N4 (an anchor move giving a D2 unit different bytes is a `VIOLATION`; a case isolating the region criterion from owned content) |
+| 2 assessment disagreement | D, F | S5 §6 (7); the `s1_disagreement_model_check.py` seed | 798b2b4 B4 (each link traversed is recorded); 29da56e N5 (counter-challenge, observation dismissal, triple dismissal, chain class, support route, adjudication recovery) |
+| 3 judgment disagreement | D, F | S1 (23), S2 (22 and Q1), S5 §5 and §7 | 051cce3 N5 (revert after cross-target relief; the plan objective's revision); 362af9f N6 (no identical-content gate veto); 51070e5 N3 (an upheld challenge needs independence and class; relief variants); 61cd09b N6 (relief in a later run); 63ddf91 N5 (`COMPLETENESS` supersession across revisions; `PLAN_ACCEPTANCE` relief after a non-overlapping amendment); 6b986de N6 (one definition of each independence input for every record kind); f03b15e N5 (assessment supersession after the key change, `PLAN_ACCEPTANCE` overlap, `EQUIVALENCE` class supersession, a human reassessment of an answered non-gate obligation); f22b4dc N5 (relief of an admitted veto from a rejected iteration or a partition sibling; a revert restoring under the earlier run's obligation); 9e5a763 N1 (a non-independent owner or author pass composed with a separately vetoed peer pass); b46c250 N4 (an admitted gate kept above `F`; a frame superseding an admitted adverse gate decision; an item-required gate on an unchanged D1/D2 subject); d94a293 N3 (gate basis from source to consumer) |
+| 4 admission, publication, currentness, loss | F | S5 §14-§25 (publication, quorum soundness, loss bounds, qualification states) | 362af9f N6 (re-application of a fenced or `OVERTAKEN` integration); 61cd09b N6 (a kept fence and the D1/D2 re-gating) |
+| 5 workflow, contracts, conformance, routing | E, F | S3 (13 and the 4 identity cases), S5 §8-§13 (16) | 051cce3 N5 (a reopened part obligation of a superseded `PARTITION`); 51070e5 N3 (the §13.7 re-partition example); 63ddf91 N5 and f03b15e N5 (a re-partition after a discharged part); b365947 N4 (an R1 tightening the content already meets still re-dispatches) |
+| 6 escalation and the inspector | E | S3 no-stranded-obligation cases | 8f4e75d N4 (§10.3's second half: no non-current judgment that a current obligation depends on is left with neither a ready nor a waiting route) |
+| 7 frames, migration, intake, external units | G | S5 §7 frames (9), S5 §19 cutover case | 051cce3 N5 (the frame of a refused second carrier); 362af9f N6 (cutover obligations derivable from the ledger alone); 61cd09b N6 (who may submit the `MODE_TRANSITION`, when the conditions are checked, the D1-D3 carrier); 63ddf91 N5 (an admitted-frame cutover record; two parallel carriers); f03b15e N5 (the carrier integrating before the cutover record exists; the mechanism of its `VIOLATION`); f22b4dc N5 (a re-cutover by the same requester) |
+| 8 security, Core independence, fitness | H | — | none named |
+
+### 5.4 Catalogue qualification clauses replaced at S6
+
+- Catalogue §31.4-§31.8's expected values: replaced by the register (§4.2, §5.1 item 3).
+- Catalogue §31.5's "exercised at the real owners before G2" for the routing residual, and the "real-owner routing replay" register RR-4 to RR-8 name as their G2 discriminator: no real owner exists before G2, so G2 closure rests on the S3 models (§4.11), and the real-owner replay is a group 5 case in Phases E and F.
+- The history-derived item-level and transformation cases of RR-1 and RR-2 that Manual §31.2 places in group 3 run at the real owners in Phases D and F, from the S1 and S2 histories.
+
+### 5.5 Exit to G3
+
+G3 (criteria 9, 10 and 15) is the stakeholder's decision on a package Stage D assembles: each phase's implementation Review; each group's executed results at its real owners, discriminators included; Phase F's classified differences with their Reviews; and, if campaigns were authorized, their measurement reports against the 7.2.1 baseline with their limits (Manual §31.9). A group not executed is reported as unexecuted, never as passed.
+
+### 5.6 Stop and reopen rules
+
+- A Manual decision that fails in practice reopens G1 at the Manual's owner (Manual §32.3), not a local patch.
+- A register row that fails at its real owner, or a needed behaviour with no row, returns to Stage S: a design-model case first, then the row's changed disposition in this workplan and its Review, then implementation.
+- A failure family that recurs after a repair triggers simplification before another additive repair (§2 item 3).
+- Any breach of the shadow boundary (§5.1 item 2) stops Stage D and goes to the stakeholder.
 
 ## 6. G2 checklist
 
 | Criterion 13 element | Where it is met |
 |---|---|
 | derived from the accepted Manual | §0-§2; every settled mechanism names the Manual decision it realizes (§4.2) |
-| each catalogue mechanism accepted, replaced or dropped against executable models | §4.2 complete after S5 |
-| every residual-register entry closed | S1 (RR-10), S2 (RR-1, RR-2, RR-3, RR-11), S3 (RR-4 to RR-8), S4 (RR-9) |
-| bounded to shadow operation | §2 item 1, §5 |
+| each catalogue mechanism accepted, replaced or dropped against executable models | §4.2, complete (S5, §4.10); qualification clauses §5.4 |
+| every residual-register entry closed | §4.11 |
+| bounded to shadow operation | §2 item 1, §5.1 item 2, §5.2 |
 | independently reviewed | the review of the frozen revision (S6), recorded in `qualification/ssds80/` |
 | **Criterion 14:** explicit stakeholder authorization of the shadow implementation | recorded verbatim in the stakeholder decision record after that review |
 
@@ -270,7 +332,9 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 | Item | State |
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
-| this workplan | revision 0, proposed, unreviewed |
-| Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 next |
+| this workplan | revision 1, proposed, frozen for independent Review (S6) |
+| Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 done: Stage D made concrete (§5), register closure (§4.11), revision 1 frozen |
 | Stage D | not authorized |
 | G2 | open |
+
+**Revision 1 (2026-10-18, S6).** Revision 0 opened the workplan under SD-50 and recorded Stage S as it ran (§4.4-§4.10). Revision 1 adds the register closure (§4.11) and the concrete Stage D plan (§5, replacing revision 0's outline), brings the Stage S results current with SD-53, and freezes the file for independent Review. Nothing in it authorizes Stage D.
