@@ -374,6 +374,9 @@ git diff --check
 python -m pip install ./orchestrator -r orchestrator/requirements-dev.txt
 python orchestrator/scripts/generate_protocol_snapshot.py --check
 python orchestrator/scripts/run_core_tests.py
+
+python -m pip install ./orchestrator/ssds
+python -m unittest discover -s orchestrator/ssds/tests -t orchestrator/ssds -v
 ```
 
 Mechanical qualification establishes only the property its oracle actually discriminates. Semantic adequacy still requires appropriate independent Review of the assembled candidate.

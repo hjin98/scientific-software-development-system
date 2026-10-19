@@ -14,7 +14,7 @@ stakeholder_record: qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.
 gate: G2-authorized (SD-55)
 implementation_handoff: authorized-shadow
 g2_authorization: SD-55 (stakeholder decision record item 51); revision 3 at afd3be2640b6a6e33a3d744efd76d324c6e5931a with the post-review corrections at cb468ecad19ba41715527b4de42d90262e02cf87
-active_serious_challenge: none
+active_serious_challenge: SC-D1 (Manual §26.3 `sdp ssds` command group needs a Core CLI seam; not blocking Phase D; workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md §6)
 ---
 
 Governing SSDP version: 7.2.1.
@@ -363,7 +363,7 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 1 NO-PASS (13d67be); revision 2 NO-PASS (d8ab75c); revision 3 PASS (afd3be2), post-review corrections §4.14 |
 | Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 done: Stage D made concrete (§5), register closure (§4.11), revision 1 frozen |
-| Stage D | authorized, shadow only (SD-55); Phase D next |
+| Stage D | authorized, shadow only (SD-55); Phase D in progress under `workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md`: step 1 (package skeleton, extension registration, §26.2 fitness checks in repository acceptance) done; SERIOUS CHALLENGE SC-D1 open for the stakeholder (that plan §6-§7) |
 | G2 | authorized (SD-55, 2026-10-19): criterion 13 Review PASS (afd3be2), criterion 14 met |
 
 **Revision 1 (2026-10-18, S6).** Revision 0 opened the workplan under SD-50 and recorded Stage S as it ran (§4.4-§4.10). Revision 1 adds the register closure (§4.11) and the concrete Stage D plan (§5, replacing revision 0's outline), brings the Stage S results current with SD-53, and freezes the file for independent Review. Nothing in it authorizes Stage D.

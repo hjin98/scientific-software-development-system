@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sdp-orchestrator-ssds"
+version = "8.0.0.dev0"
+description = "SSDS 8 graph-native orchestration, a Core extension (shadow implementation)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "SDP Orchestrator" }]
+dependencies = [
+    "sdp-orchestrator-core",
+]
+
+[project.entry-points."sdp_orchestrator.extensions.v1"]
+"sdp.ssds" = "sdp_orchestrator.ssds.extension:provider"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+zip-safe = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sdp_orchestrator.ssds*"]
+namespaces = true

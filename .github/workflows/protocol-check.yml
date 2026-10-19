@@ -51,3 +51,17 @@ jobs:
         run: python orchestrator/scripts/generate_protocol_snapshot.py --check
       - name: Run orchestrator Core acceptance suite
         run: python orchestrator/scripts/run_core_tests.py
+
+  orchestrator-ssds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install orchestrator Core, the SSDS extension and development dependencies
+        run: >-
+          python -m pip install ./orchestrator ./orchestrator/ssds
+          -r orchestrator/requirements-dev.txt
+      - name: Run SSDS acceptance (architecture fitness and installed registration)
+        run: python -m unittest discover -s orchestrator/ssds/tests -t orchestrator/ssds -v
