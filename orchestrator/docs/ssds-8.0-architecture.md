@@ -16,10 +16,11 @@ mechanism_catalogue: orchestrator/docs/ssds-8.0-mechanism-catalogue.md
 level: architecture (SD-47, stakeholder decision record item 43)
 supersedes_on_acceptance: SDP-ORCHESTRATOR architecture 1.6.0, for SSDS-governed scopes only (§26.4)
 gate: G1-accepted
-amendment_a1: proposed (SD-51, stakeholder decision record item 47), §5.10 (f), (h)(4), §10.2, §10.3; until accepted the text at dddfedf72ed9711b8fcd46865b5c99eb50771ac5 governs
-amendment_a2: proposed (SD-52, stakeholder decision record item 48), §4.1, §10.4; until accepted the text at dddfedf72ed9711b8fcd46865b5c99eb50771ac5 governs
-amendment_a3: proposed by the author (restores §32.2 and §32.3 disclosures lost in the SD-47 condensation; no decision changes), for review and stakeholder acceptance with A1 and A2
+amendment_a1: accepted (SD-51, SD-53; stakeholder decision record items 47, 49), §5.10 (f), (h)(4), §10.2, §10.3
+amendment_a2: accepted (SD-52, SD-53; stakeholder decision record items 48, 49), §4.1, §10.4
+amendment_a3: accepted (SD-53, stakeholder decision record item 49); restores §32.2 and §32.3 disclosures lost in the SD-47 condensation; no decision changes
 accepted_at_g1: SD-50 (stakeholder decision record item 46), semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5, blob b4077eb5879570b0aee56b068be8588beeaa5e9e
+amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b
 d4: not-authorized
 active_serious_challenge: none
 ---
@@ -28,18 +29,19 @@ active_serious_challenge: none
 
 ```text
 STATUS: ACCEPTED-CURRENT at gate G1 (SD-50, 2026-10-18). SSDS 8 D4 is NOT AUTHORIZED (gate G2).
-AMENDMENTS A1 (SD-51), A2 (SD-52) and A3: PROPOSED, pending one independent review and stakeholder
-          acceptance: A1, eligibility per route and per state (§5.10 (f), (h)(4), §10.2, §10.3); A2, the
-          identity key governing a loosening amendment (§4.1, §10.4); A3, residual-risk and reopen-trigger
-          disclosures restored from the catalogue (§32.2, §32.3). Until accepted, those passages read as
-          at dddfedf72ed9711b8fcd46865b5c99eb50771ac5.
+AMENDMENTS A1 (SD-51), A2 (SD-52) and A3: ACCEPTED (SD-53, 2026-10-18) on semantic candidate
+          2a17a8305db5ed312dc453f9d86ccf5faee8ab74 after the independent D3 Review
+          qualification/ssds80/MANUAL-REVIEW-SSDS-8.0-2A17A83-A1A2A3-DIFFERENT-FAMILY-PASS.md: A1,
+          eligibility per route and per state (§5.10 (f), (h)(4), §10.2, §10.3); A2, the identity key
+          governing a loosening amendment (§4.1, §10.4); A3, residual-risk and reopen-trigger disclosures
+          restored from the catalogue (§32.2, §32.3).
 GOVERNING PROTOCOL: SSDP 7.2.1 (release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0
 BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic candidate
           e23f14208be869e6a78cfd7b312e447254ee1851, workplan blob 610f373b97fb8152d2a5742e17fa172e12204756,
           independent Phase B D3 Review PASS, qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md;
           revision 24 is the stakeholder-directed level split, SD-47, judged a sound level assignment
-          by the f044820 and 8c1f2f2 Reviews, not yet accepted by the stakeholder)
+          by the f044820 and 8c1f2f2 Reviews and accepted at G1, SD-50)
 LEVEL: architecture. Mechanism is in orchestrator/docs/ssds-8.0-mechanism-catalogue.md, non-authoritative,
        carried to G2 (§0.1).
 SERIOUS CHALLENGE: none
@@ -1759,7 +1761,7 @@ Machinery prepares but never decides: whether two scientific or numerical formul
 - One standing objection vetoes every judgment a contradicting composition needs, including compositions no consumer uses (R14); a standing adverse judgment on a subject triple does not freeze re-scoping as a blocking challenge does; an objection to a subject or named units does not reach a re-identification except through the lineage carry (§5.10 (c)); part and composite equivalences do not entail each other.
 - Two item revisions with the same prose and fixed fields share one rejection's reach and their reviews' reaches, so a judgment about one vetoes the other until its author or the owner relieves it (§5.10 (c)).
 - Every non-machinery equivalence and completeness judgment needs an independent qualifier, which costs migration throughput where legacy authorship is unknown (§5.10 (f), §19.5).
-- *Restored by amendment A3 (proposed), lost in the SD-47 condensation:*
+- *Restored by amendment A3 (SD-53), lost in the SD-47 condensation:*
   - A passing realization that read an unpinnable input, or ran under a class that does not observe reads outside the tree, stays current while its tree-resident entries hold; only its permissive uses for stopping a failure are excluded (§6.5).
   - A declared term that later resolves to `ABSENT` changes identity but raises no specific finding unless it is a malformed anchor (§1.3, §1.9).
   - The adverse linking predicate fails closed: a recorded basis that omitted content the execution read (a defective tracer, a wrong completeness judgment) links runs that differ there, so a genuinely fixed failure can keep counting until the owner disposes of it (§6.6).
@@ -1786,7 +1788,7 @@ Reopen this architecture at its earliest affected owner if, on real repositories
 - the fixed predicate templates cannot express a required project policy without breaking stratification; a later accepted protocol version changes doctrine this Manual binds;
 - agents still do bookkeeping; contracts, lint or `HARD` templates cost more than they buy or are gamed; coordination becomes a bottleneck; human-attention volume exceeds what the inspector can sustain; constructed independence proves illusory;
 - owner dispositions, discriminating readings or reproductions become a material share of evidence work, or discriminating observations prove routinely unobtainable, or readings become a route for retiring concerns;
-- *restored by amendment A3 (proposed), lost in the SD-47 condensation:* whole-tree execution-basis fallbacks make passing evidence non-current too often or send most failures to the owner (and D1/D2 failures to the floor); submodule hosts routinely drop commits that reproductions need; line-ending or mode churn on D1/D2 subjects routinely starts new revision runs; incidental external reads routinely prevent mechanical stops; failures of admitted obligations found in one lineage routinely delay other lineages, or scheduled executions routinely end `INCOMPLETE`; residual owner dispositions (lineages dropping their own failing test-first checks, failures latched by transient foreign pushes) become frequent, or disagreement becomes routine; accepted relaxations of mechanical specifications routinely make failures stale unexamined, or lenient readers pass outcomes that show the defect;
+- *restored by amendment A3 (SD-53), lost in the SD-47 condensation:* whole-tree execution-basis fallbacks make passing evidence non-current too often or send most failures to the owner (and D1/D2 failures to the floor); submodule hosts routinely drop commits that reproductions need; line-ending or mode churn on D1/D2 subjects routinely starts new revision runs; incidental external reads routinely prevent mechanical stops; failures of admitted obligations found in one lineage routinely delay other lineages, or scheduled executions routinely end `INCOMPLETE`; residual owner dispositions (lineages dropping their own failing test-first checks, failures latched by transient foreign pushes) become frequent, or disagreement becomes routine; accepted relaxations of mechanical specifications routinely make failures stale unexamined, or lenient readers pass outcomes that show the defect;
 - any inherited guarantee proves unpreservable.
 
 #### 32.4 Residual register

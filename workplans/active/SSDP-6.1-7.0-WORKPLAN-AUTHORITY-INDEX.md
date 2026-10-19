@@ -221,7 +221,7 @@ Current disposition:
 
 ```text
 SERIOUS CHALLENGE: NONE
-SSDS 8 ARCHITECTURE: ACCEPTED-CURRENT at G1 (SD-50, 2026-10-18): Architecture Manual dddfedf, workplan design revision 24
+SSDS 8 ARCHITECTURE: ACCEPTED-CURRENT at G1 (SD-50, 2026-10-18): Architecture Manual dddfedf with amendments A1-A3 at 2a17a83 (SD-53), workplan design revision 24
   (orchestrator/docs/ssds-8.0-architecture.md; G1 Review qualification/ssds80/MANUAL-REVIEW-SSDS-8.0-DDDFEDF-DIFFERENT-FAMILY-PASS.md)
 GOVERNING PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12; handoff §0.4)
 SOURCE BASIS: main af0455753e20ee54a969c844872e29e270007211 (rebased from f96b7ccf90dede4150d0efa17264fff07ec12d0d);

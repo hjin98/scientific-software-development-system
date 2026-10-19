@@ -45,6 +45,7 @@ design_reviewed_candidate: e23f14208be869e6a78cfd7b312e447254ee1851
 independent_d3_review: qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md
 d3_architecture_state: accepted-current
 g1_acceptance: SD-50 (qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md item 46); Manual dddfedf72ed9711b8fcd46865b5c99eb50771ac5
+manual_amendments: A1-A3 accepted (SD-53, item 49); Manual 2a17a8305db5ed312dc453f9d86ccf5faee8ab74
 g2_shadow_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md
 implementation_handoff: not-authorized
 active_serious_challenge: none
