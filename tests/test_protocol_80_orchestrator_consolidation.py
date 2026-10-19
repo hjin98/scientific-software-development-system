@@ -34,28 +34,28 @@ def frontmatter(path: Path) -> dict:
 
 
 class Protocol80OrchestratorConsolidationTests(unittest.TestCase):
-    """The deterministic-orchestrator line has one current architecture handoff and no authorized D4.
+    """The deterministic-orchestrator line has one current architecture handoff; D4 is authorized for shadow only.
 
     These checks read frontmatter and file placement only. Whether the handoff
     or the index is semantically adequate is owned by independent Review.
     """
 
-    def test_single_g1_accepted_unauthorized_ssds8_handoff(self) -> None:
-        # G1 accepted the architecture (SD-50); D4 stays unauthorized until G2.
+    def test_single_g1_accepted_shadow_only_ssds8_handoff(self) -> None:
+        # G1 accepted the architecture (SD-50); G2 authorized shadow implementation only (SD-55).
         meta = frontmatter(ACTIVE / SSDS8)
         self.assertEqual(meta["workplan_id"], Path(SSDS8).stem)
         self.assertEqual(meta["protocol_version"], "7.2.1")
         self.assertEqual(meta["target_system_version"], "8.0.0")
         self.assertEqual(meta["status"], "accepted")
         self.assertEqual(meta["d3_architecture_state"], "accepted-current")
-        self.assertEqual(meta["implementation_handoff"], "not-authorized")
+        self.assertEqual(meta["implementation_handoff"], "authorized-shadow")
 
-    def test_g2_shadow_workplan_is_proposed_and_unauthorized(self) -> None:
+    def test_g2_shadow_workplan_is_accepted_and_shadow_only(self) -> None:
         meta = frontmatter(ACTIVE / SSDS8_SHADOW)
         self.assertEqual(meta["workplan_id"], Path(SSDS8_SHADOW).stem)
         self.assertEqual(meta["protocol_version"], "7.2.1")
-        self.assertEqual(meta["status"], "proposed")
-        self.assertEqual(meta["implementation_handoff"], "not-authorized")
+        self.assertEqual(meta["status"], "accepted")
+        self.assertEqual(meta["implementation_handoff"], "authorized-shadow")
         self.assertEqual(frontmatter(INDEX)["current_handoffs"]["ssds-8.0-shadow"], f"workplans/active/{SSDS8_SHADOW}")
 
     def test_superseded_lineage_is_closed_and_archived(self) -> None:

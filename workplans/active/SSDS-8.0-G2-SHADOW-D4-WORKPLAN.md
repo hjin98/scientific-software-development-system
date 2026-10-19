@@ -3,16 +3,17 @@ kind: ssds-shadow-d3-d4-workplan
 workplan_id: SSDS-8.0-G2-SHADOW-D4-WORKPLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: proposed
+status: accepted
 created_date: 2026-10-18
 revised_date: 2026-10-19
 revision: 3
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50, semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5; amendments A1-A3 accepted, SD-53, semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74)
 governing_workplan: workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md (design revision 24, accepted at G1)
 mechanism_input: orchestrator/docs/ssds-8.0-mechanism-catalogue.md (non-authoritative; residual register RR-1 to RR-11)
-stakeholder_record: qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md (items 46-50, SD-50 to SD-54)
-gate: G2-open
-implementation_handoff: not-authorized
+stakeholder_record: qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md (items 46-51, SD-50 to SD-55)
+gate: G2-authorized (SD-55)
+implementation_handoff: authorized-shadow
+g2_authorization: SD-55 (stakeholder decision record item 51); revision 3 at afd3be2640b6a6e33a3d744efd76d324c6e5931a with the post-review corrections at cb468ecad19ba41715527b4de42d90262e02cf87
 active_serious_challenge: none
 ---
 
@@ -21,19 +22,18 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — G2 shadow D3->D4 workplan
 
 ```text
-STATUS: PROPOSED, revision 3. Independent Review PASS at afd3be2 (criterion 13; qualification/ssds80/
-        G2-WORKPLAN-REVIEW-SSDS-8.0-AFD3BE2-DIFFERENT-FAMILY-PASS.md), with post-review corrections of its
-        non-blocking findings (§4.14). Not authorized: G2 needs the stakeholder's criterion-14 decision.
-GATE: G2 (workplan §25 criteria 13-14) is OPEN. SSDS 8 D4 is NOT AUTHORIZED: nothing in this file
-      authorizes implementation until it is independently reviewed and the stakeholder explicitly
-      authorizes shadow implementation.
+STATUS: ACCEPTED, revision 3. Independent Review PASS at afd3be2 (criterion 13; qualification/ssds80/
+        G2-WORKPLAN-REVIEW-SSDS-8.0-AFD3BE2-DIFFERENT-FAMILY-PASS.md), with the post-review corrections at
+        cb468ec (§4.14). Gate G2 AUTHORIZED by the stakeholder (SD-55, 2026-10-19; criterion 14).
+GATE: G2 met. SSDS 8 D4 is AUTHORIZED FOR SHADOW IMPLEMENTATION ONLY: Stage D, Phases D-H, within §2 and
+      §5. No SSDS authority over any subject; no cutover; the document-controlled 7.2.1 baseline governs.
+      The shadow genesis human gate, every campaign and the external pilot need their own decisions.
 GOVERNS: the settlement of the mechanism catalogue against executable design models (Stage S, done at revision 1) and
-         the plan for shadow implementation, Phases D-H (Stage D, only after G2).
+         the plan for shadow implementation, Phases D-H (Stage D, authorized by G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: the stakeholder's G2 decision (criterion 14) and acceptance of Manual amendments A4-A6, on
-             qualification/ssds80/G2-DECISION-BRIEF-SSDS-8.0-AFD3BE2.md. Revision 3 and A4-A6 passed independent
-             Review at afd3be2 (§4.14).
+NEXT ACTION: Stage D Phase D (§5.2): the read-only kernel, beginning with the §26.2 fitness checks and the
+             package layout (§5.1 item 1); the shadow genesis waits for the stakeholder's human gate.
 ```
 
 ## 0. Purpose and authority
@@ -363,8 +363,8 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 1 NO-PASS (13d67be); revision 2 NO-PASS (d8ab75c); revision 3 PASS (afd3be2), post-review corrections §4.14 |
 | Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 done: Stage D made concrete (§5), register closure (§4.11), revision 1 frozen |
-| Stage D | not authorized |
-| G2 | open: criterion 13 Review PASS (afd3be2); criterion 14 (stakeholder authorization) pending |
+| Stage D | authorized, shadow only (SD-55); Phase D next |
+| G2 | authorized (SD-55, 2026-10-19): criterion 13 Review PASS (afd3be2), criterion 14 met |
 
 **Revision 1 (2026-10-18, S6).** Revision 0 opened the workplan under SD-50 and recorded Stage S as it ran (§4.4-§4.10). Revision 1 adds the register closure (§4.11) and the concrete Stage D plan (§5, replacing revision 0's outline), brings the Stage S results current with SD-53, and freezes the file for independent Review. Nothing in it authorizes Stage D.
 

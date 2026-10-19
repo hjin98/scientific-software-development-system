@@ -196,7 +196,7 @@ Protocol 6.6 is accepted-current. Its reduced-root-router, strict no-self-adopti
 
 ## SSDS 8.0 deterministic orchestration architecture future design handoff
 
-The deterministic control-plane / mandatory-orchestrator line (Protocol 8.0) is now targeted as **SSDS 8.0**, the system-level successor to the document-controlled SSDP line. Its current architecture cycle contract (accepted at G1, SD-50) and its G2 shadow workplan (proposed) are:
+The deterministic control-plane / mandatory-orchestrator line (Protocol 8.0) is now targeted as **SSDS 8.0**, the system-level successor to the document-controlled SSDP line. Its current architecture cycle contract (accepted at G1, SD-50) and its G2 shadow workplan (accepted; G2 authorized shadow implementation, SD-55) are:
 
 - `workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md`
 - `workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md`
@@ -221,7 +221,7 @@ Current disposition:
 
 ```text
 SERIOUS CHALLENGE: NONE
-SSDS 8 ARCHITECTURE: ACCEPTED-CURRENT at G1 (SD-50, 2026-10-18): Architecture Manual dddfedf with amendments A1-A3 at 2a17a83 (SD-53), workplan design revision 24
+SSDS 8 ARCHITECTURE: ACCEPTED-CURRENT at G1 (SD-50, 2026-10-18): Architecture Manual dddfedf with amendments A1-A3 at 2a17a83 (SD-53) and A4-A6 at cb468ec (SD-55), workplan design revision 24
   (orchestrator/docs/ssds-8.0-architecture.md; G1 Review qualification/ssds80/MANUAL-REVIEW-SSDS-8.0-DDDFEDF-DIFFERENT-FAMILY-PASS.md)
 GOVERNING PROTOCOL: SSDP 7.2.1 (adopted from 6.6.0 by stakeholder instruction 2026-10-12; handoff §0.4)
 SOURCE BASIS: main af0455753e20ee54a969c844872e29e270007211 (rebased from f96b7ccf90dede4150d0efa17264fff07ec12d0d);
@@ -248,7 +248,7 @@ INDEPENDENT D3 REVIEW: f9d9de8, 441cf5c, 8a75346, ffbad17, f3608f5, ac71fa9, 730
   Non-blocking N1-N4 and reused depth-5 provenance limits remain open at their owning boundaries.
   A PASS authorizes nothing by itself; shadow D4 needs gate G2 (accepted Manual, reviewed shadow workplan,
   stakeholder authorization)
-SSDS 8 D4: NOT AUTHORIZED
+SSDS 8 D4: AUTHORIZED FOR SHADOW IMPLEMENTATION ONLY (G2, SD-55, 2026-10-19): G2 shadow workplan revision 3; no SSDS authority over any subject before G4
 ```
 
 Phase C task handoff: `qualification/ssds80/PHASE-C-HANDOFF-SSDS-8.0.md`. It indexes the complete Manual closure scope and Review residuals, binds the reviewed candidate, and preserves G1/G2 authorization boundaries; it is coordination state, not an accepted Architecture Manual.
@@ -288,7 +288,7 @@ There is exactly one mutable repository release-state owner: `PROTOCOL-RELEASE-S
 - Repository default/latest is never a protocol-version oracle.
 - Resolve the accepted-current version and its exact public fallback and recovery from `PROTOCOL-RELEASE-STATE.yaml`. At the 2026-10-12 reconciliation that file named Protocol 7.2.1; Protocol 6.6 (public fallback `22f4bdba53795da3a6f13f162529f3a843fc37ae`, recovery `384666764da4c55b282e6b1595ab97e2f86e1dc4`) is historical.
 - Protocol 7 (scientific inspectability, epistemic initiative and the feedback loop) closed at 7.2.1, accepted with conditions, under its consolidated workplan above as amended by `SSDP-7X-SKILLS-ONLY-RELIABILITY-AND-QUALIFICATION-V2`; select its artifacts by exact ID, never by `SSDP-7.0*` globs, because the historical deterministic-orchestrator family shares that prefix.
-- SSDS 8.0 is the deterministic orchestration successor whose architecture was accepted at G1 (SD-50): the Architecture Manual `orchestrator/docs/ssds-8.0-architecture.md` and its architectural workplan, based on `main` at the accepted 7.2.1 merge, binding the final Protocol 7 inheritance (handoff §0.4). Shadow D4 needs G2 (the reviewed shadow workplan `SSDS-8.0-G2-SHADOW-D4-WORKPLAN` and explicit stakeholder authorization); G1 authorizes no implementation or cutover. Select its artifacts by exact ID.
+- SSDS 8.0 is the deterministic orchestration successor whose architecture was accepted at G1 (SD-50): the Architecture Manual `orchestrator/docs/ssds-8.0-architecture.md` and its architectural workplan, based on `main` at the accepted 7.2.1 merge, binding the final Protocol 7 inheritance (handoff §0.4). G2 authorized shadow D4 under the reviewed shadow workplan `SSDS-8.0-G2-SHADOW-D4-WORKPLAN` (SD-55); no SSDS authority over any subject before G4, and no cutover. Select its artifacts by exact ID.
 - Under future SSDS 8 per-unit native cutover, a single Admission writer would serialize canonical state into an append-only ledger and all lifecycle state would be derived; authority documents and change plans remain semantic artifacts, D4 code remains executable authority, and agents/humans retain semantic judgment according to their owning gates.
 - Shadow comparison is permitted only while one side remains explicitly non-authoritative.
 - No `main` merge or Protocol 7/8 D4 cutover is authorized merely by these active design workplans.

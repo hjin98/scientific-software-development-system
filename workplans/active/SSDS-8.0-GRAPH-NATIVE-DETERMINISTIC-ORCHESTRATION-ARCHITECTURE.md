@@ -47,7 +47,8 @@ d3_architecture_state: accepted-current
 g1_acceptance: SD-50 (qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md item 46); Manual dddfedf72ed9711b8fcd46865b5c99eb50771ac5
 manual_amendments: A1-A3 accepted (SD-53, item 49); Manual 2a17a8305db5ed312dc453f9d86ccf5faee8ab74
 g2_shadow_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md
-implementation_handoff: not-authorized
+implementation_handoff: authorized-shadow
+g2_authorization: SD-55 (stakeholder decision record item 51); G2 workplan revision 3 (afd3be2, corrections cb468ec); shadow only, no SSDS authority over any subject before G4
 active_serious_challenge: none
 supersedes:
   - SSDP-8.0-DETERMINISTIC-CONTROL-PLANE-AND-MANDATORY-ORCHESTRATOR-CONSOLIDATED
@@ -162,7 +163,7 @@ INDEPENDENT D3 REVIEW: PASS for Phase B on exact candidate e23f14208be869e6a78cf
             was of another family; inherited framing, corpus and diagnostic instrument remain common dependencies;
             historical adoption provenance, depth-5 provenance and later runtime/Manual work remain qualified;
             this records independent evidence, not architecture acceptance; shadow D4 needs gate G2 (§25)
-SSDS 8 D4: NOT AUTHORIZED
+SSDS 8 D4: AUTHORIZED FOR SHADOW IMPLEMENTATION ONLY (G2, SD-55, 2026-10-19)
 ```
 
 **What the architecture is.** Four primitives (§5): content-addressed **units** (leaf regions grouped into acceptance **subjects**), typed **relations**, immutable **records** in one append-only ledger, and the **basis** each record relied on. Everything else — validity, currency, obligations, readiness, impact, context, views — is a pure stratified derivation (§6.6). One Admission writer serializes every canonical change (§6.8). The ledger is a Git object chain on one authoritative ref, appended by single-ref compare-and-swap, admitted only once a witness quorum holds the new head, and published to the product integration ref as an effect whose outcome the next entry records (§15.3). A known loss of admitted history is itself a ledger fact that bounds which retained authority can still be current (§15.4).
@@ -4047,11 +4048,11 @@ SSDP 7: closed at 7.2.1; inheritance RECONCILED (§0.4, §19); Stage H obligatio
 D3 REVIEW: Phase B PASS at e23f14208be869e6a78cfd7b312e447254ee1851, recorded in qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md
              (covers Phase A); Manual G1 PASS at dddfedf72ed9711b8fcd46865b5c99eb50771ac5
              (qualification/ssds80/MANUAL-REVIEW-SSDS-8.0-DDDFEDF-DIFFERENT-FAMILY-PASS.md); architecture ACCEPTED at G1
-             (SD-50); D4 (shadow only) requires gate G2 (§25)
-D4: NOT AUTHORIZED
+             (SD-50); G2 authorized shadow D4 (SD-55)
+D4: SHADOW ONLY (G2, SD-55); no SSDS authority over any subject before G4
 SERIOUS CHALLENGE: none
-NEXT ACTION: G2: the shadow D3->D4 workplan (workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md, criterion 13),
-             its independent Review, and explicit stakeholder authorization of shadow implementation (criterion 14).
+NEXT ACTION: Stage D under the G2 shadow workplan (workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md, revision 3,
+             authorized by SD-55); G3 (criteria 9, 10, 15) after Phases D-H.
 REVIEW RESIDUALS: qualification/ssds80/WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md N1-N4: historical adoption provenance; positive-only completeness
              matching and cyclic-prefix real-owner discriminators; diagnostic/reader limits; empirical costs.
              Depth 5 is prior-session-reported reuse with missing raw output/interpreter; no runtime qualification.
