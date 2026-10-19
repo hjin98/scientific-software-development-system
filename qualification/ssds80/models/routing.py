@@ -22,15 +22,20 @@ readings:
                  visibly, until that plan change integrates, after which a condition that still holds
                  derives a new decision naming that answer; a PARTITION hands the route to the parts;
                  a kept-fence DECLINE resumes the item's own route below the fence; ESCALATE answers
-                 nothing; after RECURRENCE answers in one chain the next decision is a recurrence
-                 decision (catalogue §15.7) held for human attention;
+                 nothing. Recurrence (catalogue §15.7) is not a separate decision: once a chain holds
+                 RECURRENCE answers, each further decision of the same chain, keyed the same way, is
+                 held for human attention (its brief carries the convergence duty) and only an
+                 authenticated human answer counts; that answer continues the chain exactly as any
+                 other (d8ab75c B1). A CHALLENGE answer (allowed on a held decision) waits for its
+                 adjudication as an AMEND waits for its integration;
              (c) a partitioned item's own obligation is the composite of its parts and the
                  item-level review, and carries route 4 for an item-level review naming no part;
              (e) a standing out-of-scope adverse review of any integrated enactment is a routed
                  finding (Manual §15) with its own COORDINATE(plan), keyed on that review, beside the
                  item's single route, so no route masks it.
 
-The reading "revision1" is the rule G2 workplan revision 1 settled, keyed on (condition, item
+The reading "revision2" is revision 2's rule, which gave recurrence its own key: after a human answer
+the same key came back open (d8ab75c B1). The reading "revision1" is the rule G2 workplan revision 1 settled, keyed on (condition, item
 revision) only, which the 13d67be Review refuted: an answered key returns no route while the condition
 holds and the item is unchanged.
 
@@ -57,8 +62,9 @@ class ItemState:
     oos_adverse: list = field(default_factory=list)  # out-of-scope standing adverse reviews: (review id, enactment, latest?)
     answered: set = field(default_factory=set)       # keys of finding decisions already answered
     # answers to the item-route decisions: (condition, item revision) -> ordered (answer id, outcome,
-    # integrated?), outcome AMEND, PARTITION, DECLINE or ESCALATE; an AMEND here leaves the item unchanged
-    # (an AMEND of the item gives it a new revision, so a new chain)
+    # settled?[, actor]), outcome AMEND, PARTITION, DECLINE, CHALLENGE or ESCALATE, actor "principal"
+    # (default) or "human"; settled means integrated (AMEND) or adjudicated (CHALLENGE); an AMEND here
+    # leaves the item unchanged (an AMEND of the item gives it a new revision, so a new chain)
     answers: dict = field(default_factory=dict)
 
 
@@ -73,22 +79,56 @@ def _pending(s: ItemState, reading: str):
     return (it, status) if status == "open" else None
 
 
+def admitted_chain(cond: str, raw: list) -> list:
+    """The answers that count, in order: ESCALATE answers nothing; a DECLINE counts only for a kept fence;
+    a CHALLENGE only on a held decision; on a held decision (the chain already has RECURRENCE answers)
+    only a human's answer counts."""
+    chain = []
+    for a in raw:
+        aid, outcome, settled = a[0], a[1], a[2]
+        actor = a[3] if len(a) > 3 else "principal"
+        held = len(chain) >= RECURRENCE
+        if outcome == "ESCALATE" or (outcome == "DECLINE" and cond != "kept-fence"):
+            continue
+        if outcome == "CHALLENGE" and not held:
+            continue
+        if held and actor != "human":
+            continue
+        chain.append((aid, outcome, settled))
+    return chain
+
+
 def route(s: ItemState, reading: str) -> tuple[str, set]:
     """Return (the item obligation's single route, the set of open COORDINATE(plan) decision keys)."""
     decisions: set = set()
     # (e) out-of-scope findings
     for rid, enactment, latest in s.oos_adverse:
-        if reading in ("settled", "revision1"):
+        if reading in ("settled", "revision1", "revision2"):
             key = ("finding", rid)
             if key not in s.answered:
                 decisions.add(key)
     def coord(cond):
-        chain = [a for a in s.answers.get((cond, s.item_rev), []) if a[1] != "ESCALATE"]
+        raw = s.answers.get((cond, s.item_rev), [])
         if reading == "settled":
+            chain = admitted_chain(cond, raw)
+            prev = chain[-1][0] if chain else None
+            if chain:
+                aid, outcome, settled = chain[-1]
+                if outcome == "DECLINE":
+                    return "resume"
+                if outcome == "PARTITION":
+                    return f"partitioned:{aid}"
+                if not settled:
+                    return f"awaiting-{'challenge' if outcome == 'CHALLENGE' else 'amendment'}:{aid}"
+            decisions.add((cond, s.item_rev, prev))
+            held = len(chain) >= RECURRENCE
+            return f"human-attention:{cond}" if held else f"COORDINATE:{cond}"
+        chain = [a for a in raw if a[1] != "ESCALATE"]
+        if reading == "revision2":
             if not chain:
                 decisions.add((cond, s.item_rev, None))
                 return f"COORDINATE:{cond}"
-            aid, outcome, integrated = chain[-1]
+            aid, outcome, integrated = chain[-1][:3]
             if outcome == "DECLINE" and cond == "kept-fence":
                 return "resume"
             if outcome == "PARTITION":
@@ -132,7 +172,7 @@ def route(s: ItemState, reading: str) -> tuple[str, set]:
     if latest and reading == "catalogue":
         r = coord("out-of-scope-adverse")
         return (r or "none", decisions)
-    if latest and reading in ("settled", "revision1"):
+    if latest and reading in ("settled", "revision1", "revision2"):
         # route 4: the latest enactment's out-of-scope objection is the item's route, carried by the
         # same finding decision derived above (one decision, not two)
         open_ = [rid for rid, _, l in latest if ("finding", rid) not in s.answered]

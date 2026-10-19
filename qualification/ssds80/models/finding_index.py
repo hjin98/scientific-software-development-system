@@ -478,6 +478,25 @@ _d("E548472/DF", "N1", "COST", TRADE)
 _d("E548472/DF", "N2", "COST", ADOPT)
 _d("E548472/DF", "N3", "NA-RR10", "diagnostic scope bounded (RR-10)")
 
+# FFBAD17's severity-labelled non-blocking findings (d8ab75c B2), each read in full
+_d("FFBAD17", "N1", "CLOSED-ARCH", "Manual §29.1 bounds each doctrine claim to its realization level; §16.9 version routing "
+   "decided; §16.4 read recording and its limits; §15.4 floors keyed on records")
+_d("FFBAD17", "N2", "CLOSED-ARCH", "Manual §0.3 R4 (no attempt log; a restart fences); §22.3 a foreign return is "
+   "LATE_PUBLICATION, CRITICAL human attention (§15.4); Stage D group 4 (730490d N2)")
+_d("FFBAD17", "N3", "COST", ADOPT + "; later instructions are recorded verbatim in the stakeholder record")
+_d("FFBAD17", "N4", "CLOSED-ARCH", "Manual §16.5: the 7.2.1 bidirectional Review question is the required slot")
+_d("FFBAD17", "N5", "CLOSED-ARCH", "Manual §7.2: without a clean merge there is no frame and a new iteration follows (K3)")
+_d("FFBAD17", "N6", "CLOSED-ARCH", "Manual §14.2: each template declares one force")
+_d("FFBAD17", "N7", "NOTED", "authority-index front matter and historical whitespace: residue outside the SSDS 8 cycle, "
+   "left to repository hygiene; the SSDS 8 section is accurate")
+_d("D8AB75C", "B1", "CLOSED-S2-S3", "recurrence inside the one answer-qualified chain; S3 recurrence_* cases and the "
+   "lifecycle property check over every answer chain (revision 2's rule violates P6)")
+_d("D8AB75C", "B2", "CLOSED-S5", "severity-labelled titles extracted; the inventory check keyed by record identity, "
+   "with a self-test that fails on the FFBAD17 and second-record projections")
+_d("D8AB75C", "N1", "NOTED", "the recurrence policy is the author's proposal, put to the stakeholder at G2 (§4.13)")
+_d("D8AB75C", "N2", "A4", "carried with A4-A6")
+_d("D8AB75C", "N3", "NOTED", "invocation locator: name the handoff commit apart from the candidate")
+
 
 def s1_evidence():
     """(record, finding) -> the s1 diagnostic's named discriminators that reproduce it."""
@@ -514,7 +533,8 @@ HEAD = re.compile(r"^(?:#{2,4}\s+|\*\*)((?:B|N|SC-?)\d+(?:\([a-z]\))?|Blocker [A
 # findings of the workplan Reviews (A, B, C1, U2, the X/W/Y groups and their members) and the list-item
 # findings of several Manual Reviews, which HEAD missed (13d67be B2).
 HEAD2 = re.compile(r"^(?:#{2,4}\s+|-\s+\*\*|\d+\.\s+\*\*|\*\*)(?:Blocker\s+)?((?:SC-?\d+|[A-DNUWXYZ][′']?\d{0,2})(?:\([a-z]\))?)"
-                   r"\s*[—–]\s+\S[^\n]*", re.M)
+                   r"(?:\s*[—–]\s+\S|\s*\([^)\n]{1,40}\)\s*[:—–]\**(?=\s))[^\n]*", re.M)
+# (the second form is a title with a severity annotation, "N1 (medium-high): ...", d8ab75c B2)
 SECREF = re.compile(r"§(\d+)(?:\.(\d+))?")
 
 
@@ -733,7 +753,7 @@ def main():
     print("| Record | Finding | Title | Owner | Sections cited | Disposition |")
     print("|---|---|---|---|---|---|")
     for kind, rid, name, fid, title, owner, refs, disp in rows:
-        t = title.replace("|", "\\|")
+        t = re.sub(r"\s+", " ", title).replace("|", "\\|")
         print(f"| {kind} {rid} | {fid} | {t} | §{owner} | {refs} | {disp} |")
 
 

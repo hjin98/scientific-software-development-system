@@ -16,6 +16,9 @@ from routing import ItemState
 CAT = "catalogue"
 R1 = "revision1"
 B1 = "13d67be B1 (SD-54)"
+R2 = "revision2"
+B1R2 = "d8ab75c B1 (recurrence inside the one chain)"
+AMENDS3 = [("d1", "AMEND", True), ("d2", "AMEND", True), ("d3", "AMEND", True)]
 
 
 @dataclass
@@ -72,9 +75,45 @@ S3_CASES = [
     RoutingCase("budget_recurrence",
                 ItemState(budget_spent=True, answers={("budget-spent", "r1"): [
                     ("d1", "AMEND", True), ("d2", "AMEND", True), ("d3", "AMEND", True)]}),
-                "human-attention:recurrence", {("recurrence", "budget-spent", "r1")},
-                "the condition persisted through three answers that left the item unchanged: a recurrence "
-                "decision (catalogue §15.7) held for human attention", {R1: B1}),
+                "human-attention:budget-spent", {("budget-spent", "r1", "d3")},
+                "the condition persisted through three answers that left the item unchanged: the next "
+                "decision of the same chain, keyed on d3, is held for human attention (catalogue §15.7)",
+                {R1: B1, R2: B1R2}),
+    RoutingCase("recurrence_human_amend_waits",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): AMENDS3 + [("d4", "AMEND", False, "human")]}),
+                "awaiting-amendment:d4", set(),
+                "the human answered the held decision with an AMEND elsewhere: wait for it to integrate",
+                {R1: B1}),
+    RoutingCase("recurrence_human_amend_integrated",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): AMENDS3 + [("d4", "AMEND", True, "human")]}),
+                "human-attention:budget-spent", {("budget-spent", "r1", "d4")},
+                "still spent after the human's integrated AMEND: the next held decision names d4; the "
+                "answered decision (keyed on d3) is never open again", {R1: B1, R2: B1R2}),
+    RoutingCase("recurrence_principal_answer_does_not_count",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): AMENDS3 + [("d4", "AMEND", True)]}),
+                "human-attention:budget-spent", {("budget-spent", "r1", "d3")},
+                "a principal's answer to a decision held for human attention does not answer it",
+                {R1: B1, R2: B1R2}),
+    RoutingCase("recurrence_human_partition",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): AMENDS3 + [("d4", "PARTITION", True, "human")]}),
+                "partitioned:d4", set(), "a human PARTITION hands the route to the parts", {R1: B1}),
+    RoutingCase("recurrence_human_challenge_waits",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): AMENDS3 + [("d4", "CHALLENGE", False, "human")]}),
+                "awaiting-challenge:d4", set(),
+                "a CHALLENGE (convergence duty) waits for its adjudication", {R1: B1, R2: B1R2}),
+    RoutingCase("recurrence_human_escalate_answers_nothing",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): AMENDS3 + [("d4", "ESCALATE", True, "human")]}),
+                "human-attention:budget-spent", {("budget-spent", "r1", "d3")},
+                "ESCALATE answers nothing, even from the human", {R1: B1, R2: B1R2}),
+    RoutingCase("kept_fence_recurrence_human_decline_resumes",
+                ItemState(fence="kept", answers={("kept-fence", "r1"): [("d1", "AMEND", True), ("d2", "AMEND", True),
+                                                                        ("d3", "AMEND", True), ("d4", "DECLINE", True, "human")]}),
+                "re-dispatch", set(), "the human's kept-fence DECLINE resumes the item's route", {R1: B1}),
+    RoutingCase("item_level_recurrence_human_amend_integrated",
+                ItemState(partitioned=True, parts_discharged=True, predicate_holds=True, item_level_adverse_no_part=True,
+                          answers={("item-level-no-part", "r1"): AMENDS3 + [("d4", "AMEND", True, "human")]}),
+                "human-attention:item-level-no-part", {("item-level-no-part", "r1", "d4")},
+                "the item-level chain continues the same way", {R1: B1, R2: B1R2}),
     RoutingCase("kept_fence_decline_resumes",
                 ItemState(fence="kept", answers={("kept-fence", "r1"): [("d1", "DECLINE", True)]}),
                 "re-dispatch", set(),

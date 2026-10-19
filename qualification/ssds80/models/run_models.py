@@ -121,6 +121,76 @@ def evaluate_s2(rs: dict) -> dict[str, str]:
     return misses
 
 
+def lifecycle_properties(max_len: int = 4, reading: str = "settled", quiet: bool = False) -> list:
+    """Every answer chain up to max_len, for the three item-route conditions (and a kept fence with and
+    without a spent budget), checked against properties stated from Manual §10.3, §10.4, §15.4-§15.7
+    and SD-54, not against the rule's own output (d8ab75c B1 discriminator):
+      P1 never stranded; P2 an answered decision is never open again; P3 a wait names the last counted
+      answer, which is unsettled; P4 no re-dispatch or discharge while the budget is spent; P5 the open
+      decision is held for human attention exactly when RECURRENCE answers already count; P6 the open
+      decision names the last counted answer; P7 the fence is passed only after a counted DECLINE.
+    Which answers count is the SD-54 admission statement, restated here: ESCALATE never; DECLINE only for
+    a kept fence; CHALLENGE only on a held decision; on a held decision only a human's answer."""
+    import itertools
+    from routing import ItemState, RECURRENCE
+    kinds = [("AMEND", True), ("AMEND", False), ("PARTITION", True), ("DECLINE", True), ("CHALLENGE", True),
+             ("CHALLENGE", False), ("ESCALATE", True)]
+    alphabet = [(o, st, a) for o, st in kinds for a in ("principal", "human")]
+    conds = [("budget-spent", dict(budget_spent=True)), ("kept-fence", dict(fence="kept")),
+             ("kept-fence", dict(fence="kept", budget_spent=True)),
+             ("item-level-no-part", dict(partitioned=True, parts_discharged=True, predicate_holds=True,
+                                         item_level_adverse_no_part=True))]
+    bad, n = [], 0
+    for cond, kw in conds:
+        for k in range(max_len + 1):
+            for seq in itertools.product(alphabet, repeat=k):
+                # only the last answer may be unsettled or end the chain (PARTITION, DECLINE): an earlier
+                # one would have derived no later decision to answer
+                if any((not st) or o in ("PARTITION", "DECLINE") for o, st, a in seq[:-1]):
+                    continue
+                raw = [(f"d{i + 1}", o, st, a) for i, (o, st, a) in enumerate(seq)]
+                counted = []
+                for aid, o, st, a in raw:
+                    held = len(counted) >= RECURRENCE
+                    if o == "ESCALATE" or (o == "DECLINE" and cond != "kept-fence") or (o == "CHALLENGE" and not held):
+                        continue
+                    if held and a != "human":
+                        continue
+                    counted.append((aid, o, st))
+                answered = {(cond, "r1", None)} | {(cond, "r1", c[0]) for c in counted[:-1]} if counted else set()
+                st = ItemState(answers={(cond, "r1"): raw}, **kw)
+                r, d = route(st, reading)
+                n += 1
+                item = {x for x in d if x[0] == cond}
+                probs = []
+                if stranded(st, r, d):
+                    probs.append("P1")
+                if item & answered:
+                    probs.append("P2")
+                if r.startswith("awaiting-") and not (counted and r.endswith(":" + counted[-1][0]) and not counted[-1][2]):
+                    probs.append("P3")
+                if kw.get("budget_spent") and r in ("re-dispatch", "discharged"):
+                    probs.append("P4")
+                if item:
+                    held = len(counted) >= RECURRENCE
+                    if r.startswith("human-attention:") != held:
+                        probs.append("P5")
+                    if item != {(cond, "r1", counted[-1][0] if counted else None)}:
+                        probs.append("P6")
+                if cond == "kept-fence" and not (counted and counted[-1][1] == "DECLINE") and not (
+                        r.startswith("COORDINATE:kept-fence") or r.startswith("human-attention:kept-fence")
+                        or r.startswith("awaiting-") or r.startswith("partitioned:")):
+                    probs.append("P7")
+                if probs:
+                    bad.append((cond, kw.get("budget_spent", False), [x[:2] + (x[3],) for x in raw], r, sorted(d), probs))
+    if not quiet:
+        print(f"S3 lifecycle properties ({reading}): {n} answer chains (length <= {max_len}); "
+              f"{len(bad)} violation(s)")
+        for b in bad[:8]:
+            print("    ", b)
+    return bad
+
+
 def seeds() -> list[str]:
     errors = []
     s1 = os.path.join(os.path.dirname(HERE), "s1_disagreement_model_check.py")
@@ -132,6 +202,8 @@ def seeds() -> list[str]:
     inv = os.path.join(HERE, "finding_inventory_check.py")
     if subprocess.run([sys.executable, "-I", inv], capture_output=True).returncode != 0:
         errors.append("finding_inventory_check.py found a Review finding heading absent from the index")
+    if subprocess.run([sys.executable, "-I", inv, "--self-test"], capture_output=True).returncode != 0:
+        errors.append("finding_inventory_check.py --self-test: the check missed a removed finding")
     path = os.path.join(os.path.dirname(HERE), "judgment_disagreement_model_check.py")
     spec = importlib.util.spec_from_file_location("jdmc", path)
     m = importlib.util.module_from_spec(spec)
@@ -195,7 +267,13 @@ def main() -> int:
         # revision 1 keyed item-route decisions on (condition, revision); compare it on that much
         return {k[:2] if reading == "revision1" and len(k) == 3 and k[0] != "recurrence" else k for k in ks}
 
-    for reading in ("catalogue", "revision1", "settled"):
+    ok &= not lifecycle_properties()
+    # the properties must discriminate: revision 2's separate recurrence key violates them (d8ab75c B1)
+    r2bad = lifecycle_properties(reading="revision2", quiet=True)
+    kinds = sorted({p for b in r2bad for p in b[-1]})
+    print(f"S3 lifecycle properties (revision2): {len(r2bad)} violation(s), properties {kinds}")
+    ok &= bool(r2bad) and "P6" in kinds        # an open decision that does not name the last counted answer
+    for reading in ("catalogue", "revision1", "revision2", "settled"):
         misses = {}
         for c in cases_s3.S3_CASES:
             r, d = route(c.state, reading)
