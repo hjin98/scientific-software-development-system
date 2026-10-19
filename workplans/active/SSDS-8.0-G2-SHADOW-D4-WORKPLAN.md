@@ -144,6 +144,20 @@ One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REP
 | §7.2 pinned three-way merge | **ACCEPT** | §7.2 | S5 §7 `one_side_change`, `disjoint_lines_merge`, `overlapping_hunk_conflict`, `binary_both_sides_conflict`, `declaration_key_conflict` | — |
 | §7.3-§7.5 roles, existence, declared frame | **ACCEPT** | §7.3-§7.5 | S5 §7 `roles`; inspection | finding 27ef339 B3 |
 | §7.6 prospective acceptance binds once; rebase | **ACCEPT** | §7.6 (R12, SD-26) | S5 §7 `later_iteration_needs_its_own_acceptance` (the lineage reading fails it), `same_enactment_counts_once`, `structure_changed_does_not_count` | finding f22b4dc B1 |
+| §8.1-§8.2 requests, identity, queue order | **ACCEPT** | §8.1-§8.2 | inspection (idempotency by request identity is a Phase F test) | — |
+| §8.3 validation order, apart from rows above | **ACCEPT**: never-lost salvage whatever the request's fate; a non-clean result refuses passing judgments while its result and never-lost records are admitted; step 8 refuses only evidence regression | §8.3 (R9, R15) | S5 §8 `rejected_request_salvages_never_lost` (the all-or-nothing reading fails it), `unclean_result_refuses_passing_judgments`, `clean_request_admits_all` | findings 82d618c B1, f03b15e B1, f03b15e N1, 8f4e75d N1-N2, f185036 N4, edabd81 N7 |
+| §8.4-§8.7 reason codes, dependency rules, absorption, self-reference | **ACCEPT** | §8.4-§8.7 | inspection | — |
+| §9 concurrency, serialization surfaces, joint invariants, generated units, residual disclosure | **ACCEPT** (scheduling never correctness; one joint-invariant review per change in scope) | §9 | inspection; regression seed: routing family | findings c77447b N3, eb86a71 N5, f185036 N2 |
+| §10.1-§10.2 obligation kinds and triggers, revision assessments and the run, evidence obligations | **ACCEPT**, with the `COORDINATE(plan)` keying row above | §10.2 (SD-16, SD-19, SD-22, SD-25) | S5 §10 `revert_starts_a_new_run` (the reuse-bytes reading fails it), `in_run_acceptance_current`; gate-basis seed | findings 1ffbbf0 B2, 53669a5 B2, 798b2b4 B1-B3, 86ab683 B1, d837363 B3, edabd81 B1, 095ce55 N1, 6ff4ed1 B4 |
+| §10.3 readiness, iterations, answered obligations | **ACCEPT**, as amended by A1 | §10.3 | regression seed: routing family; S2 route cases | findings 29da56e N1, 51070e5 N2, 6b986de N1, 093164f N4, edabd81 N5, 82d618c N1, N3, b595f2c B4 |
+| §10.5 provisional propagation and risk-override scope | **ACCEPT** | §10.5 | S5 §5 `provisional_propagates_by_min` | — |
+| §11 plan structure, acceptance, invariants, amendment policy, result-review-integration flow | **ACCEPT** | §11 | S5 §13 tightening cases; S2 transformation cases | — |
+| §12 roles, envelopes, lineage classes, templates, decision classes, standing plan | **ACCEPT** (authority envelopes and fixed classes; independence over `W`) | §12 | inspection; S1-S2 independence cases | finding 51070e5 N1 |
+| §13.1 contract schema | **ACCEPT** (data) | §13.1 | inspection | — |
+| §13.2 lint, ref locality, domain rule | **ACCEPT** | §13.2 | S5 §13 `ref_outside_item_part_rejected`, `document_item_cannot_touch_authority`; S5 §1 write-set cases | findings b595f2c B2-B3, c6da678 B3 |
+| §13.3, §13.5, §13.6 coverage minima, result slots, system contracts | **ACCEPT** (data) | §13.3, §13.5, §13.6 | inspection | — |
+| §13.4 control tightening | **ACCEPT** | §13.4 | S5 §13 `prose_change_is_not_tightening` (the fields-only reading fails it), `narrower_scope_is_tightening`, `wider_scope_is_not_tightening`, `larger_budget_is_not_tightening`, `field_outside_whitelist_is_r2`, `narrower_dependency_allowance_is_tightening` | findings 6ff4ed1 B2, e548472 N3 |
+| §13.7 partition and budgets, apart from the item-level row above | **ACCEPT** | §13.7 | S5 §13 `partition_lint`, `repartition_keeps_discharged_parts`, `repartition_lint_over_undischarged` | findings 051cce3 N2, 63ddf91 N2, 9e5a763 N3, 362af9f N2, 61cd09b N4, f03b15e N2 |
 
 ### 4.3 Stop rules
 
@@ -191,6 +205,8 @@ S5 settles catalogue sections in dependency order; each records its dispositions
 
 **A4 (to propose with the next amendment batch).** §5.10 (e) of the Manual lost, in the SD-47 condensation, the catalogue's rule that where a reach crosses items or plans the owner is the owner of the adverse judgment's target and the reached judgment's own owner is shown on the obligation (finding 913db8f N6). The catalogue keeps it, so G2's mechanism is unaffected; the Manual should state it. It is held for the next amendment so as not to disturb the A1-A3 review already arranged.
 
+**§8-§13 (2026-10-18).** `models/work.py` and `models/cases_s5_8_13.py`: 16 cases (never-lost salvage and the non-clean-result refusal, the revision run under a revert, the control-tightening order, ref locality, the domain rule, partition and re-partition lint); the settled rules meet every case and each refuted reading (all-or-nothing admission, acceptance reused by bytes across runs, prose ignored by tightening) fails its case. No finding routed to §8-§13 remains open; 22 of them concern R15's latch, withdrawn by SD-36.
+
 **A3 (proposed).** While disposing of 0d2b35e N2 the author found that the SD-47 condensation had dropped disclosed costs from Manual §32.2 and §32.3 that the catalogue still states (the equivalence-hop direction, an unpinnable passing realization staying current, `ABSENT` terms raising no finding, fail-closed adverse linking, incidental host reads, attestation challenges, the re-partition consequence of the judged-content rule, plan-rejection reach on control-only branches, a frame `REJECT` after abandonment, and several reopen triggers). Amendment A3 restores them in the Manual's current terms, changing no decision, for review and acceptance with A1 and A2.
 
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
@@ -228,6 +244,6 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 0, proposed, unreviewed |
-| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done, its identity row pending A2 (§4.7, §4.8); S4 index done (§4.9); S5 §1-§7 done (§4.10) |
+| Stage S | S1 done (§4.4); S2 done, its waiting row pending A1 (§4.5, §4.6); S3 done, its identity row pending A2 (§4.7, §4.8); S4 index done (§4.9); S5 §1-§13 done (§4.10) |
 | Stage D | not authorized |
 | G2 | open |

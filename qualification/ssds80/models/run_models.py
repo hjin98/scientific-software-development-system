@@ -38,7 +38,7 @@ from framework import Enactment, History, ending_routes  # noqa: E402
 from rules import RULESETS  # noqa: E402
 import cases_s2  # noqa: E402
 import cases_s3  # noqa: E402
-S5_MODULES = ["cases_s5_1", "cases_s5_2_4", "cases_s5_6", "cases_s5_7"]
+S5_MODULES = ["cases_s5_1", "cases_s5_2_4", "cases_s5_6", "cases_s5_7", "cases_s5_8_13"]
 from routing import findings_survive, issuable_after, keeps_obligation, route, stranded  # noqa: E402
 from judgment import S2_RULESETS, routes_per_state, waiting_literal_f, waiting_per_state  # noqa: E402
 
