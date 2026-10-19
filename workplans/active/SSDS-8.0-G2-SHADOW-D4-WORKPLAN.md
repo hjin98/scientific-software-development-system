@@ -29,7 +29,7 @@ GOVERNS: the settlement of the mechanism catalogue against executable design mod
          the plan for shadow implementation, Phases D-H (Stage D, only after G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: S5 for catalogue §0 and §26-§33 (§4.10); then S6. Manual amendments A1-A3 are accepted (SD-53); A4 and the A1-A3 Review findings N1 and N2 wait for the next amendment batch (§4.10).
+NEXT ACTION: S6, the Stage D plan made concrete and this workplan frozen as revision 1 for independent Review. Manual amendments A1-A3 are accepted (SD-53); A4 and the A1-A3 Review findings N1 and N2 wait for the next amendment batch (§4.10).
 ```
 
 ## 0. Purpose and authority
@@ -170,6 +170,17 @@ One row per catalogue subsection: catalogue section, disposition (`ACCEPT`, `REP
 | §23 contract, authentication, witnesses, qualification, fresh clone, known loss, continuity, recovery | **ACCEPT** (`q_a + r > N + f`; qualification states; loss bounds) | §23 | S5 §23 `deployment_classes_sound` (brute-force intersection), `qualification_states`, `loss_bounds` | — |
 | §24 confidentiality prevention and breach protocol | **ACCEPT** (data and procedure) | §24 | inspection | — |
 | §25 actor identity, trust roots, protected surfaces, untrusted input | **ACCEPT** (untrusted input is data) | §25 | inspection | — |
+| §0.1-§0.2, §0.4-§0.5 orientation, authority, invariants, inspectability | **DROP** as mechanism: architecture owned by Manual §0 (accepted at G1, amended by SD-53); the catalogue's candidate-61 wording is not carried | Manual §0 | inspection | findings 051cce3 N4, 4c52205 N1, 653e88c N2, 63ddf91 N4, bf23372 N5, f22b4dc N2 (closed by the Manual's §0.3 as rewritten at SD-47) |
+| §0.3 refinement rationale and cost cells | **ACCEPT** as the record of each refinement's full statement, rationale and costs (Manual §0.3 points there), read under the Manual's decisions and this register where its candidate-61 wording differs | §0.3 | inspection | findings 5895687 N2 (A3), 4c52205 N7, 5895687 N7 (costs) |
+| §26 components, fitness, deployment, the 1.6.0 supersession | **ACCEPT** (component boundaries and fitness checks as Stage D structure) | §26 | inspection; fitness checks are Stage D Phase H | — |
+| §27 ruleset, schema, system-version and successor evolution | **ACCEPT** (positional rulesets; discharge recomputed, never rewritten; re-identification by adoption) | §27 | inspection; consistent with S5 §10 run identity and §13 discharge cases | — |
+| §28 versions | **ACCEPT** (data) | §28 | inspection | — |
+| §29 doctrine realization maps | **ACCEPT** (data; E-level claims measured at G3, Manual §31.9) | §29 | inspection | — |
+| §30 minimum-justified-architecture reassessment | **ACCEPT** | §30 | inspection | finding 362af9f N5 |
+| §31.1-§31.3, §31.9-§31.10 principles, diagnostics, usability, document checks | **ACCEPT**, the diagnostics read as regression seeds (RR-10, S1) | §31 | S1-S5 models; `run_models.py --seeds` | findings 085c979 N1, 093164f N5, 494c810 N1, 8f4e75d N5, b365947 N1, c4e8de7 N1, eb86a71 N6 (RR-10); f044820 N3 (the full mutation run, SD-48) |
+| §31.4-§31.8 acceptance-program groups and their expected values | **REPLACE** the expected values: Stage D takes each case's expected result from this register and the Stage S models, never from the catalogue's tables, several of which encoded blockers repaired later; every discriminator a Review named for these groups joins its group (index rows marked `STAGE-D`) | §31.2 | `G2-S4-FINDING-INDEX.md` (20 `STAGE-D` rows); S1-S5 cases already model several of them | findings 051cce3 N5, 29da56e N5, 362af9f N6, 51070e5 N3, 61cd09b N6, 63ddf91 N5, 6b986de N6, f03b15e N5, f22b4dc N5, 9e5a763 N1, b46c250 N4, 8f4e75d N4, b365947 N4, 095ce55 N7, c77447b N5, d94a293 N3; 9431629 N1 (S1 item cases) |
+| §32 limits, residual risks, reopen triggers, open uncertainties | **ACCEPT** the catalogue's disclosures as G2 and Stage D runner-design considerations; the Manual's §32 (amended by A3) governs, and the catalogue disclosures it lacks go to the next amendment batch (2a17a83 N1, N2, with A4) | §32 | inspection; comparison in the 2a17a83 Review | findings 085c979 N2, 34803df N4, 47b9f77 N3, 61cd09b N3, 6b986de N3, ad7ece7 N3, b46c250 N2, e810508 N3 (closed by the Manual's text); 83a82df N3 (A3); 82d618c N4 and the trade-off lists 51070e5 N6, 9e5a763 N4, b46c250 N5, e548472 N5, f03b15e N6 (costs); 095ce55 N4, N6, 494c810 N4, c4e8de7 N3 (latch, SD-36) |
+| §33 non-goals | **ACCEPT** | §33 | inspection | — |
 
 ### 4.3 Stop rules
 
@@ -221,11 +232,13 @@ S5 settles catalogue sections in dependency order; each records its dispositions
 
 **§14-§25 (2026-10-18).** `models/persistence.py` and `models/cases_s5_14_25.py`: 8 cases (set-valued conformance against a first-wins precedence reading, `SIGNAL` changing nothing, floors that only raise, the cutover carrier window, publication classification, witness-quorum soundness by brute force over small deployments, known-loss bounds, qualification states); the settled rules meet every case and the first-wins precedence reading fails its case; the cutover case encodes the window the two Blockers found missing rather than replaying an earlier reading. Sections 17, 18, 20, 21, 24 and 25 are mainly data, procedure and realization choices accepted on inspection, with their behaviour checked as Stage D runner discriminators. No finding routed to §14-§25 remains open: most of those routed to §21 are the historical, provenance and empirical limits and retained trade-offs that Manual §32.2, §32.3 and §32.5 disclose; the rest are closed by the accepted Manual's text, by S1-S5 cases, or are not applicable after SD-36, SD-40 or SD-47. The open findings left are owned by §0 (9), §30 (1), §31 (29) and §32 (17).
 
+**§0 and §26-§33 (2026-10-18).** Settled on inspection: these sections are orientation, components, evolution procedure, version data, doctrine maps, the reassessment, qualification design and disclosures, so §7's stop rule applies and no new model was built; §27's positional rulesets and recomputed discharge agree with the S5 §10 and §13 cases. The one substantive change is to the acceptance program: catalogue §31.4-§31.8's expected values are replaced by this register and the Stage S models, because several Reviews found those tables encoding blockers later repaired; the discriminators they named (index rows `STAGE-D`) join the Stage D groups (§5). The finding index now has no open finding: 493 findings across 88 records, including the 2a17a83 Review's (N1 and N2 carried with A4, N3 noted).
+
 **A3 (accepted with A1 and A2, SD-53).** While disposing of 0d2b35e N2 the author found that the SD-47 condensation had dropped disclosed costs from Manual §32.2 and §32.3 that the catalogue still states (the equivalence-hop direction, an unpinnable passing realization staying current, `ABSENT` terms raising no finding, fail-closed adverse linking, incidental host reads, attestation challenges, the re-partition consequence of the judged-content rule, plan-rejection reach on control-only branches, a frame `REJECT` after abandonment, and several reopen triggers). Amendment A3 restores them in the Manual's current terms, changing no decision, for review and acceptance with A1 and A2.
 
 ## 5. Stage D — shadow implementation plan (authorized only at G2)
 
-Stage D follows the architecture workplan's Phases D-H (its §23). Each phase is bounded to shadow operation by §2, delivers through the accepted component boundaries (Manual §26), and is accepted only through production-owner evidence and independent implementation Review at G3 (criterion 15). The detailed acceptance program is Manual §31.2 with the catalogue's §31 discriminators as settled in Stage S.
+Stage D follows the architecture workplan's Phases D-H (its §23). Each phase is bounded to shadow operation by §2, delivers through the accepted component boundaries (Manual §26), and is accepted only through production-owner evidence and independent implementation Review at G3 (criterion 15). The detailed acceptance program is Manual §31.2 with the catalogue's §31 discriminators as settled in Stage S. Each case takes its expected result from the settled-mechanism register (§4.2) and the Stage S models, never from the catalogue's §31.4-§31.8 tables, and every discriminator the finding index marks `STAGE-D` joins its group.
 
 | Phase | Scope (shadow, no authority) | Acceptance evidence at G3 |
 |---|---|---|
@@ -258,6 +271,6 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 |---|---|
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 0, proposed, unreviewed |
-| Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done (§4.9); S5 §1-§25 done (§4.10) |
+| Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 next |
 | Stage D | not authorized |
 | G2 | open |

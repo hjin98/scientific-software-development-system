@@ -43,9 +43,10 @@ MODELLED = {
 #   NA-SD47            wording, citation or residue in a superseded candidate's text, rewritten at SD-47
 #   NA-RR10            the earlier diagnostic's construction, now register entry RR-10
 #   NA-LATCH           a mechanism withdrawn (R15's latch, SD-36)
-#   A3 / A4            restored to the Manual by amendment A3 (proposed) / to restore in a later A4
+#   A3 / A4            restored to the Manual by amendment A3 (accepted, SD-53) / to restore in a later A4
 #   STAGE-D            closed at the architecture level, carried as a Stage D real-owner discriminator
 #   CLOSED-S5          closed by a Stage S step S5 model case (named)
+#   NOTED              a clerical finding on a review handoff, recorded where the stakeholder directed
 #   CLOSED-PHASE-B     a workplan finding closed in the workplan before its Phase B PASS (e23f142),
 #                      whose re-verification covers it; the catalogue realizes the reviewed contract
 DISPOSED: dict[tuple[str, str], tuple[str, str]] = {}
@@ -324,6 +325,51 @@ _d("63DDF91", "N3", "CLOSED-ARCH", "Manual §19.5 cutover carried by an integrat
 _d("61CD09B", "N2", "CLOSED-ARCH", "Manual §22.3 fence re-gating stated; §32.3 trigger")
 
 
+# §0, §26-§33
+QUAL = ("catalogue §31.4-§31.8 expected values replaced by the settled register and Stage S models; "
+        "the named discriminators join the Manual §31.2 acceptance program (G2 workplan §5)")
+for rec, ids in (("051CCE3", "N5"), ("29DA56E", "N5"), ("362AF9F", "N6"), ("51070E5", "N3"), ("61CD09B", "N6"),
+                 ("63DDF91", "N5"), ("6B986DE", "N6"), ("F03B15E", "N5"), ("F22B4DC", "N5"), ("9E5A763", "N1"),
+                 ("B46C250", "N4"), ("8F4E75D", "N4"), ("B365947", "N4"), ("095CE55", "N7"), ("C77447B", "N5"),
+                 ("D94A293", "N3")):
+    _d(rec, ids, "STAGE-D", QUAL)
+_d("9431629", "N1", "CLOSED-S2-S3", "S1 item cases construct item-level content from histories (re-dispatched part)")
+for rec, ids in (("085C979", "N1"), ("093164F", "N5"), ("494C810", "N1"), ("8F4E75D", "N5"), ("B365947", "N1"),
+                 ("C4E8DE7", "N1"), ("EB86A71", "N6")):
+    _d(rec, ids, "NA-RR10", "")
+_d("F044820", "N3", "CLOSED-BY-SEED", "the full --mutations run was executed for candidate 63 (SD-48), green")
+_d("095CE55", "N4 N6", "NA-LATCH", "")
+_d("494C810", "N4", "NA-LATCH", "")
+_d("C4E8DE7", "N3", "NA-LATCH", "")
+_d("051CCE3", "N4", "CLOSED-ARCH", "Manual §0.3 R8 per-target lifting; §3.4 typed targets")
+_d("4C52205", "N1", "CLOSED-ARCH", "Manual §0.3 cites SD-11 to SD-52; §5.10 heading lists its decisions")
+_d("653E88C", "N2", "CLOSED-ARCH", "Manual §0.3 and §5.10 citations current; §31.3 rewritten at SD-47")
+_d("63DDF91", "N4", "CLOSED-ARCH", "Manual §0.3 R8, R12 restated at SD-47 (why-columns moved to catalogue §0.3)")
+_d("BF23372", "N5", "CLOSED-ARCH", "closure-map legend no longer bounded at R13")
+_d("F22B4DC", "N2", "CLOSED-ARCH", "Manual §0.3 R12 lists the acting rule")
+_d("5895687", "N2", "A3", "Manual §32.2: relief admitted only while the relieved acceptance's basis holds; A1 eligibility")
+_d("4C52205", "N7", "COST", TRADE)
+_d("5895687", "N7", "COST", TRADE)
+_d("362AF9F", "N5", "CLOSED-ARCH", "Manual §30 and catalogue §6.1 (acts, §5.2) no longer carry the lineage vocabulary")
+_d("71CF9B3", "B1", "CLOSED-ARCH", "Manual §10.2: the predecessor is display only, never an equality condition; run identity (SD-22)")
+_d("085C979", "N2", "CLOSED-ARCH", "catalogue §15.5 lists DISCREPANCY among decisions owed with no report")
+_d("34803DF", "N4", "CLOSED-ARCH", "Manual §32.2: part and composite equivalences do not entail each other")
+_d("47B9F77", "N3", "CLOSED-ARCH", "no Review identifier in the Manual's normative text")
+_d("61CD09B", "N3", "CLOSED-ARCH", "Manual §0.3 R12 states re-application as a new enactment; §5.10 (e) owns the ending routes")
+_d("6B986DE", "N3", "CLOSED-ARCH", "Manual §5.10 (b), (f) one judged content; §32.2 broad authorship fails closed")
+_d("82D618C", "N4", "COST", "stakeholder option not taken; Manual §16.5, §32.2 lineage carry only")
+_d("83A82DF", "N3", "A3", "Manual §32.2 equivalence-hop direction")
+_d("AD7ECE7", "N3", "CLOSED-ARCH", "Manual §16.5 selects a judge outside the judged content's authors; §32.2-§32.3")
+_d("B46C250", "N2", "CLOSED-ARCH", "Manual §32.3: gate terms accumulate stale members")
+_d("B46C250", "N3", "CLOSED-ARCH", "closure-map row and §5.5 wording rewritten")
+_d("E810508", "N3", "CLOSED-ARCH", "Manual §32.3 same-key coupling, part vetoes and budgets")
+for rec, ids in (("51070E5", "N6"), ("9E5A763", "N4"), ("B46C250", "N5"), ("E548472", "N5"), ("F03B15E", "N6")):
+    _d(rec, ids, "COST", TRADE)
+
+_d("2A17A83", "N1 N2", "A4", "carried with A4 into the next amendment batch (SD-53)")
+_d("2A17A83", "N3", "NOTED", "closure map §5 (SD-53); the Review ran the full delta, so no coverage was lost")
+
+
 def s1_evidence():
     """(record, finding) -> the s1 diagnostic's named discriminators that reproduce it."""
     import subprocess
@@ -435,8 +481,8 @@ def main():
     tally = collections.Counter(r[7].split(":")[0] for r in rows)
     print(f"Records: {len({r[2] for r in rows})}; findings: {len(rows)}; by disposition: "
           + ", ".join(f"{k} {v}" for k, v in sorted(tally.items())) + ".\n")
-    print("Open findings per owning section: " + ", ".join(
-        f"§{k} {v}" for k, v in sorted(by_owner.items(), key=lambda kv: (len(kv[0]), kv[0]))) + ".\n")
+    print("Open findings per owning section: " + (", ".join(
+        f"§{k} {v}" for k, v in sorted(by_owner.items(), key=lambda kv: (len(kv[0]), kv[0]))) or "none") + ".\n")
     print("| Record | Finding | Title | Owner | Sections cited | Disposition |")
     print("|---|---|---|---|---|---|")
     for kind, rid, name, fid, title, owner, refs, disp in rows:
