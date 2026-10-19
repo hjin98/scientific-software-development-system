@@ -10,7 +10,8 @@ Exit 0 iff
   3. every earlier rule set fails every case that names it in `refutes`, so each known
      counterexample (9431629 B1, the SD-46 cases, f044820 B1, 8c1f2f2 B1) is reproduced as a
      failure of the rule it refuted;
-  4. with --seeds, the regression seeds still pass: item_review_history_probe.py, and the
+  4. with --seeds, the finding index's independent inventory check passes (finding_inventory_check.py)
+     and the regression seeds still pass: item_review_history_probe.py, and the
      review-scope and obligation-routing families of judgment_disagreement_model_check.py, and
      s1_disagreement_model_check.py at depth 3.
 
@@ -128,6 +129,9 @@ def seeds() -> list[str]:
     probe = os.path.join(os.path.dirname(HERE), "item_review_history_probe.py")
     if subprocess.run([sys.executable, "-I", probe], capture_output=True).returncode != 0:
         errors.append("seed item_review_history_probe.py failed")
+    inv = os.path.join(HERE, "finding_inventory_check.py")
+    if subprocess.run([sys.executable, "-I", inv], capture_output=True).returncode != 0:
+        errors.append("finding_inventory_check.py found a Review finding heading absent from the index")
     path = os.path.join(os.path.dirname(HERE), "judgment_disagreement_model_check.py")
     spec = importlib.util.spec_from_file_location("jdmc", path)
     m = importlib.util.module_from_spec(spec)

@@ -29,7 +29,6 @@ MODELLED = {
     ("E810508", "B1"): "S2 same_key_in_scope_after_issue, same_key_other_scope_after_issue",
     ("E810508", "B2"): "S1 item cases (an item-level target and entries)",
     ("47B9F77", "B2"): "S1 objection cases (independence of integrated-result reviews)",
-    ("B365947", "B1"): "S3 routing cases (RR-4 to RR-8, SD-41 residual)",
     ("085C979", "B1"): "S2 transformation cases (one judged content at roles, reach and denial)",
 }
 
@@ -46,10 +45,20 @@ MODELLED = {
 #   A3 / A4            restored to the Manual by amendment A3 (accepted, SD-53) / to restore in a later A4
 #   STAGE-D            closed at the architecture level, carried as a Stage D real-owner discriminator
 #   CLOSED-S5          closed by a Stage S step S5 model case (named)
-#   NOTED              a clerical finding on a review handoff, recorded where the stakeholder directed
+#   NOTED              a clerical or positive finding that needs no change, recorded where it is noted
+#   CLOSED-LATER-REVIEW  re-verified as closed, superseded or carried into a named later finding by a later
+#                      independent Review's re-verification of earlier records (generated: the witness and
+#                      its words are quoted); a partial closure names where its residue went
+#   CLOSED-CYCLE       closed by the current text of a cycle record (architecture workplan, authority index,
+#                      tests, this G2 workplan), cited
+#   NA-REMOVED         the mechanism it concerns (named) is absent from the accepted Manual and the catalogue;
+#                      the note names the current owner of its topic
+#   NA-REV23           wording of a workplan revision before 23, rewritten there; the current owner is named
 #   CLOSED-PHASE-B     a workplan finding closed in the workplan before its Phase B PASS (e23f142),
 #                      whose re-verification covers it; the catalogue realizes the reviewed contract
 DISPOSED: dict[tuple[str, str], tuple[str, str]] = {}
+# second records of a candidate whose findings differ from the first record's, so never inherit them
+OWN_DISPOSITIONS = {"E548472/DF"}
 
 
 def _d(rec, ids, disp, note):
@@ -369,6 +378,104 @@ for rec, ids in (("51070E5", "N6"), ("9E5A763", "N4"), ("B46C250", "N5"), ("E548
 _d("2A17A83", "N1 N2", "A4", "carried with A4 into the next amendment batch (SD-53)")
 _d("2A17A83", "N3", "NOTED", "closure map §5 (SD-53); the Review ran the full delta, so no coverage was lost")
 
+# 13d67be (G2 workplan revision 1 Review) and the finding it reopened
+_d("13D67BE", "B1", "OPEN", "G2 blocker: one post-answer coordination rule; repair direction is the stakeholder's")
+_d("B365947", "B1", "OPEN", "reopened by 13d67be B1: an AMEND of another item leaves the answered route with nothing")
+_d("13D67BE", "B2", "CLOSED-S5", "the extractor's two heading forms, per-finding Phase B and later-Review witnesses, and "
+   "finding_inventory_check.py (an independent inventory, zero misses)")
+_d("13D67BE", "N1", "CLOSED-CYCLE", "G2 workplan revision 2 §5.5: criteria 9 and 10 need the live evidence")
+_d("13D67BE", "N2", "CLOSED-CYCLE", "G2 workplan revision 2 §4.2 §26 row: fitness checks from Phase D throughout")
+_d("13D67BE", "N3", "A4", "carried with A4 (§4.10)")
+
+# Workplan Review findings before the Phase B PASS that its §3 does not name (13d67be B2), each read in full
+ADOPT = "historical adoption provenance partial (Phase B N1; Manual §32.5; stakeholder record, Not covered)"
+for rec in ("124B0B7", "203A42B", "4C35D92", "62C0B24", "644EB72", "730490D", "947370D", "97E753F", "AC71FA9",
+            "EF8445A", "F3608F5", "4EC0024", "6FE1000", "A414588", "BA7F738", "FB3E542"):
+    _d(rec, "N1", "COST", ADOPT)
+for rec, ids in (("441CF5C", "N10"), ("8A75346", "N5"), ("F9D9DE8", "N6")):
+    _d(rec, ids, "NOTED", "positive finding")
+_d("730490D", "N4", "NOTED", "whitespace in a historical Review record, kept unedited")
+for rec, ids in (("203A42B", "N7"), ("4C35D92", "N2"), ("62C0B24", "N6"), ("644EB72", "N2"), ("A414588", "N9")):
+    _d(rec, ids, "NA-RR10", "the s1_disagreement_model_check.py diagnostic's construction (a Stage S regression seed)")
+_d("124B0B7", "N2", "STAGE-D", "group 2: the provisional-discharge expected value from the register (§5.1 item 3)")
+_d("441CF5C", "N6", "CLOSED-S5", "S5 §2-§4 warrant_cycle_illegal (an authored warrant cycle)")
+_d("441CF5C", "N7", "STAGE-D", "group 4: ROLLBACK expected, not normalized (S5 qualification_states)")
+_d("441CF5C", "N8", "STAGE-D", "group 7: a foreign change to structural declarations only")
+_d("730490D", "N2", "STAGE-D", "group 4: the foreign-reset variant's expected value from Manual §22.3 (LATE_PUBLICATION)")
+_d("8A75346", "N2", "STAGE-D", "group 4: crash-window and publication cases from the register (catalogue §31.4)")
+_d("730490D", "N3", "CLOSED-ARCH", "Manual §22.3 fencing and settlement (a decision on a fenced admission waits for settlement)")
+_d("441CF5C", "N9", "CLOSED-ARCH", "Manual §26 (components, fitness, deployment, §26.4 supersession)")
+_d("8A75346", "N4", "CLOSED-ARCH", "Manual §26.3-§26.4 composition root, capability keys, API/SPI, fitness")
+_d("8A75346", "N3", "CLOSED-CYCLE", "architecture workplan §18.1 row for archived §36")
+_d("F9D9DE8", "N1", "CLOSED-ARCH", "Manual §26.4 disposes each 1.6.0 product invariant")
+_d("F9D9DE8", "N2", "CLOSED-LATER-REVIEW", "441cf5c N10: the routing test parses frontmatter")
+_d("F9D9DE8", "N3", "CLOSED-CYCLE", "authority index: Protocol 7 closed at 7.2.1; the SSDS 8 route")
+_d("F9D9DE8", "N4", "CLOSED-S5", "S5 §2-§4 closure_widens_to_composite, closure_bounded_by_judgments")
+_d("F9D9DE8", "N5", "CLOSED-ARCH", "Manual §30: no Change primitive; transformation identity")
+_d("8A75346", "N1", "CLOSED-S5", "S5 §2-§4 warrant_cycle_illegal; Manual §2 cycle legality")
+_d("AC71FA9", "N2", "CLOSED-ARCH", "Manual §0.3 R4: no attempt log; the publisher is the appending incarnation")
+_d("A414588", "N2", "CLOSED-ARCH", "Manual §12.2 envelopes carry the issue position; §25.2 key lifecycle")
+_d("A414588", "N3", "CLOSED-ARCH", "Manual §0.3 R8: supersession authority follows the superseded record's kind")
+for rec in ("6FE1000", "4EC0024"):
+    _d(rec, "N6", "CLOSED-ARCH", "catalogue §8.3 step 3 refuses an unauthorized supersedes, never admitted")
+for rec, ids in (("203A42B", "N2"), ("62C0B24", "N2"), ("A414588", "N4")):
+    _d(rec, ids, "CLOSED-S5", "S5 §8 rejected_request_salvages_never_lost; observations are never lost")
+for rec, ids in (("BA7F738", "N5"), ("947370D", "N6"), ("4EC0024", "N8"), ("6FE1000", "N9")):
+    _d(rec, ids, "CLOSED-ARCH", "never-lost records are admitted whatever the request's fate on their own checks "
+       "(catalogue §8.3 steps 6-7), so no resubmission or envelope list decides them")
+for rec, ids in (("203A42B", "N3"), ("62C0B24", "N3"), ("4C35D92", "N3"), ("97E753F", "N5")):
+    _d(rec, ids, "CLOSED-ARCH", "Manual §5.10 (f) one independence rule; §0.3 R13 (SD-48)")
+_d("97E753F", "N4", "CLOSED-ARCH", "Manual §15.4 floors keyed on records; human decisions authenticated")
+_d("97E753F", "N6", "CLOSED-ARCH", "Manual §0.3 R15: Admission refuses only a request that makes passing required evidence fail")
+_d("F3608F5", "N2", "CLOSED-S5", "S5 §14 conformance_is_a_set")
+for rec, ids in (("97E753F", "N7"), ("4C35D92", "N6")):
+    _d(rec, ids, "CLOSED-ARCH", "Manual §17.1 assessment granularity (single or ensemble), §6.10")
+for rec, ids in (("BA7F738", "N2"), ("4EC0024", "N3")):
+    _d(rec, ids, "CLOSED-ARCH", "Manual §6.3 evaluated outcome in canonical form, declared outputs (§17.1)")
+_d("4EC0024", "N4", "CLOSED-ARCH", "Manual §6.9: every designated-runner execution ends in an admitted, never-lost observation")
+_d("4EC0024", "N2", "COST", "D1/D2 dispositions are human work (Manual §32.2; SD-17 partial reversal)")
+_d("4C35D92", "N4", "CLOSED-ARCH", "Manual §4.1: a dependence states what it relies on (record, standing, identity)")
+_d("62C0B24", "N5", "CLOSED-ARCH", "Manual §7.6 rebase: a frame record counts only if every entry holds in its role there")
+_d("644EB72", "N7", "CLOSED-ARCH", "Manual §6.3 recorded execution basis (reads and closure, UNBOUNDED fallback)")
+for rec, ids in (("6FE1000", "N7"), ("203A42B", "N6")):
+    _d(rec, ids, "CLOSED-ARCH", "Manual §0.3 R2: every non-trivial support component forced to F (§5.6)")
+_d("947370D", "N3", "A3", "Manual §32.3 whole-tree execution-basis fallback trigger")
+_d("BA7F738", "N7", "A3", "Manual §32.3 residual owner dispositions (lineages dropping their own failing test-first checks)")
+REMOVED = "Manual §6.4-§6.9 (adverse scope, matching, staleness, disposition)"
+for rec, ids, what in (("203A42B", "N4 N5", "`present`"), ("A414588", "N5", "`where`"), ("62C0B24", "N7", "`counts`"),
+                       ("947370D", "N2 N4 N5", "reading pairs and the disagreement floor"),
+                       ("BA7F738", "N3 N4", "reading pairs"), ("BA7F738", "N6", "the withdrawal latch"),
+                       ("4EC0024", "N5", "reading pairs and trials"),
+                       ("4C35D92", "N5", "the D1/D2 disagreement floor"), ("62C0B24", "N4", "the D1/D2 disagreement floor"),
+                       ("644EB72", "N6", "the D1/D2 disagreement floor"), ("6FE1000", "N4", "the D1/D2 disagreement floor"),
+                       ("4C35D92", "N7", "`applicable`"), ("A414588", "N6", "the about-edge step-5 check")):
+    _d(rec, ids, "NA-REMOVED", f"{what} removed; {REMOVED}")
+for rec, ids in (("6FE1000", "N2 N3"),):
+    _d(rec, ids, "NA-REV23", "revision-17 `about` terms; catalogue §6.4 `about` adds, never removes, subjects")
+for rec, ids, owner in (("97E753F", "N2", "catalogue §15"), ("97E753F", "N3", "Manual §0.3 R1"),
+                        ("644EB72", "N4", "catalogue §8.3 step 6"), ("644EB72", "N5", "Manual §17.4 admissibility"),
+                        ("A414588", "N7", "Manual §17 (no claim unit)"), ("A414588", "N8", "architecture workplan §27 history"),
+                        ("4EC0024", "N7", "Manual §6, §10")):
+    _d(rec, ids, "NA-REV23", owner)
+_d("FB3E542", "N2", "NA-REV23", "Manual §7.2 frames named by transformation identity")
+# later-review witnesses that need a hand disposition
+_d("575DC78", "N4", "CLOSED-ARCH", "Manual §10.2: obligations carry the run among their parameters; frame obligations "
+   "by enactment (§5.2)")
+_d("575DC78", "N5", "STAGE-D", "group 3: frame gate decisions integrating (B46C250 re-verification: partly closed)")
+_d("575DC78", "N7", "NA-SD47", "closure-map accounting")
+_d("5C55D4B", "N6", "STAGE-D", "group 1 and 2 discriminators (575DC78 re-verification: partly closed)")
+_d("71CF9B3", "N4", "CLOSED-LATER-REVIEW", "798B2B4 partly closed; residue carried as 798b2b4 N4 (re-verified by 3540D98)")
+for rec, ids in (("71CF9B3", "N7"), ("798B2B4", "N5")):
+    _d(rec, ids, "A3", "Manual §32.2 `ABSENT` terms raise no finding")
+_d("798B2B4", "N8", "NA-SD47", "closure-map accounting")
+_d("0B6C4FA", "N1", "CLOSED-ARCH", "author choices accepted with the Manual at G1 (SD-50)")
+_d("F7419D5", "N6", "COST", TRADE)
+_d("F7419D5", "N4", "STAGE-D", "group 1 and 3 discriminators (362AF9F re-verification: partly closed)")
+
+_d("E548472/DF", "N1", "COST", TRADE)
+_d("E548472/DF", "N2", "COST", ADOPT)
+_d("E548472/DF", "N3", "NA-RR10", "diagnostic scope bounded (RR-10)")
+
 
 def s1_evidence():
     """(record, finding) -> the s1 diagnostic's named discriminators that reproduce it."""
@@ -401,30 +508,42 @@ def mutation_evidence():
 
 
 HEAD = re.compile(r"^(?:#{2,4}\s+|\*\*)((?:B|N|SC-?)\d+(?:\([a-z]\))?|Blocker [A-Z][\'′1-9]?)\b[^\n]*", re.M)
+# A finding title in any heading, bold or list-item form, followed by a dash and its title: the lettered
+# findings of the workplan Reviews (A, B, C1, U2, the X/W/Y groups and their members) and the list-item
+# findings of several Manual Reviews, which HEAD missed (13d67be B2).
+HEAD2 = re.compile(r"^(?:#{2,4}\s+|-\s+\*\*|\d+\.\s+\*\*|\*\*)(?:Blocker\s+)?((?:SC-?\d+|[A-DNUWXYZ][′']?\d{0,2})(?:\([a-z]\))?)"
+                   r"\s*[—–]\s+\S[^\n]*", re.M)
 SECREF = re.compile(r"§(\d+)(?:\.(\d+))?")
 
 
 def records():
-    pats = ["MANUAL-REVIEW-SSDS-8.0-*.md", "WORKPLAN-REVIEW-SSDS-8.0-*.md"]
+    pats = ["MANUAL-REVIEW-SSDS-8.0-*.md", "WORKPLAN-REVIEW-SSDS-8.0-*.md", "G2-WORKPLAN-REVIEW-SSDS-8.0-*.md"]
     for pat in pats:
         for f in sorted(glob.glob(os.path.join(ROOT, pat))):
             yield f
 
 
 def short_id(name: str) -> str:
-    m = re.match(r"(?:MANUAL|WORKPLAN)-REVIEW-SSDS-8\.0-([0-9A-F]{7})", name)
+    m = re.match(r"(?:MANUAL|WORKPLAN|G2-WORKPLAN)-REVIEW-SSDS-8\.0-([0-9A-F]{7})", name)
     return m.group(1) if m else name
 
 
 def findings(path: str):
     text = open(path, encoding="utf-8").read()
-    heads = list(HEAD.finditer(text))
+    heads = sorted({m.start(): m for m in list(HEAD.finditer(text)) + list(HEAD2.finditer(text))}.values(),
+                   key=lambda m: m.start())
+    # prefer a heading occurrence of an id over an earlier bold or list mention of it (a verdict summary)
+    first = {}
+    for m in heads:
+        fid = m.group(1)
+        if fid not in first or (m.group(0).startswith("#") and not first[fid].group(0).startswith("#")):
+            first[fid] = m
     seen = set()
     all_refs = collections.Counter(m.group(1) for m in SECREF.finditer(text))
     default = all_refs.most_common(1)[0][0] if all_refs else "?"
     for i, m in enumerate(heads):
         fid = m.group(1)
-        if fid in seen:
+        if fid in seen or first[fid] is not m:
             continue
         seen.add(fid)
         end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
@@ -436,23 +555,137 @@ def findings(path: str):
         yield fid, title[:140], owner, refs[:6]
 
 
+def phase_b_witness() -> dict:
+    """(record, finding) -> the Phase B PASS row that re-verified it (E23F142 §3), parsed from that record."""
+    path = os.path.join(ROOT, "WORKPLAN-REVIEW-SSDS-8.0-E23F142-PASS.md")
+    text = open(path, encoding="utf-8").read()
+    sec = text[text.index("## 3. Re-verification"):text.index("## 4.")]
+    out: dict = {}
+    def expand(tok):
+        tok = tok.strip().rstrip(",;:")
+        m = re.fullmatch(r"([A-Z][′']?)(\d+)-[A-Z]?[′']?(\d+)", tok)
+        if m:
+            return [m.group(1)] + [f"{m.group(1)}{i}" for i in range(int(m.group(2)), int(m.group(3)) + 1)]
+        m = re.fullmatch(r"([A-Z])-([A-Z])", tok)
+        if m:
+            return [chr(c) for c in range(ord(m.group(1)), ord(m.group(2)) + 1)]
+        m = re.fullmatch(r"([A-Z][′']?\d*)[a-z](?:-[a-z])?", tok)
+        if m:
+            return [m.group(1), re.sub(r"\d+$", "", m.group(1))]
+        return [tok, re.sub(r"\d+$", "", tok)] if re.fullmatch(r"[A-Z][′']?\d*", tok) else []
+    for line in sec.split("\n"):
+        if not line.startswith("| ") or line.startswith("| Finding") or line.startswith("| Earlier"):
+            continue
+        cell = line.split("|")[1]
+        label = cell.strip()[:60]
+        if re.match(r"\s*[A-Z]\d?:", cell):              # the 552AC01 / EF8445A table: id before a colon
+            rid = "EF8445A" if re.match(r"\s*X\d", cell) else "552AC01"
+            fid = re.match(r"\s*([A-Z]\d?)", cell).group(1)
+            for f in expand(fid):
+                out[(rid, f)] = label
+            continue
+        for chunk in re.split(r";", cell):
+            parts = re.split(r"\b([0-9A-F]{7})\b", chunk)
+            for rid, after in zip(parts[1::2], parts[2::2]):
+                for tok in re.split(r"[\s,/]+", after.strip()):
+                    if not tok:
+                        continue
+                    got = expand(tok)
+                    if not got:
+                        break                     # the first word that is not a finding id ends the list
+                    for f in got:
+                        out[(rid, f)] = label
+    # the 552AC01 table names its record's group headings Y1-Y2 and the EF8445A row covers X1-X3
+    for f in ("Y", "Y1", "Y2"):
+        out.setdefault(("552AC01", f), "552AC01 and EF8445A table")
+    for f in ("X", "X1", "X2", "X3"):
+        out.setdefault(("EF8445A", f), "552AC01 and EF8445A table")
+    return out
+
+
+LATER_VERB = (r"(closed|superseded|repaired|resolved|withdrawn|partly closed|mostly closed|reopened|carried|"
+              r"answered|addressed|fixed|disclosed)")
+
+
+def _ids(spec: str) -> list:
+    out = []
+    for a, b in re.findall(r"([A-Z][′']?\d*)(?:-[A-Z]?(\d+))?", spec.replace("Blocker", "")):
+        if not a:
+            continue
+        if b:
+            pre = re.match(r"[A-Z]+", a).group(0)
+            out += [f"{pre}{i}" for i in range(int(a[len(pre):] or 0), int(b) + 1)]
+        else:
+            out.append(a)
+    return out
+
+
+def later_witness() -> dict:
+    """(record, finding) -> (later record, its words), from later Reviews' re-verification of earlier records:
+    sections headed Previous / earlier / prior (bold or heading record markers, then `**N3** is closed` lines
+    or `| N3 | Closed ... |` table rows), and inline `<record> N2, N3 and N4 are closed` statements."""
+    out: dict = {}
+    for f in records():
+        me = short_id(os.path.basename(f))
+        text = open(f, encoding="utf-8").read()
+        for sec in re.split(r"\n(?=## )", text):
+            if not re.search(r"(?i)previous|earlier|prior|re-verif", sec.split("\n", 1)[0]):
+                continue
+            cur = None
+            for line in sec.split("\n"):
+                m = re.match(r"^(?:#{3,4}\s+|\*\*|- \*\*)`?([0-9A-Fa-f]{7})`?(?:\*\*|\b)", line)
+                if m:
+                    cur = m.group(1).upper()
+                    if line.startswith("#"):
+                        continue
+                if not cur:
+                    continue
+                for st in re.finditer(r"((?:\*\*[A-Z][′']?\d*(?:-[A-Z]?\d+)?\*\*(?:\s*(?:,|and)\s*)?)+)\s*"
+                                      r"(?:are|is|was|were)\s+([^.;]{0,80})", line):
+                    for fid in _ids(re.sub(r"\*", "", st.group(1))):
+                        out.setdefault((cur, fid), (me, st.group(2).strip()))
+                m = re.match(r"^\|\s*\**((?:Blocker\s+)?[A-Z][′']?\d*(?:-[A-Z]?\d+)?(?:\s*(?:,|and|/)\s*[A-Z][′']?\d*)*)"
+                             r"\**\s*\|\s*([^|]+)\|", line)
+                if m and m.group(1) not in ("ID", "Finding"):
+                    for fid in _ids(m.group(1)):
+                        out.setdefault((cur, fid), (me, re.sub(r"\*\*", "", m.group(2)).strip()[:90]))
+        for line in text.split("\n"):
+            for m in re.finditer(r"`?\b([0-9a-f]{7})`?\s+((?:(?:Blocker\s+)?[A-Z][′']?\d*(?:\([a-z]\))?(?:-[A-Z]?\d+)?"
+                                 r"(?:,\s*|\s+and\s+|/|\s+))+?)\s*(?:\([^)]*\)\s*)?(?:is|are|was|were|now|stays|remains?)\s+"
+                                 r"(?:now\s+|also\s+|still\s+)?" + LATER_VERB + r"([^.;|]{0,80})", line):
+                if m.group(1).upper() == me:
+                    continue
+                for fid in _ids(m.group(2)):
+                    out.setdefault((m.group(1).upper(), fid), (me, (m.group(3) + m.group(4)).strip()))
+    return out
+
+
+LATER: dict = {}
+PHASEB: dict = {}
 MUTS: dict = {}
 S1EV: dict = {}
 
 
 def main():
-    global MUTS, S1EV
+    global MUTS, S1EV, PHASEB, LATER
+    PHASEB = phase_b_witness()
+    LATER = later_witness()
     MUTS = mutation_evidence()
     S1EV = s1_evidence()
     rows = []
+    plain = {short_id(os.path.basename(f)) for f in records() if "DIFFERENT-FAMILY" not in f}
     for f in records():
         name = os.path.basename(f)
-        kind = "workplan" if name.startswith("WORKPLAN") else "manual"
+        kind = "workplan" if name.startswith("WORKPLAN") else ("g2-workplan" if name.startswith("G2-") else "manual")
         rid = short_id(name)
-        for fid, title, owner, refs in findings(f):
+        # a candidate reviewed twice (same family and different family) keys the second record apart
+        key = rid + "/DF" if "DIFFERENT-FAMILY" in name and rid in plain else rid
+        found = list(findings(f))
+        groups = {fid for fid, *_ in found if re.fullmatch(r"[A-DUWXY][′']?", fid)}
+        for fid, title, owner, refs in found:
             base = re.sub(r"\([a-z]\)$", "", fid)
             model = MODELLED.get((rid, base))
-            hand = DISPOSED.get((rid, base))
+            hand = DISPOSED.get((key, base)) or (None if key in OWN_DISPOSITIONS else DISPOSED.get((rid, base)))
             muts = MUTS.get((rid, base))
             if model:
                 disp = f"CLOSED-BY-MODEL: {model}"
@@ -462,11 +695,23 @@ def main():
                 disp = "CLOSED-BY-SEED: " + ", ".join(muts)
             elif (rid, base) in S1EV or (rid, base.replace("Blocker ", "")) in S1EV:
                 disp = "CLOSED-BY-SEED: s1_disagreement_model_check.py discriminator"
-            elif kind == "workplan" and rid != "E23F142":
-                disp = "CLOSED-PHASE-B"
+            elif kind == "workplan" and (rid, base) in PHASEB:
+                disp = f"CLOSED-PHASE-B: E23F142 §3, {PHASEB[(rid, base)]}"
+            elif (kind == "workplan" and re.sub(r"\d+$", "", base) in groups and re.sub(r"\d+$", "", base) != base
+                  and (rid, re.sub(r"\d+$", "", base)) in PHASEB):
+                # a numbered member of a lettered group finding the Phase B PASS re-verified as a group
+                grp = re.sub(r"\d+$", "", base)
+                disp = f"CLOSED-PHASE-B: E23F142 §3 (group {grp}), {PHASEB[(rid, grp)]}"
+            elif (rid, base) in LATER:
+                by, words = LATER[(rid, base)]
+                words = words.replace("|", "/")
+                if words.lower().startswith("held as disclosure"):
+                    disp = f"COST: held as a disclosure by the {by} Review's re-verification"
+                else:
+                    disp = f"CLOSED-LATER-REVIEW: {by} re-verification: {words}"
             else:
                 disp = f"OPEN: S5 §{owner}"
-            rows.append((kind, rid, name, fid, title, owner, " ".join(refs), disp))
+            rows.append((kind, key, name, fid, title, owner, " ".join(refs), disp))
     by_owner = collections.Counter(r[5] for r in rows if r[7].startswith("OPEN"))
     print("Governing SSDP version: 7.2.1.\n")
     print("# G2 Stage S step S4 — finding index (generated)\n")
