@@ -15,13 +15,24 @@ readings:
   settled    the realization proposed for G2:
              (d) the pending candidate is the latest iteration's candidate while it is open (its
                  result complete, not integrated or refused, no adverse answer to its review);
-             (b) a COORDINATE(plan) decision for an item route is keyed on (condition, item
-                 revision), so an amendment that leaves the condition holding derives a new one;
+             (b) a COORDINATE(plan) decision for an item route follows one post-answer rule
+                 (SD-54, G2 question Q3, repairing 13d67be B1): it is keyed on (condition, item
+                 revision, the answer it follows); an answer that changes the item (a new revision)
+                 starts a fresh chain; an AMEND that leaves the item unchanged makes the item wait,
+                 visibly, until that plan change integrates, after which a condition that still holds
+                 derives a new decision naming that answer; a PARTITION hands the route to the parts;
+                 a kept-fence DECLINE resumes the item's own route below the fence; ESCALATE answers
+                 nothing; after RECURRENCE answers in one chain the next decision is a recurrence
+                 decision (catalogue §15.7) held for human attention;
              (c) a partitioned item's own obligation is the composite of its parts and the
                  item-level review, and carries route 4 for an item-level review naming no part;
              (e) a standing out-of-scope adverse review of any integrated enactment is a routed
                  finding (Manual §15) with its own COORDINATE(plan), keyed on that review, beside the
                  item's single route, so no route masks it.
+
+The reading "revision1" is the rule G2 workplan revision 1 settled, keyed on (condition, item
+revision) only, which the 13d67be Review refuted: an answered key returns no route while the condition
+holds and the item is unchanged.
 
 Residual (a), an R2 amendment that keeps the prose and fixed fields, is not a routing mechanism: the
 Manual's identity key and its "an R2 amendment derives a new one" disagree there. It is reported as
@@ -44,8 +55,14 @@ class ItemState:
     parts_discharged: bool = False
     item_level_adverse_no_part: bool = False
     oos_adverse: list = field(default_factory=list)  # out-of-scope standing adverse reviews: (review id, enactment, latest?)
-    answered: set = field(default_factory=set)       # keys of COORDINATE(plan) decisions already answered
+    answered: set = field(default_factory=set)       # keys of finding decisions already answered
+    # answers to the item-route decisions: (condition, item revision) -> ordered (answer id, outcome,
+    # integrated?), outcome AMEND, PARTITION, DECLINE or ESCALATE; an AMEND here leaves the item unchanged
+    # (an AMEND of the item gives it a new revision, so a new chain)
+    answers: dict = field(default_factory=dict)
 
+
+RECURRENCE = 3          # proposed default: answers in one chain before the recurrence decision
 
 def _pending(s: ItemState, reading: str):
     if not s.candidates:
@@ -61,17 +78,34 @@ def route(s: ItemState, reading: str) -> tuple[str, set]:
     decisions: set = set()
     # (e) out-of-scope findings
     for rid, enactment, latest in s.oos_adverse:
-        if reading == "settled":
+        if reading in ("settled", "revision1"):
             key = ("finding", rid)
             if key not in s.answered:
                 decisions.add(key)
     def coord(cond):
+        chain = [a for a in s.answers.get((cond, s.item_rev), []) if a[1] != "ESCALATE"]
         if reading == "settled":
+            if not chain:
+                decisions.add((cond, s.item_rev, None))
+                return f"COORDINATE:{cond}"
+            aid, outcome, integrated = chain[-1]
+            if outcome == "DECLINE" and cond == "kept-fence":
+                return "resume"
+            if outcome == "PARTITION":
+                return f"partitioned:{aid}"
+            if not integrated:
+                return f"awaiting-amendment:{aid}"
+            if len(chain) >= RECURRENCE:
+                decisions.add(("recurrence", cond, s.item_rev))
+                return f"human-attention:recurrence:{cond}"
+            decisions.add((cond, s.item_rev, aid))
+            return f"COORDINATE:{cond}"
+        if reading == "revision1":
             key = (cond, s.item_rev)
-            answered = key in s.answered
+            answered = bool(chain)
         else:                     # keyed on the condition alone: any earlier answer to it counts
             key = (cond,)
-            answered = any(k[0] == cond for k in s.answered)
+            answered = any(k[0] == cond for k in s.answers) or any(k[0] == cond for k in s.answered)
         if not answered:
             decisions.add(key)
             return f"COORDINATE:{cond}"
@@ -86,7 +120,8 @@ def route(s: ItemState, reading: str) -> tuple[str, set]:
         return ("human-decision:fence", decisions)
     if s.fence == "kept":
         r = coord("kept-fence")
-        return (r or "none", decisions)
+        if r != "resume":
+            return (r or "none", decisions)
     holds = s.predicate_holds and not (s.partitioned and s.item_level_adverse_no_part)
     if holds:
         return ("discharged", decisions)
@@ -97,7 +132,7 @@ def route(s: ItemState, reading: str) -> tuple[str, set]:
     if latest and reading == "catalogue":
         r = coord("out-of-scope-adverse")
         return (r or "none", decisions)
-    if latest and reading == "settled":
+    if latest and reading in ("settled", "revision1"):
         # route 4: the latest enactment's out-of-scope objection is the item's route, carried by the
         # same finding decision derived above (one decision, not two)
         open_ = [rid for rid, _, l in latest if ("finding", rid) not in s.answered]

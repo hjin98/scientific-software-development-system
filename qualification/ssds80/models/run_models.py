@@ -191,14 +191,18 @@ def main() -> int:
         # the dddfedf reading must reproduce the gap, and the amended reading must close it
         ok &= (not lit) and per
     print(f"S3: {len(cases_s3.S3_CASES)} routing cases")
-    for reading in ("catalogue", "settled"):
+    def keyed(ks, reading):
+        # revision 1 keyed item-route decisions on (condition, revision); compare it on that much
+        return {k[:2] if reading == "revision1" and len(k) == 3 and k[0] != "recurrence" else k for k in ks}
+
+    for reading in ("catalogue", "revision1", "settled"):
         misses = {}
         for c in cases_s3.S3_CASES:
             r, d = route(c.state, reading)
             probs = []
             if not r.startswith(c.route_prefix):
                 probs.append(f"route {r}, expected {c.route_prefix}")
-            if d != c.decisions:
+            if keyed(d, reading) != keyed(c.decisions, reading):
                 probs.append(f"open decisions {sorted(d)}, expected {sorted(c.decisions)}")
             if stranded(c.state, r, d):
                 probs.append("stranded (no route, no open decision)")

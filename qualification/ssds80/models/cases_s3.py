@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from routing import ItemState
 
 CAT = "catalogue"
+R1 = "revision1"
+B1 = "13d67be B1 (SD-54)"
 
 
 @dataclass
@@ -41,21 +43,72 @@ S3_CASES = [
                 "an open candidate of the latest iteration is never discarded by a re-dispatch"),
     # (b) RR-5: an answered decision that changes nothing
     RoutingCase("budget_answered_condition_holds",
-                ItemState(item_rev="r2", budget_spent=True, answered={("budget-spent", "r1")}),
-                "COORDINATE:budget-spent", {("budget-spent", "r2")},
+                ItemState(item_rev="r2", budget_spent=True,
+                          answers={("budget-spent", "r1"): [("d1", "AMEND", True)]}),
+                "COORDINATE:budget-spent", {("budget-spent", "r2", None)},
                 "the principal answered the spent-budget decision on r1 with an amendment that kept the "
                 "budget spent (r2): the condition still holds on r2, so a new decision is owed",
                 {CAT: "RR-5 (SD-41 b)"}),
     RoutingCase("budget_open", ItemState(budget_spent=True), "COORDINATE:budget-spent",
-                {("budget-spent", "r1")}, "a spent budget goes to the principal"),
+                {("budget-spent", "r1", None)}, "a spent budget goes to the principal"),
+    # SD-54 (G2 question Q3, 13d67be B1): what follows an answer that leaves the item unchanged
+    RoutingCase("budget_amend_elsewhere_waits",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): [("d1", "AMEND", False)]}),
+                "awaiting-amendment:d1", set(),
+                "the principal answered with an AMEND of another item: until it integrates the item waits, "
+                "visibly, for it; no re-dispatch above budget", {R1: B1}),
+    RoutingCase("budget_amend_elsewhere_integrated",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): [("d1", "AMEND", True)]}),
+                "COORDINATE:budget-spent", {("budget-spent", "r1", "d1")},
+                "the amendment integrated and the budget is still spent at r1: a new decision naming d1",
+                {R1: B1}),
+    RoutingCase("budget_partitioned_after_answer",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): [("d1", "PARTITION", True)]}),
+                "partitioned:d1", set(), "a PARTITION answer hands the item's route to its parts", {R1: B1}),
+    RoutingCase("budget_escalate_answers_nothing",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): [("d1", "ESCALATE", True)]}),
+                "COORDINATE:budget-spent", {("budget-spent", "r1", None)},
+                "ESCALATE does not answer an item route: the first decision stays open"),
+    RoutingCase("budget_recurrence",
+                ItemState(budget_spent=True, answers={("budget-spent", "r1"): [
+                    ("d1", "AMEND", True), ("d2", "AMEND", True), ("d3", "AMEND", True)]}),
+                "human-attention:recurrence", {("recurrence", "budget-spent", "r1")},
+                "the condition persisted through three answers that left the item unchanged: a recurrence "
+                "decision (catalogue §15.7) held for human attention", {R1: B1}),
+    RoutingCase("kept_fence_decline_resumes",
+                ItemState(fence="kept", answers={("kept-fence", "r1"): [("d1", "DECLINE", True)]}),
+                "re-dispatch", set(),
+                "a kept-fence DECLINE resumes the item's own route (catalogue §15.5)", {R1: B1}),
+    RoutingCase("kept_fence_decline_then_budget",
+                ItemState(fence="kept", budget_spent=True,
+                          answers={("kept-fence", "r1"): [("d1", "DECLINE", True)]}),
+                "COORDINATE:budget-spent", {("budget-spent", "r1", None)},
+                "the resumed route meets the spent budget: resuming bypasses neither budget nor fence",
+                {R1: B1}),
+    RoutingCase("kept_fence_amend_elsewhere_integrated",
+                ItemState(fence="kept", answers={("kept-fence", "r1"): [("d1", "AMEND", True)]}),
+                "COORDINATE:kept-fence", {("kept-fence", "r1", "d1")},
+                "the fence is still kept after an amendment elsewhere: a new decision naming d1", {R1: B1}),
     # (c) RR-6: an item-level review whose findings name no part
     RoutingCase("item_level_no_part",
                 ItemState(partitioned=True, parts_discharged=True, predicate_holds=True,
                           item_level_adverse_no_part=True),
-                "COORDINATE:item-level-no-part", {("item-level-no-part", "r1")},
+                "COORDINATE:item-level-no-part", {("item-level-no-part", "r1", None)},
                 "every part is discharged, but the item-level review is adverse and names no part: the "
                 "partitioned item's own (composite) obligation carries the decision",
                 {CAT: "RR-6 (SD-41 c)"}),
+    RoutingCase("item_level_amend_elsewhere_waits",
+                ItemState(partitioned=True, parts_discharged=True, predicate_holds=True,
+                          item_level_adverse_no_part=True,
+                          answers={("item-level-no-part", "r1"): [("d1", "AMEND", False)]}),
+                "awaiting-amendment:d1", set(),
+                "an AMEND elsewhere leaves the item-level review adverse: wait for the change", {R1: B1}),
+    RoutingCase("item_level_amend_elsewhere_integrated",
+                ItemState(partitioned=True, parts_discharged=True, predicate_holds=True,
+                          item_level_adverse_no_part=True,
+                          answers={("item-level-no-part", "r1"): [("d1", "AMEND", True)]}),
+                "COORDINATE:item-level-no-part", {("item-level-no-part", "r1", "d1")},
+                "the adverse item-level review still stands after the amendment: a new decision", {R1: B1}),
     RoutingCase("partitioned_all_good",
                 ItemState(partitioned=True, parts_discharged=True, predicate_holds=True),
                 "discharged", set(), "parts and the item-level review pass"),

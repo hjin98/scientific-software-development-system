@@ -379,8 +379,10 @@ _d("2A17A83", "N1 N2", "A4", "carried with A4 into the next amendment batch (SD-
 _d("2A17A83", "N3", "NOTED", "closure map §5 (SD-53); the Review ran the full delta, so no coverage was lost")
 
 # 13d67be (G2 workplan revision 1 Review) and the finding it reopened
-_d("13D67BE", "B1", "OPEN", "G2 blocker: one post-answer coordination rule; repair direction is the stakeholder's")
-_d("B365947", "B1", "OPEN", "reopened by 13d67be B1: an AMEND of another item leaves the answered route with nothing")
+_d("13D67BE", "B1", "CLOSED-S2-S3", "SD-54 post-answer rule; S3 cases budget_amend_elsewhere_*, kept_fence_*, "
+   "item_level_amend_elsewhere_*, budget_partitioned_after_answer, budget_recurrence (revision 1's rule fails them)")
+_d("B365947", "B1", "CLOSED-S2-S3", "S3 routing cases with the SD-54 post-answer rule (13d67be B1 sibling: an AMEND of "
+   "another item)")
 _d("13D67BE", "B2", "CLOSED-S5", "the extractor's two heading forms, per-finding Phase B and later-Review witnesses, and "
    "finding_inventory_check.py (an independent inventory, zero misses)")
 _d("13D67BE", "N1", "CLOSED-CYCLE", "G2 workplan revision 2 §5.5: criteria 9 and 10 need the live evidence")
