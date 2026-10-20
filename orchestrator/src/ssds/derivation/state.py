@@ -60,7 +60,7 @@ class Policy:
         if raw.get("schema") != 1 or not set(raw) <= {"schema", "domains"}:
             raise ValueError("policy schema 1 has only schema and [domains.<D>]")
         allowed = {"owner", "adjudicators", "acceptors", "required_judgments", "gates", "gate_holders", "evidence",
-                   "claim_owner"}
+                   "claim_owner", "humans", "unattested_agents"}
         for name, table in raw.get("domains", {}).items():
             if not set(table) <= allowed:
                 raise ValueError(f"unknown policy key in domain {name}")

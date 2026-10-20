@@ -14,9 +14,11 @@ are added with frames.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import Any
 
+from .frames import Frame, Transformation, transformation_of
 from .outcomes import ADVERSE, PASSING, adverse, covers, passing
 from .state import UNKNOWN, State, target_key, triple_key
 
@@ -109,9 +111,15 @@ class Judgments:
         return False
 
     def same_work(self, adverse_id: str, rid: str) -> bool:
-        """Judgments about work reach by judged content; without it, only their own target."""
+        """``z`` is reached when ``W(z)`` contains a nonempty ``W(j⁻)`` at the same content (§5.10 (c))."""
 
-        return self.s.record(adverse_id)["target"] == self.s.record(rid)["target"]
+        a, z = self.s.record(adverse_id), self.s.record(rid)
+        if not (is_work(a) and is_work(z)):
+            return a["target"] == z["target"]
+        judged = self.judged_content(adverse_id)
+        if not judged:
+            return a["target"] == z["target"]
+        return judged <= self.judged_content(rid)
 
     def _on_chain(self, a: dict[str, Any], rid: str) -> bool:
         """``z`` lies on a chain of asserting equivalences joining ``a``'s two revisions, read either way."""
@@ -196,15 +204,30 @@ class Judgments:
         return self.s.policy.get(self.domain_of(record), "owner", None)
 
     def domain_of(self, record: dict[str, Any]) -> str | None:
+        """The domain whose policy owns the record's disagreements: of what it judged (§5.10 (e))."""
+
+        structure = self.s.view.structure
         target = record["target"]
-        subject = None
-        if isinstance(target, dict):
+        units: list[str] = []
+        if is_work(record):
+            units = sorted(u for u, _ in self.judged_content(record["id"])) if record["id"] in self.s.records else []
+            if not units and "transformation" in target:
+                units = sorted(self._binding(target["transformation"]).get("write_scope") or [])
+            units = units or list(target.get("scope", []))
+        elif record["kind"] == "PLAN_ACCEPTANCE":
+            units = [i["unit"] for i in record["fields"]["items"]]
+        elif record["kind"] in ("EVIDENCE_ASSESSMENT", "IMMATERIALITY"):
+            assessment = record["id"] if record["kind"] == "EVIDENCE_ASSESSMENT" else (target["records"] or [None])[0]
+            realization = self.s.record(assessment)["target"]["realization"] if assessment in self.s.records else None
+            if realization in self.s.records:
+                units = [c["unit"] for c in self.s.record(realization)["target"]["claim"]]
+        elif isinstance(target, dict):
             subject = target.get("subject")
             if isinstance(subject, dict):
                 subject = subject.get("subject")
-            subject = subject or target.get("unit")
-        structure = self.s.view.structure
-        return structure.domain(subject) if subject and subject in structure.units else None
+            units = [u for u in (subject or target.get("unit"),) if u]
+        domains = {structure.domain(u) for u in units if u in structure.units}
+        return domains.pop() if len(domains) == 1 else None
 
     # -- independence (§5.10 (f)) ----------------------------------------------------------------
 
@@ -229,14 +252,148 @@ class Judgments:
             return self.root_authors(rid)
         if is_work(record):
             return self.work_authors(rid)
+        if kind == "PLAN_ACCEPTANCE":
+            return self._authors_of([(i["unit"], i["rev"]) for i in record["fields"]["items"]])
+        if kind == "EVIDENCE_ASSESSMENT":
+            return self._claim_authors(rid)
+        if kind == "IMMATERIALITY":
+            out: set[str] = set()
+            for covered in target["records"]:
+                if covered in s.records:
+                    out |= self._claim_authors(covered)
+            return frozenset(out) or frozenset({UNKNOWN})
         return frozenset({UNKNOWN})
 
+    def _authors_of(self, pieces: list[tuple[str, str]]) -> frozenset[str]:
+        out: set[str] = set()
+        for unit, rev in pieces:
+            out |= self.s.authors(unit, rev)
+        return frozenset(out) or frozenset({UNKNOWN})
+
+    def _claim_authors(self, assessment: str) -> frozenset[str]:
+        realization = self.s.record(assessment)["target"]["realization"]
+        if realization not in self.s.records:
+            return frozenset({UNKNOWN})
+        return self._authors_of([(c["unit"], c["rev"]) for c in self.s.record(realization)["target"]["claim"]])
+
     def work_authors(self, rid: str) -> frozenset[str]:
-        """Until frames supply ``W``, the producing task's lineage stands for the work's authors."""
+        authors: set[str] = set()
+        for unit, rev in self.judged_content(rid):
+            authors |= self._work_producers(rid).get((unit, rev), frozenset({UNKNOWN}))
+        return frozenset(authors) or frozenset({UNKNOWN})
+
+    # -- judged content of work (§5.10 (b)) ----------------------------------------------------------
+
+    @lru_cache(maxsize=None)  # noqa: B019
+    def _work(self, rid: str) -> tuple[frozenset[tuple[str, str]], dict[tuple[str, str], frozenset[str]]]:
+        """``W(j)`` for a judgment about work, and the producers of each piece of it."""
+
+        s = self.s
+        target = s.record(rid)["target"]
+        if "transformation" in target:
+            return self._transformation_work(target["transformation"], None)
+        position = self._position_of_state(target["at"])
+        if position is None:
+            return frozenset(), {}
+        at = State(s.h, position)
+        if target["integrated"] == "ITEM":
+            work = self._changed_by(lambda k: self._key_of(k) == target["of"], position)
+        else:
+            work = self._changed_by(lambda k: s.h.integrations[k].transformation in set(target["changes"]), position)
+        scope = set(target.get("scope", at.view.structure.units))
+        judged = frozenset((u, at.cur(u)) for u in work & scope if u in at.view.structure.units)
+        return judged, {piece: at.authors(*piece) for piece in judged}
+
+    def _transformation_work(self, transformation: str, head: int | None) -> tuple[frozenset[tuple[str, str]], dict]:
+        """``W`` of a transformation: fixed by ``id(X)`` at its base, or recomputed over ``M_n(X)`` at ``head``."""
+
+        s = self.s
+        x = transformation_of(s, transformation)
+        binding = self._binding(transformation)
+        if x is None:
+            return frozenset(), {}
+        base = head if head is not None else self._base_position(x)
+        if base is None:
+            return frozenset(), {}
+        frame = Frame(s.h, base, x, s.enactment(transformation))
+        if frame.merged is None:
+            return frozenset(), {}
+        key = binding.get("item_key")
+        work = set(frame.changed) | (self._changed_by(lambda k: key is not None and self._key_of(k) == key, base)
+                                     if key else set())
+        scope = set(binding.get("write_scope") or frame.structure.units)
+        judged = frozenset((u, frame.view.rev(u)) for u in work & scope if u in frame.structure.units)
+        before = State(s.h, base)
+        makers = frozenset(self._makers(transformation)) or frozenset({UNKNOWN})
+        producers = {}
+        for unit, rev in judged:
+            producers[(unit, rev)] = makers if unit in frame.changed else before.authors(unit, rev)
+        return judged, producers
+
+    def judged_content(self, rid: str) -> frozenset[tuple[str, str]]:
+        return self._work(rid)[0]
+
+    def _work_producers(self, rid: str) -> dict[tuple[str, str], frozenset[str]]:
+        return self._work(rid)[1]
+
+    def supports_integration(self, rid: str, head: int) -> bool:
+        """A judgment of ``X`` supports an integration at ``head`` only for the content it judged (§5.10 (b))."""
 
         target = self.s.record(rid)["target"]
-        makers = self.s._makers(target.get("transformation", "")) if "transformation" in target else []
-        return frozenset(makers) or frozenset({UNKNOWN})
+        if "transformation" not in target:
+            return False
+        return self._transformation_work(target["transformation"], head)[0] == self.judged_content(rid)
+
+    def _binding(self, transformation: str) -> dict[str, Any]:
+        for result in self.s.of_kind("TASK_RESULT"):
+            record = self.s.record(result)
+            if record["target"].get("transformation") == transformation:
+                return dict(record["binding"] or {})
+        return {}
+
+    def _makers(self, transformation: str) -> list[str]:
+        return self.s._makers(transformation)
+
+    def binding_conflicts(self, transformation: str) -> bool:
+        """Two producing contexts for one ``(B, C, A)``: a later result under another scope or key (§7.1 row)."""
+
+        contexts = set()
+        for result in self.s.of_kind("TASK_RESULT"):
+            record = self.s.record(result)
+            if record["target"].get("transformation") == transformation:
+                binding = record["binding"] or {}
+                contexts.add((tuple(sorted(binding.get("write_scope") or ())), binding.get("item_key")))
+        return len(contexts) > 1
+
+    def _key_of(self, position: int) -> str | None:
+        transformation = self.s.h.integrations[position].transformation
+        return self._binding(transformation).get("item_key") if transformation else None
+
+    def _changed_by(self, select, through: int) -> set[str]:
+        """Units an admitted integration selected by ``select`` changed, at or before ``through``."""
+
+        h = self.s.h
+        out: set[str] = set()
+        for k in sorted(h.integrations):
+            if k > through or k == 0 or not select(k):
+                continue
+            before, after = h.view(k - 1), h.view(k)
+            for unit in after.structure.units:
+                if unit not in before.structure.units or before.rev(unit) != after.rev(unit):
+                    out.add(unit)
+        return out
+
+    def _base_position(self, x: Transformation) -> int | None:
+        submitted = min((self.s.position_of(r) for r in self.s.of_kind("TASK_RESULT")
+                         if self.s.record(r)["target"].get("transformation") == x.id), default=self.s.n)
+        candidates = [k for k in range(min(submitted, self.s.n) + 1) if self.s.h.head(k) == x.base]
+        return max(candidates) if candidates else None
+
+    def _position_of_state(self, digest: str) -> int | None:
+        for entry in self.s.h.chain.entries[: self.s.n + 1]:
+            if entry.digest == digest:
+                return entry.position
+        return None
 
     def root_authors(self, rid: str) -> frozenset[str]:
         s = self.s
@@ -283,4 +440,98 @@ class Judgments:
                    for a in self.s.of_kind("NON_AUTHORSHIP_ATTESTATION"))
 
 
-__all__ = ["ADVERSE", "Judgments", "PASSING", "REQUIREMENT", "adverse", "is_work", "passing"]
+# -- ending routes, per route and per state (§5.10 (e), (f); A1, SD-51) --------------------------------
+
+
+@dataclass(frozen=True)
+class Routes:
+    admissible: frozenset[str]
+
+    @property
+    def waiting(self) -> bool:
+        """No eligible independent judge for any route here: the objection waits, with human attention."""
+
+        return not self.admissible
+
+
+def _is_agent(actor: str) -> bool:
+    return actor.startswith("agent:")
+
+
+class RouteEligibility:
+    """Which records could end a standing objection that vetoes a passing judgment, in one state."""
+
+    def __init__(self, judgments: Judgments) -> None:
+        self.j = judgments
+        self.s = judgments.s
+
+    def independent(self, judge: str, authors: frozenset[str], domain: str | None = None) -> bool:
+        if _is_agent(judge):
+            if judge in self.s.policy.get(domain, "unattested_agents", ()):
+                return False  # its route cannot attest a fresh lineage (§12.2)
+            return UNKNOWN not in authors and judge not in authors  # a fresh attested lineage, disjoint
+        if not judge.startswith("human:"):
+            return False
+        return judge not in authors
+
+    def owner_exception(self, judge: str, authors: frozenset[str], domain: str | None) -> bool:
+        """SD-48: the claim's owner may dispose of a failing assessment when no qualified human is outside its authors."""
+
+        humans = set(self.s.policy.get(domain, "humans", ()))
+        outside = {h for h in humans if h not in authors}
+        return judge.startswith("human:") and judge == self.s.policy.get(domain, "owner", None) and \
+            (not outside or UNKNOWN in authors)
+
+    def acts(self, frame: Any) -> bool:
+        """Whether a record declaring ``frame`` would act in this state (§5.2)."""
+
+        if frame == "ADMITTED":
+            return True
+        task = self.s.enactment(frame["transformation"])
+        if task is not None and task in self.s.integrated:
+            return True
+        return self.s.frame is not None and task is not None and task == self.s.frame.enactment
+
+    def frame_judging(self, record: dict[str, Any]) -> Any:
+        """A record about a transformation declares its frame (§7.5); every other route record the admitted one."""
+
+        return record["frame"] if is_work(record) and "transformation" in record["target"] else "ADMITTED"
+
+    def routes(self, adverse_id: str, vetoed_id: str, basis_holds: Any = None) -> Routes:
+        s = self.s
+        a, z = s.record(adverse_id), s.record(vetoed_id)
+        domain = self.j.domain_of(a)
+        owner = s.policy.get(domain, "owner", None)
+        adjudicators = list(s.policy.get(domain, "adjudicators", [owner] if owner else []))
+        objected = self.j.judged_authors(adverse_id)
+        reached = self.j.judged_authors(vetoed_id)
+        failing = a["kind"] == "EVIDENCE_ASSESSMENT"
+        supersession_acts = self.acts(self.frame_judging(a))
+        out: set[str] = set()
+
+        def can(judge: str | None, authors: frozenset[str]) -> bool:
+            if judge is None:
+                return False
+            return self.independent(judge, authors, domain) or (failing and self.owner_exception(judge, authors, domain))
+
+        if a["actor_class"] == "HUMAN" and supersession_acts and can(a["actor"], objected):
+            out.add("1:reassessment")
+        if supersession_acts and can(owner, objected):
+            out.add("2:owner-supersession")
+        if is_work(a) or a["kind"] == "PLAN_ACCEPTANCE":
+            holds = basis_holds(vetoed_id) if basis_holds else True
+            relief_acts = self.acts(self.frame_judging(z))
+            if holds and relief_acts:
+                if a["actor_class"] == "HUMAN" and self.independent(a["actor"], reached, domain):
+                    out.add("3:relief-by-author")
+                if owner and self.independent(owner, reached, domain):
+                    out.add("3:relief-by-owner")
+        if failing and can(owner, objected):
+            out.add("immateriality-by-owner")
+        if any(can(judge, objected) for judge in adjudicators):
+            out.add("4:upheld-challenge")
+        return Routes(frozenset(out))
+
+
+__all__ = ["ADVERSE", "Judgments", "PASSING", "REQUIREMENT", "RouteEligibility", "Routes", "adverse", "is_work",
+           "passing"]

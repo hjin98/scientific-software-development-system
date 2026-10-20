@@ -101,7 +101,7 @@ RECORD_REF = shape({"record": is_digest})
 RECORDS_REF = shape({"records": list_of(is_digest)})
 TRANSFORMATION = shape({"transformation": is_digest}, {"item": UNIT_REV})
 INTEGRATED = shape({"integrated": one_of("ITEM", "JOINT_INVARIANT", "HIGH_CONSEQUENCE"), "of": is_token,
-                    "at": is_digest, "changes": list_of(is_digest)})
+                    "at": is_digest, "changes": list_of(is_digest)}, {"scope": list_of(is_unit)})
 TARGET_TYPES: dict[str, Check] = {
     "triple": TRIPLE,
     "transformation": TRANSFORMATION,
