@@ -50,7 +50,9 @@ and stage sets.
 
 Configuration is one TOML file, `config.toml` in the SSDS home: `$SSDS_HOME` if set
 (an absolute path), otherwise `~/.ssds`. `--config` overrides it. Everything SSDS
-writes for an operator lives in that home, outside every repository.
+writes for an operator lives in that home, outside every repository. The home is
+created the first time SSDS writes there; `ssds doctor` names it and, until a
+configuration exists, says where to create one.
 
 A normal current Protocol 6 project needs only the project entry. Explicitly
 naming the current profile is useful for clarity but optional because Protocol 6

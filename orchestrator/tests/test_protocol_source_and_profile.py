@@ -118,7 +118,7 @@ class PackagedSnapshotTests(unittest.TestCase):
 
     def test_generator_rejects_a_canonical_version_mismatch(self) -> None:
         script = REPO_ROOT / "orchestrator/scripts/generate_protocol_snapshot.py"
-        spec = importlib.util.spec_from_file_location("sdp_snapshot_test", script)
+        spec = importlib.util.spec_from_file_location("ssds_snapshot_test", script)
         self.assertIsNotNone(spec and spec.loader)
         module = importlib.util.module_from_spec(spec)
         assert spec.loader is not None

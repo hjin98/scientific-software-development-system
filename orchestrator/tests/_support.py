@@ -18,10 +18,10 @@ CURRENT_CANONICAL_PROMPTS = REPO_ROOT / "source/shared/references/development-wo
 
 _GIT_ENV = {
     **os.environ,
-    "GIT_AUTHOR_NAME": "sdp-test",
-    "GIT_AUTHOR_EMAIL": "sdp-test@example.invalid",
-    "GIT_COMMITTER_NAME": "sdp-test",
-    "GIT_COMMITTER_EMAIL": "sdp-test@example.invalid",
+    "GIT_AUTHOR_NAME": "ssds-test",
+    "GIT_AUTHOR_EMAIL": "ssds-test@example.invalid",
+    "GIT_COMMITTER_NAME": "ssds-test",
+    "GIT_COMMITTER_EMAIL": "ssds-test@example.invalid",
     "GIT_CONFIG_GLOBAL": os.devnull,
     "GIT_CONFIG_SYSTEM": os.devnull,
     "LC_ALL": "C",
@@ -59,8 +59,8 @@ def init_repo(root: Path, *, branch: str = "main") -> Path:
         capture_output=True,
         env=_GIT_ENV,
     )
-    git(root, "config", "user.name", "sdp-test")
-    git(root, "config", "user.email", "sdp-test@example.invalid")
+    git(root, "config", "user.name", "ssds-test")
+    git(root, "config", "user.email", "ssds-test@example.invalid")
     # Several integration tests deliberately reuse a working repository as a
     # local Git remote. Make that fixture explicit and deterministic instead of
     # relying on two independently-created initial commits happening to hash alike.

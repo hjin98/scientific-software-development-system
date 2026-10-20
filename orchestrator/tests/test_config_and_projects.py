@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
+import json
 import os
 import tempfile
 import unittest
@@ -156,6 +159,20 @@ class SSDSHomeTests(unittest.TestCase):
             with self.assertRaises(E.OrchestratorError) as raised:
                 default_config_path()
         self.assertEqual(raised.exception.problem.code, E.CONFIG_INVALID)
+        self.assertIn("absolute", raised.exception.problem.remediation or "")
+
+    def test_doctor_names_the_home_and_never_creates_it(self) -> None:
+        from ssds.core.cli import doctor_command
+
+        home = self.root / "home"
+        with patch.dict(os.environ, {"SSDS_HOME": str(home)}), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            doctor_command(config=None)
+        report = json.loads(output.getvalue())
+        self.assertIsNone(report["config_path"])
+        self.assertEqual(report["ssds_home"], str(home))
+        self.assertIn(f"no configuration file at {home / 'config.toml'}; create it to configure projects", report["notes"])
+        self.assertFalse(home.exists(), "doctor writes nothing; the home appears on first write")
 
 
 class ProjectResolutionTests(unittest.TestCase):

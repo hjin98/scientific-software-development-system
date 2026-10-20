@@ -44,8 +44,8 @@ class InstalledProductTests(unittest.TestCase):
     tmp: tempfile.TemporaryDirectory
     root: Path
     wheel: Path
-    sdp: Path
-    sdist_sdp: Path
+    ssds: Path
+    sdist_ssds: Path
     venv_python: Path
     sdist_python: Path
 
@@ -75,7 +75,7 @@ class InstalledProductTests(unittest.TestCase):
         installed = _run([str(cls.venv_python), "-m", "pip", "install", "--quiet", str(cls.wheel)])
         if installed.returncode != 0:
             raise AssertionError(f"wheel install failed: {installed.stderr[-2000:]}")
-        cls.sdp = env_dir / "bin" / "ssds"
+        cls.ssds = env_dir / "bin" / "ssds"
 
         sdist_env = cls.root / "sdist-venv"
         sdist_created = _run([sys.executable, "-m", "venv", str(sdist_env)])
@@ -87,7 +87,7 @@ class InstalledProductTests(unittest.TestCase):
         )
         if sdist_installed.returncode != 0:
             raise AssertionError(f"sdist install failed: {sdist_installed.stderr[-2000:]}")
-        cls.sdist_sdp = sdist_env / "bin" / "ssds"
+        cls.sdist_ssds = sdist_env / "bin" / "ssds"
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -105,13 +105,13 @@ class InstalledProductTests(unittest.TestCase):
         self.config = self.case / "config.toml"
         self.config.write_text(config_text(self.repo), encoding="utf-8")
 
-    def sdp_run(self, *args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    def ssds_run(self, *args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
         """Invoke the installed console script from outside the source checkout."""
 
         env = dict(os.environ)
         env.pop("PYTHONPATH", None)  # the installed package must stand alone
         return subprocess.run(  # noqa: S603
-            [str(self.sdp), *args],
+            [str(self.ssds), *args],
             capture_output=True,
             text=True,
             check=False,
@@ -120,7 +120,7 @@ class InstalledProductTests(unittest.TestCase):
             timeout=BUILD_TIMEOUT,
         )
 
-    def source_sdp_run(
+    def source_ssds_run(
         self, *args: str, cwd: Path | None = None, env: dict[str, str] | None = None
     ) -> subprocess.CompletedProcess[str]:
         environment = dict(os.environ) if env is None else dict(env)
@@ -179,7 +179,7 @@ class InstalledProductTests(unittest.TestCase):
         env.pop("PYTHONPATH", None)
         result = subprocess.run(  # noqa: S603
             [
-                str(self.sdist_sdp),
+                str(self.sdist_ssds),
                 "implementation",
                 "--config",
                 str(self.config),
@@ -215,24 +215,53 @@ class InstalledProductTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("[]", result.stdout)
 
+    def test_first_day_use_on_a_clean_home(self) -> None:
+        """A fresh install runs with no configuration, names its home and writes nothing."""
+
+        home = self.root / "first-day-home"
+        home.mkdir()
+        clean = {"PATH": os.environ.get("PATH", ""), "HOME": str(home)}
+
+        def run(*args: str, **extra: str) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(  # noqa: S603
+                [str(self.ssds), *args], capture_output=True, text=True, check=False,
+                cwd=str(home), env={**clean, **extra}, timeout=BUILD_TIMEOUT,
+            )
+
+        shown = run("--help")
+        self.assertEqual(shown.returncode, 0, shown.stderr)
+        for command in ("prompt", "projects", "capabilities", "doctor"):
+            self.assertIn(command, shown.stdout)
+        doctor = run("doctor")
+        self.assertEqual(doctor.returncode, 0, doctor.stderr)
+        report = json.loads(doctor.stdout)
+        self.assertEqual(report["ssds_home"], str(home / ".ssds"))
+        self.assertIsNone(report["config_path"])
+        self.assertEqual(sorted(p.name for p in home.iterdir()), [], "nothing is written before first use")
+        refused = run("doctor", SSDS_HOME="relative/home")
+        self.assertEqual(refused.returncode, 2)
+        problem = json.loads(refused.stderr)
+        self.assertEqual(problem["code"], "core.config.invalid")
+        self.assertIn("SSDS_HOME", problem["message"])
+
     # -- CLI product boundary --------------------------------------------
 
     def test_installed_cli_renders_a_stage_prompt(self) -> None:
-        result = self.sdp_run("implementation", "--config", str(self.config), "--prompt-mode", "local")
+        result = self.ssds_run("implementation", "--config", str(self.config), "--prompt-mode", "local")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("INPUTS", result.stdout)
         self.assertIn("<<<SDP_STAGE_RESULT_V1", result.stdout)
 
     def test_zero_install_launcher_runs_from_outside_the_checkout(self) -> None:
-        result = self.source_sdp_run("--help")
+        result = self.source_ssds_run("--help")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("implementation", result.stdout)
 
     def test_zero_install_launcher_matches_installed_cli_semantics(self) -> None:
-        installed = self.sdp_run(
+        installed = self.ssds_run(
             "implementation", "--config", str(self.config), "--prompt-mode", "local"
         )
-        source = self.source_sdp_run(
+        source = self.source_ssds_run(
             "implementation", "--config", str(self.config), "--prompt-mode", "local"
         )
         self.assertEqual(installed.returncode, 0, installed.stderr)
@@ -240,10 +269,10 @@ class InstalledProductTests(unittest.TestCase):
         self.assertEqual(_strip_run_identity(installed.stdout), _strip_run_identity(source.stdout))
 
     def test_zero_install_launcher_propagates_structured_failures(self) -> None:
-        installed = self.sdp_run(
+        installed = self.ssds_run(
             "design", "--config", str(self.config), "--prompt-mode", "local"
         )
-        source = self.source_sdp_run(
+        source = self.source_ssds_run(
             "design", "--config", str(self.config), "--prompt-mode", "local"
         )
         self.assertNotEqual(installed.returncode, 0)
@@ -262,12 +291,12 @@ class InstalledProductTests(unittest.TestCase):
             encoding="utf-8",
         )
         environment = dict(os.environ, PYTHONPATH=str(stale))
-        result = self.source_sdp_run("--help", env=environment)
+        result = self.source_ssds_run("--help", env=environment)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("STALE_INSTALLED_CLI", result.stdout + result.stderr)
 
     def test_stdout_carries_only_the_prompt(self) -> None:
-        result = self.sdp_run("implementation", "--config", str(self.config), "--prompt-mode", "local")
+        result = self.ssds_run("implementation", "--config", str(self.config), "--prompt-mode", "local")
         self.assertTrue(result.stdout.startswith("INPUTS"))
         self.assertEqual(result.stderr, "")
 
@@ -286,8 +315,8 @@ class InstalledProductTests(unittest.TestCase):
             "stabilization", "alignment", "health-audit", "closeout",
         ):
             args = ["--config", str(self.config), "--prompt-mode", "local", *extra.get(stage, [])]
-            direct = self.sdp_run(stage, *args)
-            through = self.sdp_run("prompt", stage, *args)
+            direct = self.ssds_run(stage, *args)
+            through = self.ssds_run("prompt", stage, *args)
             self.assertEqual(direct.returncode, 0, f"{stage}: {direct.stderr}")
             self.assertEqual(through.returncode, 0, f"{stage}: {through.stderr}")
             # RunId differs per invocation; compare everything else.
@@ -296,21 +325,21 @@ class InstalledProductTests(unittest.TestCase):
             )
 
     def test_profile_alias_resolves(self) -> None:
-        result = self.sdp_run(
+        result = self.ssds_run(
             "prompt", "health_audit", "--config", str(self.config),
             "--prompt-mode", "local", "--input", "AUDIT_SCOPE=scope",
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_errors_are_redacted_json_on_stderr_with_no_prompt_bytes(self) -> None:
-        result = self.sdp_run("design", "--config", str(self.config), "--prompt-mode", "local")
+        result = self.ssds_run("design", "--config", str(self.config), "--prompt-mode", "local")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
         payload = json.loads(result.stderr)
         self.assertEqual(payload["code"], "core.prompt.input_required")
 
     def test_stage_disallowed_workplan_fails_at_the_cli(self) -> None:
-        result = self.sdp_run(
+        result = self.ssds_run(
             "health-audit", "--config", str(self.config), "--workplan", "WP",
             "--input", "AUDIT_SCOPE=s",
         )
@@ -318,13 +347,13 @@ class InstalledProductTests(unittest.TestCase):
         self.assertEqual(json.loads(result.stderr)["code"], "core.workplan.disallowed")
 
     def test_task_outside_design_fails_at_the_cli(self) -> None:
-        result = self.sdp_run(
+        result = self.ssds_run(
             "implementation", "--config", str(self.config), "--task", "nope"
         )
         self.assertEqual(json.loads(result.stderr)["code"], "core.prompt.input_conflict")
 
     def test_execution_mode_override_does_not_change_prompt_mode(self) -> None:
-        result = self.sdp_run(
+        result = self.ssds_run(
             "implementation", "--config", str(self.config), "--prompt-mode", "local",
             "--input", "EXECUTION_MODE=REPORT_ONLY",
         )
@@ -337,26 +366,26 @@ class InstalledProductTests(unittest.TestCase):
         git(self.repo, "remote", "add", "origin", str(origin))
         git(self.repo, "push", "--quiet", "-u", "origin", "main")
         git(self.repo, "remote", "set-url", "origin", "https://example.invalid/owner/repo.git")
-        result = self.sdp_run("implementation", "--config", str(self.config), "--prompt-mode", "web")
+        result = self.ssds_run("implementation", "--config", str(self.config), "--prompt-mode", "web")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("EXECUTION_MODE = AUTO_EXECUTE", result.stdout)
         self.assertNotIn(str(self.repo), result.stdout)
 
     def test_cwd_project_resolution_works_from_inside_the_worktree(self) -> None:
-        result = self.sdp_run(
+        result = self.ssds_run(
             "implementation", "--config", str(self.config), "--prompt-mode", "local",
             cwd=self.repo,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_projects_command_reports_configuration(self) -> None:
-        result = self.sdp_run("projects", "--config", str(self.config))
+        result = self.ssds_run("projects", "--config", str(self.config))
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
         self.assertEqual(payload[0]["project_key"], "demo")
 
     def test_doctor_reports_readiness_without_loading_or_network(self) -> None:
-        result = self.sdp_run("doctor", "--config", str(self.config))
+        result = self.ssds_run("doctor", "--config", str(self.config))
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
         self.assertEqual(payload["activation_policy"], "discovery_only")
@@ -422,7 +451,7 @@ class InstalledProductTests(unittest.TestCase):
                 profile.write_text("{}\n", encoding="utf-8")
                 try:
                     result = subprocess.run(
-                        [str(self.sdp), "doctor", "--config", str(source_config)],
+                        [str(self.ssds), "doctor", "--config", str(source_config)],
                         capture_output=True,
                         text=True,
                         check=False,
@@ -442,7 +471,7 @@ class InstalledProductTests(unittest.TestCase):
                 )
 
     def test_capabilities_defaults_to_discovery_only(self) -> None:
-        result = self.sdp_run("capabilities", "--config", str(self.config))
+        result = self.ssds_run("capabilities", "--config", str(self.config))
         payload = json.loads(result.stdout)
         self.assertEqual(payload["activation_policy"], "discovery_only")
         keys = {entry["key"] for entry in payload["capabilities"]}
@@ -451,7 +480,7 @@ class InstalledProductTests(unittest.TestCase):
         )
 
     def test_clipboard_extra_is_additive_and_never_blocks_the_prompt(self) -> None:
-        result = self.sdp_run(
+        result = self.ssds_run(
             "implementation", "--config", str(self.config), "--prompt-mode", "local", "--copy"
         )
         self.assertEqual(result.returncode, 0)
@@ -474,18 +503,18 @@ class InstalledProductTests(unittest.TestCase):
             + "\n",
             encoding="utf-8",
         )
-        result = self.sdp_run("implementation", "--config", str(offline), "--prompt-mode", "local")
+        result = self.ssds_run("implementation", "--config", str(offline), "--prompt-mode", "local")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("REQUIRED_SKILL = software-implementation", result.stdout)
 
     def test_help_is_available_without_a_configuration(self) -> None:
-        result = self.sdp_run("--help")
+        result = self.ssds_run("--help")
         self.assertEqual(result.returncode, 0, result.stderr)
         for command in ("implementation", "review", "doctor", "projects", "capabilities"):
             self.assertIn(command, result.stdout)
 
     def test_pipe_safe_output(self) -> None:
-        result = self.sdp_run("implementation", "--config", str(self.config), "--prompt-mode", "local")
+        result = self.ssds_run("implementation", "--config", str(self.config), "--prompt-mode", "local")
         self.assertTrue(result.stdout.endswith("\n"))
         self.assertNotIn("\r", result.stdout)
 

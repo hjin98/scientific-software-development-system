@@ -38,7 +38,7 @@ from ssds.core.records import (
 
 from ._support import commit_all, config_text, init_repo, write_workplan
 
-MARKER_ENV = "SDP_TEST_IMPORT_MARKER"
+MARKER_ENV = "SSDS_TEST_IMPORT_MARKER"
 
 PROVIDER_TEMPLATE = '''
 import os
@@ -118,7 +118,7 @@ def _install_fixture(
 ) -> None:
     """Write a real installed distribution: module + ``.dist-info`` metadata."""
 
-    module = f"sdp_fixture_{name}"
+    module = f"ssds_fixture_{name}"
     manifest_extension_id = manifest_extension_id or extension_id
     required_api_specs = required_api_specs or tuple("" for _ in requires_capabilities)
     (root / f"{module}.py").write_text(
@@ -171,7 +171,7 @@ class ExtensionBase(unittest.TestCase):
         self.config.write_text(config_text(self.repo), encoding="utf-8")
 
     def _purge_modules(self) -> None:
-        for name in [n for n in sys.modules if n.startswith("sdp_fixture_")]:
+        for name in [n for n in sys.modules if n.startswith("ssds_fixture_")]:
             del sys.modules[name]
         importlib.invalidate_caches()
 
@@ -219,7 +219,7 @@ class DiscoveryOnlyTests(ExtensionBase):
         _install_fixture(self.site, name="alpha", extension_id="vendor.alpha")
         status = self.status(self.app(ActivationPolicy.DISCOVERY_ONLY), "vendor.alpha")
         self.assertEqual(status.version, "1.0.0")
-        self.assertIn("sdp_fixture_alpha", status.entry_point or "")
+        self.assertIn("ssds_fixture_alpha", status.entry_point or "")
 
     def test_discovery_is_the_default_policy(self) -> None:
         self.assertIs(ApplicationRequest().activation_policy, ActivationPolicy.DISCOVERY_ONLY)
@@ -536,8 +536,8 @@ class ExtensionContextTests(ExtensionBase):
                 prepared=prepared, prompt_execution_mode=PromptExecutionMode.LOCAL
             )
         )
-        sink = importlib.import_module("sdp_fixture_sink")
-        quiet = importlib.import_module("sdp_fixture_quiet")
+        sink = importlib.import_module("ssds_fixture_sink")
+        quiet = importlib.import_module("ssds_fixture_quiet")
         self.assertIn("core.prompt.rendered.v1", sink.ACTIVATED)
         self.assertNotIn("WRONG", quiet.ACTIVATED)
 

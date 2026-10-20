@@ -342,8 +342,8 @@ class WebLeakageTests(PrivacyBase):
         self.assertIn("<redacted>", text)
 
     def test_web_prompt_does_not_include_ambient_environment_values(self) -> None:
-        os.environ["SDP_TEST_AMBIENT_SECRET"] = SECRET
-        self.addCleanup(os.environ.pop, "SDP_TEST_AMBIENT_SECRET", None)
+        os.environ["SSDS_TEST_AMBIENT_SECRET"] = SECRET
+        self.addCleanup(os.environ.pop, "SSDS_TEST_AMBIENT_SECRET", None)
         self.assertNotIn(SECRET, self._web_prompt())
 
     def test_web_prompt_protocol_source_stays_agent_facing(self) -> None:
@@ -387,8 +387,8 @@ class LocalModeTests(PrivacyBase):
         self.assertIn("uncommitted changes", dirty.prompt_text)
 
     def test_local_prompt_excludes_ambient_environment_values(self) -> None:
-        os.environ["SDP_TEST_AMBIENT_SECRET"] = SECRET
-        self.addCleanup(os.environ.pop, "SDP_TEST_AMBIENT_SECRET", None)
+        os.environ["SSDS_TEST_AMBIENT_SECRET"] = SECRET
+        self.addCleanup(os.environ.pop, "SSDS_TEST_AMBIENT_SECRET", None)
         text = self.render(mode=PromptExecutionMode.LOCAL, remote=RemoteMode.LOCAL_ONLY).prompt_text
         self.assertNotIn(SECRET, text)
 

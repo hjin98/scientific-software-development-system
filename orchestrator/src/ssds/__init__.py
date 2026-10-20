@@ -8,8 +8,3 @@ composition root. Public surfaces are ``ssds.api.v1`` and ``ssds.spi.v1``
 
 Shadow implementation only: SSDS holds no authority over any subject.
 """
-
-__all__ = ["SSDS_DISTRIBUTION", "SSDS_SYSTEM_VERSION"]
-
-SSDS_DISTRIBUTION = "ssds"
-SSDS_SYSTEM_VERSION = "8.0.0"

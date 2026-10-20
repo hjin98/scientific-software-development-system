@@ -111,6 +111,7 @@ def ssds_home() -> Path:
                 E.CONFIG_INVALID,
                 f"{SSDS_HOME_ENV} must be an absolute path",
                 details={"value": configured},
+                remediation=f"set {SSDS_HOME_ENV} to an absolute directory, or unset it to use ~/.ssds",
             )
         return home
     return Path.home() / DEFAULT_SSDS_HOME_NAME

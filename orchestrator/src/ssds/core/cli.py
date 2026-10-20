@@ -21,6 +21,7 @@ from . import profile as P
 from . import protocol_source as PS
 from .application import create_application
 from .canonical import all_stage_keys
+from .config import default_config_path, ssds_home
 from .records import (
     ActivationPolicy,
     ApplicationRequest,
@@ -215,9 +216,16 @@ def capabilities_command(
 def doctor_command(config: Optional[str] = _config_opt) -> None:
     application = create_application(ApplicationRequest(config_path=config, activation_policy=ActivationPolicy.DISCOVERY_ONLY))
     core_config = application.config()
+    notes = [
+        "extension providers were not imported; their capabilities and health are unobserved",
+        "no repository was mutated and no network request was made by this command",
+    ]
+    if core_config.path is None and config is None:
+        notes.append(f"no configuration file at {default_config_path()}; create it to configure projects")
     report: dict[str, object] = {
         "activation_policy": ActivationPolicy.DISCOVERY_ONLY.value,
         "config_path": str(core_config.path) if core_config.path else None,
+        "ssds_home": str(ssds_home()),
         "configuration_identity": core_config.identity.model_dump(mode="json"),
         "projects": sorted(core_config.projects),
         "protocol_sources": sorted(core_config.protocol_sources),
@@ -225,10 +233,7 @@ def doctor_command(config: Optional[str] = _config_opt) -> None:
         "core_capabilities": [status.model_dump(mode="json") for status in application.capabilities()],
         "discovered_extensions": [status.model_dump(mode="json") for status in application.extensions()],
         "default_profile_id": P.DEFAULT_PROFILE_ID,
-        "notes": [
-            "extension providers were not imported; their capabilities and health are unobserved",
-            "no repository was mutated and no network request was made by this command",
-        ],
+        "notes": notes,
     }
 
     packaged: list[dict[str, object]] = []
