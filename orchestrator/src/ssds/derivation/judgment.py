@@ -282,12 +282,5 @@ class Judgments:
                    and self.s.record(a)["actor"] == self.s.record(rid)["actor"]
                    for a in self.s.of_kind("NON_AUTHORSHIP_ATTESTATION"))
 
-    # -- prospective acceptance (§7.6) -------------------------------------------------------------
-
-    def binds_tenure(self, rid: str, subject: str, tenure: int | None) -> bool:
-        """Whether a prospective acceptance counts for the tenure that its integration started (frames)."""
-
-        return False
-
 
 __all__ = ["ADVERSE", "Judgments", "PASSING", "REQUIREMENT", "adverse", "is_work", "passing"]

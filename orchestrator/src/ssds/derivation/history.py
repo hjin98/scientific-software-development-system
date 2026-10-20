@@ -145,7 +145,10 @@ class History:
         return range(self.last + 1)
 
     def mode(self, position: int, subject: str) -> Mapping[str, Any]:
-        return self.modes(position).get(subject, {"mode": "UNGOVERNED"})
+        """A subject's governance mode; one first declared after genesis takes genesis's ``"*"`` mode, else UNGOVERNED."""
+
+        modes = self.modes(position)
+        return modes.get(subject) or modes.get("*", {"mode": "UNGOVERNED"})
 
 
 def manifest_decl(view: TreeView) -> dict[tuple[str, str], Any] | None:

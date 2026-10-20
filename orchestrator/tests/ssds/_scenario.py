@@ -53,6 +53,7 @@ class Scenario:
             self.objects[0] = {digest: data}
         all_subjects = {u: {"mode": "NATIVE", "ruleset": "ssds-rules/1"} for u, unit in self.structure.units.items()
                         if unit.subject}
+        all_subjects["*"] = {"mode": "NATIVE", "ruleset": "ssds-rules/1"}
         self.entries = [genesis_body(self.head, decl_to_json(self.structure.decl), {**all_subjects, **(modes or {})}, ruleset)]
         self.files = dict(files)
         self.manifest = manifest
@@ -151,3 +152,50 @@ def challenge(target: dict, blocking: bool = True, actor: str = HUMAN_B) -> dict
 
 def adjudication(challenge_id: str, outcome: str, actor: str = OWNER) -> dict:
     return judgment("ADJUDICATION", {"record": challenge_id}, outcome, actor=actor)
+
+
+def structure_deltas(before, after) -> list[dict]:
+    """Every structural declaration change between two structures, as an admission records it."""
+
+    from ssds.content import value_to_json
+
+    keys = set(before.decl) | set(after.decl)
+    out = []
+    for key in sorted(keys):
+        if before.decl.get(key) != after.decl.get(key):
+            value = after.decl.get(key)
+            out.append({"key": list(key), "value": None if value is None else value_to_json(key[1], value),
+                        "source": "AUTHORED"})
+    return out
+
+
+def submit(sc: Scenario, files: dict[str, str], producer: str, task: str, manifest: str | None = None,
+           base: str | None = None) -> tuple[str, str, dict]:
+    """A task result submitting a candidate: (transformation, candidate commit, result record)."""
+
+    from ssds.ledger.read import with_id
+
+    base = base or sc.head
+    candidate_tree = tree({**{p: e.data.decode() for p, e in sc.trees[base].items() if p != ".ssds/manifest.toml"},
+                           **files}, manifest or sc.manifest)
+    candidate = sc.add_tree(candidate_tree)
+    transformation = "sha256:" + hashlib.sha256(f"ssds.transformation.v1|{base}|{candidate}".encode()).hexdigest()
+    result = record("TASK_RESULT", target={"task": task, "candidate": candidate, "transformation": transformation,
+                                           "base": base},
+                    outcome="COMPLETE", actor=producer, actor_class="AGENT", frame={"transformation": transformation})
+    result["binding"] = fresh(producer, task)
+    result = with_id(result)
+    sc.admit(result)
+    return transformation, candidate, result
+
+
+def integrate(sc: Scenario, transformation: str, candidate: str) -> None:
+    """The admission that integrates a submitted candidate whose base is the current head."""
+
+    before = structure_of(sc.trees[sc.head])
+    after = structure_of(sc.trees[candidate])
+    sc.entries.append(admission_body(sc.position, sc.head, candidate, deltas=structure_deltas(before, after),
+                                     integrates=transformation))
+    sc.structure = after
+    sc.files = {p: e.data.decode() for p, e in sc.trees[candidate].items() if p != ".ssds/manifest.toml"}
+    sc.head = candidate

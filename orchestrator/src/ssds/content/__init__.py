@@ -15,6 +15,7 @@ from .manifest import (
     parse_manifest,
     parse_term,
 )
+from .merge import merge3, merge_text
 from .resolve import Region, Span
 from .structure import (
     RESIDUAL_SUFFIX,
@@ -39,6 +40,6 @@ __all__ = [
     "ABSENT", "DEFAULT_MANIFEST_PATH", "Entry", "GOVERNED_KEY", "GitReadError", "ID_RE", "IntegrityFinding",
     "KINDS", "MODES", "Manifest", "ManifestFailure", "RESIDUAL_SUFFIX", "Region", "SYSTEM_UNITS", "Segment",
     "Span", "StaticError", "Structure", "Term", "Tree", "TreeView", "UNCLASSIFIED", "UNCOVERED", "Unit",
-    "decl_from_json", "decl_to_json", "ignored", "parse_manifest", "parse_term", "read_tree", "recorded_identity", "scope_identity", "static_errors",
+    "decl_from_json", "decl_to_json", "ignored", "merge3", "merge_text", "parse_manifest", "parse_term", "read_tree", "recorded_identity", "scope_identity", "static_errors",
     "value_from_json", "value_to_json", "write_set",
 ]

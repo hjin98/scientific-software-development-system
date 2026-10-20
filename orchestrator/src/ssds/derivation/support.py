@@ -10,10 +10,11 @@ nodes once, dependencies first. Nodes are ``("current", record)`` and
 from __future__ import annotations
 
 from collections.abc import Callable
-from functools import cached_property
+from functools import cached_property, lru_cache
 from typing import Any
 
 from .assessment import Assessments
+from .frames import Frame, frame_state, role_sat, transformation_of
 from .judgment import Judgments
 from .outcomes import PASSING, covers
 from .s0 import nontrivial, strongly_connected
@@ -132,11 +133,11 @@ class Support:
             for entry in self.s.record(key)["basis"]:
                 if result == F:
                     break
-                result = min(result, self.sat(entry, value))
+                result = min(result, self.sat(entry, value, key))
             return result
         return self._valid(key, value)
 
-    def sat(self, entry: dict[str, Any], value: Callable[[Node], int]) -> int:
+    def sat(self, entry: dict[str, Any], value: Callable[[Node], int], rid: str | None = None) -> int:
         mode, target, cls = entry["mode"], entry["target"], entry["class"]
         if mode == "identity":
             return T
@@ -145,7 +146,11 @@ class Support:
         if mode == "record":
             return value(("current", target["record"])) if target["record"] in self.s.records else F
         if mode in ("content", "validity"):
-            content = self.content(target["unit"], target["rev"], cls, value, entry.get("role"))
+            content = self.content(target["unit"], target["rev"], cls, value)
+            frame = self.frame_of(rid)
+            if frame is not None and mode == "content":
+                in_frame = self.s.frame is not None and self.s.frame.x.id == frame.x.id
+                content = role_sat(frame, target["unit"], target["rev"], in_frame, content)
             if mode == "content" or content == F:
                 return content
             subject = self.s.view.structure.subj(target["unit"])
@@ -154,11 +159,24 @@ class Support:
             return self.execution(target, value)
         return F
 
-    def content(self, unit: str, rev: str, cls: str, value: Callable[[Node], int], role: str | None = None) -> int:
+    def frame_of(self, rid: str | None) -> Frame | None:
+        """The frame a frame record's roles are computed in (§7.3)."""
+
+        if rid is None or self.s.record(rid)["frame"] == "ADMITTED":
+            return None
+        transformation = self.s.record(rid)["frame"]["transformation"]
+        if self.s.frame is not None and self.s.frame.x.id == transformation:
+            return self.s.frame
+        return self._frames(transformation)
+
+    @lru_cache(maxsize=None)  # noqa: B019
+    def _frames(self, transformation: str) -> Frame | None:
+        x = transformation_of(self.s, transformation)
+        return Frame(self.s.h, self.s.n, x, self.s.enactment(transformation)) if x else None
+
+    def content(self, unit: str, rev: str, cls: str, value: Callable[[Node], int]) -> int:
         """``sat(content (u, r, k))``: the current revision, or the widest current equivalence path (§4.4)."""
 
-        if role is not None and self.s.frame is not None:
-            return self.s.frame.role_sat(unit, rev, role)
         if unit not in self.s.view.structure.units:
             return F
         current = self.s.cur(unit)
@@ -200,11 +218,43 @@ class Support:
             target = record["target"]
             if not self.passing(rid) or (target["subject"], target["scope_id"], target["rev"]) != (subject, scope_id, rev):
                 continue
-            if (tenure is None or s.position_of(rid) < tenure) and not self.j.binds_tenure(rid, subject, tenure):
+            if (tenure is None or s.position_of(rid) < tenure) and not self.binds_tenure(rid, subject, tenure):
                 continue
             if self.qualified(record, s.view.structure.domain(subject)):
                 out.append(rid)
         return out
+
+    def binds_tenure(self, rid: str, subject: str, tenure: int | None) -> bool:
+        """``bind(j) = τ(s)`` for a prospective acceptance made in a frame (§7.6).
+
+        ``j`` counts for the tenure an integration ``k`` starts iff ``k`` integrates
+        ``j``'s own enactment with the same proposed structure, ``j``'s basis
+        holds in ``D_{k-1}[X]``, and ``j`` has counted for no earlier tenure.
+        """
+
+        s = self.s
+        record = s.record(rid)
+        if record["frame"] == "ADMITTED" or tenure is None:
+            return False
+        made_in = record["frame"]["transformation"]
+        x0 = transformation_of(s, made_in)
+        enactment = s.enactment(made_in)
+        if x0 is None or enactment is None:
+            return False
+        delta0 = Frame(s.h, s.position_of(rid), x0, enactment).structure_delta
+        for k in sorted(p for p in s.h.integrations if s.position_of(rid) < p <= s.n):
+            integration = s.h.integrations[k]
+            if not integration.transformation or s.enactment(integration.transformation) != enactment:
+                continue
+            frame = frame_state(s.h, k - 1, integration.transformation, State(s.h, k - 1))
+            if frame is None or frame.frame.structure_delta != delta0:
+                continue
+            if State(s.h, k).tenure(subject) != k:
+                continue
+            if Support(frame).current(rid) == 0:
+                continue
+            return k == tenure  # the first such admission is bind(j)
+        return False
 
     def qualified(self, record: dict[str, Any], domain: str | None) -> bool:
         kind = record["kind"]
