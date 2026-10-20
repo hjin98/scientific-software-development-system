@@ -232,9 +232,11 @@ class Assessments:
             return False
         view = TreeView(tree, self.s.view.structure, self.s.h.manifest_path)
         for c in bounded_by:
-            if c not in self.s.records or not self._stands(c):
+            if c not in self.s.records:
                 return False
             record = self.s.record(c)
+            if (record["kind"], record["outcome"]) != ("COMPLETENESS", "COMPLETE") or not self._stands(c):
+                return False  # only a positive completeness certificate bounds; INCOMPLETE stays adverse
             target = record["target"]
             if view.membership_digest(tuple(target["scope"])) != target.get("membership"):
                 return False

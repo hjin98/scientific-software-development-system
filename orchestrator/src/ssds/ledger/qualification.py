@@ -155,10 +155,14 @@ class HighWaterStore:
     def set(self, mark: HighWaterMark) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_suffix(".tmp")
-        with open(temporary, "wb") as handle:
-            handle.write(canonical_json({"position": mark.position, "entry_digest": mark.entry_digest}))
-            handle.flush()
-            os.fsync(handle.fileno())
+        # O_NOFOLLOW: a symbolic link at the temporary name never redirects the write (os.replace then
+        # replaces a link at the mark's own name rather than writing through it).
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+        try:
+            os.write(descriptor, canonical_json({"position": mark.position, "entry_digest": mark.entry_digest}))
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
         os.replace(temporary, self.path)
 
 

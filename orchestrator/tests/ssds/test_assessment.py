@@ -231,6 +231,18 @@ class BoundingCurrency(unittest.TestCase):
         self.r.sc.admit(challenge({"record": bounding["id"]}))
         self.assertFalse(self.stale(failing))
 
+    def test_an_incomplete_judgment_never_bounds(self) -> None:
+        """Review 517af45 A-B6: a denial of completeness is not a certificate of it."""
+
+        view = self.r.sc.view(self.t0)
+        denial = judgment("COMPLETENESS", {"scope": ["code", "spec"], "classes": ["EXEC"],
+                                           "membership": view.membership_digest(("code", "spec"))},
+                          "INCOMPLETE", actor=HUMAN_B,
+                          basis=[content("code", view.rev("code")), content("spec", view.rev("spec"))])
+        self.r.sc.admit(denial)
+        failing = self.scenario(denial)
+        self.assertFalse(self.stale(failing), "the adverse judgment stays adverse")
+
     def test_membership_is_checked_on_the_runs_content(self) -> None:
         failing = self.scenario(self.completeness(self.t0, membership="sha256:" + "0" * 64))
         self.assertFalse(self.stale(failing), "a judgment over other membership does not bound this run")

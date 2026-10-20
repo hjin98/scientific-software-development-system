@@ -35,8 +35,10 @@ DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 ren
              its implementation blockers A-B1 to A-B4 are repaired (§9).
              Its SERIOUS CHALLENGE SC-1 is resolved by SD-58 (Manual A8, reading 1 made binding)
              and its A7 finding B-B1 corrected in the Manual's §26.4 (§9).
-NEXT ACTION: one Review of the repaired candidate, with Manual A7 and A8. §7 Q5 is needed only
-             when a setting is first read.
+             The Review of 517af45 passed A7 and A8 and found three implementation blockers
+             (A-B3 retained, A-B5, A-B6), now repaired with its non-blocking NF1-NF3 (§9).
+NEXT ACTION: a Review of the repaired candidate. §7 Q5 is needed only when a setting is first
+             read.
 ```
 
 ## 1. Scope and authority
@@ -181,3 +183,10 @@ The Review's implementation blockers are D4 defects at their owners; each repair
 The admitted shadow ledger is unaffected: its baseline passes the stricter genesis check, and the repaired consumer qualifies it at head 0 with a current assertion. Not repaired here: SC-1 (an owner decision) and B-B1 (Manual text). Of the Review's non-blocking findings: N1 is reworded (reading 11; `CheckpointInvalid`), its trust boundary left to Phase H; N2 is closed by a fitness rule (F8 now also refuses derivation naming the Git readers `read_tree`, `read_chain`, `read_raw` or `ledger_head`, by import or attribute); N3 by a backup note in the Core user guide §2.
 
 **SC-1 and B-B1 (SD-58).** The stakeholder adopted the author's recommendation. `derivation.assessment.bound` implements the amended rule: a bounding judgment stands (acts, unsuperseded, `CLEAR`, held, independent, not vetoed), its membership digest and content entries are those of the content matched, a cited record is current at `T` and a `standing` entry at base `T` in the state of evaluation, a machinery judgment's analyzer is in the set, and a validity or execution premise fails closed; the S2 values reach `bound` from the evidence term, and the support graph gains the edge from a subject to each record a bounding judgment cites (catalogue §5.6 item 4). `test_assessment.BoundingCurrency` carries the Review's discriminators (a challenged bounding judgment, a membership that is not the run's content's, a cited record current and then blocked), each failing under its mutation. The Manual's §26.4 rows §3 and §6, and invariant 11, now describe the one distribution, the root module and the home-resident ledger default.
+
+**After the 517af45 Review** (`qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-517AF45-DIFFERENT-FAMILY-NO-PASS.md`: (A) NO-PASS, A7 PASS, A8 PASS, no SERIOUS CHALLENGE).
+
+- **A-B3, retained** (a symbolic link at a workspace file). `Home` now also checks each file it writes (the workspace files, the Admission key, the high-water mark and its temporary), refuses a symbolic link at any of them even when it points into the home, and every write opens with `O_NOFOLLOW`; the report consumer writes through the same owner. Tests: a link at `report.json`, `proposal.json` and `approval-message.txt` to a file outside the home and one inside it, at the high-water temporary, and at `derivation.json` through the CLI; the outside file stays byte-identical.
+- **A-B5** (the consumer kept no high-water mark). Presenting a current answer at `H*` now raises the high-water mark to `H*` (never lowering it), so a later stale-consistent restore of the ledger and witness to an earlier head is `ROLLBACK`. Test: qualify and present head 1, restore the ledger ref and witness to 0, expect `ROLLBACK` and a non-zero exit.
+- **A-B6** (an `INCOMPLETE` judgment as a bound). `bound` requires a `COMPLETENESS` judgment with outcome `COMPLETE` before reading its standing and premises; an adverse judgment stays adverse. Test: an `INCOMPLETE` bound with correct membership and content makes nothing stale.
+- **NF1.** The Git-reader rule now flags names only when imported from, or read as attributes of, the content or `ledger.read` modules; an unrelated attribute of the same spelling is pure. **NF2.** The catalogue's §0.3 R1 cell, `bound(o, K)`'s signature and its `COMPLETE` requirement, the §6.6 polarity note, the stratification check and the class check now state the SD-58 rule; the cited-premise support-graph constraint is for Admission's §8.3 step 5 check in Phase F. **NF3.** The report consumer passes a file witness's retirement to qualification (test: a `RETIREMENT` marker gives `RETIRED`, nothing current); authenticating a retirement statement stays with §24.2.

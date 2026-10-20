@@ -146,6 +146,57 @@ class ShadowGenesisScript(unittest.TestCase):
                          "the answer is derived at H*, not at the provisional entry")
         self.assertEqual((code, report["current_assertion"]), (0, True))
 
+    def test_the_consumer_keeps_the_last_head_it_qualified(self) -> None:
+        """Review 517af45 A-B5: after presenting head 1 current, a chain restored to 0 is a rollback."""
+
+        from ssds.ledger.append import HostKey, append_entry, write_checkpoint
+        from ssds.ledger.qualification import FileWitness
+        from ssds.ledger.read import read_chain
+
+        from ._fixtures import entry, record
+
+        self.admitted()
+        repository = self.home / "ledgers" / "demo.git"
+        chain = read_chain(repository, "demo")
+        key = HostKey.from_private_bytes((self.home / "keys" / "admission" / "demo.ed25519").read_bytes())
+        adoption = record("RULESET_ADOPTION", target=None, actor="human:SHA256:x",
+                          fields={"system": "ssds-rules/1", "policy": "sha256:" + "0" * 64,
+                                  "analyzers": ["ssds.analyzer.python/1"]})
+        appended = append_entry(repository, entry("demo", 1, chain.entries[0].digest, key, lifecycle=adoption,
+                                                  obs=self.baseline), key, chain.entries[0].commit)
+        write_checkpoint(FileWitness(self.home / "witness"), appended.checkpoint)
+        code, report = self.report()
+        self.assertEqual((code, report["qualified_head"], report["current_assertion"]), (0, 1, True))
+        mark = json.loads((self.home / "state" / "demo" / "high-water.json").read_text())
+        self.assertEqual((mark["position"], mark["entry_digest"]), (1, appended.digest), "the mark rose to H*")
+        git(repository, "update-ref", "refs/ssds/ledger/demo", chain.entries[0].commit)  # a stale-consistent restore
+        for checkpoint in (self.home / "witness" / "demo").glob("000000000001-*.json"):
+            checkpoint.unlink()
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "ROLLBACK", False))
+
+    def test_a_retired_witness_lineage_presents_nothing_current(self) -> None:
+        """Review 517af45 NF3: the consumer passes the witness's retirement to qualification."""
+
+        self.admitted()
+        (self.home / "witness" / "demo" / "RETIREMENT").write_text("{}\n")
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "RETIRED", False))
+
+    def test_the_report_is_never_written_through_a_link(self) -> None:
+        """Review 517af45 A-B3, the report consumer's write."""
+
+        self.admitted()
+        sentinel = self.home.parent / "sentinel.txt"
+        sentinel.write_text("untouched\n")
+        target = self.home / "genesis" / "demo" / "derivation.json"
+        target.unlink()
+        target.symlink_to(sentinel)
+        result = self.run_script("derive")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("outside the SSDS home", result.stdout)
+        self.assertEqual(sentinel.read_text(), "untouched\n")
+
     def test_a_refused_genesis_prints_why_and_publishes_nothing(self) -> None:
         (self.repo / ".ssds" / "manifest.toml").write_text(MANIFEST.replace('id = "ssds8.manual"', 'id = "other"'))
         commit(self.repo, "no manual subject")

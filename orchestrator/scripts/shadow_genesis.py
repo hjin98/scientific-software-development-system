@@ -12,8 +12,9 @@ the first two is the stakeholder's SSH signature, made with their own key:
 workspace and prints the validation report and the genesis digest; nothing is
 published. ``admit`` appends and admits it in the dedicated ledger repository
 in the SSDS home, then derives the ledger end to end and writes that report.
-``derive`` repeats the end-to-end derivation; it qualifies the ledger first and makes a current
-assertion only at a current-qualified head ``H*`` (Manual §23.4), else historical views only. The repository is
+``derive`` repeats the end-to-end derivation; it qualifies the ledger first (declared witnesses, a
+witness's retirement, the high-water mark) and makes a current assertion only at a current-qualified
+head ``H*``, which it then keeps as the high-water mark (Manual §23.4); else historical views only. The repository is
 only read: every subject is ``LEGACY(p)`` (the accepted protocol, from
 ``PROTOCOL-RELEASE-STATE.yaml``) or ``UNGOVERNED``.
 """
@@ -42,7 +43,7 @@ from ssds.admission.genesis import (  # noqa: E402
 from ssds.content import read_tree  # noqa: E402
 from ssds.core.config import ssds_home  # noqa: E402
 from ssds.derivation import consequences  # noqa: E402
-from ssds.ledger.qualification import FileWitness, WitnessModel, qualify  # noqa: E402
+from ssds.ledger.qualification import FileWitness, HighWaterMark, WitnessModel, qualify  # noqa: E402
 from ssds.ledger.read import read_chain  # noqa: E402
 
 LEDGER_ID = "ssdp-shadow"
@@ -108,9 +109,15 @@ def qualified_chain(home: Home, ledger_id: str):
     reports = {w.id: FileWitness(Path(w.location)).read(ledger_id) if w.kind == "FILE" else None
                for w in model.witnesses}
     host_keys = {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
-    qualification = qualify(chain, reports, model, host_keys, home.high_water(ledger_id).get())
+    retired = any(FileWitness(Path(w.location)).retired(ledger_id) for w in model.witnesses if w.kind == "FILE")
+    store = home.high_water(ledger_id)
+    mark = store.get()
+    qualification = qualify(chain, reports, model, host_keys, mark, retired=retired)
     prefix = None
     if qualification.current and qualification.head is not None:
+        # §23.4: whoever presents current state keeps the last head it qualified; the mark only rises.
+        if mark is None or qualification.head > mark.position:
+            store.set(HighWaterMark(qualification.head, qualification.head_digest))
         prefix = dataclasses.replace(chain, entries=chain.entries[: qualification.head + 1])
     return chain, qualification, prefix
 
@@ -172,10 +179,10 @@ def admit(args: argparse.Namespace) -> int:
 
 
 def write_derivation(home: Home, ledger_id: str, repository: Path) -> int:
+    home.check(ledger_id)
     report = derivation_report(home, ledger_id, repository)
-    path = home.workspace(ledger_id) / "derivation.json"
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path = home.write_workspace(ledger_id, "derivation.json",
+                                (json.dumps(report, indent=2, sort_keys=True) + "\n").encode("utf-8"))
     print(f"derivation report: {path}")
     print(f"qualification:     {report['qualification']}"
           + (f" at {report['qualified_head']}" if report["qualified_head"] is not None else "")

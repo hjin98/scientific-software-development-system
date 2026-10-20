@@ -215,9 +215,14 @@ class DependencyRuleDiscriminatorTests(_Discriminator):
         path = f"{S}/derivation/view.py"
         for text in ("from ssds.content import read_tree\ndef f(r):\n    return read_tree(r, 'HEAD')\n",
                      "from ssds import content\ndef f(r):\n    return content.read_tree(r, 'HEAD')\n",
-                     "from ..ledger.read import read_chain\n"):
+                     "from ..ledger.read import read_chain\n",
+                     "import ssds.content\ndef f(r):\n    return ssds.content.read_tree(r, 'HEAD')\n",
+                     "from ..ledger import read\ndef f(r):\n    return read.read_chain(r, 'demo')\n"):
             with self.subTest(text=text):
                 self.assertViolations({path: text}, {("F8", path)})
+        pure = ("from dataclasses import dataclass\n@dataclass\nclass Snapshot:\n    read_raw: bytes\n"
+                "def f(snapshot):\n    return snapshot.read_raw\n")
+        self.assertViolations({path: pure}, set())  # Review 517af45 NF1: an unrelated attribute of that name is pure
 
     def test_derivation_imports_no_third_party_module(self) -> None:
         path = f"{S}/derivation/view.py"

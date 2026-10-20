@@ -204,6 +204,39 @@ class Refusals(GenesisFixture):
         self.assertTrue(any("outside the SSDS home" in p for p in prepared.problems), prepared.problems)
         self.assertEqual(list(outside.iterdir()), [], "a symbolic link does not carry a write out of the home")
 
+    def test_a_symbolic_link_at_a_file_never_carries_a_write_out_of_the_home(self) -> None:
+        """Review 517af45 A-B3: every file written is checked, not only its directory."""
+
+        sentinel = self.root / "sentinel.txt"
+        for name in ("report.json", "proposal.json", "approval-message.txt"):
+            with self.subTest(name=name):
+                sentinel.write_text("untouched\n")
+                workspace = self.home.root / "genesis" / "demo"
+                workspace.mkdir(parents=True, exist_ok=True)
+                for existing in workspace.iterdir():
+                    existing.unlink()
+                (workspace / name).symlink_to(sentinel)
+                prepared = prepare_genesis(self.spec(), self.home, self.trees)
+                self.assertFalse(prepared.valid)
+                self.assertTrue(any("outside the SSDS home" in p for p in prepared.problems), prepared.problems)
+                self.assertEqual(sentinel.read_text(), "untouched\n")
+                with self.assertRaises(GenesisRefused):
+                    admit_genesis(self.home, "demo", "signature")
+                (workspace / name).unlink()
+        inside = self.home.root / "inside.txt"
+        inside.write_text("home file\n")
+        workspace = self.home.root / "genesis" / "demo"
+        (workspace / "report.json").symlink_to(inside)
+        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+        self.assertTrue(any("symbolic link" in p for p in prepared.problems), "a link is refused even into the home")
+        self.assertEqual(inside.read_text(), "home file\n")
+        (workspace / "report.json").unlink()
+        state = self.home.root / "state" / "demo"
+        state.mkdir(parents=True)
+        (state / "high-water.tmp").symlink_to(sentinel)
+        self.assertFalse(prepare_genesis(self.spec(), self.home, self.trees).valid)
+        self.assertEqual(sentinel.read_text(), "untouched\n")
+
     def test_an_unreadable_baseline_or_policy(self) -> None:
         self.assertRefused("cannot be read", baseline_commit="0" * 40)
         (self.product / ".ssds" / "policy.toml").write_text("schema = 2\n")

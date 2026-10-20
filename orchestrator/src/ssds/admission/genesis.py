@@ -101,10 +101,15 @@ class Home:
     """Where Admission keeps a project's operator data, under the SSDS home (created on first write).
 
     Every path it hands out is checked first: the ledger id must be a unit
-    identity (catalogue §1.1) and the resolved path, symbolic links followed,
-    must stay inside the resolved home, so no input can direct a write
-    outside it.
+    identity (catalogue §1.1), the resolved path, symbolic links followed,
+    must stay inside the resolved home, and a file it hands out must not be a
+    symbolic link itself (writes also open with ``O_NOFOLLOW``), so no input or
+    pre-existing link can direct a write outside it.
     """
+
+    #: The files of a ledger's genesis workspace.
+    WORKSPACE_FILES = ("proposal.json", "objects.json", "approval-message.txt", "source.json", "report.json",
+                       "derivation.json")
 
     def __init__(self, root: Path) -> None:
         if not root.is_absolute():
@@ -122,6 +127,12 @@ class Home:
             raise HomeRefused(f"{path} resolves outside the SSDS home {self.root}")
         return path
 
+    def _file(self, *parts: str) -> Path:
+        path = self._inside(*parts)
+        if path.is_symlink():
+            raise HomeRefused(f"{path} is a symbolic link; the SSDS home writes only its own files")
+        return path
+
     def ledger_repository(self, ledger_id: str) -> Path:
         self.check_ledger_id(ledger_id)
         return self._inside("ledgers", f"{ledger_id}.git")
@@ -132,21 +143,39 @@ class Home:
 
     def admission_key(self, ledger_id: str) -> Path:
         self.check_ledger_id(ledger_id)
-        return self._inside("keys", "admission", f"{ledger_id}.ed25519")
+        return self._file("keys", "admission", f"{ledger_id}.ed25519")
 
     def workspace(self, ledger_id: str) -> Path:
         self.check_ledger_id(ledger_id)
         return self._inside("genesis", ledger_id)
 
+    def workspace_file(self, ledger_id: str, name: str) -> Path:
+        self.check_ledger_id(ledger_id)
+        if name not in self.WORKSPACE_FILES:
+            raise HomeRefused(f"{name} is not a genesis workspace file")
+        return self._file("genesis", ledger_id, name)
+
+    def write_workspace(self, ledger_id: str, name: str, data: bytes) -> Path:
+        path = self.workspace_file(ledger_id, name)
+        _write_private(path, data)
+        return path
+
+    def witness_directory(self, ledger_id: str) -> Path:
+        self.check_ledger_id(ledger_id)
+        return self._inside("witness", ledger_id)
+
     def high_water(self, ledger_id: str) -> HighWaterStore:
         self.check_ledger_id(ledger_id)
-        return HighWaterStore(self._inside("state", ledger_id, "high-water.json"))
+        self._file("state", ledger_id, "high-water.tmp")
+        return HighWaterStore(self._file("state", ledger_id, "high-water.json"))
 
     def check(self, ledger_id: str) -> None:
         """Refuse before any filesystem effect: every path this ledger would use stays in the home."""
 
-        self.ledger_repository(ledger_id), self.witness_root, self.admission_key(ledger_id)
-        self.workspace(ledger_id), self.high_water(ledger_id)
+        self.ledger_repository(ledger_id), self.witness_root, self.witness_directory(ledger_id)
+        self.admission_key(ledger_id), self.workspace(ledger_id), self.high_water(ledger_id)
+        for name in self.WORKSPACE_FILES:
+            self.workspace_file(ledger_id, name)
 
 
 class HomeRefused(ValueError):
@@ -155,7 +184,7 @@ class HomeRefused(ValueError):
 
 def _write_private(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
     try:
         os.write(descriptor, data)
         os.fsync(descriptor)
@@ -318,14 +347,13 @@ def prepare_genesis(spec: GenesisSpec, home: Home, trees: TreeSource) -> Prepare
     if not problems and genesis is not None:
         digest = genesis_digest(genesis)
         message = genesis_approval_message(genesis)
-        _write_private(workspace / "proposal.json", canonical_json(genesis))
-        _write_private(workspace / "objects.json", canonical_json(
+        home.write_workspace(spec.ledger_id, "proposal.json", canonical_json(genesis))
+        home.write_workspace(spec.ledger_id, "objects.json", canonical_json(
             {"policy": policy.decode("utf-8"), "analyzers": list(SYSTEM_ANALYZERS)}))
-        _write_private(workspace / "approval-message.txt", message)
-        _write_private(workspace / "source.json", canonical_json(
+        home.write_workspace(spec.ledger_id, "approval-message.txt", message)
+        home.write_workspace(spec.ledger_id, "source.json", canonical_json(
             {"product_repository": str(spec.product_repository), "baseline_commit": spec.baseline_commit}))
-    report = workspace / "report.json"
-    _write_private(report, json.dumps({
+    report = home.write_workspace(spec.ledger_id, "report.json", json.dumps({
         "ledger_id": spec.ledger_id, "valid": not problems, "genesis_digest": digest, "problems": problems,
         "findings": findings, "subjects": sorted((structure or {}).get("units", {})) if structure else [],
         "modes": {s: dict(m) for s, m in sorted(spec.modes.items())}, "baseline_commit": spec.baseline_commit,
