@@ -17,7 +17,7 @@ from typing import Any
 from ssds.core.api.v1 import canonical_json
 
 from .lines import directives, normalized
-from .manifest import DEFAULT_MANIFEST_PATH, Manifest, Term, parse_manifest
+from .manifest import DEFAULT_MANIFEST_PATH, GOVERNED_KEY, Manifest, Term, parse_manifest, parse_term
 from .resolve import Region, Span, resolve
 from .structure import RESIDUAL_SUFFIX, UNCLASSIFIED, UNCOVERED, Structure
 from .tree import Tree
@@ -286,8 +286,13 @@ class TreeView:
         return _hash(b"ssds.rev.v1", self.content(uid).encode(), self.sem(uid).encode())
 
     def scope_id(self, uid: str) -> str:
-        unit = self.structure.units[uid]
-        return _hash(b"ssds.scope.v1", _jcs([t.to_json() for t in unit.scope]))
+        return scope_identity(self.structure.units[uid].scope)
+
+    def membership_digest(self, scope: tuple[str, ...] | list[str] | frozenset[str]) -> str:
+        """The membership of a completeness scope: ``sha256`` of its sorted ``(id, scope_id)`` pairs (§2.6, §4.3)."""
+
+        pairs = [[u, self.scope_id(u)] for u in sorted(set(scope)) if u in self.structure.units]
+        return "sha256:" + hashlib.sha256(_jcs(pairs)).hexdigest()
 
     # -- semantic declarations (§1.7) -----------------------------------------------------
 
@@ -344,6 +349,12 @@ class TreeView:
         return tuple(sorted(out))
 
 
+def scope_identity(scope: tuple[Term, ...]) -> str:
+    """``scope_id``: the hash of the declared terms alone, independent of bytes (§1.5, R6)."""
+
+    return _hash(b"ssds.scope.v1", _jcs([t.to_json() for t in scope]))
+
+
 def _line_start(data: bytes, index: int) -> int:
     position = 0
     for _ in range(index):
@@ -362,3 +373,19 @@ def _inline(verb: str, args: tuple[str, ...]) -> dict[str, Any] | None:
     if verb == "joint-invariant" and len(args) >= 2:
         return {"decl": "joint_invariant", "id": args[0], "units": sorted(args[1:])}
     return None
+
+
+def recorded_identity(tree: Tree, term: dict[str, Any], ignore: tuple[str, ...]) -> str:
+    """The identity of one recorded term, re-resolved term-level under frozen ``ignore`` patterns (§6.3).
+
+    The overlap rule of §1.4 is not applied: it depends on other units' terms.
+    ``{"tracked": "*"}`` is the record-only whole-tree fallback: every tracked
+    path, governed or ignored, with its entry mode.
+    """
+
+    if term == {"tracked": "*"}:
+        files = [_field(p.encode("utf-8")) + _field(tree[p].mode.encode()) + _field(tree[p].data) for p in tree]
+        return _hash(b"ssds.cid.v1", b"tracked", b"*", b"RESOLVED", b"".join(files))
+    parsed = parse_term(term)
+    view = TreeView(tree, Structure({GOVERNED_KEY: tuple(ignore)} if ignore else {}))
+    return view.cid(parsed, resolve(parsed, tree, view.governed).region)

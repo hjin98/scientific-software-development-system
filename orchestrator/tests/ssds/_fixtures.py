@@ -146,7 +146,7 @@ def entry(ledger_id: str, position: int, prev, key, *, kind="LIFECYCLE", lifecyc
 
 # -- derivation fixtures: an authenticated chain as derivation receives it -------------------
 
-def chain_of(ledger_id: str, entries: list[dict]):
+def chain_of(ledger_id: str, entries: list[dict], objects: dict[int, dict[str, bytes]] | None = None):
     """A verified chain built in memory: derivation's input once the Ledger Store has authenticated it."""
 
     from ssds.core.api.v1 import canonical_json
@@ -155,7 +155,8 @@ def chain_of(ledger_id: str, entries: list[dict]):
     out = []
     for position, body in enumerate(entries):
         data = canonical_json(body)
-        out.append(LedgerEntry(position, f"{position:040x}", (), body, data, b"", f"sha256:{position:064x}", {}))
+        out.append(LedgerEntry(position, f"{position:040x}", (), body, data, b"", f"sha256:{position:064x}",
+                               (objects or {}).get(position, {})))
     return Chain(ledger_id, tuple(out))
 
 

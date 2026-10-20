@@ -91,9 +91,9 @@ DERIVATION_STDLIB = frozenset(
     {
         "__future__", "abc", "base64", "bisect", "collections", "dataclasses", "enum",
         "fractions", "functools", "graphlib", "hashlib", "heapq", "itertools", "json",
-        "math", "operator", "re", "types", "typing",
+        "math", "operator", "re", "tomllib", "types", "typing",
     }
-)
+)  # tomllib parses bytes the ledger stores (the policy object); it reads no file
 DERIVATION_IO_BUILTINS = frozenset({"open", "input", "breakpoint", "print"})
 DYNAMIC_BUILTINS = frozenset({"__import__", "eval", "exec", "compile"})
 DYNAMIC_MODULES = frozenset({"importlib"})
