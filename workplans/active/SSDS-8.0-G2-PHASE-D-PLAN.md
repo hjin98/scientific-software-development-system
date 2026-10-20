@@ -26,8 +26,12 @@ DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 ren
              (content and analyzers), step 3 (the ledger), step 4 (derivation S0-S2, §5.10,
              §6, §7 frames), step 5 (S3 kernel, checkpoints, determinism) and step 6 (Admission
              genesis path); readings in §8.
-NEXT ACTION: the Phase D implementation Review handoff (with Manual A7), then §3 step 7, whose
-             genesis gate is the stakeholder's. §7 Q5 is needed only when a setting is first read.
+             Step 7 is prepared (`.ssds/manifest.toml`, `orchestrator/scripts/shadow_genesis.py`, a
+             rehearsal on a throwaway home) and the Phase D Review handoff, with Manual A7, is
+             `qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-HANDOFF-SSDS-8.0-DB0E9F4.md`.
+NEXT ACTION: §3 step 7, the stakeholder's genesis gate (key, prepare, sign, admit, in their own
+             terminal); then the Phase D exit record and the Review. §7 Q5 is needed only when a
+             setting is first read.
 ```
 
 ## 1. Scope and authority
