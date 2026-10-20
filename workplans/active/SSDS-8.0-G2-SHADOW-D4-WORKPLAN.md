@@ -10,11 +10,12 @@ revision: 3
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50, semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5; amendments A1-A3 accepted, SD-53, semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74)
 governing_workplan: workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md (design revision 24, accepted at G1)
 mechanism_input: orchestrator/docs/ssds-8.0-mechanism-catalogue.md (non-authoritative; residual register RR-1 to RR-11)
-stakeholder_record: qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md (items 46-51, SD-50 to SD-55)
+stakeholder_record: qualification/ssds80/STAKEHOLDER-DECISION-2026-10-13-SSDS-8.0-WORKFLOW-LAYER.md (items 46-52, SD-50 to SD-56)
 gate: G2-authorized (SD-55)
 implementation_handoff: authorized-shadow
 g2_authorization: SD-55 (stakeholder decision record item 51); revision 3 at afd3be2640b6a6e33a3d744efd76d324c6e5931a with the post-review corrections at cb468ecad19ba41715527b4de42d90262e02cf87
-active_serious_challenge: SC-D1 (Manual §26.3 `sdp ssds` command group needs a Core CLI seam; not blocking Phase D; workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md §6)
+stakeholder_amendment: SD-56 (item 52), after Review; the program is `ssds` and operator data lives in an SSDS home outside every repository (Manual A7); supersedes §5.1 item 1's delivery and "no Core change", and limits §2 item 6 to Core's behavior
+active_serious_challenge: none (SC-D1 resolved by SD-56)
 ---
 
 Governing SSDP version: 7.2.1.
@@ -66,7 +67,7 @@ This file is that workplan, from its opening revision. It is a D3 cycle contract
 3. **Simplification first.** Prefer removing, narrowing or consolidating a catalogue mechanism over adding one; the SD-47 lesson applies to mechanism as it did to the Manual (convergence owner, "Active simplification trigger").
 4. **Real owners for claims.** A model qualifies only the property its method discriminates (DS-001). Stage S models are design evidence; production-owner evidence is Stage D's (G3).
 5. **Independent oracles.** Every model's expectations are stated from the Manual's decisions or from recorded histories, never computed by the rule under test (register RR-10).
-6. **Frozen surfaces.** No change to protocol `source/`, `dist/`, profiles, snapshots, the frozen `orchestrator/docs/architecture.md` (Architecture 1.6.0) or the Level 0 Core's accepted behavior (PC-001).
+6. **Frozen surfaces.** No change to protocol `source/`, `dist/`, profiles, snapshots, the frozen `orchestrator/docs/architecture.md` (Architecture 1.6.0) or the Level 0 Core's accepted behavior (PC-001). Core's program names and configuration location change by SD-56 (Manual A7); its behavior does not.
 7. **Repository discipline.** Work and push only on branch `ssds-8.0-graph-native-architecture`; no pull request, merge or campaign; no model names or identifiers in artifacts; review records name the model family only.
 
 ## 3. Non-goals
@@ -289,7 +290,7 @@ Stage D builds the shadow system of the architecture workplan's Phases D-H (its 
 
 ### 5.1 Rules for every phase
 
-1. **Delivery.** One distribution, `sdp-orchestrator-ssds`, under `orchestrator/`, with the namespace package `sdp_orchestrator.ssds` and one subpackage per Manual §26.1 component, registered through Core's existing entry-point group `sdp_orchestrator.extensions.v1` (Manual §26.3). No Core change is needed or allowed. The Manual §26.2 fitness checks are written first, in Phase D, and run in repository acceptance for every later change.
+1. **Delivery (SD-56, Manual A7).** One program, `ssds`: one distribution built from `orchestrator/`, one regular import package `ssds` with the Level 0 Core as `ssds.core` and one subpackage per Manual §26.1 component, and one command, `ssds`, composed by the root module (Manual §26.3). The `sdp` names are retired without alias. The rename changes Core's names and configuration location, never its behavior: Core's own suite and the frozen-profile tests pass unchanged apart from names. Operator data lives in the SSDS home (`$HOME/.ssds` by default), never in a repository. The Manual §26.2 fitness checks are written first, in Phase D, and run in repository acceptance for every later change. *(Revision 3 text, superseded: one distribution `sdp-orchestrator-ssds` registered as a Core extension; no Core change.)*
 2. **Shadow boundary.** The shadow ledger is at a location designated at shadow genesis (Manual §21.5) that document control never reads. No SSDS process holds a credential that can move a governed ref or write a governed file. Every subject is `LEGACY(p)` or `UNGOVERNED` (§2 item 1). Each phase's acceptance checks this boundary.
 3. **Expected values.** Each acceptance case states its expected result from the register row it tests and the Manual decision behind that row. Stage S cases supply expectations as written (their stated expected outcomes), never by running the model rules on production output, and production code never imports `qualification/ssds80/models/`. The catalogue's §31.4-§31.8 tables do not supply expected values (§4.2). Each group keeps its negative discriminators (Manual §31.2).
 4. **Real owners.** Each group runs at the production owner the catalogue names for it (for example, ledger-only replay as the oracle for publication classification). Fixtures alone qualify only mechanical properties (DS-001).
@@ -363,7 +364,7 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 1 NO-PASS (13d67be); revision 2 NO-PASS (d8ab75c); revision 3 PASS (afd3be2), post-review corrections §4.14 |
 | Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 done: Stage D made concrete (§5), register closure (§4.11), revision 1 frozen |
-| Stage D | authorized, shadow only (SD-55); Phase D in progress under `workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md`: step 1 (package skeleton, extension registration, §26.2 fitness checks in repository acceptance) done; SERIOUS CHALLENGE SC-D1 open for the stakeholder (that plan §6-§7) |
+| Stage D | authorized, shadow only (SD-55); Phase D in progress under `workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md`: step 1 (package skeleton, extension registration, §26.2 fitness checks in repository acceptance) done; SC-D1 and that plan's §7 questions answered by SD-56: the program is renamed `ssds` (Manual A7) and operator data, ledgers included, lives in the SSDS home; next, the rename, then steps 2-7; the genesis gate and its approval key are the stakeholder's at step 7 |
 | G2 | authorized (SD-55, 2026-10-19): criterion 13 Review PASS (afd3be2), criterion 14 met |
 
 **Revision 1 (2026-10-18, S6).** Revision 0 opened the workplan under SD-50 and recorded Stage S as it ran (§4.4-§4.10). Revision 1 adds the register closure (§4.11) and the concrete Stage D plan (§5, replacing revision 0's outline), brings the Stage S results current with SD-53, and freezes the file for independent Review. Nothing in it authorizes Stage D.

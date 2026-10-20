@@ -22,7 +22,8 @@ amendment_a3: accepted (SD-53, stakeholder decision record item 49); restores §
 amendments_a4_a6: accepted (SD-55, stakeholder decision record item 51) with the post-review corrections; A4 the §5.10 (e) cross-item owner (finding 913db8f N6); A5 and A6 the 2a17a83 Review's N1 and N2 (§32.2, §17.5, §32.3); no decision changes
 accepted_at_g1: SD-50 (stakeholder decision record item 46), semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5, blob b4077eb5879570b0aee56b068be8588beeaa5e9e
 amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b; SD-55 (item 51), A4-A6 reviewed at afd3be2640b6a6e33a3d744efd76d324c6e5931a and accepted with corrections at cb468ecad19ba41715527b4de42d90262e02cf87, blob 0e304061b965eea8b124c9942f5c9aff4fa9a2d6
-d4: shadow-only (G2, SD-55): no SSDS authority over any subject before G4
+amendment_a7: decided (SD-56, stakeholder decision record item 52); the program is `ssds` and operator data lives in an SSDS home outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4); text written by the author, independent Review pending (batched with the Phase D implementation Review)
+d4: shadow-only (G2, SD-55); no SSDS authority over any subject before G4
 active_serious_challenge: none
 ---
 
@@ -42,6 +43,10 @@ AMENDMENTS A4-A6: ACCEPTED (SD-55, 2026-10-19) after the independent D3 Review
           non-blocking corrections at cb468ec: A4, the owner where a reach crosses items or plans
           (§5.10 (e)); A5, waiting with qualified independent people present (§32.2); A6, runner-attribute
           costs and two reopen triggers (§17.5, §32.3). No decision changes.
+AMENDMENT A7: DECIDED by the stakeholder (SD-56, 2026-10-19): one program named `ssds` (distribution,
+          import package and command; the `sdp` names retired, Level 0 Core as `ssds.core` with its
+          behaviour unchanged) and one SSDS home for operator data outside every repository (§0.5, §16.10,
+          §21.5, §26.2-§26.4). The text is the author's; its independent Review is pending.
 GOVERNING PROTOCOL: SSDP 7.2.1 (release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0
 BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic candidate
@@ -185,7 +190,7 @@ SSDS produces no scientific results of its own. It decides which realized result
 - **Intended readers.** Stakeholders and human-gate holders; independent reviewers; agents, only through rendered briefs.
 - **Routine questions.** What governs this subject, at which revision? Is this result current against its basis, and if not, what moved? Which evidence supports or challenges this claim, and which is stale, disputed or unavailable? What did a gate decide, on which evidence core, with which findings and tensions visible? What is withheld by quarantine or a loss boundary, and why? What did each agent do, in which role and within which boundaries; what did verification find; and which findings were escalated, merged or downgraded, by whom?
 - **Product inspectability surfaces (marked).**
-  - *Within the requested deliverable (this architecture):* `ask`/`read` answers naming their qualified head (§16.2); task briefs with incompleteness notices (§16.3); gate briefs led by a separable non-narrative core (§16.6); the conformance view of each result (§14.6); the inspector view and digest (§16.8); historical views at any ledger position (§5.8); `sdp ssds export`, a snapshot of the ledger and derived views at a named qualified head in canonical JSON (§26.3); the canonical-JSON ledger itself, readable with Git and a JSON reader without SSDS code or an AI (§21.2), which is the tool-independent route.
+  - *Within the requested deliverable (this architecture):* `ask`/`read` answers naming their qualified head (§16.2); task briefs with incompleteness notices (§16.3); gate briefs led by a separable non-narrative core (§16.6); the conformance view of each result (§14.6); the inspector view and digest (§16.8); historical views at any ledger position (§5.8); `ssds export`, a snapshot of the ledger and derived views at a named qualified head in canonical JSON (§26.3); the canonical-JSON ledger itself, readable with Git and a JSON reader without SSDS code or an AI (§21.2), which is the tool-independent route.
   - *Beyond the requested deliverable:* **None.** Projection of a project's own scientific records, exploration interfaces and discovery stores stay with project products. SSDS references their homes and adds no universal observation database.
 - **Realized-record architecture.** Canonical source: the ledger plus the content it names. Derived projections: every view, regenerated, never edited (§5.8). Drill-down identity: record identity, unit identity plus revision, scope identity, ledger position and qualified head. Streaming and interim exposure: a long execution's progress is operator state; its realized outcome enters only as an admitted observation, and the inspector shows pending executions as pending. Restart continuity: the ledger and Git content; derived state rebuilds. Privacy and security: §24-§25; inspection and export views are trust boundaries that give the strongest safe aggregate and state the limitation.
 
@@ -1036,7 +1041,7 @@ Each issued envelope carries `governs`: for a `NATIVE` subject, the ruleset in f
 
 #### 16.10 Transports, harnesses and bootstrap [D3 decision]
 
-Three transports expose the same operations: an MCP server; the CLI (`sdp ssds <operation>`, §26.3); and a **Git-envelope** transport for zero-context web agents: an immutable signed task envelope `task.json` plus the rendered brief on an isolated run ref `refs/heads/ssds/run/<task-id>`, a result envelope `result.json` plus candidate commits written back to that ref, and polling-first fetch of that specific ref. Run refs are transport: never merged, retired by policy, regenerable from the ledger and obligations. Harness adapters only map operations and launch, observe and cancel executions (admit, start, events, control response, cancel, terminal result, §26.4). The bootstrap is `Execute SSDS task <task-id>` plus the minimum locator the environment does not already bind (repository, run ref, envelope path, protocol source). It fails truthfully when protocol material cannot be resolved. Transport and process success never imply evidence admissibility or task success. Local and Git-envelope transports give identical admissions for identical submissions.
+Three transports expose the same operations: an MCP server; the CLI (`ssds <operation>`, §26.3); and a **Git-envelope** transport for zero-context web agents: an immutable signed task envelope `task.json` plus the rendered brief on an isolated run ref `refs/heads/ssds/run/<task-id>`, a result envelope `result.json` plus candidate commits written back to that ref, and polling-first fetch of that specific ref. Run refs are transport: never merged, retired by policy, regenerable from the ledger and obligations. Harness adapters only map operations and launch, observe and cancel executions (admit, start, events, control response, cancel, terminal result, §26.4). The bootstrap is `Execute SSDS task <task-id>` plus the minimum locator the environment does not already bind (repository, run ref, envelope path, protocol source). It fails truthfully when protocol material cannot be resolved. Transport and process success never imply evidence admissibility or task success. Local and Git-envelope transports give identical admissions for identical submissions.
 
 ## Part VI. Evidence and intake
 
@@ -1240,7 +1245,7 @@ The ledger retains every entry, every `LEDGER`-store object, and reachability of
 
 #### 21.5 Location options [D3 decision]
 
-Genesis chooses one: (i) the reserved ref `refs/ssds/ledger/<ledger_id>` in the project repository; or (ii) a dedicated ledger repository (for example private, when governance records must be more private than the product), on the ref `refs/ssds/ledger/<ledger_id>`. Semantics are identical. Genesis names the **authoritative replica** (repository URL and ref); a change is a human-gated `REPLICA_REDESIGNATION`.
+Genesis chooses one: (i) the reserved ref `refs/ssds/ledger/<ledger_id>` in the project repository; or (ii) a dedicated ledger repository (for example private, when governance records must be more private than the product), on the ref `refs/ssds/ledger/<ledger_id>`. Semantics are identical. **[A7, SD-56]** The default is (ii), with the ledger repository in the operator's SSDS home (§26.3), so governance records never mix into a product or program repository; (i) applies only when a genesis declares it. Genesis names the **authoritative replica** (repository URL and ref); a change is a human-gated `REPLICA_REDESIGNATION`.
 
 #### 21.6 Derived index and operator-state boundary
 
@@ -1447,29 +1452,40 @@ ssds.dispatcher                 imports derivation, ledger (qualification only),
                                 ssds.admission internals, and never the ledger append API
 ssds.interface                  imports derivation, ledger (qualification only); submits only through the
                                 admission request API
-Core (sdp_orchestrator.core)    imports nothing from ssds
+ssds.core (Level 0 Core)        imports nothing from the SSDS components or the root module
 ```
 
-Also enforced: no derivation module reads the clock, the network, environment variables or the live integration ref (an import allowlist); every SSDS file lives under `orchestrator/`; one extension registration; no private cross-module imports. Fitness checks are sensors of the dependency rule, not architecture truth.
+Also enforced: no derivation module reads the clock, the network, environment variables or the live integration ref (an import allowlist); every SSDS file lives under `orchestrator/`; one composition root, the root module (§26.3); no private cross-module imports. Fitness checks are sensors of the dependency rule, not architecture truth.
 
 #### 26.3 Deployment and composition [D3 decision]
 
-- **One composition root.** SSDS is a Core extension, `sdp.ssds`, registered through Core's single entry-point group `sdp_orchestrator.extensions.v1`. The `sdp` CLI and Core composition root stay the only root per installation; SSDS adds the command group `sdp ssds` (`open`, `ask`, `read`, `report`, `submit`, `decide`, `status`, `inspect`, `admission serve`, `dispatcher serve`, `mcp serve`, `genesis`, `qualify`, `export`). Core never imports SSDS; Core's standalone acceptance never depends on it (1.6.0 invariant 12, PC-001).
-- **Packaging.** Distribution `sdp-orchestrator-ssds`, depending on `sdp-orchestrator-core`, under `orchestrator/` (containment root unchanged), native namespace package `sdp_orchestrator.ssds` with subpackages per component. Public surfaces `sdp_orchestrator.ssds.api.v1` (logical operations and records) and `sdp_orchestrator.ssds.spi.v1` (harness adapter, runner, witness and analyzer provider contracts).
-- **Processes.** Admission and the Dispatcher run as long-lived local processes started through `sdp ssds … serve`; Interface hosts (CLI, MCP) are short-lived or long-lived; Derivation is a library. Multiple Admission hosts may exist; correctness comes from the ledger compare-and-swap and witness quorum, not from leader election.
-- **Configuration ownership.** Core's configuration owner (defaults -> config/profile -> environment allowlist -> explicit CLI/API) holds operator-local SSDS settings in a namespaced `[ssds]` section: repository and ledger locations, key references, harness routes, runner endpoints, witness endpoints. Secrets are references, never values. Project policy is not configuration: it is governed content adopted by the ledger (§25.3).
+- **One program, one composition root [A7, SD-56].** SSDS is one program named `ssds`: one distribution, one import package and one command. The root module (`ssds.cli`, outside `ssds.core`) is the only composition root per installation. It composes the Level 0 Core (`ssds.core`) and the SSDS components and mounts one flat command set:
+  - Core's version-bound commands, with their accepted behaviour: prompt rendering, the profile stage commands, `projects`, `capabilities`, `doctor`;
+  - the SSDS operations: `open`, `ask`, `read`, `report`, `submit`, `decide`, `status`, `inspect`, `admission serve`, `dispatcher serve`, `mcp serve`, `genesis`, `qualify`, `export`.
+
+  A name claimed by both is a defect caught in acceptance. Core never imports the SSDS components or the root module, and Core's own acceptance runs without them (1.6.0 invariant 12, PC-001). Other extensions register through the versioned entry-point group `ssds.extensions.v1`. The former program names (`sdp`, `sdp_orchestrator`, `sdp-orchestrator-core`, `sdp-orchestrator-ssds`, the group `sdp_orchestrator.extensions.v1`) are retired without alias. Identifiers inside frozen profiles and persisted records (for example `sdp.content.v1`) are data, not program names, and do not change.
+- **Packaging [A7].** Distribution `ssds`, built from `orchestrator/` (containment root unchanged), as a regular package `ssds`: one distribution needs no namespace package. It contains `ssds.core` and one subpackage per component. Public surfaces are `ssds.api.v1` (logical operations and records) and `ssds.spi.v1` (harness adapter, runner, witness and analyzer provider contracts); Core's are `ssds.core.api.v1` and `ssds.core.spi.v1`.
+- **Processes.** Admission and the Dispatcher run as long-lived local processes started through `ssds … serve`; Interface hosts (CLI, MCP) are short-lived or long-lived; Derivation is a library. Multiple Admission hosts may exist; correctness comes from the ledger compare-and-swap and witness quorum, not from leader election.
+- **Program and operator data [A7, SD-56].** Program code and protocol references are immutable package content. Everything SSDS writes for an operator lives in one **SSDS home** outside every repository: `$SSDS_HOME`, by default `$HOME/.ssds`. It holds:
+  - configuration (`config.toml`);
+  - ledger repositories, by default one per project (§21.5 (ii));
+  - witness stores for `LOCAL_TRUST`;
+  - the derived index and caches (§21.6);
+  - Dispatcher workspaces, and operator state and journals.
+
+  SSDS keeps none of these inside a product or program repository. Core's configuration owner (defaults -> config/profile -> environment allowlist -> explicit CLI/API) holds operator-local SSDS settings in a namespaced `[ssds]` section: repository and ledger locations, key references, harness routes, runner endpoints, witness endpoints. Secrets are references, never values. A configuration file at the retired program's location is reported by `ssds doctor`, never read or migrated. Project policy is not configuration: it is governed content adopted by the ledger (§25.3).
 
 #### 26.4 Executed supersession of Architecture 1.6.0 for SSDS-governed scopes [D3 decision]
 
-On acceptance of this Manual, `orchestrator/docs/architecture.md` (Architecture 1.6.0, frozen) is superseded **for SSDS-governed scopes only**. For version-bound older work, the implemented Level 0 Core keeps its accepted behavior unchanged: one composition root, version/profile-separated source resolution, frozen historical profiles, versioned JSON records, no cross-version substitution (PC-001). The frozen document is not edited. The Tracker, Adapter and Scheduler levels were never implemented, so no Level 1-3 data migrates; their functions are preserved below.
+On acceptance of this Manual, `orchestrator/docs/architecture.md` (Architecture 1.6.0, frozen) is superseded **for SSDS-governed scopes only**. For version-bound older work, the implemented Level 0 Core keeps its accepted behavior unchanged (its program names and configuration location change by A7, its behavior does not): one composition root, version/profile-separated source resolution, frozen historical profiles, versioned JSON records, no cross-version substitution (PC-001). The frozen document is not edited. The Tracker, Adapter and Scheduler levels were never implemented, so no Level 1-3 data migrates; their functions are preserved below.
 
 | # | 1.6.0 product invariant | Final disposition for SSDS scopes |
 |---|---|---|
 | 1 | progressive usefulness; Core alone complete | **Replaced**: staged usefulness (read-only derivation and interface useful without Admission); document-only operation is not complete for native scopes (§19). **Preserved** for version-bound work through Core prompt mode |
 | 2 | `core <- tracker <- adapters <- scheduler` | **Retired** with the ladder; **replaced** by §26.1-§26.2 dependency direction |
 | 3 | graceful degradation without silent policy bypass | **Replaced**: degradation is truthful non-closure plus read-only derivation, labeled `UNQUALIFIED` or historical; no-silent-bypass **preserved** |
-| 4 | one CLI and one composition root; extensions via versioned SPIs | **Preserved and closed**: SSDS is a Core extension under the single `sdp` root (§26.3); no second root |
-| 5 | versioned public boundaries | **Preserved**: `sdp_orchestrator.ssds.api.v1`, `…spi.v1` |
+| 4 | one CLI and one composition root; extensions via versioned SPIs | **Preserved and closed**: one `ssds` command and one composition root, the root module (§26.3, A7); no second root |
+| 5 | versioned public boundaries | **Preserved**: `ssds.api.v1`, `ssds.spi.v1`, `ssds.core.api.v1`, `ssds.core.spi.v1` (A7) |
 | 6 | no duplicated workflow authority | **Replaced**: ledger plus Admission is the single workflow authority for native scopes; workplans and profiles keep transitions only for `LEGACY(p)` |
 | 7 | manual operation is first-class | **Replaced in part**: manual invocation and the Git-envelope route stay first-class; manual results enter by admission; manual document control is not complete for native scopes |
 | 8 | capability recommendation precedes resource scheduling | **Retired** as a module boundary (both in the Dispatcher); substance **preserved**: recommendation evidence never acts as quota or resource authority |
@@ -1495,7 +1511,7 @@ On acceptance of this Manual, `orchestrator/docs/architecture.md` (Architecture 
 | 1.6.0 frozen surface | Final disposition for SSDS scopes |
 |---|---|
 | §3 capability ladder and distributions | **Retired**; Level 0 Core **preserved** for version-bound work; SSDS is one additional distribution (§26.3) |
-| §4 repository layout, Python packaging and namespace | **Preserved and closed**: native PEP 420 namespace, no root `__init__.py`; SSDS adds `sdp_orchestrator.ssds` with `api.v1`/`spi.v1` under `orchestrator/` (§26.3); cross-module imports only through public API/SPI |
+| §4 repository layout, Python packaging and namespace | **Replaced in part (A7)**: one distribution `ssds` under `orchestrator/`, a regular package with `ssds.core` and `api.v1`/`spi.v1` (§26.3), so the PEP 420 namespace is retired; cross-module imports only through public API/SPI |
 | §5.1 API versus SPI | **Adopted** |
 | §5.2 compatibility | **Adopted**: a public major is a semantic contract; persisted schema, ledger schema, ruleset, interface and profile versions are independent dimensions (§28) |
 | §5.3 public records | **Adopted** with SSDS canonical JSON (RFC 8785) for records; timestamps UTC; IDs opaque; digests carry algorithm, scheme and value; unsupported required semantics fail; records never hold live objects |
@@ -1507,12 +1523,12 @@ On acceptance of this Manual, `orchestrator/docs/architecture.md` (Architecture 
 | §6 Core composition SPI | **Preserved**; SSDS registers through it |
 | §7 Core shared records | **Mapped**: `ProjectKey` -> genesis project identity; `WorktreeKey` reused for K2 leases; `RunId` retained for Core prompt mode only (SSDS uses task and attempt identity); `DigestRef` reused; `ProtocolProfileRef` reused for `LEGACY(p)` rendering; `WorkplanRef` not reused (plans are units); `CandidateRef` **declined** (transformation identity `(B, C, A)` replaces it, §7.1); `StageResultEnvelope` **declined** (the typed `TASK_RESULT` and admission request replace it); `EventEnvelope` remains Core's non-durable event; SSDS never derives state from events |
 | §8 Core/Prompt module | **Preserved** for version-bound work |
-| §9 Tracker | **Retired** as a module; functions **replaced**: history and projection by Ledger and Derivation (historical views, §5.8); status and next action by obligations and readiness; manual result ingestion by the Git-envelope result and `submit`; retention and export by the ledger and `sdp ssds export`; the storage/lease SPI by the Dispatcher's operator journal and worktree leases |
+| §9 Tracker | **Retired** as a module; functions **replaced**: history and projection by Ledger and Derivation (historical views, §5.8); status and next action by obligations and readiness; manual result ingestion by the Git-envelope result and `submit`; retention and export by the ledger and `ssds export`; the storage/lease SPI by the Dispatcher's operator journal and worktree leases |
 | §10 Adapters | **Retired** as a module; functions **replaced** by the Dispatcher: routes and identities, manual and direct delivery, pre-render route admission, worktree lease, execution lifecycle (invariant 15), benchmark sources, cache and identity resolver, static recommendation |
 | §11 Scheduler | **Retired** as a module; functions **replaced** by the Dispatcher: account and resource ledgers and meters (operator state, never workflow), reservations, prediction, AUTO route selection, future-stage reserves, failover; a configured-required resource policy that is unavailable fails closed |
 | §12 configuration ownership; secrets as references | **Preserved and closed** (§26.3) |
 | §13 persistence/event ownership | **Replaced** by §21 stores; "persisted state is not repository authority" **retired** for native scopes, where the ledger is authority |
-| §14 CLI capability behavior | **Preserved** for Core commands; **replaced** for SSDS by the `sdp ssds` command group (§26.3); Tracker/Adapter/Scheduler command sets retired with their modules |
+| §14 CLI capability behavior | **Preserved** in behaviour for Core commands under the `ssds` command (A7); SSDS operations join the same command set (§26.3); Tracker/Adapter/Scheduler command sets retired with their modules |
 | §15 failure/degradation | **Replaced** by §23.8 and §19.7 |
 | §16 security/privacy | **Preserved** (§24-§25): untrusted pasted output, no tokens in prompts, caches, events, logs or repositories, no local paths or telemetry in web context, no transcript auto-injection, restrictive permissions |
 | §17 benchmark integrity | **Preserved** for Dispatcher recommendation |
