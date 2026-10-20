@@ -9,9 +9,10 @@ S3 kernel. A derivation checkpoint (``History.checkpoint``) resumes the S0 fold
 and equals derivation from scratch; storing it is its caller's.
 """
 
+from .baseline import BaselineStructure, baseline_structure
 from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
 from .s3 import Consequences, Finding, Obligation
-from .state import F, P, T, State
+from .state import F, P, Policy, T, State
 from .support import Support
 
 
@@ -27,5 +28,7 @@ def consequences(chain, trees: TreeSource, position: int | None = None, checkpoi
     return Consequences(derive(chain, trees, position, checkpoint))
 
 
-__all__ = ["CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History", "Obligation", "P",
-           "State", "Support", "T", "TreeSource", "consequences", "derive"]
+__all__ = [
+    "BaselineStructure", "CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History",
+    "Obligation", "P", "Policy", "State", "Support", "T", "TreeSource", "baseline_structure", "consequences", "derive",
+]

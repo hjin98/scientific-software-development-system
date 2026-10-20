@@ -159,5 +159,5 @@ def write_checkpoint(witness: FileWitness, checkpoint: Checkpoint) -> None:
         os.close(directory)
 
 
-__all__ = ["AppendFailed", "AppendRefused", "Appended", "append_entry", "create_ledger_repository",
+__all__ = ["AppendFailed", "AppendRefused", "Appended", "HostKey", "append_entry", "create_ledger_repository",
            "import_commits", "write_checkpoint"]
