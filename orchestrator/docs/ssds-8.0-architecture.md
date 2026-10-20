@@ -23,6 +23,7 @@ amendments_a4_a6: accepted (SD-55, stakeholder decision record item 51) with the
 accepted_at_g1: SD-50 (stakeholder decision record item 46), semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5, blob b4077eb5879570b0aee56b068be8588beeaa5e9e
 amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b; SD-55 (item 51), A4-A6 reviewed at afd3be2640b6a6e33a3d744efd76d324c6e5931a and accepted with corrections at cb468ecad19ba41715527b4de42d90262e02cf87, blob 0e304061b965eea8b124c9942f5c9aff4fa9a2d6
 amendment_a7: decided (SD-56, SD-57; stakeholder decision record items 52-53); the program is `ssds` and operator data lives in an SSDS home outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4); text written by the author, independent Review pending (batched with the Phase D implementation Review)
+amendment_a8: decided (SD-58, stakeholder decision record item 54); a bounding completeness judgment is checked on the content the run it bounds ran on (§6.5); resolves SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb; text written by the author, independent Review pending
 d4: shadow-only (G2, SD-55); no SSDS authority over any subject before G4
 active_serious_challenge: none
 ---
@@ -46,7 +47,12 @@ AMENDMENTS A4-A6: ACCEPTED (SD-55, 2026-10-19) after the independent D3 Review
 AMENDMENT A7: DECIDED by the stakeholder (SD-56, SD-57, 2026-10-19): one program named `ssds` (distribution,
           import package and command; the `sdp` names retired, Level 0 Core as `ssds.core` with its
           behaviour unchanged) and one SSDS home for operator data outside every repository (§0.5, §16.10,
-          §21.5, §26.2-§26.4). The text is the author's; its independent Review is pending.
+          §21.5, §26.2-§26.4). The text is the author's; its independent Review is pending. Two §26.4
+          rows were corrected to it after the Phase D Review 0e49deb (finding B-B1).
+AMENDMENT A8: DECIDED by the stakeholder (SD-58, 2026-10-20): a completeness judgment that bounds a
+          run's basis is checked on the content that run ran on, not on the state of evaluation (§6.5),
+          resolving SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb. The text is the author's; its
+          independent Review is pending.
 GOVERNING PROTOCOL: SSDP 7.2.1 (release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0
 BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic candidate
@@ -461,7 +467,7 @@ Values lie in the lattice `F < P < T` (non-current/invalid < provisional < curre
 
 #### 5.6 Uniqueness and support cycles [refinement R2]
 
-S2 is monotone on a finite lattice: S0 and S1 facts, base and vetoes are constants, disposition currency enters only positively, and staleness reads completeness currency only positively. It therefore has exactly one least fixed point. Before evaluation, every non-trivial strongly connected component of the instantiated static support graph is forced to `F`, with one finding per component (an integrity obligation unless the cycle arose through absorbed content), so no acceptance can support itself and a cycle is never presented at `P` or `T`. Admission keeps the support graph acyclic (§8.3 step 5).
+S2 is monotone on a finite lattice: S0 and S1 facts, base and vetoes are constants, disposition currency enters only positively, and staleness reads bounding completeness only positively (its standing, and the currency of the records it cites, A8). It therefore has exactly one least fixed point. Before evaluation, every non-trivial strongly connected component of the instantiated static support graph is forced to `F`, with one finding per component (an integrity obligation unless the cycle arose through absorbed content), so no acceptance can support itself and a cycle is never presented at `P` or `T`. Admission keeps the support graph acyclic (§8.3 step 5).
 
 #### 5.7 Corrupt prefixes [refinement R3]
 
@@ -559,7 +565,7 @@ Admission records each failing assessment's anchors (the subjects whose scope he
 
 #### 6.5 Matching: configuration, outcome and the two matching predicates [refinement R1]
 
-A realization's **configuration** is its specification, regime, parameter instance and every attribute the specification fixes; its observed values of free attributes are recorded execution attributes, never configuration. Its **evaluated outcome** is the part of the observation the oracle reads, in canonical form; an output's identity is `(specification unit, output name)` across revisions, with declared renames. **Two matching predicates, one construction rule.** The adverse predicate compares only tree-resident recorded terms, re-resolved under the record's own context. The permissive predicate is the adverse one conjoined with identity of the whole class of everything that can distinguish two executions of one configuration without being tree-resident recorded content (the complete set of external locators and pins, no unpinnable read, every recorded execution attribute) and with a basis bounded by current completeness judgments. So `on⁺ ⇒ on⁻` by construction for every structure, boundary, analyzer set, external input and attribute; losing completeness or changing structure only narrows permissive matches. Every use names its predicate: permissive uses (making a failure stale, lowering a decision class) use `on⁺`; adverse uses (keeping a failure counting) use `on⁻` or the existential linking predicate that contains it. **Verdicts.** A declarative mechanical oracle's verdict is recomputed under any reading; an embedded oracle's verdict is known only under the reading it ran; a needed verdict that is not computable is treated as a failure (fail closed).
+A realization's **configuration** is its specification, regime, parameter instance and every attribute the specification fixes; its observed values of free attributes are recorded execution attributes, never configuration. Its **evaluated outcome** is the part of the observation the oracle reads, in canonical form; an output's identity is `(specification unit, output name)` across revisions, with declared renames. **Two matching predicates, one construction rule.** The adverse predicate compares only tree-resident recorded terms, re-resolved under the record's own context. The permissive predicate is the adverse one conjoined with identity of the whole class of everything that can distinguish two executions of one configuration without being tree-resident recorded content (the complete set of external locators and pins, no unpinnable read, every recorded execution attribute) and with a basis bounded by completeness judgments that stand and hold on the content the run ran on: their membership and content entries are that content's, and each other premise holds in the state of evaluation **[A8, SD-58]**. A bounding judgment certifies the basis of one run on one tree, so a later change elsewhere does not unbound it, and a genuine fix can make a failure stale. So `on⁺ ⇒ on⁻` by construction for every structure, boundary, analyzer set, external input and attribute; losing completeness or changing structure only narrows permissive matches. Every use names its predicate: permissive uses (making a failure stale, lowering a decision class) use `on⁺`; adverse uses (keeping a failure counting) use `on⁻` or the existential linking predicate that contains it. **Verdicts.** A declarative mechanical oracle's verdict is recomputed under any reading; an embedded oracle's verdict is known only under the reading it ran; a needed verdict that is not computable is treated as a failure (fail closed).
 
 #### 6.6 Stop: staleness by discriminating observations
 
@@ -1491,7 +1497,7 @@ On acceptance of this Manual, `orchestrator/docs/architecture.md` (Architecture 
 | 8 | capability recommendation precedes resource scheduling | **Retired** as a module boundary (both in the Dispatcher); substance **preserved**: recommendation evidence never acts as quota or resource authority |
 | 9 | benchmark observations preserve context | **Preserved and closed**: the Dispatcher's route-recommendation evidence keeps source, benchmark and version, model identity, effort, harness and configuration, value with uncertainty, generated and fetched time, freshness and identity-match quality (`EXACT_CONFIG_MATCH`, `MODEL_EFFORT_PROXY`, `MODEL_ONLY_PROXY`, `UNRESOLVED`), in operator state; never derived workflow state; incompatible metrics are never combined into one scalar |
 | 10 | scheduler subordinate to workflow intent | **Preserved and strengthened**: the Dispatcher acts only on derived-ready obligations and cannot affect derived state |
-| 11 | private state outside project repositories | **Replaced in part**: operator state private; the closed-schema ledger in a Git repository designated at genesis, which may be private |
+| 11 | private state outside project repositories | **Replaced in part**: operator state private, in the SSDS home outside every repository (§26.3, A7); the closed-schema ledger in a Git repository designated at genesis, by default a dedicated ledger repository in that home (§21.5, A7), which may be private |
 | 12 | subset acceptance is permanent | **Preserved** for Core; **retired** as a ladder rule for SSDS components, which are accepted as one system (G3) |
 | 13 | stable IDs cross modules; implementation objects do not | **Preserved** |
 | 14 | read-only query and durable mutation visibly distinct | **Preserved**: `ask`/`read` and Derivation are pure; only Admission mutates canonical state |
@@ -1510,7 +1516,7 @@ On acceptance of this Manual, `orchestrator/docs/architecture.md` (Architecture 
 
 | 1.6.0 frozen surface | Final disposition for SSDS scopes |
 |---|---|
-| §3 capability ladder and distributions | **Retired**; Level 0 Core **preserved** for version-bound work; SSDS is one additional distribution (§26.3) |
+| §3 capability ladder and distributions | **Retired**; Level 0 Core **preserved** for version-bound work as `ssds.core`, inside the one distribution `ssds` (§26.3, A7) |
 | §4 repository layout, Python packaging and namespace | **Replaced in part (A7)**: one distribution `ssds` under `orchestrator/`, a regular package with `ssds.core` and `api.v1`/`spi.v1` (§26.3), so the PEP 420 namespace is retired; cross-module imports only through public API/SPI |
 | §5.1 API versus SPI | **Adopted** |
 | §5.2 compatibility | **Adopted**: a public major is a semantic contract; persisted schema, ledger schema, ruleset, interface and profile versions are independent dimensions (§28) |
@@ -1520,7 +1526,7 @@ On acceptance of this Manual, `orchestrator/docs/architecture.md` (Architecture 
 | §5.6 idempotency/mutation | **Adopted**: `ask`/`read`/render are read-only; `submit` idempotent by request identity; `decide` idempotent by the decision record's identity; Dispatcher start idempotent per attempt |
 | §5.7 sync/async boundary | **Adopted**: `ask`, `read`, `report` and `decide` synchronous; `submit` returns `PROVISIONAL` and the outcome is observed by request identity; harness execution through handles |
 | §5.8 two-stage API freeze | **Superseded**: the SSDS API v1 is frozen once, at the G3 implementation review, for the whole system |
-| §6 Core composition SPI | **Preserved**; SSDS registers through it |
+| §6 Core composition SPI | **Preserved** for other programs' extensions (`ssds.extensions.v1`); the SSDS components are not extensions: the root module `ssds.cli` composes them with Core (§26.3, A7) |
 | §7 Core shared records | **Mapped**: `ProjectKey` -> genesis project identity; `WorktreeKey` reused for K2 leases; `RunId` retained for Core prompt mode only (SSDS uses task and attempt identity); `DigestRef` reused; `ProtocolProfileRef` reused for `LEGACY(p)` rendering; `WorkplanRef` not reused (plans are units); `CandidateRef` **declined** (transformation identity `(B, C, A)` replaces it, §7.1); `StageResultEnvelope` **declined** (the typed `TASK_RESULT` and admission request replace it); `EventEnvelope` remains Core's non-durable event; SSDS never derives state from events |
 | §8 Core/Prompt module | **Preserved** for version-bound work |
 | §9 Tracker | **Retired** as a module; functions **replaced**: history and projection by Ledger and Derivation (historical views, §5.8); status and next action by obligations and readiness; manual result ingestion by the Git-envelope result and `submit`; retention and export by the ledger and `ssds export`; the storage/lease SPI by the Dispatcher's operator journal and worktree leases |

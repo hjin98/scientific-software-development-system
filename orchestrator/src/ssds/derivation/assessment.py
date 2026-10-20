@@ -36,8 +36,19 @@ SYSTEM_RULESET = "ssds-rules/1"
 
 
 class Assessments:
-    def __init__(self, state: State) -> None:
+    def __init__(self, state: State, judgments: Any = None) -> None:
         self.s = state
+        self._judgments = judgments
+
+    @cached_property
+    def j(self) -> Any:
+        """§5.10, the one owner of vetoes and independence a bounding judgment's standing reads."""
+
+        if self._judgments is None:
+            from .judgment import Judgments
+
+            self._judgments = Judgments(self.s)
+        return self._judgments
 
     # -- records ------------------------------------------------------------------------------
 
@@ -204,13 +215,16 @@ class Assessments:
         attributes = lambda b: dict(map(tuple, b.get("attributes", [])))  # noqa: E731
         return pins(bo) == pins(bx) and attributes(bo) == attributes(bx)
 
-    def bound(self, observation: str, tree, base: Callable[[str], int]) -> bool:
-        """``bound(o)`` for content ``K``: every bounding judgment stands and its content entries hold in ``K``.
+    def bound(self, observation: str, tree, base: Callable[[str], int], value: Callable[[Any], int] | None = None) -> bool:
+        """``bound(o, K)`` (catalogue §6.5 as amended by SD-58, Manual A8).
 
-        Phase D reading of catalogue §6.5, recorded in the Phase D plan for Review: the
-        judgment bounds the basis for the content being matched (the failing run's
-        content in (1), the frame's in (3)), so a fix outside the failing content
-        does not unbound the reproduction. It reads completeness standing positively.
+        A bounding completeness judgment certifies the execution basis of a run on the content it
+        ran on, so it is checked there: it bounds ``o`` for content ``K`` when it stands (acts, is
+        not superseded, is ``CLEAR``, held, independent and not vetoed), its membership digest is
+        that of ``K``, each of its ``content`` entries holds in ``K``, and each other premise holds
+        in the state of evaluation (a cited record current at ``T``, a ``standing`` entry's record at
+        base ``T``, a machinery judgment's analyzer in the analyzer set). A ``validity`` or
+        ``execution`` premise fails closed. Completeness is read positively only.
         """
 
         bounded_by = self.basis(observation).get("bounded_by", "UNBOUNDED")
@@ -218,18 +232,40 @@ class Assessments:
             return False
         view = TreeView(tree, self.s.view.structure, self.s.h.manifest_path)
         for c in bounded_by:
-            if c not in self.s.records or base(c) != T:
+            if c not in self.s.records or not self._stands(c):
                 return False
-            for entry in self.s.record(c)["basis"]:
-                if entry["mode"] == "content":
+            record = self.s.record(c)
+            target = record["target"]
+            if view.membership_digest(tuple(target["scope"])) != target.get("membership"):
+                return False
+            if record["actor_class"] == "MACHINERY" and target.get("analyzer") not in self.s.analyzer_set:
+                return False
+            for entry in record["basis"]:
+                mode = entry["mode"]
+                if mode == "content":
                     unit, rev = entry["target"]["unit"], entry["target"]["rev"]
                     if unit not in view.structure.units or view.rev(unit) != rev:
                         return False
+                elif mode == "record":
+                    q = entry["target"]["record"]
+                    if value is None or q not in self.s.records or value(("current", q)) != T:
+                        return False
+                elif mode == "standing":
+                    if entry["target"]["record"] not in self.s.records or base(entry["target"]["record"]) != T:
+                        return False
+                elif mode != "identity":
+                    return False
         return True
 
-    def on_plus(self, observation: str, tree, real: str, base: Callable[[str], int]) -> bool:
+    def _stands(self, c: str) -> bool:
+        s = self.s
+        return (s.acts(c) and not s.superseded(c) and s.status1(c) == "CLEAR" and s.cont(c)
+                and not self.j.vetoed(c) and not self.j.nonind(c))
+
+    def on_plus(self, observation: str, tree, real: str, base: Callable[[str], int],
+                value: Callable[[Any], int] | None = None) -> bool:
         return self._context_available(self.basis(observation)) and self.on_minus(observation, tree) and \
-            self.ext(observation, real) and self.bound(observation, tree, base)
+            self.ext(observation, real) and self.bound(observation, tree, base, value)
 
     def tree_of(self, observation: str):
         return self.s.h.trees(self.basis(observation)["tree"])
@@ -281,7 +317,7 @@ class Assessments:
 
     # -- stop: staleness (§6.6) -------------------------------------------------------------------------
 
-    def stale(self, rid: str, base: Callable[[str], int]) -> bool:
+    def stale(self, rid: str, base: Callable[[str], int], value: Callable[[Any], int] | None = None) -> bool:
         real = self.real(rid)
         if real is None or self.outcome(real) is None:
             return False
@@ -291,18 +327,18 @@ class Assessments:
         expected = self.restricted(real, failing)
         failing_tree = self.tree_of(real)
         here = self.s.view.tree
-        reproduced = any(o != real and self.standing(o) and self.on_plus(o, failing_tree, real, base)
+        reproduced = any(o != real and self.standing(o) and self.on_plus(o, failing_tree, real, base, value)
                          and self.restricted(o, failing) == expected for o in configuration)
         if not reproduced:
             return False
         if any(self.restricted(o, failing) != expected for o in configuration
                if self.link_minus(o, failing_tree, configuration)):
             return False  # it differed: nondeterministic in fact, the owner's
-        if not any(self.standing(o) and self.on_plus(o, here, real, base) for o in configuration):
+        if not any(self.standing(o) and self.on_plus(o, here, real, base, value) for o in configuration):
             return False
         return not any(self.yields(o, rid) for o in configuration if self.link_minus(o, here, configuration))
 
-    def explain(self, rid: str, base: Callable[[str], int]) -> dict[str, Any]:
+    def explain(self, rid: str, base: Callable[[str], int], value: Callable[[Any], int] | None = None) -> dict[str, Any]:
         """Which observations satisfy or defeat each condition, and every link traversed (798b2b4 B4)."""
 
         real = self.real(rid)
@@ -320,14 +356,14 @@ class Assessments:
         if real is None:
             return out
         for o in configuration:
-            if o != real and self.standing(o) and self.on_plus(o, failing_tree, real, base) and \
+            if o != real and self.standing(o) and self.on_plus(o, failing_tree, real, base, value) and \
                     self.restricted(o, failing) == expected:
                 out["reproduced"].append(o)
             via = links(o, failing_tree)
             if via and self.restricted(o, failing) != expected:
                 out["differed"].append(o)
             out["links"].extend(("failing-content", o, v) for v in via)
-            if self.standing(o) and self.on_plus(o, here, real, base):
+            if self.standing(o) and self.on_plus(o, here, real, base, value):
                 out["observed_here"].append(o)
             via_here = links(o, here)
             if via_here and self.yields(o, rid):
@@ -335,9 +371,10 @@ class Assessments:
             out["links"].extend(("here", o, v) for v in via_here)
         return out
 
-    def adverse(self, subject: str, obligation: str, base: Callable[[str], int]) -> list[str]:
+    def adverse(self, subject: str, obligation: str, base: Callable[[str], int],
+                value: Callable[[Any], int] | None = None) -> list[str]:
         return [a for a in self.by_obligation.get(obligation, []) if self.failing(a) and self.admissible(a, obligation)
-                and self.starts(a) and self.about(a, subject) and not self.stale(a, base)]
+                and self.starts(a) and self.about(a, subject) and not self.stale(a, base, value)]
 
     # -- disposition (§6.7) ----------------------------------------------------------------------------
 
@@ -380,7 +417,7 @@ class Assessments:
     def undisputed(self, subject: str, obligation: str, value: Callable[[Any], int], base: Callable[[str], int],
                    nonind: Callable[[str], bool]) -> int:
         result = T
-        for a in self.adverse(subject, obligation, base):
+        for a in self.adverse(subject, obligation, base, value):
             result = min(result, max(P, self.disposition(a, value, base, nonind)))
         return result
 
@@ -410,7 +447,11 @@ class Assessments:
                 for o in self.observations(a):
                     bounded_by = self.basis(o).get("bounded_by", "UNBOUNDED")
                     if bounded_by != "UNBOUNDED":
-                        out += [c for c in bounded_by if c in self.s.records]
+                        for c in bounded_by:
+                            if c in self.s.records:  # the bounding judgment and the records it cites (§5.6 item 4)
+                                out.append(c)
+                                out += [e["target"]["record"] for e in self.s.record(c)["basis"]
+                                        if e["mode"] == "record" and e["target"]["record"] in self.s.records]
         return out
 
     # -- execution-basis currency (§4.1, §6.3) --------------------------------------------------------------

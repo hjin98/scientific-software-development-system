@@ -35,7 +35,7 @@ class Support:
         self.s = state
         # §5.10 and §6 are the one owners of what base and the evidence term read.
         self.j = judgments or Judgments(state)
-        self.a = assessments or Assessments(state)
+        self.a = assessments or Assessments(state, self.j)
 
     # -- base (S0/S1 constants) ------------------------------------------------------------
 

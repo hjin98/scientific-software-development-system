@@ -9,7 +9,7 @@ governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 decided, SD-56, its text's independent Review pending)
 g2_authorization: SD-55 (shadow implementation only)
 stakeholder_amendment: SD-56 (one program `ssds`; operator data in the SSDS home; §6-§7 answered); SD-57 (a first release with no predecessor installation; the genesis approval key)
-active_serious_challenge: SC-1 of the 0e49deb Phase D Review (catalogue §6.5 bounding currency), at the G2 register's owner (SC-D1 resolved by SD-56)
+active_serious_challenge: none (SC-D1 resolved by SD-56; SC-1 of the 0e49deb Phase D Review resolved by SD-58, Manual A8)
 ---
 
 Governing SSDP version: 7.2.1.
@@ -33,11 +33,10 @@ DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 ren
              The Phase D Review of 0e49deb is NO-PASS on both subjects
              (`qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-0E49DEB-DIFFERENT-FAMILY-NO-PASS.md`);
              its implementation blockers A-B1 to A-B4 are repaired (§9).
-SERIOUS CHALLENGE: SC-1 of that Review (catalogue §6.5 bounding currency against S5 §6
-             `genuine_fix_is_stale`, §8 reading 1) is open at the G2 register's owner; A7 blocker
-             B-B1 (two Manual §26.4 rows) waits for the Manual's owner.
-NEXT ACTION: the SC-1 decision and the B-B1 text, then a Review of the repaired candidate. §7 Q5
-             is needed only when a setting is first read.
+             Its SERIOUS CHALLENGE SC-1 is resolved by SD-58 (Manual A8, reading 1 made binding)
+             and its A7 finding B-B1 corrected in the Manual's §26.4 (§9).
+NEXT ACTION: one Review of the repaired candidate, with Manual A7 and A8. §7 Q5 is needed only
+             when a setting is first read.
 ```
 
 ## 1. Scope and authority
@@ -101,7 +100,7 @@ Each step closes with its tests, Core's suite, `run_models.py --seeds` (unchange
 | F5 | dispatcher imports derivation, `ledger.qualification`, `interface.render` and `admission.request` only | §26.2 row 5 |
 | F6 | interface imports derivation, `ledger.qualification` and `admission.request` only | §26.2 row 6 |
 | F7 | `ssds.core` imports nothing from the SSDS components or the root module, by import or by module-name string | §26.2 row 7 (A7) |
-| F8 | derivation imports only an allowlist of pure standard-library modules (no clock, network, environment, process, filesystem or Git access) and calls no dynamic-import or I/O builtin | §26.2 "also enforced" |
+| F8 | derivation imports only an allowlist of pure standard-library modules (no clock, network, environment, process, filesystem or Git access), calls no dynamic-import or I/O builtin, and names none of the Git readers the content and `ledger.read` facades expose | §26.2 "also enforced" |
 | F9 | every program file lives under `orchestrator/` (source under `orchestrator/src/ssds/`), and the repository has exactly one `ssds` distribution, at `orchestrator/pyproject.toml` | §26.2 "also enforced" |
 | F10 | one composition root: the distribution declares exactly the console script `ssds = "ssds.cli:main"`, no other distribution claims `ssds`, the program registers nothing in `ssds.extensions.v1`, and no program module is runnable on its own (`__main__`) | §26.2, §26.3 (A7) |
 | F11 | no private cross-module imports: across owners only the public modules of §2, no Core module but `core.api.v1` and `core.spi.v1` (and `core.cli` for the root), no `_`-prefixed module or name, no dynamic import or code execution | §26.2 "also enforced" |
@@ -141,7 +140,7 @@ Where the catalogue leaves a choice to D4 or names a later owner, step 4 reads i
 
 **Readings.**
 
-1. *Bounding currency (catalogue §6.5).* `bound(o)` read literally (currency of the bounding judgment in the frame of evaluation) leaves a genuine fix never stale, contradicting S5 §6 `genuine_fix_is_stale`. Phase D reads it as: the bounding judgment stands, and its `content` entries hold in the matched content `K` of the observation. `test_assessment.py` carries the case and a mutation check showing the literal reading fails it.
+1. *Bounding currency (catalogue §6.5).* **Made binding by SD-58 (Manual A8), after the 0e49deb Review raised it as SERIOUS CHALLENGE SC-1; the rule as amended adds membership in `K` and premises other than content in the state of evaluation (§9).** `bound(o)` read literally (currency of the bounding judgment in the frame of evaluation) leaves a genuine fix never stale, contradicting S5 §6 `genuine_fix_is_stale`. Phase D reads it as: the bounding judgment stands, and its `content` entries hold in the matched content `K` of the observation. `test_assessment.py` carries the case and a mutation check showing the literal reading fails it.
 2. *Policy schema.* The ruleset's policy object is read as a closed per-domain table: `owner`, `adjudicators`, `acceptors`, `required_judgments`, `gates`, `gate_holders`, `evidence`, `claim_owner`, `humans`, `unattested_agents`. Its digest is in the ruleset; absent keys mean no holder.
 3. *Default subject mode.* A genesis `modes` entry `"*"` is the mode of subjects with no entry of their own (so a subject created later is not silently `UNGOVERNED`). The shadow genesis (step 7) sets `"*"` to `UNGOVERNED`.
 4. *Admission body.* An admission entry carries `integrates` (the transformation it integrates) and `adopted_deltas` (`{key, value, source}`, `source` `AUTHORED` or `ADOPTED`); the frame's `Δ_Σ(X)` is the candidate's authored manifest delta plus `A`.
@@ -158,7 +157,7 @@ Where the catalogue leaves a choice to D4 or names a later owner, step 4 reads i
 8. *Which forced components are ordinary (catalogue §5.6 (v)).* A forced component is an ordinary finding when it contains a `valid(s)` edge that §6 adds (an assessment, disposition or bounding completeness judgment about `s`), and an integrity obligation otherwise. This over-approximates the two absorption-extensible `about` terms through `home`, as §5.6 item 2 itself does; every forced node is `F` either way, so the reading changes only the attention, never a value.
 9. *Requalification (§23.6).* "In effect at `R`" is `current > F` at the retained head (a relaxer: in force there); "withheld now" is `¬cont`. A fresh record of the same kind on the same target, admitted after the boundary and current now (a relaxer: in force), ends the obligation. Permissive means an evaluated kind with no adverse outcome (failing assessments are unchanged by a boundary).
 10. *Views.* A view at a position before the chain's last authenticated entry is historical. No view asserts currentness under an `INTEGRITY_HALT`, an unreadable schema version, a missing pinned analyzer (finding 6ff4ed1 B3), or in a frame; the halt finding and its `CRITICAL` integrity obligation appear in every view.
-11. *Checkpoints (§5.9).* A derivation checkpoint caches the S0 fold through a position (per-position head, `Σ`, modes and ruleset, integrations, boundaries, the record index) under the key `(ledger, position, entry digest, ruleset with analyzer set, schema, derivation system version)`, recomputed from the ledger before use, with a body digest; S1-S3 are functions of that fold and the trees, recomputed per view. The encoding is sorted-key JSON (delegated by §5.9). Where checkpoints are stored (the private derived index in the SSDS home) and the write cadence (every 1,000 entries and every lifecycle entry) are the caller's, the Interface in Phase E; derivation writes nothing.
+11. *Checkpoints (§5.9).* A derivation checkpoint caches the S0 fold through a position (per-position head, `Σ`, modes and ruleset, integrations, boundaries, the record index) under the key `(ledger, position, entry digest, ruleset with analyzer set, schema, derivation system version)`, recomputed from the ledger before use, with a body digest that detects accidental corruption but does not authenticate the cached fold (Review 0e49deb N1: a checkpoint is private cache, discarded and rebuilt on any doubt, catalogue §21.6; its trust boundary is a Phase H question); S1-S3 are functions of that fold and the trees, recomputed per view. The encoding is sorted-key JSON (delegated by §5.9). Where checkpoints are stored (the private derived index in the SSDS home) and the write cadence (every 1,000 entries and every lifecycle entry) are the caller's, the Interface in Phase E; derivation writes nothing.
 
 **Deferred from S3.** The re-application obligation of an `OVERTAKEN` admission's open item obligation, readiness, discharge, drift, impact, briefs, conformance and routing views read item obligations and plans (§10, §13), so they are Phase E queries over the same strata.
 
@@ -179,4 +178,6 @@ The Review's implementation blockers are D4 defects at their owners; each repair
 - **A-B3** (writes outside the home). `admission.genesis.Home` checks the ledger id against the unit identity grammar and every resolved path, symbolic links followed, for containment in the resolved home, before any filesystem effect; `prepare_genesis` and `admit_genesis` refuse a bad id having written nothing. Tests: traversal, absolute, slash and upper-case ids at the owner and through the CLI; a symbolic link out of the home.
 - **A-B4** (an unresolved term at genesis). `derivation.baseline_structure` requires every non-`prefix` term to resolve in the baseline tree to a present file (possibly empty) or a found span (catalogue §1.9), through `TreeView.term_region`. Tests: missing file, heading, symbol and anchor; an empty file and an empty prefix pass.
 
-The admitted shadow ledger is unaffected: its baseline passes the stricter genesis check, and the repaired consumer qualifies it at head 0 with a current assertion. Not repaired here: SC-1 (an owner decision) and B-B1 (Manual text). The Review's non-blocking N1 (a checkpoint body digest does not authenticate the cached fold) and N2 (the content facade exposes a Git reader the import sensor cannot see) are Phase H and sensor questions, recorded, not changed; N3 (backing up the home-resident ledger) belongs to the first-day docs once the ledger is operated.
+The admitted shadow ledger is unaffected: its baseline passes the stricter genesis check, and the repaired consumer qualifies it at head 0 with a current assertion. Not repaired here: SC-1 (an owner decision) and B-B1 (Manual text). Of the Review's non-blocking findings: N1 is reworded (reading 11; `CheckpointInvalid`), its trust boundary left to Phase H; N2 is closed by a fitness rule (F8 now also refuses derivation naming the Git readers `read_tree`, `read_chain`, `read_raw` or `ledger_head`, by import or attribute); N3 by a backup note in the Core user guide §2.
+
+**SC-1 and B-B1 (SD-58).** The stakeholder adopted the author's recommendation. `derivation.assessment.bound` implements the amended rule: a bounding judgment stands (acts, unsuperseded, `CLEAR`, held, independent, not vetoed), its membership digest and content entries are those of the content matched, a cited record is current at `T` and a `standing` entry at base `T` in the state of evaluation, a machinery judgment's analyzer is in the set, and a validity or execution premise fails closed; the S2 values reach `bound` from the evidence term, and the support graph gains the edge from a subject to each record a bounding judgment cites (catalogue §5.6 item 4). `test_assessment.BoundingCurrency` carries the Review's discriminators (a challenged bounding judgment, a membership that is not the run's content's, a cited record current and then blocked), each failing under its mutation. The Manual's §26.4 rows §3 and §6, and invariant 11, now describe the one distribution, the root module and the home-resident ledger default.

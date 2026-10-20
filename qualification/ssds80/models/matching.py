@@ -10,7 +10,9 @@ predicates (catalogue §6.5):
   on⁻(o, K)   every recorded tree-resident term re-resolves in K, under o's own context, to its
               recorded identity                                        (adverse uses)
   ext(o, x)   neither read an unpinnable input, same complete pin set, same recorded attributes
-  bound(o)    o's basis is bounded by current completeness judgments
+  bound(o)    o's basis is bounded by completeness judgments that hold for the content matched (SD-58);
+              abstracted here as one boolean per observation, so the bounding currency itself is
+              exercised at the real derivation owner, not in this model
   on⁺(o, K)   on⁻(o, K) ∧ ext(o, real) ∧ bound(o)                      (permissive uses)
   link⁻(o, K) some admitted run o' of the configuration has on⁻(o', K) and on⁻(o', tree(o))
 

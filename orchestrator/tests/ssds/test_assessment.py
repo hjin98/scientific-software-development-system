@@ -13,7 +13,9 @@ import unittest
 from ssds.content import Tree, recorded_identity
 
 from ._fixtures import manifest, tree
-from ._scenario import HUMAN_B, Scenario, content, judgment, on_record, store
+from ssds.derivation import F
+
+from ._scenario import HUMAN_B, Scenario, challenge, content, judgment, on_record, store
 
 UNITS = '''
     [[unit]]
@@ -58,7 +60,8 @@ class Runs:
             self.completeness[head] = c["id"]
         return self.completeness[head]
 
-    def run(self, head: str, outcome: dict, *, pins=("p1",), attributes=(), unpinnable=False, bounded=True) -> dict:
+    def run(self, head: str, outcome: dict, *, pins=("p1",), attributes=(), unpinnable=False, bounded=True,
+            bounded_by: list[str] | None = None) -> dict:
         t: Tree = self.sc.trees[head]
         view = self.sc.view(head)
         basis = {"tree": head, "context": {"system": "ssds-rules/1", "ignore": [], "analyzers": ["ssds.analyzer.python/1"]},
@@ -67,7 +70,7 @@ class Runs:
         if bounded:
             basis["units"] = [{"unit": "code", "rev": view.rev("code"), "terms": [[CODE_TERM, recorded_identity(t, CODE_TERM, ())]]},
                               {"unit": "spec", "rev": view.rev("spec"), "terms": [[SPEC_TERM, recorded_identity(t, SPEC_TERM, ())]]}]
-            basis["bounded_by"] = [self.bound_judgment(head)]
+            basis["bounded_by"] = bounded_by if bounded_by is not None else [self.bound_judgment(head)]
         else:
             basis["units"] = []
             basis["widened"] = [[{"tracked": "*"}, recorded_identity(t, {"tracked": "*"}, ())]]
@@ -187,6 +190,63 @@ class DisputeEffects(unittest.TestCase):
         d2 = r2.sc.derive()
         self.assertEqual(d2.a.adverse("code", "obl", d2.base), [failing2["id"]], "with no reproduction it counts")
 
+
+
+class BoundingCurrency(unittest.TestCase):
+    """SD-58 (Manual A8): a bounding judgment is checked on the content the run ran on.
+
+    The discriminators the 0e49deb Review (SC-1) asked to keep: the genuine fix and its revert
+    (``Staleness``), the bounding judgment challenged, its membership not that of the run's content,
+    and a premise other than content, which holds in the state of evaluation.
+    """
+
+    def setUp(self) -> None:
+        self.r = Runs()
+        self.t0, self.t1 = self.r.tree("T0"), self.r.tree("T1", **{"a.py": "v = 2\n"})
+
+    def completeness(self, head: str, membership: str | None = None, extra=()) -> dict:
+        view = self.r.sc.view(head)
+        c = judgment("COMPLETENESS", {"scope": ["code", "spec"], "classes": ["EXEC"],
+                                      "membership": membership or view.membership_digest(("code", "spec"))},
+                     "COMPLETE", actor=HUMAN_B,
+                     basis=[content("code", view.rev("code")), content("spec", view.rev("spec")), *extra])
+        self.r.sc.admit(c)
+        return c
+
+    def stale(self, failing: dict) -> bool:
+        files = {k: v.data.decode() for k, v in self.r.sc.trees[self.t1].items() if k != ".ssds/manifest.toml"}
+        self.r.sc.absorb(files)
+        d = self.r.sc.derive()
+        return d.a.stale(failing["id"], d.base, lambda node: d.values.get(node, F))
+
+    def scenario(self, bounding: dict) -> dict:
+        failing = self.r.fail(self.r.run(self.t0, BAD))
+        self.r.run(self.t0, BAD, bounded_by=[bounding["id"]])
+        self.r.run(self.t1, GOOD)
+        return failing
+
+    def test_a_challenged_bounding_judgment_bounds_nothing(self) -> None:
+        bounding = self.completeness(self.t0)
+        failing = self.scenario(bounding)
+        self.r.sc.admit(challenge({"record": bounding["id"]}))
+        self.assertFalse(self.stale(failing))
+
+    def test_membership_is_checked_on_the_runs_content(self) -> None:
+        failing = self.scenario(self.completeness(self.t0, membership="sha256:" + "0" * 64))
+        self.assertFalse(self.stale(failing), "a judgment over other membership does not bound this run")
+
+    def test_a_cited_record_premise_holds_in_the_state_of_evaluation(self) -> None:
+        cited = judgment("ACCEPTANCE", self.r.sc.triple("spec"), "PASS", actor=HUMAN_B,
+                         basis=[content("spec", self.r.sc.rev("spec"))])
+        self.r.sc.admit(cited)
+        failing = self.scenario(self.completeness(self.t0, extra=[on_record(cited["id"])]))
+        self.assertTrue(self.stale(failing), "the cited acceptance is current: the run is bounded")
+        r = self.r
+        r.sc.admit(challenge({"record": cited["id"]}))
+        d = r.sc.derive()
+        self.assertFalse(d.a.stale(failing["id"], d.base, lambda node: d.values.get(node, F)),
+                         "the cited record is blocked now: the premise fails in the state of evaluation")
+        self.assertFalse(d.a.stale(failing["id"], d.base), "without S2 values a record premise fails closed")
 
 if __name__ == "__main__":
     unittest.main()
