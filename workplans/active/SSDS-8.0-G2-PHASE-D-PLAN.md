@@ -23,8 +23,9 @@ STATUS: ACTIVE. Companion to the G2 shadow workplan, Stage D (§5.2 Phase D row)
 SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNED; no cutover. The
         document-controlled 7.2.1 baseline governs. The shadow genesis human gate is the stakeholder's.
 DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 rename (§2), step 2
-             (content and analyzers) and step 3 (the ledger).
-NEXT ACTION: §3 step 4 (derivation S0-S2). §7 Q5 is needed only when a setting is first read.
+             (content and analyzers), step 3 (the ledger) and step 4 (derivation S0-S2, §5.10,
+             §6, §7 frames; readings and deferrals in §8).
+NEXT ACTION: §3 step 5 (S3 kernel and determinism). §7 Q5 is needed only when a setting is first read.
 ```
 
 ## 1. Scope and authority
@@ -119,3 +120,21 @@ Reconciliations, no decision changed: RFC 8785 canonical JSON is needed by `cont
 Answered by SD-56: **Q1** (SC-D1) rename to one program `ssds`; **Q2** `cryptography` accepted for Ed25519; **Q3** everything SSDS writes for an operator lives in the SSDS home (`$SSDS_HOME`, default `~/.ssds`), the ledger by default a dedicated repository there (§21.5 (ii)); by SD-57 the approval key is a new Ed25519 key the stakeholder generates in their own terminal (its public half the genesis trust root for human authentication), and the approval of the genesis digest stays the stakeholder's at step 7; **Q4** the plan stays a companion file.
 
 5. **The `[ssds]` configuration section.** Proposed: when step 3 first needs a setting (ledger and witness locations, key references), add `[ssds]` to Core's configuration owner as a second open section bounded like `[extensions."<ns>"]`: Core validates its size and preserves it, and SSDS interprets it. This is an additive Core configuration change; Core's existing configurations keep their identity.
+
+## 8. Phase D readings and deferrals (step 4)
+
+Where the catalogue leaves a choice to D4 or names a later owner, step 4 reads it as below. Each reading is a Review question in the Phase D implementation Review; none changes a Manual or register decision.
+
+**Readings.**
+
+1. *Bounding currency (catalogue §6.5).* `bound(o)` read literally (currency of the bounding judgment in the frame of evaluation) leaves a genuine fix never stale, contradicting S5 §6 `genuine_fix_is_stale`. Phase D reads it as: the bounding judgment stands, and its `content` entries hold in the matched content `K` of the observation. `test_assessment.py` carries the case and a mutation check showing the literal reading fails it.
+2. *Policy schema.* The ruleset's policy object is read as a closed per-domain table: `owner`, `adjudicators`, `acceptors`, `required_judgments`, `gates`, `gate_holders`, `evidence`, `claim_owner`, `humans`, `unattested_agents`. Its digest is in the ruleset; absent keys mean no holder.
+3. *Default subject mode.* A genesis `modes` entry `"*"` is the mode of subjects with no entry of their own (so a subject created later is not silently `UNGOVERNED`). The shadow genesis (step 7) sets `"*"` to `UNGOVERNED`.
+4. *Admission body.* An admission entry carries `integrates` (the transformation it integrates) and `adopted_deltas` (`{key, value, source}`, `source` `AUTHORED` or `ADOPTED`); the frame's `Δ_Σ(X)` is the candidate's authored manifest delta plus `A`.
+5. *Domain of a judgment.* For the routes of §5.10 the domain of a judgment is the domain of the content it judged (for a transformation target, the units it changed), not of the record's target type.
+6. *Assessment home.* `home(o)` is the set of units whose scope overlaps a file of the observation's reading, by file overlap; finer regions wait for an analyzer that declares them.
+7. *Execution basis.* An execution record's basis is read in the closed `execution` field form the ledger schema states; nothing outside it is an input to `bound`.
+
+**Fail closed until a later owner.** NATIVE D1/D2 targets have no passing acceptance or gate until §10.2's revision runs exist (Phase E); plan-acceptance reach is over-approximated (every item unit) until §13.4's amendment rules (Phase E); declarative verdicts never yield until §14.3's evaluator (Phase E); the admissibility checks of §17.4 are Phase F. Each fails toward "not supported", never toward support.
+
+**Group 3 discriminators not executed in Phase D, with reason.** The D1/D2 revision-run variants of 575dc78 N5, f7419d5 N4 and f22b4dc N5, and the plan half of 63ddf91 N5 (plan relief after amendment or tightening), need §10.2 and §13.4 (Phase E). f03b15e N5's human reassessment of an answered non-gate obligation needs §10.3 (Phase E). 51070e5 N3's adjudication-independence refusal, f03b15e N5's supersession-authority cases (the judgment key of §8.3 step 3) and the other cases whose distinguishing step is an Admission refusal (§8.3 steps 3 and 7) are Phase F. They are reported unexecuted, not passed. The derivation halves are in `test_group3_discriminators.py`, `test_judgment.py` and `test_frames.py`.
