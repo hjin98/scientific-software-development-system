@@ -199,3 +199,14 @@ def integrate(sc: Scenario, transformation: str, candidate: str) -> None:
     sc.structure = after
     sc.files = {p: e.data.decode() for p, e in sc.trees[candidate].items() if p != ".ssds/manifest.toml"}
     sc.head = candidate
+
+
+def store(sc: Scenario, value: dict) -> str:
+    """A ledger-store object carried by the next entry (an evaluated outcome); returns its digest."""
+
+    from ssds.core.api.v1 import canonical_json
+
+    data = canonical_json(value)
+    digest = "sha256:" + hashlib.sha256(data).hexdigest()
+    sc.objects.setdefault(sc.position, {})[digest] = data
+    return digest

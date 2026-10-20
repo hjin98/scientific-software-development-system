@@ -1,25 +1,38 @@
-"""Assessment disagreement: the evidence term, disputes and their dispositions (catalogue §6; Manual §6).
+"""Assessment disagreement: start, matching, staleness and disposition (catalogue §6; Manual §6).
 
 A failing assessment caps validity at ``P`` while it counts and no disposition
-stands; it never makes validity ``F``. Its dispositions (§6.7) and their
-independence are §5.10's; start, home and staleness are §6.4-§6.6.
+stands; it never makes validity ``F``. It starts counting on an admitted fact
+or in its own lineage (§6.4) and stops only by a disposition (§6.7) or by
+discriminating observations (§6.6).
 
-Phase D order: this module first carries the evidence term, ``undisputed``,
-``qual``, the effective disposition and execution-basis currency, with every
-failing assessment counting and none stale; the start latch, ``about`` and the
-discriminating-observation stop join it next, and both only narrow what
-counts, so the earlier form is the conservative side.
+Observations are ``REALIZATION`` records. Each records its execution basis once
+(§6.3): ``tree`` (the commit it ran on), unit, read and widened entries with
+their content identities, pins, an unpinnable flag, execution attributes, the
+frozen resolution ``context`` and ``bounded_by`` (completeness judgments, or
+``"UNBOUNDED"``). Its evaluated outcome is a ledger-store object
+``{"outputs": {name: {"value": v, "verdict": "PASS" | "FAIL"}}}``.
+
+Phase D boundaries, each on the conservative side: specification admissibility
+(§17.4) is Phase F, so an assessment is admissible for its own obligation;
+declarative check templates are the §14.3 library, so only embedded verdicts
+under the reading an execution ran are computable and any other verdict is
+taken as yielding the failure (fail closed); home follows successors by file
+overlap, which only adds subjects.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
-from functools import cached_property
+from functools import cached_property, lru_cache
 from typing import Any
 
-from ssds.content import recorded_identity
+from ssds.content import TreeView, recorded_identity
 
+from .frames import transformation_of
 from .state import F, P, State, T
+
+SYSTEM_RULESET = "ssds-rules/1"
 
 
 class Assessments:
@@ -35,17 +48,13 @@ class Assessments:
             out.setdefault(self.s.record(rid)["target"]["obligation"], []).append(rid)
         return out
 
-    def realization(self, rid: str) -> dict[str, Any] | None:
+    def real(self, rid: str) -> str | None:
         realization = self.s.record(rid)["target"]["realization"]
-        return self.s.record(realization) if realization in self.s.records else None
+        return realization if realization in self.s.records else None
 
-    def claim_subjects(self, rid: str) -> set[str]:
-        realization = self.realization(rid)
-        if realization is None:
-            return set()
-        structure = self.s.view.structure
-        return {structure.subj(c["unit"]) for c in realization["target"]["claim"]
-                if c["unit"] in structure.units and structure.subj(c["unit"])}
+    def realization(self, rid: str) -> dict[str, Any] | None:
+        real = self.real(rid)
+        return self.s.record(real) if real else None
 
     def failing(self, rid: str) -> bool:
         return self.s.record(rid)["outcome"] == "FAIL"
@@ -53,27 +62,284 @@ class Assessments:
     def passing(self, rid: str) -> bool:
         return self.s.record(rid)["outcome"] == "PASS"
 
-    # -- start, about and stale (§6.4-§6.6) --------------------------------------------------------
+    def claim_units(self, rid: str) -> list[str]:
+        realization = self.realization(rid)
+        return [c["unit"] for c in realization["target"]["claim"]] if realization else []
 
-    def starts(self, rid: str) -> bool:
-        return True
+    # -- start: anchors, home, about, starts (§6.4) -------------------------------------------------
 
-    def about(self, rid: str, subject: str) -> bool:
-        return subject in self.claim_subjects(rid)
+    def _subjects_containing(self, view, units: list[str]) -> set[str]:
+        out: set[str] = set()
+        for unit in units:
+            if unit not in view.structure.units:
+                continue
+            for candidate in view.structure.units:
+                if view.structure.units[candidate].subject and unit in view.inside(candidate):
+                    out.add(candidate)
+        return out
 
-    def stale(self, rid: str) -> bool:
+    def base_position(self, rid: str) -> int:
+        """A frame record's base is the admitted state its frame merged onto; otherwise its own position."""
+
+        record = self.s.record(rid)
+        if record["frame"] == "ADMITTED":
+            return self.s.position_of(rid)
+        x = transformation_of(self.s, record["frame"]["transformation"])
+        if x is None:
+            return self.s.position_of(rid)
+        positions = [k for k in range(self.s.position_of(rid) + 1) if self.s.h.head(k) == x.base]
+        return max(positions) if positions else self.s.position_of(rid)
+
+    @lru_cache(maxsize=None)  # noqa: B019
+    def home(self, rid: str) -> frozenset[str]:
+        """Admitted anchors (and frame anchors in the lineage's frames) with their successors; never shed."""
+
+        units = self.claim_units(rid)
+        base = self.base_position(rid)
+        anchors = self._subjects_containing(self.s.h.view(base), units)
+        if self.in_lineage_frame(rid) and self.s.frame is not None:
+            anchors |= self._subjects_containing(self.s.view, units)
+        base_files = {span.path for s in anchors for span in (self.s.h.view(base).regions.get(s) or ())}
+        for subject, unit in self.s.view.structure.units.items():
+            if unit.subject and subject not in self.s.h.view(base).structure.units:
+                files = {span.path for span in (self.s.view.regions.get(subject) or ())}
+                if files & base_files:
+                    anchors.add(subject)  # a successor that received regions of a home subject
+        return frozenset(anchors)
+
+    def lineage(self, rid: str) -> str | None:
+        """The bound obligation a frame record's transformation was produced for (§6.4)."""
+
+        record = self.s.record(rid)
+        if record["frame"] == "ADMITTED":
+            return None
+        transformation = record["frame"]["transformation"]
+        for result in self.s.of_kind("TASK_RESULT"):
+            target = self.s.record(result)["target"]
+            if target.get("transformation") == transformation:
+                return (self.s.record(result)["binding"] or {}).get("obligation")
+        return None
+
+    def in_lineage_frame(self, rid: str) -> bool:
+        lineage = self.lineage(rid)
+        if lineage is None or self.s.frame is None:
+            return False
+        for result in self.s.of_kind("TASK_RESULT"):
+            record = self.s.record(result)
+            if record["target"].get("transformation") == self.s.frame.x.id:
+                return (record["binding"] or {}).get("obligation") == lineage
         return False
 
-    def admissible(self, rid: str, obligation: str) -> bool:
-        """Specification admissibility (§17.4) joins in Phase F; here an assessment is admissible for its own obligation."""
+    def required_somewhere(self, obligation: str, through: int | None = None) -> bool:
+        """The obligation is required for some subject in the admitted state at some position (a latch)."""
 
+        last = self.s.n if through is None else through
+        for k in range(last + 1):
+            view = self.s.h.view(k)
+            for subject, unit in view.structure.units.items():
+                if unit.subject and obligation in self.s.policy.get(view.structure.domain(subject), "evidence"):
+                    return True
+        return False
+
+    def starts(self, rid: str) -> bool:
+        obligation = self.s.record(rid)["target"]["obligation"]
+        if self.in_lineage_frame(rid) or self.required_somewhere(obligation):
+            return True
+        if self.s.frame is not None:
+            return any(unit.subject and obligation in self.s.policy.get(self.s.view.structure.domain(u), "evidence")
+                       for u, unit in self.s.view.structure.units.items())
+        return False
+
+    def about(self, rid: str, subject: str) -> bool:
+        if subject in self.home(rid):
+            return True
+        obligation = self.s.record(rid)["target"]["obligation"]
+        if obligation in self.s.policy.get(self.s.view.structure.domain(subject), "evidence"):
+            return True
+        home_now = {s for s in self.home(rid) if s in self.s.view.structure.units}
+        units = self.claim_units(rid)
+        within = any(u in self.s.view.inside(subject) for u in units if subject in self.s.view.structure.units)
+        within_home = any(u in self.s.view.inside(h) for u in units for h in home_now)
+        return within and not within_home
+
+    def admissible(self, rid: str, obligation: str) -> bool:
         return self.s.record(rid)["target"]["obligation"] == obligation
 
-    def adverse(self, subject: str, obligation: str) -> list[str]:
-        return [a for a in self.by_obligation.get(obligation, []) if self.failing(a) and self.admissible(a, obligation)
-                and self.starts(a) and self.about(a, subject) and not self.stale(a)]
+    # -- matching (§6.5) --------------------------------------------------------------------------
 
-    # -- disposition (§6.7) ----------------------------------------------------------------------
+    def observations(self, rid: str) -> list[str]:
+        """Every admitted observation of ``conf(a⁻)``: the same specification unit and configuration."""
+
+        real = self.realization(rid)
+        if real is None:
+            return []
+        spec, conf = real["target"]["spec"]["unit"], real["fields"].get("configuration")
+        return [o for o in self.s.of_kind("REALIZATION")
+                if self.s.record(o)["target"]["spec"]["unit"] == spec and self.s.record(o)["fields"].get("configuration") == conf]
+
+    def basis(self, observation: str) -> dict[str, Any]:
+        return self.s.record(observation)["fields"]["execution"]
+
+    def _context_available(self, basis: dict[str, Any]) -> bool:
+        context = basis.get("context", {})
+        return context.get("system", SYSTEM_RULESET) == SYSTEM_RULESET and \
+            set(context.get("analyzers", ())) <= set(self.s.analyzer_set)
+
+    def on_minus(self, observation: str, tree) -> bool:
+        """``on⁻``: every recorded tree-resident term re-resolves, under the record's own context, to its identity."""
+
+        basis = self.basis(observation)
+        if not self._context_available(basis):
+            return True  # a host lacking the recorded context asserts nothing permissive; adversely it links
+        ignore = tuple(basis.get("context", {}).get("ignore", ()))
+        terms = [t for entry in basis.get("units", []) for t in entry["terms"]]
+        terms += list(basis.get("reads", [])) + list(basis.get("widened", []))
+        return all(recorded_identity(tree, term, ignore) == cid for term, cid in terms)
+
+    def ext(self, o: str, x: str) -> bool:
+        bo, bx = self.basis(o), self.basis(x)
+        if bo.get("unpinnable", True) or bx.get("unpinnable", True):
+            return False
+        pins = lambda b: sorted(map(tuple, b.get("pins", [])))  # noqa: E731
+        attributes = lambda b: dict(map(tuple, b.get("attributes", [])))  # noqa: E731
+        return pins(bo) == pins(bx) and attributes(bo) == attributes(bx)
+
+    def bound(self, observation: str, tree, base: Callable[[str], int]) -> bool:
+        """``bound(o)`` for content ``K``: every bounding judgment stands and its content entries hold in ``K``.
+
+        Phase D reading of catalogue §6.5, recorded in the Phase D plan for Review: the
+        judgment bounds the basis for the content being matched (the failing run's
+        content in (1), the frame's in (3)), so a fix outside the failing content
+        does not unbound the reproduction. It reads completeness standing positively.
+        """
+
+        bounded_by = self.basis(observation).get("bounded_by", "UNBOUNDED")
+        if bounded_by == "UNBOUNDED" or not self._context_available(self.basis(observation)):
+            return False
+        view = TreeView(tree, self.s.view.structure, self.s.h.manifest_path)
+        for c in bounded_by:
+            if c not in self.s.records or base(c) != T:
+                return False
+            for entry in self.s.record(c)["basis"]:
+                if entry["mode"] == "content":
+                    unit, rev = entry["target"]["unit"], entry["target"]["rev"]
+                    if unit not in view.structure.units or view.rev(unit) != rev:
+                        return False
+        return True
+
+    def on_plus(self, observation: str, tree, real: str, base: Callable[[str], int]) -> bool:
+        return self._context_available(self.basis(observation)) and self.on_minus(observation, tree) and \
+            self.ext(observation, real) and self.bound(observation, tree, base)
+
+    def tree_of(self, observation: str):
+        return self.s.h.trees(self.basis(observation)["tree"])
+
+    def link_minus(self, observation: str, tree, configuration: list[str]) -> bool:
+        return any(self.on_minus(other, tree) and self.on_minus(other, self.tree_of(observation)) for other in configuration)
+
+    # -- outcomes and verdicts ------------------------------------------------------------------------
+
+    def outcome(self, observation: str) -> dict[str, Any] | None:
+        digest = self.s.record(observation)["fields"].get("evaluated")
+        data = self.s.h.objects.get(digest) if digest else None
+        return json.loads(data) if data else None
+
+    def failing_outputs(self, rid: str) -> list[str]:
+        named = self.s.record(rid)["fields"].get("failing_outputs") or []
+        if named:
+            return list(named)
+        outcome = self.outcome(self.real(rid)) if self.real(rid) else None
+        return sorted((outcome or {}).get("outputs", {}))
+
+    def restricted(self, observation: str, outputs: list[str]) -> dict[str, Any] | None:
+        outcome = self.outcome(observation)
+        if outcome is None:
+            return None
+        values = outcome.get("outputs", {})
+        return {x: values.get(x, {}).get("value") for x in outputs}
+
+    def yields(self, observation: str, rid: str) -> bool:
+        """Under the state's reading: an embedded verdict FAIL, or not computable (fail closed), or x missing."""
+
+        reading_now = self.s.cur(self.s.record(rid)["fields"]["reading"]["unit"]) \
+            if self.s.record(rid)["fields"]["reading"]["unit"] in self.s.view.structure.units else None
+        ran_under = self.s.record(observation)["target"]["spec"]["rev"]
+        outcome = self.outcome(observation) or {}
+        outputs = outcome.get("outputs", {})
+        for x in self.failing_outputs(rid):
+            if x not in outputs or ran_under != reading_now:
+                return True
+            if outputs[x].get("verdict") != "PASS":
+                return True
+        return False
+
+    def standing(self, observation: str) -> bool:
+        s = self.s
+        if not s.cont(observation) or s.record(observation)["outcome"] == "INCOMPLETE":
+            return False
+        return s.status1(observation) == "CLEAR"  # a risk override never resolves a challenge
+
+    # -- stop: staleness (§6.6) -------------------------------------------------------------------------
+
+    def stale(self, rid: str, base: Callable[[str], int]) -> bool:
+        real = self.real(rid)
+        if real is None or self.outcome(real) is None:
+            return False
+        configuration = [o for o in self.observations(rid) if self.s.record(o)["outcome"] != "INCOMPLETE"
+                         and self.outcome(o) is not None]
+        failing = self.failing_outputs(rid)
+        expected = self.restricted(real, failing)
+        failing_tree = self.tree_of(real)
+        here = self.s.view.tree
+        reproduced = any(o != real and self.standing(o) and self.on_plus(o, failing_tree, real, base)
+                         and self.restricted(o, failing) == expected for o in configuration)
+        if not reproduced:
+            return False
+        if any(self.restricted(o, failing) != expected for o in configuration
+               if self.link_minus(o, failing_tree, configuration)):
+            return False  # it differed: nondeterministic in fact, the owner's
+        if not any(self.standing(o) and self.on_plus(o, here, real, base) for o in configuration):
+            return False
+        return not any(self.yields(o, rid) for o in configuration if self.link_minus(o, here, configuration))
+
+    def explain(self, rid: str, base: Callable[[str], int]) -> dict[str, Any]:
+        """Which observations satisfy or defeat each condition, and every link traversed (798b2b4 B4)."""
+
+        real = self.real(rid)
+        configuration = [o for o in self.observations(rid) if self.s.record(o)["outcome"] != "INCOMPLETE"
+                         and self.outcome(o) is not None]
+        failing = self.failing_outputs(rid)
+        expected = self.restricted(real, failing) if real else None
+        failing_tree = self.tree_of(real) if real else None
+        here = self.s.view.tree
+
+        def links(o: str, tree) -> list[str]:
+            return [other for other in configuration if self.on_minus(other, tree) and self.on_minus(other, self.tree_of(o))]
+
+        out: dict[str, Any] = {"reproduced": [], "differed": [], "observed_here": [], "yielding_here": [], "links": []}
+        if real is None:
+            return out
+        for o in configuration:
+            if o != real and self.standing(o) and self.on_plus(o, failing_tree, real, base) and \
+                    self.restricted(o, failing) == expected:
+                out["reproduced"].append(o)
+            via = links(o, failing_tree)
+            if via and self.restricted(o, failing) != expected:
+                out["differed"].append(o)
+            out["links"].extend(("failing-content", o, v) for v in via)
+            if self.standing(o) and self.on_plus(o, here, real, base):
+                out["observed_here"].append(o)
+            via_here = links(o, here)
+            if via_here and self.yields(o, rid):
+                out["yielding_here"].append(o)
+            out["links"].extend(("here", o, v) for v in via_here)
+        return out
+
+    def adverse(self, subject: str, obligation: str, base: Callable[[str], int]) -> list[str]:
+        return [a for a in self.by_obligation.get(obligation, []) if self.failing(a) and self.admissible(a, obligation)
+                and self.starts(a) and self.about(a, subject) and not self.stale(a, base)]
+
+    # -- disposition (§6.7) ----------------------------------------------------------------------------
 
     def disposition(self, rid: str, value: Callable[[Any], int], base: Callable[[str], int], nonind: Callable[[str], bool]) -> int:
         """``disp(a⁻)``: the best effective disposition."""
@@ -89,10 +355,7 @@ class Assessments:
             if not s.superseded(d) and not nonind(d):
                 best = max(best, base(d))
             frontier.extend(s.supersessions.get(d, []))
-        targets = {rid}
-        realization = s.record(rid)["target"]["realization"]
-        if realization in s.records:
-            targets.add(realization)
+        targets = {rid} | ({self.real(rid)} if self.real(rid) else set())
         for key in targets:
             for c in s.targeting.get(key, []):
                 if s.record(c)["kind"] != "CHALLENGE":
@@ -112,10 +375,12 @@ class Assessments:
         return any(s.record(c)["kind"] == "CHALLENGE" and s.record(c)["fields"]["blocking"] and s.open(c)
                    for c in s.targeting.get(rid, []))
 
+    # -- the evidence term and qual (§5.5) ----------------------------------------------------------------
+
     def undisputed(self, subject: str, obligation: str, value: Callable[[Any], int], base: Callable[[str], int],
                    nonind: Callable[[str], bool]) -> int:
         result = T
-        for a in self.adverse(subject, obligation):
+        for a in self.adverse(subject, obligation, base):
             result = min(result, max(P, self.disposition(a, value, base, nonind)))
         return result
 
@@ -136,13 +401,19 @@ class Assessments:
         return result
 
     def support_nodes(self, subject: str) -> list[str]:
-        """Every assessment and disposition that can enter ``valid(s)``: support-graph edges 2 and 4 (§5.6)."""
+        """Support-graph edges 2 and 4 (§5.6): assessments, dispositions and bounding completeness judgments."""
 
         out = [a for records in self.by_obligation.values() for a in records if self.about(a, subject)]
-        out += [d for d in self.s.of_kind("IMMATERIALITY")]
+        out += list(self.s.of_kind("IMMATERIALITY"))
+        for a in out[:]:
+            if self.s.record(a)["kind"] == "EVIDENCE_ASSESSMENT" and self.failing(a):
+                for o in self.observations(a):
+                    bounded_by = self.basis(o).get("bounded_by", "UNBOUNDED")
+                    if bounded_by != "UNBOUNDED":
+                        out += [c for c in bounded_by if c in self.s.records]
         return out
 
-    # -- execution-basis currency (§4.1, §6.3) --------------------------------------------------------
+    # -- execution-basis currency (§4.1, §6.3) --------------------------------------------------------------
 
     def execution_current(self, basis: dict[str, Any], content_sat: Callable[[str, str], int],
                           value: Callable[[Any], int]) -> int:
