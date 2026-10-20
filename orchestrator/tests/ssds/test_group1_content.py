@@ -520,5 +520,29 @@ class StaticChecks(unittest.TestCase):
         self.assertIn("MANIFEST_UNPARSED", {f.code for f in v.integrity_findings})
 
 
+
+class AnalyzedSourceWarnings(unittest.TestCase):
+    """An analyzed file's own compile warnings are its content: they never reach the operator."""
+
+    SOURCE = b'import re\nPATTERN = "\\w+"\n\ndef check():\n    return re.compile(PATTERN)\n'
+
+    def test_parsing_emits_no_warning_and_still_analyzes(self) -> None:
+        import ast
+        import warnings
+
+        from ssds.analyzers import python
+
+        with warnings.catch_warnings(record=True) as raw:
+            warnings.simplefilter("always")
+            ast.parse(self.SOURCE)
+        self.assertTrue(raw, "the fixture's escape sequence does warn when parsed bare")
+        with warnings.catch_warnings(record=True) as seen:
+            warnings.simplefilter("always")
+            names = [d.qualname for d in python.definitions(self.SOURCE)]
+            imports = python.imports("m.py", self.SOURCE)
+        self.assertEqual(seen, [])
+        self.assertIn("check", names)
+        self.assertEqual(imports.modules, ("re",))
+
 if __name__ == "__main__":
     unittest.main()

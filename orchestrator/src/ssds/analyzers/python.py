@@ -9,6 +9,7 @@ incomplete.
 from __future__ import annotations
 
 import ast
+import warnings
 from dataclasses import dataclass
 
 ANALYZER_ID = "ssds.analyzer.python/1"
@@ -41,8 +42,12 @@ def _line_offsets(data: bytes) -> list[int]:
 
 
 def _parse(data: bytes) -> ast.Module | None:
+    """The module's syntax tree; the analyzed source's own compile warnings are its content, not the operator's."""
+
     try:
-        return ast.parse(data)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return ast.parse(data)
     except (SyntaxError, ValueError):
         return None
 

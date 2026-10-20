@@ -18,6 +18,10 @@ One program, `ssds`: one distribution, one import package and one command
 See [the Core user guide](docs/core-user-guide.md) for installation,
 configuration, stages and the full command reference.
 
+`ssds` needs Python 3.11 or newer; where the system `python3` is older, install
+it into a virtual environment made from a newer interpreter (the Core user guide,
+§1, shows how).
+
 ```bash
 pip install ./orchestrator            # from a checkout of this repository
 ssds doctor

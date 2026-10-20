@@ -19,6 +19,18 @@ from the compatible profile; it does not reinterpret an older workplan through
 
 ## 1. Install
 
+`ssds` needs Python 3.11 or newer, on both paths below. Check with
+`python3 --version`. Where the system `python3` is older, create a virtual
+environment from a newer interpreter you have (for example `python3.13`, or one
+from a conda or `uv` installation) and use that environment's `python` and
+`pip` for every command here:
+
+```bash
+python3.13 -m venv ~/.venvs/ssds
+~/.venvs/ssds/bin/pip install ./orchestrator
+~/.venvs/ssds/bin/ssds doctor
+```
+
 Checkout development does not require installing the package. The zero-install
 path uses the same CLI owner from the current checkout:
 
@@ -30,8 +42,9 @@ python3 orchestrator/bin/ssds software-implementation --config /path/to/config.t
 
 `orchestrator/bin/ssds` only places the checkout's `src/` tree first and delegates
 to the program's composition root, `ssds.cli:main`; it contains no command or product logic.
+It still needs the distribution's dependencies in the interpreter that runs it.
 
-For an installed console script, use Python 3.11+:
+For an installed console script:
 
 ```bash
 pip install ./orchestrator                 # from a checkout of this repository

@@ -26,11 +26,11 @@ DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 ren
              (content and analyzers), step 3 (the ledger), step 4 (derivation S0-S2, §5.10,
              §6, §7 frames), step 5 (S3 kernel, checkpoints, determinism) and step 6 (Admission
              genesis path); readings in §8.
-             Step 7 is prepared (`.ssds/manifest.toml`, `orchestrator/scripts/shadow_genesis.py`, a
-             rehearsal on a throwaway home) and the Phase D Review handoff, with Manual A7, is
-             `qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-HANDOFF-SSDS-8.0-DB0E9F4.md`.
-NEXT ACTION: §3 step 7, the stakeholder's genesis gate (key, prepare, sign, admit, in their own
-             terminal); then the Phase D exit record and the Review. §7 Q5 is needed only when a
+             Step 7: the stakeholder took the genesis gate and admitted the shadow ledger
+             `ssdp-shadow` in the SSDS home (`QUALIFIED`; derived with a current assertion, no
+             findings, no obligations); evidence in
+             `qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`.
+NEXT ACTION: the Phase D implementation Review (with Manual A7). §7 Q5 is needed only when a
              setting is first read.
 ```
 
@@ -60,6 +60,8 @@ One program, `ssds` (SD-56, Manual §26.3 as amended by A7): one distribution bu
 Any other submodule is private to its owner. Phase D fills `content`, `analyzers`, `ledger`, `derivation` and `admission` (genesis path and `request` types only).
 
 **Composition.** `ssds.cli` mounts one flat command set: Core's registered commands (prompt, the profile stage commands, `projects`, `capabilities`, `doctor`), then the SSDS operations as their owners provide them (none in Phase D; the Interface is Phase E). A name claimed twice raises at composition, so acceptance catches it. Core's command module no longer runs on its own (`python -m` entry removed); the checkout launcher is `orchestrator/bin/ssds`. Core still discovers other programs' extensions through `ssds.extensions.v1`; the SSDS components are not extensions.
+
+**Interpreter.** `ssds` requires Python 3.11 or newer (`requires-python`; `tomllib` and the typing the program uses). A host whose system `python3` is older, as on the stakeholder's machine (3.10), runs `ssds` from a virtual environment made from a newer interpreter; the first-day docs (`orchestrator/README.md`, the Core user guide §1) say how.
 
 **Operator data.** Core reads its configuration from `$SSDS_HOME/config.toml`, `$SSDS_HOME` defaulting to `~/.ssds` and required to be absolute; `ssds doctor` names the home and writes nothing, and the home is created on first write (the ledger, step 3). Ledger repositories (one per project, §21.5 option (ii)), `LOCAL_TRUST` witness stores, the derived index and caches, and later Dispatcher workspaces and journals live in the same home.
 
