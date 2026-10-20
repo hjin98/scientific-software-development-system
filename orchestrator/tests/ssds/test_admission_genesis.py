@@ -9,6 +9,8 @@ compare the product repository before and after at run time.
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -201,7 +203,8 @@ class Refusals(GenesisFixture):
         (self.home.root / "genesis").symlink_to(outside, target_is_directory=True)
         prepared = prepare_genesis(self.spec(), self.home, self.trees)
         self.assertFalse(prepared.valid)
-        self.assertTrue(any("outside the SSDS home" in p for p in prepared.problems), prepared.problems)
+        self.assertTrue(any("outside the SSDS home" in p or "symbolic link" in p for p in prepared.problems),
+                                prepared.problems)
         self.assertEqual(list(outside.iterdir()), [], "a symbolic link does not carry a write out of the home")
 
     def test_a_symbolic_link_at_a_file_never_carries_a_write_out_of_the_home(self) -> None:
@@ -218,7 +221,8 @@ class Refusals(GenesisFixture):
                 (workspace / name).symlink_to(sentinel)
                 prepared = prepare_genesis(self.spec(), self.home, self.trees)
                 self.assertFalse(prepared.valid)
-                self.assertTrue(any("outside the SSDS home" in p for p in prepared.problems), prepared.problems)
+                self.assertTrue(any("outside the SSDS home" in p or "symbolic link" in p for p in prepared.problems),
+                                prepared.problems)
                 self.assertEqual(sentinel.read_text(), "untouched\n")
                 with self.assertRaises(GenesisRefused):
                     admit_genesis(self.home, "demo", "signature")
@@ -236,6 +240,64 @@ class Refusals(GenesisFixture):
         (state / "high-water.tmp").symlink_to(sentinel)
         self.assertFalse(prepare_genesis(self.spec(), self.home, self.trees).valid)
         self.assertEqual(sentinel.read_text(), "untouched\n")
+
+    def test_no_symbolic_link_anywhere_in_the_operator_tree(self) -> None:
+        """Review 137b763 A-B3: one rule for the family; Git writes included, the product never touched."""
+
+        before = product_state(self.product)
+        outside = self.root / "outside"
+        outside.mkdir()
+
+        def bare_ledger_with(link: str, target: Path) -> Path:
+            repository = self.home.root / "ledgers" / "demo.git"
+            repository.mkdir(parents=True)
+            subprocess.run(["git", "init", "--quiet", "--bare", str(repository)], check=True)
+            moved = repository / link
+            if moved.is_dir():
+                shutil.rmtree(moved)
+            moved.symlink_to(target, target_is_directory=True)
+            return repository
+
+        cases = {
+            "objects outside": ("objects", outside),
+            "refs outside": ("refs", outside),
+            "refs into the product": ("refs", self.product / ".git" / "refs"),
+        }
+        for name, (link, target) in cases.items():
+            with self.subTest(name):
+                repository = bare_ledger_with(link, target)
+                prepared = prepare_genesis(self.spec(), self.home, self.trees)
+                self.assertFalse(prepared.valid)
+                self.assertTrue(any("already exists" in p or "symbolic link" in p for p in prepared.problems),
+                                prepared.problems)
+                shutil.rmtree(repository)
+        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+        self.assertTrue(prepared.valid, prepared.problems)
+        signature = sshsig(self.private, prepared.message)
+        bare_ledger_with("refs", self.product / ".git" / "refs")  # appears between the gate and the append
+        with self.assertRaises(GenesisRefused):
+            admit_genesis(self.home, "demo", signature)
+        shutil.rmtree(self.home.root / "ledgers" / "demo.git")
+        for component in ("witness", "state"):
+            with self.subTest(component=component):
+                target = self.home.root / component
+                kept = self.root / f"kept-{component}"
+                if target.exists():
+                    target.rename(kept)
+                target.symlink_to(outside, target_is_directory=True)
+                with self.assertRaises(GenesisRefused):
+                    admit_genesis(self.home, "demo", signature)
+                target.unlink()
+                if kept.exists():
+                    kept.rename(target)
+        (self.home.root / "witness" / "planted").symlink_to(outside)
+        with self.assertRaises(GenesisRefused):
+            admit_genesis(self.home, "demo", signature)
+        (self.home.root / "witness" / "planted").unlink()
+        self.assertEqual(list(outside.iterdir()), [], "nothing was written outside the home")
+        self.assertEqual(product_state(self.product), before, "nothing was written to the product")
+        self.assertEqual(admit_genesis(self.home, "demo", signature).qualification, "QUALIFIED", "the clean control")
+        self.assertEqual(product_state(self.product), before)
 
     def test_an_unreadable_baseline_or_policy(self) -> None:
         self.assertRefused("cannot be read", baseline_commit="0" * 40)

@@ -229,17 +229,21 @@ def qualify(
         if position <= top and any(d != digests[position] and d not in abandoned for d in found):
             return Qualification("FORK")
     marks = [(p, d) for p, d in seen if d not in abandoned]
+    retained = None  # the evaluator's own high-water mark: the last head it qualified (§23.4)
     if high_water is not None and high_water.entry_digest not in abandoned:
         if high_water.position <= top and digests[high_water.position] != high_water.entry_digest:
             return Qualification("FORK")
-        marks.append((high_water.position, high_water.entry_digest))
-    if any(p > top for p, _ in marks):
+        retained = high_water.position
+    if any(p > top for p, _ in marks) or (retained is not None and retained > top):
         return Qualification("ROLLBACK" if authoritative else "BEHIND")
     holders = {p: sum(1 for cps in responders.values() if any(c.position == p and c.entry_digest == digests[p] for c in cps))
                for p in range(len(digests))}
     floor = max((p for p, _ in marks), default=-1)
+    # An observed checkpoint may be H*'s single provisional successor, still being distributed (plan §6);
+    # the retained mark has no such allowance: H* extends it (§23.1, §23.4).
     candidates = [p for p, n in holders.items() if n >= model.q_a and p >= floor - 1]
     candidates = [p for p in candidates if all(p >= m or m == p + 1 for m, _ in marks)]
+    candidates = [p for p in candidates if retained is None or p >= retained]
     if not candidates:
         return Qualification("UNQUALIFIED")
     head = max(candidates)

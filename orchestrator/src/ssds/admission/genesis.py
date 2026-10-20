@@ -37,7 +37,6 @@ from ssds.ledger.read import (
     SYSTEM_RULESET,
     entry_violations,
     human_key_id,
-    ledger_head,
     ledger_ref,
     read_chain,
     is_unit,
@@ -100,11 +99,15 @@ def genesis_approval_message(genesis: Mapping[str, Any]) -> bytes:
 class Home:
     """Where Admission keeps a project's operator data, under the SSDS home (created on first write).
 
-    Every path it hands out is checked first: the ledger id must be a unit
-    identity (catalogue §1.1), the resolved path, symbolic links followed,
-    must stay inside the resolved home, and a file it hands out must not be a
-    symbolic link itself (writes also open with ``O_NOFOLLOW``), so no input or
-    pre-existing link can direct a write outside it.
+    One rule closes every way a path could be redirected out of the home: the
+    operator tree a ledger uses (its ledger repository, witness, keys, genesis
+    workspace and state, and the directories that hold them) contains no
+    symbolic link at all, checked by :meth:`check` before any effect. The ledger
+    id must be a unit identity (catalogue §1.1), every resolved path must stay
+    inside the resolved home, and writes open with ``O_NOFOLLOW`` as a backstop.
+    The home itself may be reached through a link; nothing inside it may be one.
+    A genesis creates its ledger repository afresh, so no pre-existing Git
+    layout (internal links, alternates, configuration) is ever written through.
     """
 
     #: The files of a ledger's genesis workspace.
@@ -169,9 +172,29 @@ class Home:
         self._file("state", ledger_id, "high-water.tmp")
         return HighWaterStore(self._file("state", ledger_id, "high-water.json"))
 
-    def check(self, ledger_id: str) -> None:
-        """Refuse before any filesystem effect: every path this ledger would use stays in the home."""
+    def operator_tree(self, ledger_id: str) -> tuple[Path, ...]:
+        """Every directory tree this ledger's operator data lives in."""
 
+        self.check_ledger_id(ledger_id)
+        return (self.root / "ledgers" / f"{ledger_id}.git", self.root / "witness", self.root / "keys" / "admission",
+                self.root / "genesis" / ledger_id, self.root / "state" / ledger_id)
+
+    def check(self, ledger_id: str) -> None:
+        """Refuse before any filesystem effect: no link anywhere in this ledger's operator tree, every path inside."""
+
+        for top in self.operator_tree(ledger_id):
+            relative = top.relative_to(self.root).parts
+            for depth in range(1, len(relative) + 1):  # the directories that hold it
+                component = self.root.joinpath(*relative[:depth])
+                if component.is_symlink():
+                    raise HomeRefused(f"{component} is a symbolic link; nothing inside the SSDS home may be one")
+            if not top.exists():
+                continue
+            for directory, dirnames, filenames in os.walk(top, followlinks=False):
+                for name in dirnames + filenames:
+                    path = Path(directory, name)
+                    if path.is_symlink():
+                        raise HomeRefused(f"{path} is a symbolic link; nothing inside the SSDS home may be one")
         self.ledger_repository(ledger_id), self.witness_root, self.witness_directory(ledger_id)
         self.admission_key(ledger_id), self.workspace(ledger_id), self.high_water(ledger_id)
         for name in self.WORKSPACE_FILES:
@@ -257,8 +280,9 @@ def prepare_genesis(spec: GenesisSpec, home: Home, trees: TreeSource) -> Prepare
     problems: list[str] = []
     findings: list[str] = []
     repository = home.ledger_repository(spec.ledger_id)
-    if repository.exists() and ledger_head(repository, spec.ledger_id) is not None:
-        problems.append(f"ledger {spec.ledger_id} already exists at {repository}")
+    if repository.exists() or repository.is_symlink():
+        problems.append(f"ledger {spec.ledger_id} already exists at {repository}: a genesis creates its own ledger "
+                        "repository and never writes into an existing one")
     try:
         tree = trees(spec.baseline_commit)
     except (KeyError, ValueError, OSError, RuntimeError) as exc:
@@ -413,8 +437,9 @@ def admit_genesis(home: Home, ledger_id: str, signature: str) -> Admitted:
     if canonical_json(genesis) != (workspace / "proposal.json").read_bytes() or genesis_approval_message(genesis) != message:
         raise GenesisRefused(["the prepared proposal changed after it was prepared"])
     repository = home.ledger_repository(ledger_id)
-    if repository.exists() and ledger_head(repository, ledger_id) is not None:
-        raise GenesisRefused([f"ledger {ledger_id} already exists"])
+    if repository.exists() or repository.is_symlink():
+        raise GenesisRefused([f"ledger {ledger_id} already exists at {repository}: a genesis creates its own "
+                              "ledger repository"])
     policy = objects["policy"].encode("utf-8")
     analyzers = canonical_json(list(objects["analyzers"]))
     if genesis["ruleset"] != {**genesis["ruleset"], "policy": _digest(policy), "analyzers": _digest(analyzers)}:
@@ -436,6 +461,10 @@ def admit_genesis(home: Home, ledger_id: str, signature: str) -> Admitted:
     if problems:
         raise GenesisRefused(problems)
 
+    try:
+        home.check(ledger_id)  # once more, immediately before the first Git write
+    except HomeRefused as refused:
+        raise GenesisRefused([str(refused)]) from None
     create_ledger_repository(repository)
     import_commits(repository, Path(source["product_repository"]), [genesis["fields"]["baseline_commit"]])
     appended = append_entry(repository, entry, key, None, objects={_digest(policy): policy, _digest(analyzers): analyzers},

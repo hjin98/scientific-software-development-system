@@ -217,7 +217,9 @@ class DependencyRuleDiscriminatorTests(_Discriminator):
                      "from ssds import content\ndef f(r):\n    return content.read_tree(r, 'HEAD')\n",
                      "from ..ledger.read import read_chain\n",
                      "import ssds.content\ndef f(r):\n    return ssds.content.read_tree(r, 'HEAD')\n",
-                     "from ..ledger import read\ndef f(r):\n    return read.read_chain(r, 'demo')\n"):
+                     "from ..ledger import read\ndef f(r):\n    return read.read_chain(r, 'demo')\n",
+                     "import ssds.content as c\ndef f(r):\n    return c.read_tree(r, 'HEAD')\n"
+                     "def g():\n    import collections as c\n    return c.Counter()\n"):
             with self.subTest(text=text):
                 self.assertViolations({path: text}, {("F8", path)})
         pure = ("from dataclasses import dataclass\n@dataclass\nclass Snapshot:\n    read_raw: bytes\n"

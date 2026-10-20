@@ -198,21 +198,22 @@ def _git_readers(module: _Module) -> list[tuple[str, int]]:
     """Git readers a module reaches through the content or ``ledger.read`` facade, by import or attribute.
 
     A name is flagged only when it is imported from one of those modules, or read as an attribute of a
-    name bound to one of them (``content.read_tree``, ``ssds.content.read_tree``); an unrelated object's
-    attribute of the same spelling is not.
+    name bound to one of them in any scope of the module (``content.read_tree``, ``ssds.content.read_tree``);
+    an unrelated object's attribute of the same spelling is not. Scopes are not separated, so a name that
+    denotes one of those modules anywhere is treated as denoting it everywhere: conservative, never blind.
     """
 
     is_package = module.path.name == "__init__.py"
     package = module.name if is_package else module.name.rpartition(".")[0]
-    bound: dict[str, str] = {}  # local name -> module it denotes
+    bound: dict[str, set[str]] = {}  # local name -> every module it denotes in any scope (Review 137b763 NF4)
     found: list[tuple[str, int]] = []
     for node in ast.walk(module.tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.asname:
-                    bound[alias.asname] = alias.name
+                    bound.setdefault(alias.asname, set()).add(alias.name)
                 else:
-                    bound[alias.name.split(".")[0]] = alias.name.split(".")[0]
+                    bound.setdefault(alias.name.split(".")[0], set()).add(alias.name.split(".")[0])
         elif isinstance(node, ast.ImportFrom):
             if node.level:
                 base = package.split(".")
@@ -224,7 +225,7 @@ def _git_readers(module: _Module) -> list[tuple[str, int]]:
             for alias in node.names:
                 if parent in DERIVATION_IO_MODULES and alias.name in DERIVATION_IO_NAMES:
                     found.append((alias.name, node.lineno))
-                bound[alias.asname or alias.name] = f"{parent}.{alias.name}"
+                bound.setdefault(alias.asname or alias.name, set()).add(f"{parent}.{alias.name}")
     for node in ast.walk(module.tree):
         if isinstance(node, ast.Attribute) and node.attr in DERIVATION_IO_NAMES:
             parts: list[str] = []
@@ -233,7 +234,7 @@ def _git_readers(module: _Module) -> list[tuple[str, int]]:
                 parts.insert(0, value.attr)
                 value = value.value
             if isinstance(value, ast.Name) and value.id in bound:
-                if ".".join([bound[value.id], *parts]) in DERIVATION_IO_MODULES:
+                if any(".".join([module, *parts]) in DERIVATION_IO_MODULES for module in bound[value.id]):
                     found.append((node.attr, node.lineno))
     return found
 

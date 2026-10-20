@@ -266,6 +266,20 @@ class Qualification(unittest.TestCase):
         self.assertEqual(qualify(self.chain(5), declared, duplicated, self.keys).state, "UNQUALIFIED",
                          "a witness set without N distinct identities qualifies nothing")
 
+    def test_no_current_head_below_the_retained_high_water_mark(self) -> None:
+        """Review 137b763 A-B7: the provisional allowance is for observed checkpoints, never for the mark."""
+
+        model = _model(3, 2, 2, 0)
+        through_4 = {"w0": [self.cp(4)], "w1": [self.cp(4)]}
+        mark5 = HighWaterMark(5, "sha256:" + f"{5:064x}")
+        self.assertEqual(qualify(self.chain(6), through_4, model, self.keys, mark5).state, "UNQUALIFIED",
+                         "5 was qualified before: presenting 4 as current would go back")
+        control = qualify(self.chain(6), through_4, model, self.keys, HighWaterMark(4, "sha256:" + f"{4:064x}"))
+        self.assertEqual((control.state, control.head, control.provisional), ("QUALIFIED", 4, 5),
+                         "a successor never qualified stays provisional")
+        restored = qualify(self.chain(6), {"w0": [self.cp(4), self.cp(5)], "w1": [self.cp(5)]}, model, self.keys, mark5)
+        self.assertEqual((restored.state, restored.head), ("QUALIFIED", 5))
+
     def test_loss_bounds(self) -> None:
         self.assertEqual((loss_status(0, 1, 0, 2), loss_status(1, 1, 0, 2), loss_status(2, 0, 1, 2)),
                          ("PROVED_NEVER_ADMITTED", "POSSIBLY_ADMITTED", "KNOWN_ADMITTED"))

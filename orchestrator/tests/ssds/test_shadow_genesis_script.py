@@ -175,6 +175,38 @@ class ShadowGenesisScript(unittest.TestCase):
         code, report = self.report()
         self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "ROLLBACK", False))
 
+    def test_a_witness_only_restore_never_presents_an_older_head(self) -> None:
+        """Review 137b763 A-B7: chain at 1, mark at 1, witnesses through 0 only: nothing current."""
+
+        from ssds.ledger.append import HostKey, append_entry, write_checkpoint
+        from ssds.ledger.qualification import FileWitness
+        from ssds.ledger.read import read_chain
+
+        from ._fixtures import entry, record
+
+        self.admitted()
+        repository = self.home / "ledgers" / "demo.git"
+        chain = read_chain(repository, "demo")
+        key = HostKey.from_private_bytes((self.home / "keys" / "admission" / "demo.ed25519").read_bytes())
+        adoption = record("RULESET_ADOPTION", target=None, actor="human:SHA256:x",
+                          fields={"system": "ssds-rules/1", "policy": "sha256:" + "0" * 64,
+                                  "analyzers": ["ssds.analyzer.python/1"]})
+        appended = append_entry(repository, entry("demo", 1, chain.entries[0].digest, key, lifecycle=adoption,
+                                                  obs=self.baseline), key, chain.entries[0].commit)
+        write_checkpoint(FileWitness(self.home / "witness"), appended.checkpoint)
+        self.assertEqual(self.report()[1]["qualified_head"], 1)
+        mark = self.home / "state" / "demo" / "high-water.json"
+        kept = mark.read_bytes()
+        (checkpoint,) = (self.home / "witness" / "demo").glob("000000000001-*.json")
+        held = checkpoint.read_bytes()
+        checkpoint.unlink()
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "UNQUALIFIED", False))
+        self.assertEqual(mark.read_bytes(), kept, "the mark is unchanged")
+        checkpoint.write_bytes(held)
+        code, report = self.report()
+        self.assertEqual((code, report["qualified_head"], report["current_assertion"]), (0, 1, True))
+
     def test_a_retired_witness_lineage_presents_nothing_current(self) -> None:
         """Review 517af45 NF3: the consumer passes the witness's retirement to qualification."""
 
@@ -194,7 +226,7 @@ class ShadowGenesisScript(unittest.TestCase):
         target.symlink_to(sentinel)
         result = self.run_script("derive")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("outside the SSDS home", result.stdout)
+        self.assertTrue("outside the SSDS home" in result.stdout or "symbolic link" in result.stdout, result.stdout)
         self.assertEqual(sentinel.read_text(), "untouched\n")
 
     def test_a_refused_genesis_prints_why_and_publishes_nothing(self) -> None:
