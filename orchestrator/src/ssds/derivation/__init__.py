@@ -4,18 +4,28 @@ never writes canonical state, chooses the current prefix or reads the live
 integration ref, the clock, the network or the environment (§26.2).
 
 ``derive(chain, trees)`` is the entry point: ``trees`` maps a commit identity to
-its content tree, so derivation itself reads no Git.
+its content tree, so derivation itself reads no Git. ``consequences`` adds the
+S3 kernel. A derivation checkpoint (``History.checkpoint``) resumes the S0 fold
+and equals derivation from scratch; storing it is its caller's.
 """
 
-from .history import History, TreeSource
+from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
+from .s3 import Consequences, Finding, Obligation
 from .state import F, P, T, State
 from .support import Support
 
 
-def derive(chain, trees: TreeSource, position: int | None = None) -> Support:
+def derive(chain, trees: TreeSource, position: int | None = None, checkpoint: bytes | None = None) -> Support:
     """The derived state ``D_n`` of a verified chain at ``position`` (default: the last readable position)."""
 
-    return Support(State(History(chain, trees), position))
+    return Support(State(History(chain, trees, checkpoint), position))
 
 
-__all__ = ["F", "History", "P", "State", "Support", "T", "TreeSource", "derive"]
+def consequences(chain, trees: TreeSource, position: int | None = None, checkpoint: bytes | None = None) -> Consequences:
+    """``D_n`` with its S3 kernel: findings, obligations and whether the view may assert currentness."""
+
+    return Consequences(derive(chain, trees, position, checkpoint))
+
+
+__all__ = ["CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History", "Obligation", "P",
+           "State", "Support", "T", "TreeSource", "consequences", "derive"]

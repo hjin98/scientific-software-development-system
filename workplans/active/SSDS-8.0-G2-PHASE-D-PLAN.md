@@ -23,9 +23,9 @@ STATUS: ACTIVE. Companion to the G2 shadow workplan, Stage D (§5.2 Phase D row)
 SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNED; no cutover. The
         document-controlled 7.2.1 baseline governs. The shadow genesis human gate is the stakeholder's.
 DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 rename (§2), step 2
-             (content and analyzers), step 3 (the ledger) and step 4 (derivation S0-S2, §5.10,
-             §6, §7 frames; readings and deferrals in §8).
-NEXT ACTION: §3 step 5 (S3 kernel and determinism). §7 Q5 is needed only when a setting is first read.
+             (content and analyzers), step 3 (the ledger), step 4 (derivation S0-S2, §5.10,
+             §6, §7 frames) and step 5 (S3 kernel, checkpoints, determinism); readings in §8.
+NEXT ACTION: §3 step 6 (Admission genesis path). §7 Q5 is needed only when a setting is first read.
 ```
 
 ## 1. Scope and authority
@@ -121,7 +121,7 @@ Answered by SD-56: **Q1** (SC-D1) rename to one program `ssds`; **Q2** `cryptogr
 
 5. **The `[ssds]` configuration section.** Proposed: when step 3 first needs a setting (ledger and witness locations, key references), add `[ssds]` to Core's configuration owner as a second open section bounded like `[extensions."<ns>"]`: Core validates its size and preserves it, and SSDS interprets it. This is an additive Core configuration change; Core's existing configurations keep their identity.
 
-## 8. Phase D readings and deferrals (step 4)
+## 8. Phase D readings and deferrals (steps 4 and 5)
 
 Where the catalogue leaves a choice to D4 or names a later owner, step 4 reads it as below. Each reading is a Review question in the Phase D implementation Review; none changes a Manual or register decision.
 
@@ -138,3 +138,12 @@ Where the catalogue leaves a choice to D4 or names a later owner, step 4 reads i
 **Fail closed until a later owner.** NATIVE D1/D2 targets have no passing acceptance or gate until §10.2's revision runs exist (Phase E); plan-acceptance reach is over-approximated (every item unit) until §13.4's amendment rules (Phase E); declarative verdicts never yield until §14.3's evaluator (Phase E); the admissibility checks of §17.4 are Phase F. Each fails toward "not supported", never toward support.
 
 **Group 3 discriminators not executed in Phase D, with reason.** The D1/D2 revision-run variants of 575dc78 N5, f7419d5 N4 and f22b4dc N5, and the plan half of 63ddf91 N5 (plan relief after amendment or tightening), need §10.2 and §13.4 (Phase E). f03b15e N5's human reassessment of an answered non-gate obligation needs §10.3 (Phase E). 51070e5 N3's adjudication-independence refusal, f03b15e N5's supersession-authority cases (the judgment key of §8.3 step 3) and the other cases whose distinguishing step is an Admission refusal (§8.3 steps 3 and 7) are Phase F. They are reported unexecuted, not passed. The derivation halves are in `test_group3_discriminators.py`, `test_judgment.py` and `test_frames.py`.
+
+**Step 5 readings** (`derivation/s3.py`, `derivation/history.py`; tests `test_s3.py`, `test_determinism.py`).
+
+8. *Which forced components are ordinary (catalogue §5.6 (v)).* A forced component is an ordinary finding when it contains a `valid(s)` edge that §6 adds (an assessment, disposition or bounding completeness judgment about `s`), and an integrity obligation otherwise. This over-approximates the two absorption-extensible `about` terms through `home`, as §5.6 item 2 itself does; every forced node is `F` either way, so the reading changes only the attention, never a value.
+9. *Requalification (§23.6).* "In effect at `R`" is `current > F` at the retained head (a relaxer: in force there); "withheld now" is `¬cont`. A fresh record of the same kind on the same target, admitted after the boundary and current now (a relaxer: in force), ends the obligation. Permissive means an evaluated kind with no adverse outcome (failing assessments are unchanged by a boundary).
+10. *Views.* A view at a position before the chain's last authenticated entry is historical. No view asserts currentness under an `INTEGRITY_HALT`, an unreadable schema version, a missing pinned analyzer (finding 6ff4ed1 B3), or in a frame; the halt finding and its `CRITICAL` integrity obligation appear in every view.
+11. *Checkpoints (§5.9).* A derivation checkpoint caches the S0 fold through a position (per-position head, `Σ`, modes and ruleset, integrations, boundaries, the record index) under the key `(ledger, position, entry digest, ruleset with analyzer set, schema, derivation system version)`, recomputed from the ledger before use, with a body digest; S1-S3 are functions of that fold and the trees, recomputed per view. The encoding is sorted-key JSON (delegated by §5.9). Where checkpoints are stored (the private derived index in the SSDS home) and the write cadence (every 1,000 entries and every lifecycle entry) are the caller's, the Interface in Phase E; derivation writes nothing.
+
+**Deferred from S3.** The re-application obligation of an `OVERTAKEN` admission's open item obligation, readiness, discharge, drift, impact, briefs, conformance and routing views read item obligations and plans (§10, §13), so they are Phase E queries over the same strata.
