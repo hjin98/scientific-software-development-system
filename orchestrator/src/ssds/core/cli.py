@@ -21,7 +21,6 @@ from . import profile as P
 from . import protocol_source as PS
 from .application import create_application
 from .canonical import all_stage_keys
-from .config import retired_config_path
 from .records import (
     ActivationPolicy,
     ApplicationRequest,
@@ -246,13 +245,6 @@ def doctor_command(config: Optional[str] = _config_opt) -> None:
         except E.OrchestratorError as exc:
             packaged.append({"profile_id": profile_id, "problem": exc.problem.to_dict()})
     report["packaged_profiles"] = packaged
-
-    retired = retired_config_path()
-    if retired.is_file():
-        report["retired_config"] = {
-            "path": str(retired),
-            "detail": "configuration at the retired program location is not read or migrated",
-        }
 
     # Backward-compatible doctor field retained for consumers that used the v1
     # single-profile report.  It continues to mean the frozen 5.16 package.

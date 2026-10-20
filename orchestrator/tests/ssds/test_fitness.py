@@ -237,12 +237,9 @@ class DependencyRuleDiscriminatorTests(_Discriminator):
         core_main = f"{C}/__main__.py"
         self.assertViolations({core_main: ""}, {("F10", core_main)})
 
-    def test_the_program_is_not_an_extension_of_itself_and_the_old_group_is_gone(self) -> None:
+    def test_the_program_is_not_an_extension_of_itself(self) -> None:
         text = CLEAN[PYPROJECT] + '[project.entry-points."ssds.extensions.v1"]\nx = "ssds.cli:main"\n'
         self.assertViolations({PYPROJECT: text}, {("F10", PYPROJECT)})
-        other = "tools/pyproject.toml"
-        retired = '[project]\nname = "x"\n[project.entry-points."sdp_orchestrator.extensions.v1"]\nx = "x:p"\n'
-        self.assertViolations({other: retired}, {("F10", other)})
 
     def test_no_private_cross_module_import(self) -> None:
         path = f"{S}/content/model.py"
@@ -265,10 +262,9 @@ class DependencyRuleDiscriminatorTests(_Discriminator):
         path = f"{S}/__init__.py"
         self.assertViolations({path: "from . import derivation\n"}, {("F12", path)})
 
-    def test_only_declared_dependencies_and_no_retired_name(self) -> None:
+    def test_only_declared_dependencies(self) -> None:
         path = f"{S}/content/model.py"
         self.assertViolations({path: "import yaml\n"}, {("F12", path)})
-        self.assertViolations({path: "import sdp_orchestrator.core.api.v1\n"}, {("F12", path)})
 
     def test_every_module_has_an_owner(self) -> None:
         path = f"{S}/util.py"

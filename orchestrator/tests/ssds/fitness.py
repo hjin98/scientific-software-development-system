@@ -24,7 +24,6 @@ PROGRAM_PYPROJECT = "orchestrator/pyproject.toml"
 PROGRAM_SRC = "orchestrator/src"
 CONSOLE_SCRIPTS = {"ssds": "ssds.cli:main"}
 EXTENSION_GROUP = "ssds.extensions.v1"
-RETIRED_GROUP = "sdp_orchestrator.extensions.v1"
 
 COMPONENTS = ("content", "analyzers", "ledger", "derivation", "admission", "dispatcher", "interface")
 FACADES = ("api", "spi")
@@ -360,8 +359,6 @@ def check(repo_root: Path, repo_files: list[str], model_stems: frozenset[str]) -
             line = f"line {imp.line}"
             if root == SSDS:
                 violations.extend(_check_program_import(owner, imp, where))
-            elif root == "sdp_orchestrator":
-                violations.append(Violation("F12", where, f"{line}: {imp.target} is a retired program name"))
             elif root == "qualification" or root in model_stems:
                 violations.append(Violation("F13", where, f"{line}: imports the Stage S models ({imp.target})"))
             elif root in DYNAMIC_MODULES:
@@ -448,8 +445,6 @@ def _check_packaging(repo_root: Path, repo_files: list[str]) -> list[Violation]:
             programs.append(relative)
         if relative != PROGRAM_PYPROJECT and "ssds" in project.get("scripts", {}):
             out.append(Violation("F10", relative, "a second distribution declares the ssds command"))
-        if RETIRED_GROUP in groups:
-            out.append(Violation("F10", relative, f"the retired group {RETIRED_GROUP} is declared"))
         if relative == PROGRAM_PYPROJECT:
             if project.get("scripts", {}) != CONSOLE_SCRIPTS:
                 out.append(Violation("F10", relative, f"console scripts must be exactly {CONSOLE_SCRIPTS}"))

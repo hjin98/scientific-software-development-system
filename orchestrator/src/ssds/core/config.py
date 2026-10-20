@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
-import platformdirs
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from . import errors as E
@@ -37,8 +36,6 @@ CONFIG_FILENAME = "config.toml"
 #: (Manual §26.3, SD-56): ``$SSDS_HOME``, by default ``$HOME/.ssds``.
 SSDS_HOME_ENV = "SSDS_HOME"
 DEFAULT_SSDS_HOME_NAME = ".ssds"
-#: The retired program's configuration directory: reported by ``ssds doctor``, never read or migrated.
-RETIRED_APP_NAME = "sdp-orchestrator"
 
 _LOCAL_URL_SCHEMES = frozenset({"file"})
 _WEB_URL_SCHEMES = frozenset({"https", "http", "ssh", "git"})
@@ -122,9 +119,6 @@ def ssds_home() -> Path:
 def default_config_path() -> Path:
     return ssds_home() / CONFIG_FILENAME
 
-
-def retired_config_path() -> Path:
-    return Path(platformdirs.user_config_dir(RETIRED_APP_NAME, appauthor=False)) / CONFIG_FILENAME
 
 
 def _check_depth(value: Any, depth: int = 0) -> None:

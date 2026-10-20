@@ -8,7 +8,7 @@ created_date: 2026-10-19
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase D row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 decided, SD-56, its text's independent Review pending)
 g2_authorization: SD-55 (shadow implementation only)
-stakeholder_amendment: SD-56 (one program `ssds`; operator data in the SSDS home; §6-§7 answered)
+stakeholder_amendment: SD-56 (one program `ssds`; operator data in the SSDS home; §6-§7 answered); SD-57 (a first release with no predecessor installation; the genesis approval key)
 active_serious_challenge: none (SC-D1 resolved by SD-56)
 ---
 
@@ -35,7 +35,7 @@ This file decides only D4 placement and order. Every behaviour cites the registe
 
 ## 2. Package layout
 
-One program, `ssds` (SD-56, Manual §26.3 as amended by A7): one distribution built from `orchestrator/pyproject.toml`, one regular import package `ssds` under `orchestrator/src/ssds/`, one console script `ssds = "ssds.cli:main"`. The `sdp` command and the names `sdp_orchestrator`, `sdp-orchestrator-core`, `sdp-orchestrator-ssds` and `sdp_orchestrator.extensions.v1` are retired without alias. Identifiers inside frozen profiles and persisted records (`sdp.content.v1` and the other digest schemes, `sdp.stage-result-envelope`, the `SDP_STAGE_RESULT_V1` footer, profile id `sdp-protocol-5.16`) are data and unchanged, as are the snapshot bytes.
+One program, `ssds` (SD-56, Manual §26.3 as amended by A7): one distribution built from `orchestrator/pyproject.toml`, one regular import package `ssds` under `orchestrator/src/ssds/`, one console script `ssds = "ssds.cli:main"`. `ssds` is a first release with no predecessor installation (SD-57): no compatibility, detection or migration for earlier names, configuration or data. Identifiers inside frozen profiles and persisted records (`sdp.content.v1` and the other digest schemes, `sdp.stage-result-envelope`, the `SDP_STAGE_RESULT_V1` footer, profile id `sdp-protocol-5.16`) are data and unchanged, as are the snapshot bytes.
 
 | Path under `orchestrator/src/ssds/` | Owner | Public modules other owners may import |
 |---|---|---|
@@ -54,7 +54,7 @@ Any other submodule is private to its owner. Phase D fills `content`, `analyzers
 
 **Composition.** `ssds.cli` mounts one flat command set: Core's registered commands (prompt, the profile stage commands, `projects`, `capabilities`, `doctor`), then the SSDS operations as their owners provide them (none in Phase D; the Interface is Phase E). A name claimed twice raises at composition, so acceptance catches it. Core's command module no longer runs on its own (`python -m` entry removed); the checkout launcher is `orchestrator/bin/ssds`. Core still discovers other programs' extensions through `ssds.extensions.v1`; the SSDS components are not extensions.
 
-**Operator data.** Core reads its configuration from `$SSDS_HOME/config.toml`, `$SSDS_HOME` defaulting to `~/.ssds` and required to be absolute; `ssds doctor` reports a file at the retired `platformdirs` location without reading it. Ledger repositories (one per project, §21.5 option (ii)), `LOCAL_TRUST` witness stores, the derived index and caches, and later Dispatcher workspaces and journals live in the same home.
+**Operator data.** Core reads its configuration from `$SSDS_HOME/config.toml`, `$SSDS_HOME` defaulting to `~/.ssds` and required to be absolute. Ledger repositories (one per project, §21.5 option (ii)), `LOCAL_TRUST` witness stores, the derived index and caches, and later Dispatcher workspaces and journals live in the same home.
 
 **Reading of the §26.2 table (D4 reconciliation, no decision changed).** Rows that say "only" (content, analyzers, ledger, derivation) are closed lists, so derivation imports no Core module either. The SSDS-component lists of admission, dispatcher and interface are closed too; those three may also use Core's public API (`core.api.v1`, `core.spi.v1`), since §26.4 reuses Core records (`WorktreeKey`, `DigestRef`, `ProtocolProfileRef`) in them. Nothing but the root module imports a Core private module. The api/spi facades depend on components, never the reverse, so the dependency graph stays acyclic.
 
@@ -88,9 +88,9 @@ Each step closes with its tests, Core's suite, `run_models.py --seeds` (unchange
 | F7 | `ssds.core` imports nothing from the SSDS components or the root module, by import or by module-name string | §26.2 row 7 (A7) |
 | F8 | derivation imports only an allowlist of pure standard-library modules (no clock, network, environment, process, filesystem or Git access) and calls no dynamic-import or I/O builtin | §26.2 "also enforced" |
 | F9 | every program file lives under `orchestrator/` (source under `orchestrator/src/ssds/`), and the repository has exactly one `ssds` distribution, at `orchestrator/pyproject.toml` | §26.2 "also enforced" |
-| F10 | one composition root: the distribution declares exactly the console script `ssds = "ssds.cli:main"`, no other distribution claims `ssds`, the program registers nothing in `ssds.extensions.v1`, the retired group appears nowhere, and no program module is runnable on its own (`__main__`) | §26.2, §26.3 (A7) |
+| F10 | one composition root: the distribution declares exactly the console script `ssds = "ssds.cli:main"`, no other distribution claims `ssds`, the program registers nothing in `ssds.extensions.v1`, and no program module is runnable on its own (`__main__`) | §26.2, §26.3 (A7) |
 | F11 | no private cross-module imports: across owners only the public modules of §2, no Core module but `core.api.v1` and `core.spi.v1` (and `core.cli` for the root), no `_`-prefixed module or name, no dynamic import or code execution | §26.2 "also enforced" |
-| F12 | no component imports the api/spi facades, nothing imports the root module, the top package imports nothing; program source imports only the standard library, `ssds` and its declared dependencies, never a retired name | §26.3 (D4 reading, §2) |
+| F12 | no component imports the api/spi facades, nothing imports the root module, the top package imports nothing; program source imports only the standard library, `ssds` and its declared dependencies | §26.3 (D4 reading, §2) |
 | F13 | nothing under `orchestrator/src/` or `orchestrator/tests/` imports `qualification` or the Stage S models | G2 workplan §5.1 item 3 |
 | B1 | shadow boundary: only content and ledger start processes, and Git subcommands that write objects, refs or files appear only in `ledger.append` | G2 workplan §5.1 item 2 |
 
@@ -116,6 +116,6 @@ Reconciliations, no decision changed: Core's canonical-JSON encoder is not publi
 
 ## 7. Questions for the stakeholder
 
-Answered by SD-56: **Q1** (SC-D1) rename to one program `ssds`; **Q2** `cryptography` accepted for Ed25519; **Q3** everything SSDS writes for an operator lives in the SSDS home (`$SSDS_HOME`, default `~/.ssds`), the ledger by default a dedicated repository there (§21.5 (ii)); the genesis gate itself and the human approval key stay open until step 7; **Q4** the plan stays a companion file.
+Answered by SD-56: **Q1** (SC-D1) rename to one program `ssds`; **Q2** `cryptography` accepted for Ed25519; **Q3** everything SSDS writes for an operator lives in the SSDS home (`$SSDS_HOME`, default `~/.ssds`), the ledger by default a dedicated repository there (§21.5 (ii)); by SD-57 the approval key is a new Ed25519 key the stakeholder generates in their own terminal (its public half the genesis trust root for human authentication), and the approval of the genesis digest stays the stakeholder's at step 7; **Q4** the plan stays a companion file.
 
 5. **The `[ssds]` configuration section.** Proposed: when step 3 first needs a setting (ledger and witness locations, key references), add `[ssds]` to Core's configuration owner as a second open section bounded like `[extensions."<ns>"]`: Core validates its size and preserves it, and SSDS interprets it. This is an additive Core configuration change; Core's existing configurations keep their identity.

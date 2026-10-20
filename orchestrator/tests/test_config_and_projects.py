@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
-import io
-import json
 import os
 import tempfile
 import unittest
@@ -121,8 +118,7 @@ class ConfigValidationTests(unittest.TestCase):
         """V1 defines no semantic environment-variable override surface.
 
         The one environment input is ``SSDS_HOME``, which locates the SSDS home
-        (SD-56) as ``XDG_CONFIG_HOME`` located the retired configuration
-        directory; it overrides no configuration value.
+        (SD-56); it overrides no configuration value.
         """
 
         import ssds.core.config as config_module
@@ -160,34 +156,6 @@ class SSDSHomeTests(unittest.TestCase):
             with self.assertRaises(E.OrchestratorError) as raised:
                 default_config_path()
         self.assertEqual(raised.exception.problem.code, E.CONFIG_INVALID)
-
-    def test_the_retired_location_is_never_read(self) -> None:
-        retired = self.root / "retired" / "config.toml"
-        retired.parent.mkdir()
-        retired.write_text("schema_version = 1\n", encoding="utf-8")
-        with patch.dict(os.environ, {"SSDS_HOME": str(self.root / "home")}), \
-                patch("ssds.core.config.retired_config_path", return_value=retired):
-            self.assertIsNone(load_config().path)
-
-    def test_doctor_reports_the_retired_location_without_reading_it(self) -> None:
-        from ssds.core.cli import doctor_command
-
-        retired = self.root / "retired" / "config.toml"
-        retired.parent.mkdir()
-        retired.write_text("not toml [", encoding="utf-8")
-        for exists in (False, True):
-            with self.subTest(exists=exists):
-                target = retired if exists else self.root / "absent" / "config.toml"
-                with patch.dict(os.environ, {"SSDS_HOME": str(self.root / "home")}), \
-                        patch("ssds.core.cli.retired_config_path", return_value=target), \
-                        contextlib.redirect_stdout(io.StringIO()) as output:
-                    doctor_command(config=None)
-                report = json.loads(output.getvalue())
-                self.assertIsNone(report["config_path"])
-                if exists:
-                    self.assertEqual(report["retired_config"]["path"], str(retired))
-                else:
-                    self.assertNotIn("retired_config", report)
 
 
 class ProjectResolutionTests(unittest.TestCase):
