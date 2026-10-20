@@ -11,9 +11,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core.application import create_application
-from sdp_orchestrator.core.records import (
+from ssds.core import errors as E
+from ssds.core.application import create_application
+from ssds.core.records import (
     ApplicationRequest,
     ObservationPolicy,
     ProjectKey,
@@ -161,8 +161,8 @@ class WebAddressabilityTests(PrivacyBase):
         self.assertEqual(caught.exception.code, E.REMOTE_STALE)
 
     def test_refreshed_evidence_carries_a_real_age_for_the_freshness_bound(self) -> None:
-        from sdp_orchestrator.core.git import identify_worktree, observe
-        from sdp_orchestrator.core.render import build_snapshot
+        from ssds.core.git import identify_worktree, observe
+        from ssds.core.render import build_snapshot
 
         self._origin()
         result = observe(
@@ -237,12 +237,12 @@ class WebAddressabilityTests(PrivacyBase):
         ``test_git_observation``.
         """
 
-        from sdp_orchestrator.core.git import identify_worktree, observe
-        from sdp_orchestrator.core.records import (
+        from ssds.core.git import identify_worktree, observe
+        from ssds.core.records import (
             ProjectObservation,
             RemoteRepositoryRef,
         )
-        from sdp_orchestrator.core.render import build_snapshot
+        from ssds.core.render import build_snapshot
 
         origin = self._origin()
         git(origin, "branch", "-m", "main", "renamed")

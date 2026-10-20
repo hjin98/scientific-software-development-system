@@ -13,54 +13,62 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from .fitness import COMPONENTS, Violation, check
+from .fitness import COMPONENTS, check
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SSDS_PACKAGE = REPO_ROOT / "orchestrator/ssds/src/sdp_orchestrator/ssds"
+PROGRAM_PACKAGE = REPO_ROOT / "orchestrator/src/ssds"
 MODEL_STEMS = frozenset({"cases_s5_1", "framework"})
 
-S = "orchestrator/ssds/src/sdp_orchestrator/ssds"
-C = "orchestrator/src/sdp_orchestrator/core"
+S = "orchestrator/src/ssds"
+C = "orchestrator/src/ssds/core"
+PYPROJECT = "orchestrator/pyproject.toml"
 
-#: A clean minimal repository: the SSDS layout, a Core with its public surfaces, both pyprojects.
+#: A clean minimal repository: the program package with Core, the components and the root module.
 CLEAN: dict[str, str] = {
-    "orchestrator/pyproject.toml": '[project]\nname = "sdp-orchestrator-core"\ndependencies = ["pydantic>=2"]\n',
-    "orchestrator/ssds/pyproject.toml": (
-        '[project]\nname = "sdp-orchestrator-ssds"\ndependencies = ["sdp-orchestrator-core"]\n'
-        '[project.entry-points."sdp_orchestrator.extensions.v1"]\n'
-        '"sdp.ssds" = "sdp_orchestrator.ssds.extension:provider"\n'
+    PYPROJECT: (
+        '[project]\nname = "ssds"\ndependencies = ["typer>=0.12", "python-frontmatter>=1.1"]\n'
+        '[project.scripts]\nssds = "ssds.cli:main"\n'
+    ),
+    f"{S}/__init__.py": 'VERSION = "8.0.0"\n',
+    f"{S}/cli.py": (
+        "import typer\n"
+        "from ssds.core import cli as core_cli\n"
+        "from ssds.core.api.v1 import Problem\n"
+        "def main():\n    return core_cli.main(typer.Typer())\n"
     ),
     f"{C}/__init__.py": "",
     f"{C}/records.py": "",
+    f"{C}/cli.py": "import typer\nfrom .records import *\n",
+    f"{C}/application.py": 'ENTRY_POINT_GROUP = "ssds.extensions.v1"\nSTATUS = "ssds.core.discovery"\n',
     f"{C}/api/__init__.py": "",
     f"{C}/api/v1.py": "from ..records import *\n",
     f"{C}/spi/__init__.py": "",
     f"{C}/spi/v1.py": "from ..records import *\n",
-    f"{S}/__init__.py": 'VERSION = "8.0.0"\n',
     f"{S}/api/__init__.py": "",
-    f"{S}/api/v1.py": "from sdp_orchestrator.ssds.derivation import *\n",
+    f"{S}/api/v1.py": "from ssds.derivation import *\n",
     f"{S}/spi/__init__.py": "",
     f"{S}/spi/v1.py": "",
-    f"{S}/extension.py": "from sdp_orchestrator.core.spi.v1 import ExtensionManifest\nfrom . import VERSION\n",
     f"{S}/ledger/read.py": "import subprocess\nsubprocess.run(['git', 'cat-file', '--batch'])\n",
     f"{S}/ledger/qualification.py": "",
     f"{S}/ledger/append.py": "import subprocess\nsubprocess.run(['git', 'update-ref', 'refs/ssds/ledger/x'])\n",
     f"{S}/admission/request.py": "",
     f"{S}/admission/genesis.py": (
-        "from sdp_orchestrator.ssds.ledger import append, qualification\n"
-        "from sdp_orchestrator.ssds import derivation\n"
-        "from sdp_orchestrator.core.api.v1 import DigestRef\n"
+        "from ssds.ledger import append, qualification\n"
+        "from ssds import derivation\n"
+        "from ssds.core.api.v1 import DigestRef\n"
     ),
     f"{S}/interface/render.py": "",
+    f"{S}/content/model.py": "import frontmatter\n",
     f"{S}/derivation/strata.py": (
         "from __future__ import annotations\n"
         "import hashlib, json\n"
         "from collections import abc\n"
         "from ..ledger import read\n"
-        "from sdp_orchestrator.ssds import content, analyzers\n"
+        "from ssds import content, analyzers\n"
     ),
-    "orchestrator/ssds/tests/__init__.py": "",
-    "orchestrator/ssds/tests/test_example.py": '"""Expected values from qualification/ssds80/models/cases_s5_1.py."""\nimport unittest\n',
+    "orchestrator/tests/__init__.py": "",
+    "orchestrator/tests/ssds/__init__.py": "",
+    "orchestrator/tests/ssds/test_example.py": '"""Expected values from qualification/ssds80/models/cases_s5_1.py."""\nimport unittest\n',
     **{f"{S}/{component}/__init__.py": "" for component in COMPONENTS},
 }
 
@@ -98,11 +106,11 @@ class RealRepositoryTests(unittest.TestCase):
         self.assertEqual(violations, [], "\n".join(map(str, violations)))
 
     def test_every_component_package_exists_so_the_rules_are_not_vacuous(self) -> None:
-        for component in (*COMPONENTS, "api", "spi"):
-            self.assertTrue((SSDS_PACKAGE / component / "__init__.py").is_file(), component)
-        self.assertTrue((SSDS_PACKAGE / "extension.py").is_file())
-        self.assertFalse((SSDS_PACKAGE.parent / "__init__.py").exists(), "PEP 420 namespace root")
-        self.assertGreater(len(list((REPO_ROOT / "orchestrator/src/sdp_orchestrator/core").rglob("*.py"))), 10)
+        for component in (*COMPONENTS, "api", "spi", "core"):
+            self.assertTrue((PROGRAM_PACKAGE / component / "__init__.py").is_file(), component)
+        self.assertTrue((PROGRAM_PACKAGE / "cli.py").is_file())
+        self.assertTrue((PROGRAM_PACKAGE / "__init__.py").is_file(), "one regular package (A7)")
+        self.assertGreater(len(list((PROGRAM_PACKAGE / "core").rglob("*.py"))), 10)
 
 
 class CleanSyntheticRepositoryTests(unittest.TestCase):
@@ -112,19 +120,22 @@ class CleanSyntheticRepositoryTests(unittest.TestCase):
         self.assertEqual(_run({}), set())
 
 
-class DependencyRuleDiscriminatorTests(unittest.TestCase):
-    """One broken rule per synthetic repository; the expected violations are stated from §26.2."""
-
+class _Discriminator(unittest.TestCase):
     def assertViolations(self, changes: dict[str, str | None], expected: set[tuple[str, str]]) -> None:
         self.assertEqual(_run(changes), expected)
 
+
+class DependencyRuleDiscriminatorTests(_Discriminator):
+    """One broken rule per synthetic repository; the expected violations are stated from §26.2."""
+
     def test_content_may_not_import_the_ledger(self) -> None:
         path = f"{S}/content/model.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds.ledger import read\n"}, {("F1", path)})
+        self.assertViolations({path: "from ssds.ledger import read\n"}, {("F1", path)})
 
     def test_analyzers_may_import_only_core_public_api(self) -> None:
         path = f"{S}/analyzers/python.py"
-        self.assertViolations({path: "from sdp_orchestrator.core import records\n"}, {("F11", path)})
+        self.assertViolations({path: "from ssds.core import records\n"}, {("F11", path)})
+        self.assertViolations({path: "from ssds.core import cli\n"}, {("F11", path)})
 
     def test_derivation_may_not_import_ledger_qualification(self) -> None:
         path = f"{S}/derivation/view.py"
@@ -136,20 +147,20 @@ class DependencyRuleDiscriminatorTests(unittest.TestCase):
 
     def test_derivation_may_not_import_core(self) -> None:
         path = f"{S}/derivation/view.py"
-        self.assertViolations({path: "from sdp_orchestrator.core.api.v1 import DigestRef\n"}, {("F2", path)})
+        self.assertViolations({path: "from ssds.core.api.v1 import DigestRef\n"}, {("F2", path)})
 
     def test_an_import_under_type_checking_still_counts(self) -> None:
         path = f"{S}/derivation/view.py"
-        text = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from sdp_orchestrator.ssds.admission import request\n"
+        text = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from ssds.admission import request\n"
         self.assertViolations({path: text}, {("F2", path)})
 
     def test_only_admission_imports_the_append_api(self) -> None:
-        for component in ("interface", "dispatcher", "derivation"):
-            path = f"{S}/{component}/x.py"
-            with self.subTest(component=component):
-                self.assertViolations(
-                    {path: "import sdp_orchestrator.ssds.ledger.append as append\n"}, {("F3", path)}
-                )
+        for owner in ("interface", "dispatcher", "derivation", "api"):
+            path = f"{S}/{owner}/x.py"
+            with self.subTest(owner=owner):
+                self.assertViolations({path: "import ssds.ledger.append as append\n"}, {("F3", path)})
+        path = f"{S}/cli.py"
+        self.assertViolations({path: "from ssds.ledger import append\n"}, {("F3", path)})
 
     def test_the_ledger_package_does_not_re_export_append(self) -> None:
         path = f"{S}/ledger/__init__.py"
@@ -157,31 +168,34 @@ class DependencyRuleDiscriminatorTests(unittest.TestCase):
 
     def test_the_ledger_imports_no_other_component(self) -> None:
         path = f"{S}/ledger/store.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds import derivation\n"}, {("F3", path)})
+        self.assertViolations({path: "from ssds import derivation\n"}, {("F3", path)})
 
     def test_admission_never_imports_dispatcher_or_interface(self) -> None:
         path = f"{S}/admission/validate.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds import dispatcher\n"}, {("F4", path)})
-        self.assertViolations({path: "from sdp_orchestrator.ssds.interface import render\n"}, {("F4", path)})
+        self.assertViolations({path: "from ssds import dispatcher\n"}, {("F4", path)})
+        self.assertViolations({path: "from ssds.interface import render\n"}, {("F4", path)})
 
     def test_dispatcher_uses_only_the_admission_request_api(self) -> None:
         path = f"{S}/dispatcher/schedule.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds.admission import request\n"}, set())
-        self.assertViolations({path: "import sdp_orchestrator.ssds.admission\n"}, {("F11", path)})
-        self.assertViolations({path: "from sdp_orchestrator.ssds.admission import genesis\n"}, {("F11", path)})
+        self.assertViolations({path: "from ssds.admission import request\n"}, set())
+        self.assertViolations({path: "import ssds.admission\n"}, {("F11", path)})
+        self.assertViolations({path: "from ssds.admission import genesis\n"}, {("F11", path)})
 
     def test_dispatcher_reads_only_ledger_qualification(self) -> None:
         path = f"{S}/dispatcher/schedule.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds.ledger import read\n"}, {("F5", path)})
+        self.assertViolations({path: "from ssds.ledger import read\n"}, {("F5", path)})
 
     def test_interface_never_imports_the_dispatcher(self) -> None:
         path = f"{S}/interface/render.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds import dispatcher\n"}, {("F6", path)})
+        self.assertViolations({path: "from ssds import dispatcher\n"}, {("F6", path)})
 
-    def test_core_imports_nothing_from_ssds(self) -> None:
+    def test_core_imports_no_component_and_not_the_root_module(self) -> None:
         path = f"{C}/application.py"
-        self.assertViolations({path: "import sdp_orchestrator.ssds.derivation\n"}, {("F7", path)})
-        self.assertViolations({path: "NAME = 'sdp_orchestrator.ssds.extension'\n"}, {("F7", path)})
+        self.assertViolations({path: "import ssds.derivation\n"}, {("F7", path)})
+        self.assertViolations({path: "from ssds import cli\n"}, {("F7", path)})
+        self.assertViolations({path: "from .. import ledger\n"}, {("F7", path)})
+        self.assertViolations({path: "NAME = 'ssds.ledger.append'\n"}, {("F7", path)})
+        self.assertViolations({path: "NAME = 'ssds.cli'\n"}, {("F7", path)})
 
     def test_derivation_reads_no_clock_environment_network_or_process(self) -> None:
         path = f"{S}/derivation/view.py"
@@ -197,75 +211,84 @@ class DependencyRuleDiscriminatorTests(unittest.TestCase):
 
     def test_derivation_imports_no_third_party_module(self) -> None:
         path = f"{S}/derivation/view.py"
-        self.assertViolations({path: "import sdp_orchestrator.core.api.v1\n"}, {("F2", path)})
+        self.assertViolations({path: "import typer\n"}, {("F8", path)})
         self.assertViolations({path: "import yaml\n"}, {("F12", path)})
 
-    def test_ssds_files_live_under_orchestrator_ssds(self) -> None:
-        for stray in ("src/sdp_orchestrator/ssds/x.py", "orchestrator/src/sdp_orchestrator/ssds/x.py"):
+    def test_program_source_lives_under_orchestrator_src_ssds(self) -> None:
+        for stray in ("src/ssds/x.py", "orchestrator/ssds/x.py", "tools/ssds/x.py"):
             with self.subTest(stray=stray):
                 self.assertViolations({stray: ""}, {("F9", stray)})
 
-    def test_the_ssds_distribution_is_declared_once_under_orchestrator_ssds(self) -> None:
+    def test_one_program_distribution(self) -> None:
         path = "tools/pyproject.toml"
-        self.assertViolations({path: '[project]\nname = "sdp-orchestrator-ssds"\n'}, {("F9", path)})
+        self.assertViolations({path: '[project]\nname = "ssds"\n'}, {("F9", PYPROJECT)})
 
-    def test_one_extension_registration(self) -> None:
-        second = "orchestrator/other/pyproject.toml"
-        text = '[project]\nname = "x"\n[project.entry-points."sdp_orchestrator.extensions.v1"]\nx = "x:provider"\n'
-        self.assertViolations({second: text}, {("F10", "orchestrator/ssds/pyproject.toml")})
-        renamed = CLEAN["orchestrator/ssds/pyproject.toml"].replace('"sdp.ssds"', '"ssds"')
-        self.assertViolations({"orchestrator/ssds/pyproject.toml": renamed}, {("F10", "orchestrator/ssds/pyproject.toml")})
+    def test_one_composition_root(self) -> None:
+        text = CLEAN[PYPROJECT] + 'ssds-admin = "ssds.admission.genesis:main"\n'
+        self.assertViolations({PYPROJECT: text}, {("F10", PYPROJECT)})
+        other = "tools/pyproject.toml"
+        self.assertViolations(
+            {other: '[project]\nname = "x"\n[project.scripts]\nssds = "x:main"\n'}, {("F10", other)}
+        )
+        path = f"{S}/admission/genesis.py"
+        self.assertViolations({path: "if __name__ == '__main__':\n    pass\n"}, {("F10", path)})
+        main = f"{S}/__main__.py"
+        self.assertViolations({main: ""}, {("F0", main)})
+        core_main = f"{C}/__main__.py"
+        self.assertViolations({core_main: ""}, {("F10", core_main)})
 
-    def test_the_ssds_distribution_adds_no_second_root(self) -> None:
-        path = "orchestrator/ssds/pyproject.toml"
-        text = CLEAN[path] + '[project.scripts]\nsdp-ssds = "sdp_orchestrator.ssds.extension:main"\n'
-        self.assertViolations({path: text}, {("F10", path)})
+    def test_the_program_is_not_an_extension_of_itself_and_the_old_group_is_gone(self) -> None:
+        text = CLEAN[PYPROJECT] + '[project.entry-points."ssds.extensions.v1"]\nx = "ssds.cli:main"\n'
+        self.assertViolations({PYPROJECT: text}, {("F10", PYPROJECT)})
+        other = "tools/pyproject.toml"
+        retired = '[project]\nname = "x"\n[project.entry-points."sdp_orchestrator.extensions.v1"]\nx = "x:p"\n'
+        self.assertViolations({other: retired}, {("F10", other)})
 
     def test_no_private_cross_module_import(self) -> None:
         path = f"{S}/content/model.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds.analyzers import _helper\n"}, {("F11", path)})
-        self.assertViolations({path: "from sdp_orchestrator.ssds.analyzers.python import imports\n"}, {("F11", path)})
+        self.assertViolations({path: "from ssds.analyzers import _helper\n"}, {("F11", path)})
+        self.assertViolations({path: "from ssds.analyzers.python import imports\n"}, {("F11", path)})
 
     def test_no_dynamic_import_or_code_execution(self) -> None:
         path = f"{S}/content/model.py"
         self.assertViolations({path: "import importlib\n"}, {("F11", path)})
-        self.assertViolations({path: "m = __import__('sdp_orchestrator.ssds.ledger.append')\n"}, {("F11", path)})
+        self.assertViolations({path: "m = __import__('ssds.ledger.append')\n"}, {("F11", path)})
         self.assertViolations({path: "exec('x = 1')\n"}, {("F11", path)})
 
-    def test_no_component_imports_the_facades_or_the_extension(self) -> None:
+    def test_no_component_imports_the_facades_or_the_root_module(self) -> None:
         path = f"{S}/derivation/view.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds.api import v1\n"}, {("F12", path)})
+        self.assertViolations({path: "from ssds.api import v1\n"}, {("F12", path)})
         path = f"{S}/admission/x.py"
-        self.assertViolations({path: "from sdp_orchestrator.ssds import extension\n"}, {("F12", path)})
+        self.assertViolations({path: "from ssds import cli\n"}, {("F12", path)})
 
     def test_the_top_package_imports_nothing(self) -> None:
         path = f"{S}/__init__.py"
         self.assertViolations({path: "from . import derivation\n"}, {("F12", path)})
 
-    def test_only_declared_dependencies(self) -> None:
+    def test_only_declared_dependencies_and_no_retired_name(self) -> None:
         path = f"{S}/content/model.py"
         self.assertViolations({path: "import yaml\n"}, {("F12", path)})
+        self.assertViolations({path: "import sdp_orchestrator.core.api.v1\n"}, {("F12", path)})
 
     def test_every_module_has_an_owner(self) -> None:
         path = f"{S}/util.py"
         self.assertViolations({path: ""}, {("F0", path)})
 
     def test_nothing_imports_or_loads_the_stage_s_models(self) -> None:
-        test = "orchestrator/ssds/tests/test_example.py"
+        test = "orchestrator/tests/ssds/test_example.py"
         self.assertViolations({test: "from qualification.ssds80.models import cases_s5_1\n"}, {("F13", test)})
         self.assertViolations({test: "import cases_s5_1\n"}, {("F13", test)})
         self.assertViolations(
             {test: "import sys\nsys.path.insert(0, 'qualification/ssds80/models')\n"}, {("F13", test)}
         )
+        core_test = "orchestrator/tests/test_core_example.py"
+        self.assertViolations({core_test: "import framework\n"}, {("F13", core_test)})
         path = f"{S}/derivation/view.py"
         self.assertViolations({path: "import framework\n"}, {("F13", path)})
 
 
-class ShadowBoundarySensorTests(unittest.TestCase):
+class ShadowBoundarySensorTests(_Discriminator):
     """G2 workplan §5.1 item 2: only the ledger append moves a ref or writes Git objects."""
-
-    def assertViolations(self, changes: dict[str, str | None], expected: set[tuple[str, str]]) -> None:
-        self.assertEqual(_run(changes), expected)
 
     def test_writing_git_subcommands_appear_only_in_the_append(self) -> None:
         path = f"{S}/ledger/read.py"

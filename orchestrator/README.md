@@ -1,34 +1,38 @@
-# sdp-orchestrator-core
+# ssds
 
-The Core / Prompt module of the SDP Orchestrator: it renders one complete,
-copy/paste-ready, profile-correct Scientific Software Development Protocol prompt
-for a configured target repository.
+One program, `ssds`: one distribution, one import package and one command
+(SSDS 8 Architecture Manual §26.3).
 
-Core-only installation is a finished operating mode. It needs no database, agent
-process, model catalog, quota meter, or scheduler.
-
-The current default profile is Protocol 6.2 (`ssdp-protocol-6.2`, workflow
-profile schema v2). Frozen Protocol 6.1 and 6.0 profiles remain packaged under
-schema v2, and the frozen Protocol 5.16 profile remains packaged under schema v1;
-workplan version binding prevents silent reinterpretation across versions.
+- **Level 0 Core** (`ssds.core`) renders one complete, copy/paste-ready,
+  profile-correct Scientific Software Development Protocol prompt for a configured
+  target repository. Core alone is a finished operating mode: it needs no database,
+  agent process, model catalog, quota meter, or scheduler. Frozen profiles stay
+  packaged, and workplan version binding prevents silent reinterpretation across
+  versions.
+- **SSDS 8 components** (`ssds.content`, `ssds.analyzers`, `ssds.ledger`,
+  `ssds.derivation`, `ssds.admission`, `ssds.dispatcher`, `ssds.interface`), one
+  per component of [the Architecture Manual](docs/ssds-8.0-architecture.md) §26.1.
+  **Shadow implementation only**: they hold no authority over any subject and
+  never gate document control.
 
 See [the Core user guide](docs/core-user-guide.md) for installation,
-configuration, Protocol 6 stages, 5.16 compatibility, and the full command
-reference.
+configuration, stages and the full command reference.
 
 ```bash
-pip install sdp-orchestrator-core
-sdp doctor
-sdp software-implementation --workplan workplans/active/MY-WORKPLAN.md
+pip install ./orchestrator            # from a checkout of this repository
+ssds doctor
+ssds software-implementation --workplan workplans/active/MY-WORKPLAN.md
 
-# Common software-stage alias, valid for Protocol 6 and Protocol 5.16
-sdp implementation --workplan workplans/active/MY-WORKPLAN.md
-
-# checkout development, without installing this package
-python3 orchestrator/sdp.py --help
+# checkout development, without installing
+python3 orchestrator/bin/ssds --help
 ```
 
-Both invocation forms delegate to the single `sdp_orchestrator.core.cli:main`
-implementation. The versioned consumer and provider contracts are
-`sdp_orchestrator.core.api.v1` and `sdp_orchestrator.core.spi.v1`; other Core
-modules are implementation detail under that API policy.
+Both forms run the one composition root, `ssds.cli:main`, which mounts Core's
+commands and, as they are built, the SSDS operations in one flat command set.
+Operator configuration and data live in the SSDS home (`$SSDS_HOME`, by default
+`~/.ssds`), outside every repository.
+
+Public contracts are `ssds.core.api.v1` and `ssds.core.spi.v1` for Core, and
+`ssds.api.v1` and `ssds.spi.v1` for SSDS; other modules are implementation
+detail. Other extensions register through the entry-point group
+`ssds.extensions.v1`.

@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
+import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core.config import load_config, parse_config
-from sdp_orchestrator.core.limits import MAX_CONFIG_BYTES
-from sdp_orchestrator.core.records import ActivationPolicy, ApplicationRequest, PromptExecutionMode
-from sdp_orchestrator.core.application import create_application
+from ssds.core import errors as E
+from ssds.core.config import default_config_path, load_config, parse_config
+from ssds.core.limits import MAX_CONFIG_BYTES
+from ssds.core.records import ActivationPolicy, ApplicationRequest, PromptExecutionMode
+from ssds.core.application import create_application
 
 from ._support import config_text, init_repo
 
@@ -113,14 +118,76 @@ class ConfigValidationTests(unittest.TestCase):
         )
 
     def test_env_override_allowlist_is_empty(self) -> None:
-        """V1 defines no semantic environment-variable override surface."""
+        """V1 defines no semantic environment-variable override surface.
 
-        import sdp_orchestrator.core.config as config_module
+        The one environment input is ``SSDS_HOME``, which locates the SSDS home
+        (SD-56) as ``XDG_CONFIG_HOME`` located the retired configuration
+        directory; it overrides no configuration value.
+        """
 
-        self.assertFalse(
+        import ssds.core.config as config_module
+
+        self.assertEqual(
             [name for name in dir(config_module) if "ENV" in name and name.isupper()],
+            ["SSDS_HOME_ENV"],
             "no environment override allowlist is defined in v1",
         )
+
+
+class SSDSHomeTests(unittest.TestCase):
+    """Operator configuration lives in the SSDS home, outside every repository (Manual §26.3, SD-56)."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_default_home_is_dot_ssds_under_home(self) -> None:
+        with patch.dict(os.environ, {"HOME": str(self.root)}, clear=False):
+            os.environ.pop("SSDS_HOME", None)
+            self.assertEqual(default_config_path(), self.root / ".ssds" / "config.toml")
+
+    def test_ssds_home_overrides_the_location(self) -> None:
+        home = self.root / "elsewhere"
+        home.mkdir()
+        (home / "config.toml").write_text("schema_version = 1\n", encoding="utf-8")
+        with patch.dict(os.environ, {"SSDS_HOME": str(home)}):
+            self.assertEqual(default_config_path(), home / "config.toml")
+            self.assertEqual(load_config().path, home / "config.toml")
+
+    def test_relative_ssds_home_is_refused(self) -> None:
+        with patch.dict(os.environ, {"SSDS_HOME": "relative/home"}):
+            with self.assertRaises(E.OrchestratorError) as raised:
+                default_config_path()
+        self.assertEqual(raised.exception.problem.code, E.CONFIG_INVALID)
+
+    def test_the_retired_location_is_never_read(self) -> None:
+        retired = self.root / "retired" / "config.toml"
+        retired.parent.mkdir()
+        retired.write_text("schema_version = 1\n", encoding="utf-8")
+        with patch.dict(os.environ, {"SSDS_HOME": str(self.root / "home")}), \
+                patch("ssds.core.config.retired_config_path", return_value=retired):
+            self.assertIsNone(load_config().path)
+
+    def test_doctor_reports_the_retired_location_without_reading_it(self) -> None:
+        from ssds.core.cli import doctor_command
+
+        retired = self.root / "retired" / "config.toml"
+        retired.parent.mkdir()
+        retired.write_text("not toml [", encoding="utf-8")
+        for exists in (False, True):
+            with self.subTest(exists=exists):
+                target = retired if exists else self.root / "absent" / "config.toml"
+                with patch.dict(os.environ, {"SSDS_HOME": str(self.root / "home")}), \
+                        patch("ssds.core.cli.retired_config_path", return_value=target), \
+                        contextlib.redirect_stdout(io.StringIO()) as output:
+                    doctor_command(config=None)
+                report = json.loads(output.getvalue())
+                self.assertIsNone(report["config_path"])
+                if exists:
+                    self.assertEqual(report["retired_config"]["path"], str(retired))
+                else:
+                    self.assertNotIn("retired_config", report)
 
 
 class ProjectResolutionTests(unittest.TestCase):
@@ -220,7 +287,7 @@ class PromptModePrecedenceTests(unittest.TestCase):
         )
 
     def test_explicit_mode_must_be_local_or_web(self) -> None:
-        from sdp_orchestrator.core.cli import _prompt_mode
+        from ssds.core.cli import _prompt_mode
 
         with self.assertRaises(E.OrchestratorError) as caught:
             _prompt_mode("remote")
@@ -235,7 +302,7 @@ class BoundedInputTests(unittest.TestCase):
     """Every externally influenced reader rejects before unbounded materialization."""
 
     def test_extension_namespace_count_is_bounded(self) -> None:
-        from sdp_orchestrator.core.limits import MAX_CONFIG_EXTENSION_NAMESPACES
+        from ssds.core.limits import MAX_CONFIG_EXTENSION_NAMESPACES
 
         namespaces = {f"vendor.{i}": {"v": 1} for i in range(MAX_CONFIG_EXTENSION_NAMESPACES + 1)}
         with self.assertRaises(E.OrchestratorError) as caught:
@@ -243,7 +310,7 @@ class BoundedInputTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, E.CONFIG_INVALID)
 
     def test_extension_namespace_size_is_bounded(self) -> None:
-        from sdp_orchestrator.core.limits import MAX_CONFIG_EXTENSION_BYTES
+        from ssds.core.limits import MAX_CONFIG_EXTENSION_BYTES
 
         payload = {"blob": "x" * (MAX_CONFIG_EXTENSION_BYTES + 16)}
         with self.assertRaises(E.OrchestratorError) as caught:
@@ -251,7 +318,7 @@ class BoundedInputTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, E.CONFIG_INVALID)
 
     def test_project_count_is_bounded(self) -> None:
-        from sdp_orchestrator.core.limits import MAX_CONFIG_PROJECTS
+        from ssds.core.limits import MAX_CONFIG_PROJECTS
 
         projects = {f"p{i}": {"repo": "/tmp/x"} for i in range(MAX_CONFIG_PROJECTS + 1)}
         with self.assertRaises(E.OrchestratorError) as caught:
@@ -259,7 +326,7 @@ class BoundedInputTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, E.CONFIG_INVALID)
 
     def test_configuration_nesting_is_bounded(self) -> None:
-        from sdp_orchestrator.core.limits import MAX_CONFIG_NESTING
+        from ssds.core.limits import MAX_CONFIG_NESTING
 
         deep: dict = {"v": 1}
         for _ in range(MAX_CONFIG_NESTING + 4):
@@ -269,7 +336,7 @@ class BoundedInputTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, E.CONFIG_INVALID)
 
     def test_every_documented_limit_is_finite_and_positive(self) -> None:
-        from sdp_orchestrator.core import limits
+        from ssds.core import limits
 
         numeric = {
             name: getattr(limits, name)

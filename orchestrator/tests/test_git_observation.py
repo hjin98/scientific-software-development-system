@@ -17,8 +17,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core.git import (
+from ssds.core import errors as E
+from ssds.core.git import (
     _BoundedRunError,
     _git_env,
     identify_worktree,
@@ -28,7 +28,7 @@ from sdp_orchestrator.core.git import (
     select_remote,
     working_tree_identity,
 )
-from sdp_orchestrator.core.records import RemoteEvidence, RemoteMode
+from ssds.core.records import RemoteEvidence, RemoteMode
 
 from ._support import commit_all, git, init_repo
 
@@ -238,7 +238,7 @@ class WorkingTreeIdentityTests(ObservationBase):
 
     def test_aggregate_dirty_content_budget_marks_identity_incomplete(self) -> None:
         (self.repo / "large-enough.txt").write_text("0123456789", encoding="utf-8")
-        with patch("sdp_orchestrator.core.git.MAX_DIRTY_CONTENT_BYTES", 1):
+        with patch("ssds.core.git.MAX_DIRTY_CONTENT_BYTES", 1):
             digest, complete = working_tree_identity(self.repo)
         self.assertIsNotNone(digest)
         self.assertFalse(complete)

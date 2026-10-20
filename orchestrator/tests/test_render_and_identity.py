@@ -12,12 +12,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core import render as R
-from sdp_orchestrator.core.application import create_application
-from sdp_orchestrator.core.canonical import CANONICAL_STAGES
-from sdp_orchestrator.core.events import PROMPT_RENDERED_EVENT, logical_event_id
-from sdp_orchestrator.core.records import (
+from ssds.core import errors as E
+from ssds.core import render as R
+from ssds.core.application import create_application
+from ssds.core.canonical import CANONICAL_STAGES
+from ssds.core.events import PROMPT_RENDERED_EVENT, logical_event_id
+from ssds.core.records import (
     ApplicationRequest,
     DigestRef,
     EventEnvelope,
@@ -30,7 +30,7 @@ from sdp_orchestrator.core.records import (
     StageResultEnvelope,
     StageSelector,
 )
-from sdp_orchestrator.core.service import preparation_fingerprint
+from ssds.core.service import preparation_fingerprint
 from pydantic import ValidationError
 
 from ._support import commit_all, config_text, git, init_repo, write_workplan
@@ -356,7 +356,7 @@ class FingerprintTests(RenderBase):
         self.assertEqual(local.preparation_fingerprint, prepared.preparation_fingerprint)
 
     def test_prepared_prompt_round_trips_through_json(self) -> None:
-        from sdp_orchestrator.core.records import PreparedPrompt
+        from ssds.core.records import PreparedPrompt
 
         prepared = self.prepare("implementation")
         payload = prepared.model_dump(mode="json")

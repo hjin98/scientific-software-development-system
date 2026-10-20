@@ -1,4 +1,4 @@
-"""``sdp_orchestrator.ssds.spi.v1``: harness adapter, runner, witness and analyzer
+"""``ssds.spi.v1``: harness adapter, runner, witness and analyzer
 provider contracts (Manual §26.3).
 
 A re-export facade: each contract is defined by the component that consumes it;

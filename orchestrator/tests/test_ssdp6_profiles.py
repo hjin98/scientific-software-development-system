@@ -5,12 +5,12 @@ from __future__ import annotations
 import hashlib
 import unittest
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core import profile as P
-from sdp_orchestrator.core import protocol_source as PS
-from sdp_orchestrator.core.canonical import CANONICAL_STAGES, SSDP6_STAGES, parse_document
-from sdp_orchestrator.core.inputs import resolve_inputs
-from sdp_orchestrator.core.records import DigestRef, LifecycleState, WorkplanPolicy, WorkplanRef
+from ssds.core import errors as E
+from ssds.core import profile as P
+from ssds.core import protocol_source as PS
+from ssds.core.canonical import CANONICAL_STAGES, SSDP6_STAGES, parse_document
+from ssds.core.inputs import resolve_inputs
+from ssds.core.records import DigestRef, LifecycleState, WorkplanPolicy, WorkplanRef
 
 from ._support import CURRENT_CANONICAL_PROMPTS, REPO_ROOT
 
@@ -386,7 +386,7 @@ class FrozenProtocolProfilesTests(unittest.TestCase):
                 self.assertEqual(frozen.schema_version, 2)
                 self.assertEqual([s.stage.stage_key for s in frozen.stages], [key for _, key, _ in SSDP6_STAGES])
 
-                root = REPO_ROOT / "orchestrator/src/sdp_orchestrator/core/resources/protocol" / expected_id
+                root = REPO_ROOT / "orchestrator/src/ssds/core/resources/protocol" / expected_id
                 for name, expected_sha in expected_hashes.items():
                     data = (root / name).read_bytes()
                     actual = hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()  # noqa: S324
@@ -408,7 +408,7 @@ class FrozenLegacyProfileTests(unittest.TestCase):
         self.assertEqual([s.stage.stage_key for s in legacy.stages], [key for _, key, _ in CANONICAL_STAGES])
 
     def test_legacy_packaged_bytes_keep_pre_transition_git_blob_identity(self) -> None:
-        root = REPO_ROOT / "orchestrator/src/sdp_orchestrator/core/resources/protocol/sdp-protocol-5.16"
+        root = REPO_ROOT / "orchestrator/src/ssds/core/resources/protocol/sdp-protocol-5.16"
         expected = {
             "prompts.md": "3730b06393843e9c24406a324f981ab4481858da",
             "profile.json": "b3d4257fcd18af7bdb1799b2db742659bb2403fc",
@@ -425,7 +425,7 @@ class FrozenLegacyProfileTests(unittest.TestCase):
         self.assertIn("FROZEN_PARENT_AUTHORITY", alignment_inputs)
 
     def test_legacy_profile_is_still_derived_from_legacy_prompts(self) -> None:
-        root = REPO_ROOT / "orchestrator/src/sdp_orchestrator/core/resources/protocol/sdp-protocol-5.16"
+        root = REPO_ROOT / "orchestrator/src/ssds/core/resources/protocol/sdp-protocol-5.16"
         text = (root / "prompts.md").read_text(encoding="utf-8")
         document = parse_document(text, profile_id=P.PROFILE_ID)
         expected = P.profile_to_json(P.build_profile(document, P.PROFILE_ID).descriptor)

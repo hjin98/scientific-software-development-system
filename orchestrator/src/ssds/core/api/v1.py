@@ -1,9 +1,9 @@
-"""``sdp_orchestrator.core.api.v1`` -- the public Core consumer API.
+"""``ssds.core.api.v1`` -- the public Core consumer API.
 
 Everything re-exported here is a public v1 record, protocol, enumeration, or
 factory. Nothing in this module exposes a Git handle, subprocess, file object,
 lock, or other implementation type, and higher modules must import from here (or
-from :mod:`sdp_orchestrator.core.spi.v1`) rather than from private modules.
+from :mod:`ssds.core.spi.v1`) rather than from private modules.
 
 Compatibility: additive optional fields and new methods may appear within v1;
 anything that changes existing request/response semantics requires a new major.

@@ -1,4 +1,4 @@
-"""``sdp_orchestrator.ssds.api.v1``: logical operations and records (Manual §26.3).
+"""``ssds.api.v1``: logical operations and records (Manual §26.3).
 
 A re-export facade over component public modules; no component imports it. The
 API is frozen once, at the G3 implementation review (Manual §26.4, §5.8 row).

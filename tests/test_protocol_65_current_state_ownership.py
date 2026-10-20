@@ -15,7 +15,7 @@ P0_KERNEL_WORDS = 2642
 # The current generated Orchestrator snapshot follows the declared source version
 # rather than a hard-coded protocol phase.
 _MAJOR_MINOR = ".".join((SOURCE / "PROTOCOL_VERSION").read_text(encoding="utf-8").strip().split(".")[:2])
-CURRENT_SNAPSHOT_PROMPTS = Path("orchestrator", "src", "sdp_" + "orchestrator", "core", "resources", "protocol", f"ssdp-protocol-{_MAJOR_MINOR}", "prompts.md")
+CURRENT_SNAPSHOT_PROMPTS = Path("orchestrator", "src", "ssds", "core", "resources", "protocol", f"ssdp-protocol-{_MAJOR_MINOR}", "prompts.md")
 HOT_CURRENT_SURFACES = (
     "README.md",
     "AGENTS.md",

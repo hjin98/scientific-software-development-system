@@ -1,6 +1,6 @@
-# SDP Orchestrator Core — user guide
+# SSDS Level 0 Core — user guide
 
-`sdp-orchestrator-core` turns “which Protocol prompt do I need right now, filled
+The `ssds` program's Level 0 Core (`ssds.core`) turns “which Protocol prompt do I need right now, filled
 in correctly for this repository?” into one command. It resolves mechanically
 knowable repository, candidate, workplan, Protocol-profile, and prompt context,
 while leaving genuine semantic decisions to the user or receiving agent.
@@ -23,23 +23,23 @@ Checkout development does not require installing the package. The zero-install
 path uses the same CLI owner from the current checkout:
 
 ```bash
-python3 orchestrator/sdp.py --help
-python3 orchestrator/sdp.py doctor --config /path/to/config.toml
-python3 orchestrator/sdp.py software-implementation --config /path/to/config.toml --prompt-mode local
+python3 orchestrator/bin/ssds --help
+python3 orchestrator/bin/ssds doctor --config /path/to/config.toml
+python3 orchestrator/bin/ssds software-implementation --config /path/to/config.toml --prompt-mode local
 ```
 
-`orchestrator/sdp.py` only places the adjacent `src/` tree first and delegates
-to `sdp_orchestrator.core.cli:main`; it contains no command or product logic.
+`orchestrator/bin/ssds` only places the checkout's `src/` tree first and delegates
+to the program's composition root, `ssds.cli:main`; it contains no command or product logic.
 
 For an installed console script, use Python 3.11+:
 
 ```bash
-pip install sdp-orchestrator-core
-pip install "sdp-orchestrator-core[clipboard]"   # optional --copy support
-sdp doctor
+pip install ./orchestrator                 # from a checkout of this repository
+pip install "./orchestrator[clipboard]"    # optional --copy support
+ssds doctor
 ```
 
-`sdp doctor` reports readiness without importing extension code, touching the
+`ssds doctor` reports readiness without importing extension code, touching the
 network, or modifying a target repository. Its `packaged_profiles` field shows
 the shipped Protocol 6 and Protocol 5.16 profile identities, schema versions,
 and stage sets.
@@ -48,8 +48,11 @@ and stage sets.
 
 ## 2. Configure
 
-Configuration is one TOML file. Its default location comes from `platformdirs`
-(`~/.config/sdp-orchestrator/config.toml` on Linux); `--config` overrides it.
+Configuration is one TOML file, `config.toml` in the SSDS home: `$SSDS_HOME` if set
+(an absolute path), otherwise `~/.ssds`. `--config` overrides it. Everything SSDS
+writes for an operator lives in that home, outside every repository. A file at the
+retired location (`~/.config/sdp-orchestrator/config.toml` on Linux) is reported by
+`ssds doctor` and never read or migrated.
 
 A normal current Protocol 6 project needs only the project entry. Explicitly
 naming the current profile is useful for clarity but optional because Protocol 6
@@ -102,7 +105,7 @@ credential mechanisms instead. A `repo` or `remote_repository` URL containing
 embedded credentials is rejected.
 
 `[extensions."<ns>"]` is the one open section. Configuration for extensions that
-are not installed is preserved and reported by `sdp doctor` as inactive. It does
+are not installed is preserved and reported by `ssds doctor` as inactive. It does
 not affect Core project, preparation, or prompt identity.
 
 ### Which project?
@@ -141,16 +144,16 @@ skip unaffected upstream domains when that exclusion is justified.
 Typical current commands:
 
 ```bash
-sdp intake --task "add a new scientific capability"
-sdp scientific-formulation --task "define the observable and governing model"
-sdp numerical-algorithm-design --task "choose and bound the numerical method"
-sdp software-design --task "map the accepted method into software architecture"
-sdp software-implementation --workplan workplans/active/MY-WORKPLAN.md
-sdp review --workplan workplans/active/MY-WORKPLAN.md
-sdp verification --input VERIFICATION_SCOPE="the release-critical numerical claims"
-sdp stabilization --input STABILIZATION_SCOPE="the affected architecture"
-sdp health-audit --input AUDIT_SCOPE="the long-lived subsystem"
-sdp prompt closeout --workplan workplans/active/MY-WORKPLAN.md
+ssds intake --task "add a new scientific capability"
+ssds scientific-formulation --task "define the observable and governing model"
+ssds numerical-algorithm-design --task "choose and bound the numerical method"
+ssds software-design --task "map the accepted method into software architecture"
+ssds software-implementation --workplan workplans/active/MY-WORKPLAN.md
+ssds review --workplan workplans/active/MY-WORKPLAN.md
+ssds verification --input VERIFICATION_SCOPE="the release-critical numerical claims"
+ssds stabilization --input STABILIZATION_SCOPE="the affected architecture"
+ssds health-audit --input AUDIT_SCOPE="the long-lived subsystem"
+ssds prompt closeout --workplan workplans/active/MY-WORKPLAN.md
 ```
 
 For common software-only work, `design` remains an alias for Protocol 6
@@ -160,16 +163,16 @@ keys, which makes them convenient when an older workplan may bind the legacy
 profile:
 
 ```bash
-sdp design --task "split the ingest pipeline from the storage layer"
-sdp implementation --workplan workplans/active/MY-WORKPLAN.md
+ssds design --task "split the ingest pipeline from the storage layer"
+ssds implementation --workplan workplans/active/MY-WORKPLAN.md
 ```
 
 Profile-specific aliases such as `d1`, `science`, `d2`, and `numerics` are always
 available through the generic form:
 
 ```bash
-sdp prompt d1 --task "review the scientific formulation"
-sdp prompt d2 --task "review the numerical method"
+ssds prompt d1 --task "review the scientific formulation"
+ssds prompt d2 --task "review the numerical method"
 ```
 
 The prompt goes to **stdout only**, and only after the complete artifact exists.
@@ -177,9 +180,9 @@ Diagnostics go to stderr as redacted JSON with a nonzero exit status, so piping
 is safe:
 
 ```bash
-sdp implementation | pbcopy
-sdp implementation > prompt.txt
-sdp implementation --copy          # additive; clipboard failure does not invalidate stdout
+ssds implementation | pbcopy
+ssds implementation > prompt.txt
+ssds implementation --copy          # additive; clipboard failure does not invalidate stdout
 ```
 
 Exit statuses: `0` success, `2` a structured Core problem, `1` an unexpected
@@ -189,11 +192,11 @@ internal failure.
 
 | Command | Purpose |
 | --- | --- |
-| `sdp <stage-key>` | render a registered stage command when the selected profile defines or aliases it |
-| `sdp prompt <stage-or-alias>` | render by selected profile stage key or alias |
-| `sdp projects [--workplans]` | list configured projects and their observable workplans |
-| `sdp capabilities` | capability status; metadata-only discovery by default |
-| `sdp doctor` | readiness report with no hidden loading, network, or repository mutation |
+| `ssds <stage-key>` | render a registered stage command when the selected profile defines or aliases it |
+| `ssds prompt <stage-or-alias>` | render by selected profile stage key or alias |
+| `ssds projects [--workplans]` | list configured projects and their observable workplans |
+| `ssds capabilities` | capability status; metadata-only discovery by default |
+| `ssds doctor` | readiness report with no hidden loading, network, or repository mutation |
 
 The executable stage-command set is the union needed for the supported Protocol
 6 and frozen 5.16 profiles. The selected profile still owns the meaning of a
@@ -278,8 +281,8 @@ Protocol input. It answers *what the receiving agent is authorized to do*.
 Changing one never changes the other:
 
 ```bash
-sdp implementation --prompt-mode web
-sdp implementation --input EXECUTION_MODE=REPORT_ONLY
+ssds implementation --prompt-mode web
+ssds implementation --input EXECUTION_MODE=REPORT_ONLY
 ```
 
 There is a second separation. Core's **render source** is where Core read the
@@ -395,11 +398,11 @@ to Protocol authority rather than becoming scientific or design authority.
 ## 9. Extensions
 
 Extensions are discovered through exactly one Python entry-point group,
-`sdp_orchestrator.extensions.v1`. There is no directory scanning or
+`ssds.extensions.v1`. There is no directory scanning or
 repository-loaded plugin path.
 
 Installed extension code is trusted in-process code; Core does not sandbox it.
-`sdp doctor` and `sdp capabilities` default to metadata-only discovery, so they
+`ssds doctor` and `ssds capabilities` default to metadata-only discovery, so they
 do not import provider code and do not claim unobserved provider health. Use
 `--load-extensions` when provider activation is actually wanted.
 
@@ -412,7 +415,7 @@ a successful primary render.
 
 ## 10. What Core deliberately does not do
 
-Core has no run history or `sdp status`/`next`/`ingest`/`graph`; no agent
+Core itself has no run history or status/next/ingest/graph commands; no agent
 execution or worktree leases; no model/backend/benchmark catalog; no quota meter
 or scheduler; no daemon; and no repository-local private orchestrator state.
 Those capabilities belong to later Tracker, Adapter, and Scheduler modules.
@@ -433,14 +436,17 @@ alternate homes for orchestrator code.
 ```text
 orchestrator/
   docs/          architecture.md, core-user-guide.md
-  pyproject.toml, sdp.py, src/sdp_orchestrator/core/, tests/
+  pyproject.toml   the one distribution, ssds
+  bin/ssds         zero-install checkout launcher
+  src/ssds/        cli.py (the composition root), core/ (Level 0 Core), the SSDS components
+  tests/           Core's suite; tests/ssds/ for the SSDS components
   scripts/       snapshot generation, test runner
 ```
 
 Useful development checks:
 
 ```bash
-python3 orchestrator/sdp.py --help
+python3 orchestrator/bin/ssds --help
 python3 orchestrator/scripts/run_core_tests.py
 python3 orchestrator/scripts/generate_protocol_snapshot.py --check
 ```
@@ -452,7 +458,7 @@ python3 -m pip install -e orchestrator -r orchestrator/requirements-dev.txt
 ```
 
 The packaged Protocol snapshots under
-`orchestrator/src/sdp_orchestrator/core/resources/protocol/` are generated or
+`orchestrator/src/ssds/core/resources/protocol/` are generated or
 frozen version-bound artifacts and are never hand-edited. Current Protocol 6 is
 generated from `source/shared/references/development-workflow-prompts.md`;
 Protocol 5.16 remains an immutable compatibility snapshot. The repository build

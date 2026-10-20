@@ -9,11 +9,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_SRC = REPO_ROOT / "orchestrator" / "src"
 sys.path.insert(0, str(PACKAGE_SRC))
-from sdp_orchestrator.core import profile as P  # noqa: E402
-from sdp_orchestrator.core.canonical import parse_document  # noqa: E402
-from sdp_orchestrator.core.protocol_source import CANONICAL_PROMPTS_RELPATH, CANONICAL_VERSION_RELPATH, PACKAGED_PROFILE, PACKAGED_PROMPTS  # noqa: E402
+from ssds.core import profile as P  # noqa: E402
+from ssds.core.canonical import parse_document  # noqa: E402
+from ssds.core.protocol_source import CANONICAL_PROMPTS_RELPATH, CANONICAL_VERSION_RELPATH, PACKAGED_PROFILE, PACKAGED_PROMPTS  # noqa: E402
 
-RESOURCE_ROOT = PACKAGE_SRC / "sdp_orchestrator" / "core" / "resources" / "protocol"
+RESOURCE_ROOT = PACKAGE_SRC / "ssds" / "core" / "resources" / "protocol"
 CURRENT_TARGET_DIR = RESOURCE_ROOT / P.DEFAULT_PROFILE_ID
 FROZEN = {
     P.PROFILE_ID: {PACKAGED_PROMPTS: "3730b06393843e9c24406a324f981ab4481858da", PACKAGED_PROFILE: "b3d4257fcd18af7bdb1799b2db742659bb2403fc"},

@@ -14,9 +14,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core.api import v1 as api
-from sdp_orchestrator.core.spi import v1 as spi
+from ssds.core import errors as E
+from ssds.core.api import v1 as api
+from ssds.core.spi import v1 as spi
 
 from ._support import commit_all, config_text, init_repo, write_workplan
 

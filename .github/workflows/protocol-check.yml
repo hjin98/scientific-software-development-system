@@ -43,7 +43,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install orchestrator Core and its development dependencies
+      - name: Install the ssds program and its development dependencies
         run: >-
           python -m pip install ./orchestrator
           -r orchestrator/requirements-dev.txt
@@ -59,9 +59,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install orchestrator Core, the SSDS extension and development dependencies
+      - name: Install the ssds program and its development dependencies
         run: >-
-          python -m pip install ./orchestrator ./orchestrator/ssds
+          python -m pip install ./orchestrator
           -r orchestrator/requirements-dev.txt
-      - name: Run SSDS acceptance (architecture fitness and installed registration)
-        run: python -m unittest discover -s orchestrator/ssds/tests -t orchestrator/ssds -v
+      - name: Run SSDS acceptance (architecture fitness and the composition root)
+        run: python -m unittest discover -s orchestrator/tests/ssds -t orchestrator -v

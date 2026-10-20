@@ -348,7 +348,7 @@ For the full user-facing capability history, see [CHANGELOG.md](CHANGELOG.md). F
 | `source/shared/references/` | canonical concern owners loaded by progressive disclosure |
 | `source/shared/fragments/` | shared text generated into entrypoints (the Scientific checks section) |
 | `dist/skills/` | ready-to-install generated skill bundles |
-| `orchestrator/` | optional version-bound orchestration/profile implementation |
+| `orchestrator/` | the `ssds` program: the version-bound Level 0 Core (`ssds.core`) and the SSDS 8 shadow components |
 | `qualification/` | non-normative qualification, Review, and evaluation evidence per protocol cycle |
 | `PROJECT-ENGINEERING-MEMORY.md` | this repository's project-local memory; not generic protocol authority |
 | `PROTOCOL-RELEASE-STATE.yaml` | sole mutable release-state owner |
@@ -374,9 +374,7 @@ git diff --check
 python -m pip install ./orchestrator -r orchestrator/requirements-dev.txt
 python orchestrator/scripts/generate_protocol_snapshot.py --check
 python orchestrator/scripts/run_core_tests.py
-
-python -m pip install ./orchestrator/ssds
-python -m unittest discover -s orchestrator/ssds/tests -t orchestrator/ssds -v
+python -m unittest discover -s orchestrator/tests/ssds -t orchestrator -v
 ```
 
 Mechanical qualification establishes only the property its oracle actually discriminates. Semantic adequacy still requires appropriate independent Review of the assembled candidate.

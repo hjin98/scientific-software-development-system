@@ -32,8 +32,13 @@ from .records import DigestRef, PromptExecutionMode
 from .redaction import sanitize_url
 
 CONFIG_SCHEMA_VERSION = 1
-APP_NAME = "sdp-orchestrator"
 CONFIG_FILENAME = "config.toml"
+#: Everything SSDS writes for an operator lives in the SSDS home, outside every repository
+#: (Manual §26.3, SD-56): ``$SSDS_HOME``, by default ``$HOME/.ssds``.
+SSDS_HOME_ENV = "SSDS_HOME"
+DEFAULT_SSDS_HOME_NAME = ".ssds"
+#: The retired program's configuration directory: reported by ``ssds doctor``, never read or migrated.
+RETIRED_APP_NAME = "sdp-orchestrator"
 
 _LOCAL_URL_SCHEMES = frozenset({"file"})
 _WEB_URL_SCHEMES = frozenset({"https", "http", "ssh", "git"})
@@ -100,8 +105,26 @@ def _validation_summary(exc: ValidationError) -> str:
     return "; ".join(parts)
 
 
+def ssds_home() -> Path:
+    configured = os.environ.get(SSDS_HOME_ENV)
+    if configured:
+        home = Path(configured).expanduser()
+        if not home.is_absolute():
+            E.fail(
+                E.CONFIG_INVALID,
+                f"{SSDS_HOME_ENV} must be an absolute path",
+                details={"value": configured},
+            )
+        return home
+    return Path.home() / DEFAULT_SSDS_HOME_NAME
+
+
 def default_config_path() -> Path:
-    return Path(platformdirs.user_config_dir(APP_NAME, appauthor=False)) / CONFIG_FILENAME
+    return ssds_home() / CONFIG_FILENAME
+
+
+def retired_config_path() -> Path:
+    return Path(platformdirs.user_config_dir(RETIRED_APP_NAME, appauthor=False)) / CONFIG_FILENAME
 
 
 def _check_depth(value: Any, depth: int = 0) -> None:

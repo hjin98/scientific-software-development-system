@@ -9,17 +9,17 @@ from __future__ import annotations
 
 import unittest
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core import profile as P
-from sdp_orchestrator.core.canonical import CANONICAL_STAGES, parse_document
-from sdp_orchestrator.core.inputs import (
+from ssds.core import errors as E
+from ssds.core import profile as P
+from ssds.core.canonical import CANONICAL_STAGES, parse_document
+from ssds.core.inputs import (
     decode_scalar,
     encode_scalar,
     normalize_overrides,
     resolve_inputs,
 )
-from sdp_orchestrator.core.limits import MAX_INPUT_VALUE_BYTES
-from sdp_orchestrator.core.records import (
+from ssds.core.limits import MAX_INPUT_VALUE_BYTES
+from ssds.core.records import (
     DigestRef,
     InputOwnership,
     LifecycleState,
@@ -201,7 +201,7 @@ class OwnershipEnforcementTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, E.PROMPT_INPUT_CONFLICT)
 
     def test_too_many_overrides_are_rejected(self) -> None:
-        from sdp_orchestrator.core.limits import MAX_INPUT_OVERRIDES
+        from ssds.core.limits import MAX_INPUT_OVERRIDES
 
         pairs = tuple((f"NAME_{i}", "v") for i in range(MAX_INPUT_OVERRIDES + 1))
         with self.assertRaises(E.OrchestratorError) as caught:
@@ -220,7 +220,7 @@ class NamingSeparationTests(unittest.TestCase):
         self.assertEqual(values["EXECUTION_MODE"], "REPORT_ONLY")
 
     def test_execution_mode_is_not_a_prompt_mode_value(self) -> None:
-        from sdp_orchestrator.core.records import PromptExecutionMode
+        from ssds.core.records import PromptExecutionMode
 
         self.assertEqual({m.value for m in PromptExecutionMode}, {"local", "web"})
         self.assertNotIn("AUTO_EXECUTE", {m.value for m in PromptExecutionMode})

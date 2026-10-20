@@ -22,13 +22,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core.application import (
+from ssds.core import errors as E
+from ssds.core.application import (
     ENTRY_POINT_GROUP,
     create_application,
     discover,
 )
-from sdp_orchestrator.core.records import (
+from ssds.core.records import (
     ActivationPolicy,
     ApplicationRequest,
     CapabilityKey,
@@ -44,7 +44,7 @@ PROVIDER_TEMPLATE = '''
 import os
 from pathlib import Path
 
-from sdp_orchestrator.core.spi.v1 import (
+from ssds.core.spi.v1 import (
     CapabilityProvision,
     CapabilityRequirement,
     EventSubscription,
@@ -226,18 +226,18 @@ class DiscoveryOnlyTests(ExtensionBase):
 
     def test_metadata_discovery_failure_is_visible(self) -> None:
         with patch(
-            "sdp_orchestrator.core.application.metadata.entry_points",
+            "ssds.core.application.metadata.entry_points",
             side_effect=RuntimeError("metadata backend unavailable"),
         ):
             application = self.app(ActivationPolicy.DISCOVERY_ONLY)
-        status = self.status(application, "sdp.core.discovery")
+        status = self.status(application, "ssds.core.discovery")
         self.assertEqual(status.state, "failed")
         self.assertIn("metadata discovery failed", status.detail or "")
         self.assertIn("metadata backend unavailable", status.detail or "")
         discovery_capability = next(
             capability
             for capability in application.capabilities()
-            if str(capability.key) == "extension:sdp.core.discovery"
+            if str(capability.key) == "extension:ssds.core.discovery"
         )
         self.assertEqual(discovery_capability.state, "unavailable")
 
@@ -513,7 +513,7 @@ class ExtensionContextTests(ExtensionBase):
             ),
         )
         application = self.app()
-        from sdp_orchestrator.core.records import (
+        from ssds.core.records import (
             ObservationPolicy,
             ProjectKey,
             PromptExecutionMode,
@@ -576,7 +576,7 @@ class PassiveDiagnosticsTests(ExtensionBase):
         }
 
     def test_doctor_imports_no_provider_and_touches_no_repository(self) -> None:
-        from sdp_orchestrator.core.cli import doctor_command
+        from ssds.core.cli import doctor_command
 
         _install_fixture(self.site, name="alpha", extension_id="vendor.alpha", provides=("x.y",))
         before = self._repo_snapshot()
@@ -590,7 +590,7 @@ class PassiveDiagnosticsTests(ExtensionBase):
         self.config.write_text(
             config_text(self.repo, local_root=bad_source), encoding="utf-8"
         )
-        from sdp_orchestrator.core.cli import doctor_command
+        from ssds.core.cli import doctor_command
 
         with contextlib.redirect_stdout(io.StringIO()) as output:
             doctor_command(config=str(self.config))
@@ -598,21 +598,21 @@ class PassiveDiagnosticsTests(ExtensionBase):
         self.assertEqual(report["packaged_profile"]["profile_id"], "sdp-protocol-5.16")
 
     def test_capabilities_imports_no_provider_by_default(self) -> None:
-        from sdp_orchestrator.core.cli import capabilities_command
+        from ssds.core.cli import capabilities_command
 
         _install_fixture(self.site, name="alpha", extension_id="vendor.alpha", provides=("x.y",))
         capabilities_command(config=str(self.config), load_extensions=False)
         self.assertEqual(self.imported(), [])
 
     def test_capabilities_loads_providers_only_when_asked(self) -> None:
-        from sdp_orchestrator.core.cli import capabilities_command
+        from ssds.core.cli import capabilities_command
 
         _install_fixture(self.site, name="alpha", extension_id="vendor.alpha", provides=("x.y",))
         capabilities_command(config=str(self.config), load_extensions=True)
         self.assertEqual(self.imported(), ["vendor.alpha"])
 
     def test_inactive_namespaces_are_diagnosed_without_interpretation(self) -> None:
-        from sdp_orchestrator.core.config import load_config
+        from ssds.core.config import load_config
 
         self.config.write_text(
             config_text(self.repo, extra='\n[extensions."never.installed"]\nweird = [1, 2]\nnested = { a = 2 }\n'),

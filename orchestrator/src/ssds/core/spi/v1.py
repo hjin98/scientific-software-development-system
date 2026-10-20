@@ -1,4 +1,4 @@
-"""``sdp_orchestrator.core.spi.v1`` -- the public Core provider SPI.
+"""``ssds.core.spi.v1`` -- the public Core provider SPI.
 
 An extension is discovered through the single entry-point group
 :data:`ENTRY_POINT_GROUP` and implements :class:`ExtensionProvider`.

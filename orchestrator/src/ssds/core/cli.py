@@ -1,6 +1,9 @@
-"""The ``sdp`` command line for version-selected Protocol prompt rendering.
+"""Core's commands for version-selected Protocol prompt rendering.
 
-Every convenience stage alias and ``sdp prompt <stage>`` share one prepare/render
+The ``ssds`` program's root module (``ssds.cli``) mounts these commands and is the
+only composition root; this module defines them and their exit handling.
+
+Every convenience stage alias and ``ssds prompt <stage>`` share one prepare/render
 path.  Alias names are the union of supported profile stage keys; their semantics
 are always resolved through the selected profile at run time.
 """
@@ -18,6 +21,7 @@ from . import profile as P
 from . import protocol_source as PS
 from .application import create_application
 from .canonical import all_stage_keys
+from .config import retired_config_path
 from .records import (
     ActivationPolicy,
     ApplicationRequest,
@@ -37,7 +41,7 @@ EXIT_INTERNAL = 1
 EXIT_PROBLEM = 2
 
 app = typer.Typer(
-    name="sdp",
+    name="ssds",
     help="Scientific Software Development Protocol orchestrator: render profile-correct stage prompts.",
     add_completion=False,
     no_args_is_help=True,
@@ -89,7 +93,7 @@ def _copy_to_clipboard(text: str) -> None:
     try:
         import pyperclip  # noqa: PLC0415 - optional extra
     except ImportError:
-        typer.echo(json.dumps(E.Problem(E.CLIPBOARD_UNAVAILABLE, "clipboard support is not installed", remediation="install sdp-orchestrator-core[clipboard]").to_dict(), indent=2, sort_keys=True), err=True)
+        typer.echo(json.dumps(E.Problem(E.CLIPBOARD_UNAVAILABLE, "clipboard support is not installed", remediation="install ssds[clipboard]").to_dict(), indent=2, sort_keys=True), err=True)
         return
     try:
         pyperclip.copy(text)
@@ -243,6 +247,13 @@ def doctor_command(config: Optional[str] = _config_opt) -> None:
             packaged.append({"profile_id": profile_id, "problem": exc.problem.to_dict()})
     report["packaged_profiles"] = packaged
 
+    retired = retired_config_path()
+    if retired.is_file():
+        report["retired_config"] = {
+            "path": str(retired),
+            "detail": "configuration at the retired program location is not read or migrated",
+        }
+
     # Backward-compatible doctor field retained for consumers that used the v1
     # single-profile report.  It continues to mean the frozen 5.16 package.
     legacy = next((item for item in packaged if item.get("profile_id") == P.PROFILE_ID and "problem" not in item), None)
@@ -255,9 +266,9 @@ def doctor_command(config: Optional[str] = _config_opt) -> None:
     typer.echo(json.dumps(report, indent=2, sort_keys=True))
 
 
-def main() -> int:
+def main(command: typer.Typer = app) -> int:
     try:
-        app()
+        command()
     except E.OrchestratorError as exc:
         _emit_problem(exc.problem)
         return EXIT_PROBLEM
@@ -267,7 +278,3 @@ def main() -> int:
         typer.echo(f"internal error: {type(exc).__name__}: {redact_text(str(exc))}", err=True)
         return EXIT_INTERNAL
     return EXIT_OK
-
-
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())

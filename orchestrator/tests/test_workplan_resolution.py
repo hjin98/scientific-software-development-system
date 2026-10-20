@@ -6,10 +6,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core import workplans as W
-from sdp_orchestrator.core.limits import MAX_WORKPLAN_BYTES
-from sdp_orchestrator.core.records import LifecycleState, StageRef, WorkplanPolicy
+from ssds.core import errors as E
+from ssds.core import workplans as W
+from ssds.core.limits import MAX_WORKPLAN_BYTES
+from ssds.core.records import LifecycleState, StageRef, WorkplanPolicy
 
 from ._support import init_repo, write_workplan
 

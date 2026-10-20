@@ -1,4 +1,4 @@
-# Development/acceptance dependencies for sdp-orchestrator-core.
+# Development/acceptance dependencies for the ssds program.
 # Runtime dependencies are declared in pyproject.toml and installed with the package.
 hypothesis>=6.100
 pyperclip>=1.8

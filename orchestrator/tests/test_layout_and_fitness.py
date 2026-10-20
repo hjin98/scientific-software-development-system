@@ -7,6 +7,7 @@ against the repository tree and the module ASTs rather than against behaviour.
 from __future__ import annotations
 
 import ast
+import re
 import subprocess
 import tomllib
 import unittest
@@ -14,10 +15,10 @@ from pathlib import Path
 
 from ._support import REPO_ROOT
 
-CORE_SRC = REPO_ROOT / "orchestrator/src/sdp_orchestrator/core"
+CORE_SRC = REPO_ROOT / "orchestrator/src/ssds/core"
 PYPROJECT = REPO_ROOT / "orchestrator/pyproject.toml"
 
-HIGHER_MODULES = ("sdp_orchestrator.tracker", "sdp_orchestrator.adapters", "sdp_orchestrator.scheduler")
+HIGHER_MODULES = ("ssds.tracker", "ssds.adapters", "ssds.scheduler")
 
 #: Machinery WP-1 explicitly excludes from Core.
 FORBIDDEN_IMPORTS = (
@@ -40,6 +41,10 @@ def _tracked_files() -> list[str]:
         check=True,
     )
     return [line for line in result.stdout.splitlines() if line]
+
+
+#: An import of the program package, as a statement (the bare word "ssds" is common repository prose).
+_PROGRAM_IMPORT = re.compile(r"^\s*(?:import|from)\s+ssds(?:[.\s]|$)", re.MULTILINE)
 
 
 def _imports(path: Path) -> set[str]:
@@ -78,7 +83,7 @@ class ContainmentTests(unittest.TestCase):
         stray = [
             path
             for path in _tracked_files()
-            if "sdp_orchestrator" in path and not path.startswith("orchestrator/")
+            if "ssds" in Path(path).parts[:-1] and not path.startswith("orchestrator/")
         ]
         self.assertEqual(stray, [])
 
@@ -88,9 +93,8 @@ class ContainmentTests(unittest.TestCase):
             if not root.is_dir():
                 continue
             for path in root.rglob("*.py"):
-                self.assertNotIn(
-                    "sdp_orchestrator",
-                    path.read_text(encoding="utf-8"),
+                self.assertIsNone(
+                    _PROGRAM_IMPORT.search(path.read_text(encoding="utf-8")),
                     f"{path} must not host or import orchestrator implementation",
                 )
 
@@ -102,9 +106,8 @@ class ContainmentTests(unittest.TestCase):
                 continue
             path = REPO_ROOT / tracked
             text = path.read_text(encoding="utf-8")
-            self.assertNotIn(
-                "sdp_orchestrator",
-                text,
+            self.assertIsNone(
+                _PROGRAM_IMPORT.search(text),
                 f"{tracked} must not host or import orchestrator implementation outside orchestrator/",
             )
 
@@ -113,7 +116,7 @@ class ContainmentTests(unittest.TestCase):
 
         workflow = REPO_ROOT / ".github/workflows/protocol-check.yml"
         text = workflow.read_text(encoding="utf-8")
-        self.assertNotIn("import sdp_orchestrator", text)
+        self.assertIsNone(_PROGRAM_IMPORT.search(text))
         self.assertNotIn("def ", text)
 
     def test_protocol_workplans_remain_under_the_repository_convention(self) -> None:
@@ -132,19 +135,22 @@ class ContainmentTests(unittest.TestCase):
 
 
 class NamespaceTests(unittest.TestCase):
-    def test_no_distribution_owns_the_root_namespace_init(self) -> None:
-        root_init = CORE_SRC.parent / "__init__.py"
-        self.assertFalse(root_init.exists(), "PEP 420 native namespace must have no __init__.py")
+    def test_the_program_is_one_regular_package(self) -> None:
+        """One distribution needs no namespace package (Manual §26.3, A7)."""
 
-    def test_packaging_declares_native_namespaces(self) -> None:
+        self.assertTrue((CORE_SRC.parent / "__init__.py").is_file())
+        self.assertEqual(sorted(p.name for p in (REPO_ROOT / "orchestrator/src").iterdir() if p.is_dir() and not p.name.endswith(".egg-info")), ["ssds"])
+
+    def test_packaging_declares_one_regular_package(self) -> None:
         config = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+        self.assertEqual(config["project"]["name"], "ssds")
         find = config["tool"]["setuptools"]["packages"]["find"]
-        self.assertTrue(find["namespaces"])
-        self.assertEqual(find["include"], ["sdp_orchestrator.core*"])
+        self.assertFalse(find["namespaces"])
+        self.assertEqual(find["include"], ["ssds*"])
 
     def test_exactly_one_console_entry_point(self) -> None:
         config = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
-        self.assertEqual(list(config["project"]["scripts"]), ["sdp"])
+        self.assertEqual(config["project"]["scripts"], {"ssds": "ssds.cli:main"})
 
     def test_declared_runtime_dependencies_are_the_justified_set(self) -> None:
         config = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
@@ -185,7 +191,7 @@ class ArchitectureFitnessTests(unittest.TestCase):
         for path in (CORE_SRC / "api/v1.py", CORE_SRC / "spi/v1.py"):
             for name in _imports(path):
                 self.assertFalse(
-                    name.startswith("sdp_orchestrator.") and ".core" not in name,
+                    name.startswith("ssds.") and not name.startswith("ssds.core"),
                     f"{path.name} imports {name}",
                 )
 
@@ -225,7 +231,7 @@ class ArchitectureFitnessTests(unittest.TestCase):
             for node in ast.walk(tree)
             if isinstance(node, ast.Assign)
             and isinstance(node.value, ast.Constant)
-            and node.value.value == "sdp_orchestrator.extensions.v1"
+            and node.value.value == "ssds.extensions.v1"
         ]
         self.assertEqual(len(assignments), 1)
         self.assertEqual(

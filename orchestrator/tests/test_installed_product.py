@@ -2,7 +2,7 @@
 
 Everything here runs against a wheel built from the package and installed into a
 throwaway virtual environment *outside* the source checkout, driven through the
-real ``sdp`` console script as a subprocess. Nothing in this module can pass by
+real ``ssds`` console script as a subprocess. Nothing in this module can pass by
 importing the working tree.
 
 The environment is built once for the module because the build/install cost is
@@ -75,7 +75,7 @@ class InstalledProductTests(unittest.TestCase):
         installed = _run([str(cls.venv_python), "-m", "pip", "install", "--quiet", str(cls.wheel)])
         if installed.returncode != 0:
             raise AssertionError(f"wheel install failed: {installed.stderr[-2000:]}")
-        cls.sdp = env_dir / "bin" / "sdp"
+        cls.sdp = env_dir / "bin" / "ssds"
 
         sdist_env = cls.root / "sdist-venv"
         sdist_created = _run([sys.executable, "-m", "venv", str(sdist_env)])
@@ -87,7 +87,7 @@ class InstalledProductTests(unittest.TestCase):
         )
         if sdist_installed.returncode != 0:
             raise AssertionError(f"sdist install failed: {sdist_installed.stderr[-2000:]}")
-        cls.sdist_sdp = sdist_env / "bin" / "sdp"
+        cls.sdist_sdp = sdist_env / "bin" / "ssds"
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -127,7 +127,7 @@ class InstalledProductTests(unittest.TestCase):
         if env is None:
             environment.pop("PYTHONPATH", None)
         return subprocess.run(  # noqa: S603
-            [sys.executable, str(PACKAGE_ROOT / "sdp.py"), *args],
+            [sys.executable, str(PACKAGE_ROOT / "bin" / "ssds"), *args],
             capture_output=True,
             text=True,
             check=False,
@@ -138,25 +138,27 @@ class InstalledProductTests(unittest.TestCase):
 
     # -- artifact inspection ---------------------------------------------
 
-    def test_wheel_contains_no_root_namespace_init(self) -> None:
+    def test_wheel_is_one_regular_package(self) -> None:
         with zipfile.ZipFile(self.wheel) as archive:
             names = archive.namelist()
-        self.assertNotIn("sdp_orchestrator/__init__.py", names)
-        self.assertIn("sdp_orchestrator/core/__init__.py", names)
+        self.assertIn("ssds/__init__.py", names)
+        self.assertIn("ssds/core/__init__.py", names)
+        self.assertFalse([name for name in names if name.startswith("sdp_orchestrator/")])
 
     def test_wheel_ships_the_packaged_protocol_snapshot(self) -> None:
         with zipfile.ZipFile(self.wheel) as archive:
             names = set(archive.namelist())
         for resource in ("prompts.md", "profile.json"):
             self.assertIn(
-                f"sdp_orchestrator/core/resources/protocol/sdp-protocol-5.16/{resource}", names
+                f"ssds/core/resources/protocol/sdp-protocol-5.16/{resource}", names
             )
 
     def test_wheel_declares_the_console_script(self) -> None:
         with zipfile.ZipFile(self.wheel) as archive:
             entry_points = next(n for n in archive.namelist() if n.endswith("entry_points.txt"))
             text = archive.read(entry_points).decode("utf-8")
-        self.assertIn("sdp = sdp_orchestrator.core.cli:main", text)
+        self.assertIn("ssds = ssds.cli:main", text)
+        self.assertNotIn("sdp =", text)
 
     def test_sdist_is_produced(self) -> None:
         self.assertTrue(self.sdist.exists())
@@ -164,12 +166,12 @@ class InstalledProductTests(unittest.TestCase):
     def test_sdist_contains_the_package_and_protocol_resources(self) -> None:
         with tarfile.open(self.sdist, mode="r:gz") as archive:
             names = set(archive.getnames())
-        self.assertTrue(any(name.endswith("/sdp_orchestrator/core/__init__.py") for name in names))
+        self.assertTrue(any(name.endswith("/ssds/core/__init__.py") for name in names))
         self.assertTrue(any(name.endswith("/resources/protocol/sdp-protocol-5.16/prompts.md") for name in names))
 
     def test_sdist_was_installed_in_a_separate_environment(self) -> None:
         result = _run(
-            [str(self.sdist_python), "-m", "pip", "show", "sdp-orchestrator-core"]
+            [str(self.sdist_python), "-m", "pip", "show", "ssds"]
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
@@ -198,35 +200,27 @@ class InstalledProductTests(unittest.TestCase):
     def test_installed_package_lives_outside_the_source_checkout(self) -> None:
         result = _run(
             [str(self.venv_python), "-c",
-             "import sdp_orchestrator.core as m; print(m.__file__)"]
+             "import ssds.core as m; print(m.__file__)"]
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn(str(PACKAGE_ROOT), result.stdout)
 
-    def test_sibling_namespace_package_coexists(self) -> None:
-        """A future sibling distribution must share the PEP 420 namespace."""
+    def test_retired_program_names_have_no_alias(self) -> None:
+        """SD-56 retires the former program names without alias (Manual §26.3, A7)."""
 
-        sibling = self.root / "sibling"
-        (sibling / "sdp_orchestrator" / "tracker").mkdir(parents=True, exist_ok=True)
-        (sibling / "sdp_orchestrator" / "tracker" / "__init__.py").write_text(
-            "MARKER = 'sibling-tracker'\n", encoding="utf-8"
-        )
-        env = dict(os.environ, PYTHONPATH=str(sibling))
-        result = _run(
-            [str(self.venv_python), "-c",
-             "import sdp_orchestrator.core, sdp_orchestrator.tracker as t; print(t.MARKER)"],
-            env=env,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("sibling-tracker", result.stdout)
+        self.assertFalse((self.venv_python.parent / "sdp").exists())
+        result = _run([str(self.venv_python), "-c", "import sdp_orchestrator"])
+        self.assertNotEqual(result.returncode, 0)
+        shown = _run([str(self.venv_python), "-m", "pip", "show", "sdp-orchestrator-core"])
+        self.assertNotEqual(shown.returncode, 0)
 
     def test_installed_build_imports_no_higher_module(self) -> None:
         result = _run(
             [str(self.venv_python), "-c",
-             "import sdp_orchestrator.core.api.v1, sys;"
-             " print([m for m in sys.modules if m.startswith('sdp_orchestrator.tracker')"
-             " or m.startswith('sdp_orchestrator.adapters')"
-             " or m.startswith('sdp_orchestrator.scheduler')])"]
+             "import ssds.core.api.v1, sys;"
+             " print([m for m in sys.modules if m.startswith('ssds.tracker')"
+             " or m.startswith('ssds.adapters')"
+             " or m.startswith('ssds.scheduler')])"]
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("[]", result.stdout)
@@ -267,12 +261,12 @@ class InstalledProductTests(unittest.TestCase):
         self.assertEqual(source.stdout, "")
         self.assertEqual(json.loads(source.stderr)["code"], "core.prompt.input_required")
 
-    def test_zero_install_launcher_wins_over_a_stale_namespace_copy(self) -> None:
+    def test_zero_install_launcher_wins_over_a_stale_installed_copy(self) -> None:
         stale = self.case / "stale-site"
-        stale_core = stale / "sdp_orchestrator" / "core"
-        stale_core.mkdir(parents=True)
-        (stale_core / "__init__.py").write_text("\n", encoding="utf-8")
-        (stale_core / "cli.py").write_text(
+        stale_package = stale / "ssds"
+        stale_package.mkdir(parents=True)
+        (stale_package / "__init__.py").write_text("\n", encoding="utf-8")
+        (stale_package / "cli.py").write_text(
             "print('STALE_INSTALLED_CLI')\n\n"
             "def main():\n    print('STALE_INSTALLED_CLI')\n",
             encoding="utf-8",
@@ -387,7 +381,7 @@ class InstalledProductTests(unittest.TestCase):
                 str(self.venv_python),
                 "-c",
                 (
-                    "from pathlib import Path; import sdp_orchestrator.core as core; "
+                    "from pathlib import Path; import ssds.core as core; "
                     "print(Path(core.__file__).parent / "
                     "'resources/protocol/sdp-protocol-5.16/profile.json')"
                 ),

@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # package.  Current Protocol 6 suites use CURRENT_CANONICAL_PROMPTS explicitly.
 CANONICAL_PROMPTS = (
     REPO_ROOT
-    / "orchestrator/src/sdp_orchestrator/core/resources/protocol/sdp-protocol-5.16/prompts.md"
+    / "orchestrator/src/ssds/core/resources/protocol/sdp-protocol-5.16/prompts.md"
 )
 CURRENT_CANONICAL_PROMPTS = REPO_ROOT / "source/shared/references/development-workflow-prompts.md"
 

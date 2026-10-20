@@ -11,16 +11,20 @@ is invisible to them.
 from __future__ import annotations
 
 import ast
+import re
 import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-SSDS = "sdp_orchestrator.ssds"
-CORE = "sdp_orchestrator.core"
-EXTENSION_GROUP = "sdp_orchestrator.extensions.v1"
-SSDS_PYPROJECT = "orchestrator/ssds/pyproject.toml"
-SSDS_ENTRY = ("sdp.ssds", "sdp_orchestrator.ssds.extension:provider")
+SSDS = "ssds"
+CORE = "ssds.core"
+ROOT_MODULE = "ssds.cli"
+PROGRAM_PYPROJECT = "orchestrator/pyproject.toml"
+PROGRAM_SRC = "orchestrator/src"
+CONSOLE_SCRIPTS = {"ssds": "ssds.cli:main"}
+EXTENSION_GROUP = "ssds.extensions.v1"
+RETIRED_GROUP = "sdp_orchestrator.extensions.v1"
 
 COMPONENTS = ("content", "analyzers", "ledger", "derivation", "admission", "dispatcher", "interface")
 FACADES = ("api", "spi")
@@ -75,8 +79,12 @@ ROW_CODE = {
 }
 
 CORE_PUBLIC = frozenset({f"{CORE}.api.v1", f"{CORE}.spi.v1"})
+#: The root module mounts Core's command set, so it alone may also import Core's CLI module.
+ROOT_CORE = CORE_PUBLIC | {f"{CORE}.cli"}
 #: Derivation's row lists no Core module ("imports content, analyzers, ledger (read API) only").
 NO_CORE = frozenset({"derivation"})
+#: Import names of distributions whose names differ from them.
+IMPORT_NAMES = {"python-frontmatter": "frontmatter"}
 
 #: Pure standard-library modules derivation may import: no clock, network, environment,
 #: process, filesystem or Git access is reachable through them.
@@ -99,9 +107,6 @@ PROCESS_OS_CALLS = frozenset(
     | {f"exec{s}" for s in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")}
     | {f"spawn{s}" for s in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")}
 )
-MODELS_MARKER = "ssds80/models"
-#: The sensor and its own discriminators name the models directory as data; their imports are still checked.
-SENSOR_FILES = frozenset({"orchestrator/ssds/tests/fitness.py", "orchestrator/ssds/tests/test_fitness.py"})
 LEDGER_APPEND = f"{SSDS}.ledger.append"
 #: Git subcommands that write objects, refs, the index or files.
 WRITING_GIT = frozenset(
@@ -113,6 +118,11 @@ WRITING_GIT = frozenset(
         "worktree", "write-tree",
     }
 )
+MODELS_MARKER = "ssds80/models"
+#: The sensor and its own discriminators name the models directory as data; their imports are still checked.
+SENSOR_FILES = frozenset({"orchestrator/tests/ssds/fitness.py", "orchestrator/tests/ssds/test_fitness.py"})
+#: A string naming a component module or the root module (Core may name only itself).
+_NAMES_SSDS_MODULE = re.compile(rf"^ssds\.(?:{'|'.join(COMPONENTS + FACADES)}|cli)(?:\.|$)")
 
 
 @dataclass(frozen=True, order=True)
@@ -219,25 +229,31 @@ def _os_process_calls(tree: ast.Module) -> list[tuple[str, int]]:
     ]
 
 
+def _runs_as_main(tree: ast.Module) -> bool:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Compare) and isinstance(node.left, ast.Name) and node.left.id == "__name__":
+            if any(isinstance(c, ast.Constant) and c.value == "__main__" for c in node.comparators):
+                return True
+    return False
+
+
 def _owner(name: str) -> str | None:
-    """The owner of an SSDS module: a component, a facade, ``extension`` or ``top``; None if unowned."""
+    """The owner of a program module: ``core``, a component, a facade, ``cli`` or ``top``; None if unowned."""
 
     if name == SSDS:
         return "top"
-    rest = name[len(SSDS) + 1 :]
-    head, _, tail = rest.partition(".")
-    if head in COMPONENTS or head in FACADES:
+    head, _, tail = name[len(SSDS) + 1 :].partition(".")
+    if head == "core" or head in COMPONENTS or head in FACADES:
         return head
-    if head == "extension" and not tail:
-        return "extension"
+    if head == "cli" and not tail:
+        return "cli"
     return None
 
 
 def _split(target: str) -> tuple[str, str]:
-    """``sdp_orchestrator.ssds.ledger.read`` -> ("ledger", "read")."""
+    """``ssds.ledger.read`` -> ("ledger", "read")."""
 
-    rest = target[len(SSDS) + 1 :]
-    head, _, tail = rest.partition(".")
+    head, _, tail = target[len(SSDS) + 1 :].partition(".")
     return head, tail
 
 
@@ -249,7 +265,7 @@ def _declared_import_roots(pyproject: Path) -> frozenset[str]:
         for stop in "<>=!~;[ ":
             name = name.split(stop)[0]
         name = name.strip().lower()
-        roots.add("sdp_orchestrator" if name.startswith("sdp-orchestrator-") else name.replace("-", "_"))
+        roots.add(IMPORT_NAMES.get(name, name.replace("-", "_")))
     return frozenset(roots)
 
 
@@ -257,25 +273,31 @@ def _relative(repo_root: Path, path: Path) -> str:
     return path.relative_to(repo_root).as_posix()
 
 
-def _check_ssds_import(owner: str, imp: _Import, where: str) -> list[Violation]:
+def _check_program_import(owner: str, imp: _Import, where: str) -> list[Violation]:
+    """An import of a program module by a component, facade, the root module or the top package."""
+
     target = imp.target
     out: list[Violation] = []
 
     def v(code: str, detail: str) -> None:
         out.append(Violation(code, where, f"line {imp.line}: {detail}"))
 
+    if owner == "top":
+        v("F12", f"the top package imports nothing ({target})")
+        return out
     if target == SSDS:
-        if owner == "top":
-            v("F12", "the top package imports nothing from sdp_orchestrator")
         return out
     head, tail = _split(target)
-    if owner == "top":
-        v("F12", f"the top package imports nothing from sdp_orchestrator ({target})")
-        return out
     if head == owner:
         return out
-    if head == "extension":
-        v("F12", f"nothing imports the extension module ({target})")
+    if head == "cli":
+        v("F12", f"nothing imports the root module ({target})")
+        return out
+    if head == "core":
+        if owner in NO_CORE:
+            v("F2", f"derivation imports no Core module ({target})")
+        elif target not in (ROOT_CORE if owner == "cli" else CORE_PUBLIC):
+            v("F11", f"{target} is not Core public API/SPI")
         return out
     if head in FACADES:
         if owner in COMPONENTS:
@@ -309,44 +331,37 @@ def check(repo_root: Path, repo_files: list[str], model_stems: frozenset[str]) -
     """
 
     violations: list[Violation] = []
-    ssds_src = repo_root / "orchestrator/ssds/src"
-    core_src = repo_root / "orchestrator/src"
-    ssds_tests = repo_root / "orchestrator/ssds/tests"
-    ssds_modules = _load(ssds_src) if ssds_src.is_dir() else []
-    core_modules = _load(core_src) if core_src.is_dir() else []
+    src = repo_root / PROGRAM_SRC
+    tests = repo_root / "orchestrator/tests"
+    modules = _load(src) if src.is_dir() else []
     # Declared public modules resolve as modules even before their files exist.
-    declared_public = {f"{SSDS}.{c}.{m}" for c, modules in PUBLIC.items() for m in modules if m}
-    known = frozenset(m.name for m in ssds_modules + core_modules) | declared_public
-    pyproject = repo_root / SSDS_PYPROJECT
+    declared_public = {f"{SSDS}.{c}.{m}" for c, names in PUBLIC.items() for m in names if m}
+    known = frozenset(m.name for m in modules) | declared_public
+    pyproject = repo_root / PROGRAM_PYPROJECT
     declared = _declared_import_roots(pyproject) if pyproject.is_file() else frozenset()
     stdlib = frozenset(sys.stdlib_module_names)
 
-    for module in ssds_modules:
+    for module in modules:
         where = _relative(repo_root, module.path)
         if module.name != SSDS and not module.name.startswith(SSDS + "."):
-            if module.name != "sdp_orchestrator":
-                violations.append(Violation("F0", where, f"{module.name} is outside {SSDS}"))
-            else:
-                violations.append(Violation("F0", where, "the root namespace has no __init__.py"))
+            violations.append(Violation("F0", where, f"{module.name} is outside the {SSDS} package"))
             continue
         owner = _owner(module.name)
         if owner is None:
             violations.append(Violation("F0", where, f"{module.name} belongs to no §26.1 component"))
             continue
+        if module.path.name == "__main__.py" or _runs_as_main(module.tree):
+            violations.append(Violation("F10", where, "a second runnable entry beside the root module"))
+        if owner == "core":
+            violations.extend(_check_core(module, known, where))
+            continue
         for imp in _imports(module, known):
             root = imp.target.split(".")[0]
             line = f"line {imp.line}"
-            if imp.target == SSDS or imp.target.startswith(SSDS + "."):
-                violations.extend(_check_ssds_import(owner, imp, where))
-            elif imp.target.startswith(CORE + ".") or imp.target == CORE:
-                if owner in NO_CORE:
-                    violations.append(Violation("F2", where, f"{line}: derivation imports no Core module ({imp.target})"))
-                elif owner == "top":
-                    violations.append(Violation("F12", where, f"{line}: the top package imports nothing ({imp.target})"))
-                elif imp.target not in CORE_PUBLIC:
-                    violations.append(Violation("F11", where, f"{line}: {imp.target} is not Core public API/SPI"))
+            if root == SSDS:
+                violations.extend(_check_program_import(owner, imp, where))
             elif root == "sdp_orchestrator":
-                violations.append(Violation("F12", where, f"{line}: {imp.target} is not a known public surface"))
+                violations.append(Violation("F12", where, f"{line}: {imp.target} is a retired program name"))
             elif root == "qualification" or root in model_stems:
                 violations.append(Violation("F13", where, f"{line}: imports the Stage S models ({imp.target})"))
             elif root in DYNAMIC_MODULES:
@@ -382,7 +397,7 @@ def check(repo_root: Path, repo_files: list[str], model_stems: frozenset[str]) -
             if MODELS_MARKER in value:
                 violations.append(Violation("F13", where, f"line {lineno}: names the Stage S models"))
 
-    for module in _load(ssds_tests) if ssds_tests.is_dir() else []:
+    for module in _load(tests) if tests.is_dir() else []:
         where = _relative(repo_root, module.path)
         for imp in _imports(module, frozenset()):
             root = imp.target.split(".")[0]
@@ -394,47 +409,54 @@ def check(repo_root: Path, repo_files: list[str], model_stems: frozenset[str]) -
             if MODELS_MARKER in value:
                 violations.append(Violation("F13", where, f"line {lineno}: names the Stage S models"))
 
-    for module in core_modules:
-        if not module.name.startswith(CORE):
-            continue
-        where = _relative(repo_root, module.path)
-        for imp in _imports(module, known):
-            if imp.target == SSDS or imp.target.startswith(SSDS + "."):
-                violations.append(Violation("F7", where, f"line {imp.line}: Core imports {imp.target}"))
-        for value, lineno in _strings(module.tree):
-            if value.startswith(SSDS) or value == SSDS_ENTRY[0]:
-                violations.append(Violation("F7", where, f"line {lineno}: Core names SSDS ({value!r})"))
-
     for relative in repo_files:
-        if "sdp_orchestrator/ssds" in relative and not relative.startswith("orchestrator/ssds/"):
-            violations.append(Violation("F9", relative, "SSDS files live under orchestrator/ssds/"))
+        parents = Path(relative).parts[:-1]
+        if SSDS in parents and relative.endswith(".py") and not relative.startswith(f"{PROGRAM_SRC}/ssds/") \
+                and not relative.startswith("orchestrator/tests/"):
+            violations.append(Violation("F9", relative, "program source lives under orchestrator/src/ssds/"))
 
-    violations.extend(_check_registration(repo_root, repo_files))
+    violations.extend(_check_packaging(repo_root, repo_files))
     return sorted(set(violations))
 
 
-def _check_registration(repo_root: Path, repo_files: list[str]) -> list[Violation]:
+def _check_core(module: _Module, known: frozenset[str], where: str) -> list[Violation]:
+    """Manual §26.2: the Level 0 Core imports nothing from the SSDS components or the root module."""
+
     out: list[Violation] = []
-    entries: list[tuple[str, str, str]] = []
+    for imp in _imports(module, known):
+        if imp.target.split(".")[0] == SSDS and not (imp.target == CORE or imp.target.startswith(CORE + ".")):
+            if imp.target != SSDS:
+                out.append(Violation("F7", where, f"line {imp.line}: Core imports {imp.target}"))
+    for value, lineno in _strings(module.tree):
+        if _NAMES_SSDS_MODULE.match(value):
+            out.append(Violation("F7", where, f"line {lineno}: Core names {value!r}"))
+    return out
+
+
+def _check_packaging(repo_root: Path, repo_files: list[str]) -> list[Violation]:
+    """One program: one distribution, one console script, the root module as its only entry."""
+
+    out: list[Violation] = []
+    programs = []
     for relative in repo_files:
         if Path(relative).name != "pyproject.toml":
             continue
         config = tomllib.loads((repo_root / relative).read_text(encoding="utf-8"))
         project = config.get("project", {})
-        if project.get("name") == "sdp-orchestrator-ssds" and relative != SSDS_PYPROJECT:
-            out.append(Violation("F9", relative, "the SSDS distribution is declared outside orchestrator/ssds/"))
         groups = project.get("entry-points", {})
-        for name, value in groups.get(EXTENSION_GROUP, {}).items():
-            entries.append((relative, name, value))
-        if relative == SSDS_PYPROJECT:
-            for table in ("scripts", "gui-scripts"):
-                if project.get(table):
-                    out.append(Violation("F10", relative, f"the SSDS distribution declares [{table}]"))
-            others = sorted(set(groups) - {EXTENSION_GROUP})
-            if others:
-                out.append(Violation("F10", relative, f"entry-point groups other than the extension group: {others}"))
-    if [(path, name, value) for path, name, value in entries] != [(SSDS_PYPROJECT, *SSDS_ENTRY)]:
-        out.append(
-            Violation("F10", SSDS_PYPROJECT, f"expected exactly one extension registration {SSDS_ENTRY}, found {entries}")
-        )
+        if project.get("name") == "ssds":
+            programs.append(relative)
+        if relative != PROGRAM_PYPROJECT and "ssds" in project.get("scripts", {}):
+            out.append(Violation("F10", relative, "a second distribution declares the ssds command"))
+        if RETIRED_GROUP in groups:
+            out.append(Violation("F10", relative, f"the retired group {RETIRED_GROUP} is declared"))
+        if relative == PROGRAM_PYPROJECT:
+            if project.get("scripts", {}) != CONSOLE_SCRIPTS:
+                out.append(Violation("F10", relative, f"console scripts must be exactly {CONSOLE_SCRIPTS}"))
+            if project.get("gui-scripts"):
+                out.append(Violation("F10", relative, "the program declares [gui-scripts]"))
+            if groups.get(EXTENSION_GROUP):
+                out.append(Violation("F10", relative, "the program registers itself as an extension of itself"))
+    if programs != [PROGRAM_PYPROJECT]:
+        out.append(Violation("F9", PROGRAM_PYPROJECT, f"expected one ssds distribution at {PROGRAM_PYPROJECT}, found {programs}"))
     return out

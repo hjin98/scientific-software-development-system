@@ -10,11 +10,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdp_orchestrator.core import errors as E
-from sdp_orchestrator.core import profile as P
-from sdp_orchestrator.core import protocol_source as PS
-from sdp_orchestrator.core.canonical import CANONICAL_STAGES, parse_document
-from sdp_orchestrator.core.config import ProtocolSourceSection
+from ssds.core import errors as E
+from ssds.core import profile as P
+from ssds.core import protocol_source as PS
+from ssds.core.canonical import CANONICAL_STAGES, parse_document
+from ssds.core.config import ProtocolSourceSection
 
 from ._support import CANONICAL_PROMPTS, REPO_ROOT
 
@@ -79,7 +79,7 @@ class CanonicalExtractionTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, E.PROTOCOL_SOURCE_INCOHERENT)
 
     def test_oversized_source_is_rejected(self) -> None:
-        from sdp_orchestrator.core.limits import MAX_PROTOCOL_SOURCE_BYTES
+        from ssds.core.limits import MAX_PROTOCOL_SOURCE_BYTES
 
         with self.assertRaises(E.OrchestratorError) as caught:
             parse_document("x" * (MAX_PROTOCOL_SOURCE_BYTES + 1))

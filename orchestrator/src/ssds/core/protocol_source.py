@@ -109,7 +109,7 @@ def resolve_local(local_root: Path, *, profile_id: str = P.PROFILE_ID) -> Resolv
 
 
 def _packaged_dir(profile_id: str):
-    return resources.files("sdp_orchestrator.core").joinpath("resources", "protocol", profile_id)
+    return resources.files("ssds.core").joinpath("resources", "protocol", profile_id)
 
 
 def _read_resource_bounded(resource: Traversable, limit: int, label: str) -> str:

@@ -1,7 +1,7 @@
 """Application composition: the one extension registry and service registry.
 
 Extensions are discovered through exactly one Python entry-point group,
-``sdp_orchestrator.extensions.v1``. There is no directory scanning and no
+``ssds.extensions.v1``. There is no directory scanning and no
 repository-loaded plugin path.
 
 Two activation policies exist, and the difference is a security boundary, not a
@@ -11,7 +11,7 @@ performance tweak:
     Reads installed distribution/entry-point *metadata* only. It never imports or
     executes third-party provider code, so it cannot observe a provider's
     manifest -- and therefore never claims capabilities or health it did not see.
-    ``sdp doctor`` and ``sdp capabilities`` default here, which is what makes them
+    ``ssds doctor`` and ``ssds capabilities`` default here, which is what makes them
     genuinely free of hidden loading, network access, and mutation.
 
     ``normal``
@@ -52,7 +52,7 @@ from .service import CoreService
 if TYPE_CHECKING:
     from .api.v1 import ApplicationAPI, CoreAPI
 
-ENTRY_POINT_GROUP = "sdp_orchestrator.extensions.v1"
+ENTRY_POINT_GROUP = "ssds.extensions.v1"
 CORE_SPI_VERSION = "1.0.0"
 
 #: Capabilities Core itself provisions.
@@ -244,8 +244,8 @@ class Application:
                 key=key,
                 state="active",
                 api_major=1,
-                providers=("sdp.core",),
-                detail="provisioned by sdp-orchestrator-core",
+                providers=("ssds.core",),
+                detail="provisioned by ssds.core",
             )
             for key in CORE_CAPABILITIES
         ]
@@ -323,7 +323,7 @@ class Application:
 # --------------------------------------------------------------------------
 
 
-DISCOVERY_STATUS_ID = "sdp.core.discovery"
+DISCOVERY_STATUS_ID = "ssds.core.discovery"
 
 
 @dataclass(frozen=True)

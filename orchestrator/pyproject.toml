@@ -3,13 +3,13 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sdp-orchestrator-core"
-version = "0.1.0"
-description = "Software Development Protocol orchestrator: prompt module and core program"
+name = "ssds"
+version = "8.0.0.dev0"
+description = "SSDS: scientific software development orchestration (Level 0 Core and the SSDS 8 shadow components)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "SDP Orchestrator" }]
+authors = [{ name = "SSDS" }]
 dependencies = [
     "platformdirs>=4.0",
     "typer>=0.12",
@@ -22,7 +22,7 @@ dependencies = [
 clipboard = ["pyperclip>=1.8"]
 
 [project.scripts]
-sdp = "sdp_orchestrator.core.cli:main"
+ssds = "ssds.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -30,8 +30,8 @@ zip-safe = false
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["sdp_orchestrator.core*"]
-namespaces = true
+include = ["ssds*"]
+namespaces = false
 
 [tool.setuptools.package-data]
-"sdp_orchestrator.core" = ["resources/protocol/*/*.md", "resources/protocol/*/*.json"]
+"ssds.core" = ["resources/protocol/*/*.md", "resources/protocol/*/*.json"]
