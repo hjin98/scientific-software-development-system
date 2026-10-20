@@ -126,7 +126,7 @@ class Refusals(GenesisFixture):
         self.assertFalse(prepared.valid)
         self.assertTrue(any(fragment in p for p in prepared.problems), prepared.problems)
         self.assertIsNone(prepared.digest, "a refused genesis offers nothing to sign")
-        self.assertFalse((prepared.workspace / "proposal.json").exists())
+        self.assertTrue(prepared.workspace is None or not (prepared.workspace / "proposal.json").exists())
         self.assertFalse(self.home.ledger_repository("demo").exists(), "a refused genesis publishes nothing")
 
     def test_only_legacy_or_ungoverned_modes(self) -> None:
@@ -150,6 +150,28 @@ class Refusals(GenesisFixture):
         (self.product / ".ssds" / "manifest.toml").unlink()
         self.assertRefused("no unit manifest", baseline_commit=commit(self.product, "no manifest"))
 
+    def test_every_newly_declared_term_resolves(self) -> None:
+        """Review 0e49deb A-B4: no file or span unit is declared over nothing (catalogue §1.9)."""
+
+        extra = {
+            "missing file": '[{ path = "missing.md" }]',
+            "missing heading": '[{ file = "guide.md", heading = ["Nowhere"] }]',
+            "missing symbol": '[{ file = "src/tool.py", symbol = "absent" }]',
+            "missing anchor": '[{ file = "guide.md", anchor = "absent" }]',
+        }
+        for name, scope in extra.items():
+            with self.subTest(name):
+                (self.product / ".ssds" / "manifest.toml").write_text(
+                    MANIFEST + f'\n[[unit]]\nid = "docs"\nkind = "D3"\nscope = {scope}\n')
+                self.assertRefused("TERM_ABSENT docs", baseline_commit=commit(self.product, name))
+        (self.product / "empty.md").write_text("")
+        (self.product / ".ssds" / "manifest.toml").write_text(
+            MANIFEST + '\n[[unit]]\nid = "docs"\nkind = "D3"\nscope = [{ path = "empty.md" }]\n'
+            '\n[[unit]]\nid = "later"\nkind = "D4"\nscope = [{ prefix = "later/" }]\n')
+        prepared = prepare_genesis(self.spec(baseline_commit=commit(self.product, "empty file, empty prefix")),
+                                   self.home, self.trees)
+        self.assertTrue(prepared.valid, "an empty file is present, and a prefix is exempt from the presence check")
+
     def test_trust_roots_and_witness_reachability(self) -> None:
         self.assertRefused("no human key", human_keys=())
         self.assertRefused("human key", human_keys=("ssh-rsa AAAA not-ed25519",))
@@ -159,6 +181,28 @@ class Refusals(GenesisFixture):
             self.home.witness_root.rmdir()
         self.home.witness_root.write_text("a file, not a witness directory\n")
         self.assertRefused("witness unreachable")
+
+    def test_a_ledger_id_never_directs_a_write_outside_the_home(self) -> None:
+        """Review 0e49deb A-B3: the id is checked before any path is built or anything is written."""
+
+        outside = self.root / "outside"
+        for ledger_id in ("../../escaped", "/abs/olute", "a/b", "..", "Upper"):
+            with self.subTest(ledger_id=ledger_id):
+                prepared = prepare_genesis(self.spec(ledger_id=ledger_id), self.home, self.trees)
+                self.assertFalse(prepared.valid)
+                self.assertIsNone(prepared.report)
+                self.assertTrue(any("not a ledger id" in p for p in prepared.problems), prepared.problems)
+                with self.assertRaises(GenesisRefused):
+                    admit_genesis(self.home, ledger_id, "signature")
+        self.assertFalse(self.home.root.exists(), "a refused id creates nothing, not even the home")
+        self.assertFalse((self.root / "escaped").exists())
+        outside.mkdir()
+        self.home.root.mkdir(parents=True)
+        (self.home.root / "genesis").symlink_to(outside, target_is_directory=True)
+        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+        self.assertFalse(prepared.valid)
+        self.assertTrue(any("outside the SSDS home" in p for p in prepared.problems), prepared.problems)
+        self.assertEqual(list(outside.iterdir()), [], "a symbolic link does not carry a write out of the home")
 
     def test_an_unreadable_baseline_or_policy(self) -> None:
         self.assertRefused("cannot be read", baseline_commit="0" * 40)

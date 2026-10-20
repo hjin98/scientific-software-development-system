@@ -12,7 +12,8 @@ the first two is the stakeholder's SSH signature, made with their own key:
 workspace and prints the validation report and the genesis digest; nothing is
 published. ``admit`` appends and admits it in the dedicated ledger repository
 in the SSDS home, then derives the ledger end to end and writes that report.
-``derive`` repeats the end-to-end derivation, reading only. The repository is
+``derive`` repeats the end-to-end derivation; it qualifies the ledger first and makes a current
+assertion only at a current-qualified head ``H*`` (Manual §23.4), else historical views only. The repository is
 only read: every subject is ``LEGACY(p)`` (the accepted protocol, from
 ``PROTOCOL-RELEASE-STATE.yaml``) or ``UNGOVERNED``.
 """
@@ -20,6 +21,7 @@ only read: every subject is ``LEGACY(p)`` (the accepted protocol, from
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import re
 import subprocess
@@ -29,10 +31,18 @@ from pathlib import Path
 REPOSITORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY / "orchestrator" / "src"))
 
-from ssds.admission.genesis import GenesisRefused, GenesisSpec, Home, admit_genesis, prepare_genesis  # noqa: E402
+from ssds.admission.genesis import (  # noqa: E402
+    GenesisRefused,
+    GenesisSpec,
+    Home,
+    HomeRefused,
+    admit_genesis,
+    prepare_genesis,
+)
 from ssds.content import read_tree  # noqa: E402
 from ssds.core.config import ssds_home  # noqa: E402
 from ssds.derivation import consequences  # noqa: E402
+from ssds.ledger.qualification import FileWitness, WitnessModel, qualify  # noqa: E402
 from ssds.ledger.read import read_chain  # noqa: E402
 
 LEDGER_ID = "ssdp-shadow"
@@ -68,7 +78,8 @@ def prepare(args: argparse.Namespace) -> int:
                        baseline_commit=resolve_commit(repository, args.baseline), human_keys=(public,),
                        protocol=protocol, modes=modes)
     prepared = prepare_genesis(spec, Home(ssds_home()), lambda commit: read_tree(repository, commit))
-    print(f"validation report: {prepared.report}")
+    if prepared.report is not None:
+        print(f"validation report: {prepared.report}")
     if not prepared.valid:
         print("genesis refused; nothing was published:")
         for problem in prepared.problems:
@@ -81,23 +92,65 @@ def prepare(args: argparse.Namespace) -> int:
     return 0
 
 
-def derivation_report(home: Home, ledger_id: str, repository: Path) -> dict:
+def qualified_chain(home: Home, ledger_id: str):
+    """The verified chain, its qualification against the declared witnesses and high-water mark (§23.4),
+    and the prefix a current answer may be derived from: through the qualified head ``H*``, or None.
+
+    Witness and high-water reads happen here, outside derivation (Manual §5.1). Phase D reads file
+    witnesses only; a declared witness of another kind counts as not responding.
+    """
+
     chain = read_chain(home.ledger_repository(ledger_id), ledger_id)
-    view = consequences(chain, lambda commit: read_tree(repository, commit))
-    structure = view.s.view.structure
-    subjects = sorted(u for u, unit in structure.units.items() if unit.subject)
-    return {
+    if not chain.entries or chain.genesis is None:
+        return chain, None, None
+    fields = chain.genesis["fields"]
+    model = WitnessModel.from_json(fields["witnesses"])
+    reports = {w.id: FileWitness(Path(w.location)).read(ledger_id) if w.kind == "FILE" else None
+               for w in model.witnesses}
+    host_keys = {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
+    qualification = qualify(chain, reports, model, host_keys, home.high_water(ledger_id).get())
+    prefix = None
+    if qualification.current and qualification.head is not None:
+        prefix = dataclasses.replace(chain, entries=chain.entries[: qualification.head + 1])
+    return chain, qualification, prefix
+
+
+def derivation_report(home: Home, ledger_id: str, repository: Path) -> dict:
+    chain, qualification, prefix = qualified_chain(home, ledger_id)
+    trees = lambda commit: read_tree(repository, commit)  # noqa: E731
+    report: dict = {
         "ledger_id": ledger_id,
         "entries": len(chain.entries),
-        "head": chain.entries[-1].digest if chain.entries else None,
-        "current_assertion": view.current_assertion,
-        "assertion_withheld": list(view.assertion_withheld),
-        "subjects": {s: {"mode": view.s.mode(s), "rev": view.s.cur(s), "valid": view.support.valid(s),
-                         "parts": sorted(u for u in structure.units if structure.subj(u) == s and u != s)}
-                     for s in subjects},
-        "findings": [[f.code, f.attention, list(f.about), f.detail] for f in view.findings],
-        "obligations": [[o.kind, list(o.about), o.detail] for o in view.obligations],
+        "qualification": qualification.state if qualification else "UNQUALIFIED",
+        "qualified_head": None, "qualified_head_digest": None, "provisional": None,
+        "critical": list(qualification.critical) if qualification else [],
     }
+    if prefix is not None:
+        view = consequences(prefix, trees)
+        report.update(qualified_head=qualification.head, qualified_head_digest=qualification.head_digest,
+                      provisional=qualification.provisional)
+        withheld = list(view.assertion_withheld)
+    elif chain.genesis is not None and chain.readable_through >= 0:
+        view = consequences(chain, trees)  # historical views only: no head is current-qualified
+        withheld = [f"qualification {report['qualification']}: historical views only", *view.assertion_withheld]
+    else:
+        report.update(current_assertion=False, assertion_withheld=["no readable genesis"], subjects={},
+                      findings=[], obligations=[])
+        return report
+    structure = view.s.view.structure
+    subjects = sorted(u for u, unit in structure.units.items() if unit.subject)
+    report.update(
+        position=view.s.n,
+        head=view.s.h.chain.entries[view.s.n].digest,
+        current_assertion=not withheld,
+        assertion_withheld=withheld,
+        subjects={s: {"mode": view.s.mode(s), "rev": view.s.cur(s), "valid": view.support.valid(s),
+                      "parts": sorted(u for u in structure.units if structure.subj(u) == s and u != s)}
+                  for s in subjects},
+        findings=[[f.code, f.attention, list(f.about), f.detail] for f in view.findings],
+        obligations=[[o.kind, list(o.about), o.detail] for o in view.obligations],
+    )
+    return report
 
 
 def admit(args: argparse.Namespace) -> int:
@@ -121,14 +174,24 @@ def admit(args: argparse.Namespace) -> int:
 def write_derivation(home: Home, ledger_id: str, repository: Path) -> int:
     report = derivation_report(home, ledger_id, repository)
     path = home.workspace(ledger_id) / "derivation.json"
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"derivation report: {path}")
+    print(f"qualification:     {report['qualification']}"
+          + (f" at {report['qualified_head']}" if report["qualified_head"] is not None else "")
+          + (f", provisional {report['provisional']}" if report["provisional"] is not None else ""))
     print(f"current assertion: {report['current_assertion']}")
+    for reason in report["assertion_withheld"]:
+        print(f"  withheld: {reason}")
     return 0 if report["current_assertion"] else 1
 
 
 def derive(args: argparse.Namespace) -> int:
-    return write_derivation(Home(ssds_home()), args.ledger_id, Path(args.repository).resolve())
+    try:
+        return write_derivation(Home(ssds_home()), args.ledger_id, Path(args.repository).resolve())
+    except HomeRefused as refused:
+        print(f"refused: {refused}")
+        return 1
 
 
 def main(argv: list[str] | None = None) -> int:

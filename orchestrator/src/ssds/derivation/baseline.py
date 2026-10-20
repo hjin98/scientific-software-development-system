@@ -36,7 +36,14 @@ def baseline_structure(tree: Tree, manifest_path: str) -> BaselineStructure:
     problems = tuple(f"{e.code} {e.unit}: {e.detail}" for e in errors)
     static = {(e.code, e.unit, e.detail) for e in errors}
     subjects = tuple(sorted(u for u, unit in structure.units.items() if unit.subject))
-    facts = StructureFacts(TreeView(tree, structure, manifest_path), manifest_decl(view))
+    declared = TreeView(tree, structure, manifest_path)
+    # §1.9: at genesis every term is newly declared, so each one naming a file or a span in one must
+    # resolve to a present file (possibly empty) or a found span; prefix terms are exempt.
+    for uid in sorted(structure.units):
+        for term in structure.units[uid].scope:
+            if term.kind != "prefix" and declared.term_region(term) is None:
+                problems += (f"TERM_ABSENT {uid}: {term.to_json()} resolves to nothing in the baseline tree",)
+    facts = StructureFacts(declared, manifest_decl(view))
     findings = tuple(f"{d.code} {d.unit}: {d.detail}" for d in facts.defects if (d.code, d.unit, d.detail) not in static)
     return BaselineStructure(decl_to_json(structure.decl), subjects, problems, findings)
 

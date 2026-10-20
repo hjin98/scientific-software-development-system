@@ -250,6 +250,22 @@ class Qualification(unittest.TestCase):
         self.assertEqual((far.state, far.head), ("QUALIFIED", 4))
         self.assertTrue(far.critical, "more than one entry beyond the qualified head is an integrity obligation")
 
+    def test_only_declared_witnesses_respond(self) -> None:
+        """Review 0e49deb A-B2: quorums count the declared witness set, never any other report key."""
+
+        model = _model(3, 2, 2, 0)
+        declared = {"w0": [self.cp(4)], "w1": [self.cp(4)]}
+        self.assertEqual(qualify(self.chain(5), declared, model, self.keys).state, "QUALIFIED")
+        foreign = {"w0": [self.cp(4)], "not-declared": [self.cp(4)], "also-not": [self.cp(4)]}
+        self.assertEqual(qualify(self.chain(5), foreign, model, self.keys).state, "UNQUALIFIED",
+                         "relabelled copies of an authentic checkpoint are not distinct witnesses")
+        local = WitnessModel("LOCAL_TRUST", 1, 1, 1, 0, (WitnessSpec("local-file", "FILE", "/w"),))
+        self.assertEqual(qualify(self.chain(5), {"not-declared": [self.cp(4)]}, local, self.keys).state, "UNQUALIFIED",
+                         "the declared witness has not responded")
+        duplicated = WitnessModel("TEAM", 3, 2, 2, 0, tuple(WitnessSpec("w0", "GIT", f"/w{i}") for i in range(3)))
+        self.assertEqual(qualify(self.chain(5), declared, duplicated, self.keys).state, "UNQUALIFIED",
+                         "a witness set without N distinct identities qualifies nothing")
+
     def test_loss_bounds(self) -> None:
         self.assertEqual((loss_status(0, 1, 0, 2), loss_status(1, 1, 0, 2), loss_status(2, 0, 1, 2)),
                          ("PROVED_NEVER_ADMITTED", "POSSIBLY_ADMITTED", "KNOWN_ADMITTED"))

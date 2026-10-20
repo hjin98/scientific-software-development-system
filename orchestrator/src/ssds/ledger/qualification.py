@@ -201,8 +201,15 @@ def qualify(
         return Qualification("INTEGRITY_HALT")
     if retired:
         return Qualification("RETIRED")
+    try:
+        model.validate()
+    except ValueError:
+        return Qualification("UNQUALIFIED")  # quorums are meaningless over an unsound or malformed witness set
+    # Quorums count the declared witness set only (§23.3): a report keyed by any other identity is no
+    # response, however authentic the checkpoints it carries.
+    declared = {w.id for w in model.witnesses}
     responders = {w: [c for c in cps if c.ledger_id == chain.ledger_id and c.authentic(host_keys)]
-                  for w, cps in reports.items() if cps is not None}
+                  for w, cps in reports.items() if cps is not None and w in declared}
     if len(responders) < model.r:
         return Qualification("UNQUALIFIED")
     digests = chain.digests()

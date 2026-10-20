@@ -40,6 +40,7 @@ from ssds.ledger.read import (
     ledger_head,
     ledger_ref,
     read_chain,
+    is_unit,
     record_violations,
     verify_sshsig,
     with_id,
@@ -97,28 +98,59 @@ def genesis_approval_message(genesis: Mapping[str, Any]) -> bytes:
 
 
 class Home:
-    """Where Admission keeps a project's operator data, under the SSDS home (created on first write)."""
+    """Where Admission keeps a project's operator data, under the SSDS home (created on first write).
+
+    Every path it hands out is checked first: the ledger id must be a unit
+    identity (catalogue §1.1) and the resolved path, symbolic links followed,
+    must stay inside the resolved home, so no input can direct a write
+    outside it.
+    """
 
     def __init__(self, root: Path) -> None:
         if not root.is_absolute():
             raise ValueError("the SSDS home is an absolute directory")
         self.root = root
 
+    @staticmethod
+    def check_ledger_id(ledger_id: str) -> None:
+        if not is_unit(ledger_id):
+            raise HomeRefused(f"{ledger_id!r} is not a ledger id: lowercase dot-separated segments of [a-z0-9_-]")
+
+    def _inside(self, *parts: str) -> Path:
+        path = self.root.joinpath(*parts)
+        if not path.resolve().is_relative_to(self.root.resolve()):
+            raise HomeRefused(f"{path} resolves outside the SSDS home {self.root}")
+        return path
+
     def ledger_repository(self, ledger_id: str) -> Path:
-        return self.root / "ledgers" / f"{ledger_id}.git"
+        self.check_ledger_id(ledger_id)
+        return self._inside("ledgers", f"{ledger_id}.git")
 
     @property
     def witness_root(self) -> Path:
-        return self.root / "witness"
+        return self._inside("witness")
 
     def admission_key(self, ledger_id: str) -> Path:
-        return self.root / "keys" / "admission" / f"{ledger_id}.ed25519"
+        self.check_ledger_id(ledger_id)
+        return self._inside("keys", "admission", f"{ledger_id}.ed25519")
 
     def workspace(self, ledger_id: str) -> Path:
-        return self.root / "genesis" / ledger_id
+        self.check_ledger_id(ledger_id)
+        return self._inside("genesis", ledger_id)
 
     def high_water(self, ledger_id: str) -> HighWaterStore:
-        return HighWaterStore(self.root / "state" / ledger_id / "high-water.json")
+        self.check_ledger_id(ledger_id)
+        return HighWaterStore(self._inside("state", ledger_id, "high-water.json"))
+
+    def check(self, ledger_id: str) -> None:
+        """Refuse before any filesystem effect: every path this ledger would use stays in the home."""
+
+        self.ledger_repository(ledger_id), self.witness_root, self.admission_key(ledger_id)
+        self.workspace(ledger_id), self.high_water(ledger_id)
+
+
+class HomeRefused(ValueError):
+    """An input that would place operator data outside the SSDS home."""
 
 
 def _write_private(path: Path, data: bytes) -> None:
@@ -173,8 +205,8 @@ class Prepared:
     message: bytes | None  # the exact bytes the human signs
     problems: tuple[str, ...]
     findings: tuple[str, ...]
-    workspace: Path
-    report: Path
+    workspace: Path | None  # None when the ledger id itself was refused: nothing was written
+    report: Path | None
 
     @property
     def valid(self) -> bool:
@@ -188,6 +220,10 @@ def prepare_genesis(spec: GenesisSpec, home: Home, trees: TreeSource) -> Prepare
     report. Nothing is appended; the ledger repository is not created.
     """
 
+    try:
+        home.check(spec.ledger_id)
+    except HomeRefused as refused:
+        return Prepared(spec.ledger_id, None, None, None, (str(refused),), (), None, None)
     workspace = home.workspace(spec.ledger_id)
     problems: list[str] = []
     findings: list[str] = []
@@ -334,6 +370,10 @@ def admit_genesis(home: Home, ledger_id: str, signature: str) -> Admitted:
     chain qualifies.
     """
 
+    try:
+        home.check(ledger_id)
+    except HomeRefused as refused:
+        raise GenesisRefused([str(refused)]) from None
     workspace = home.workspace(ledger_id)
     try:
         genesis = json.loads((workspace / "proposal.json").read_bytes())
@@ -384,5 +424,5 @@ def admit_genesis(home: Home, ledger_id: str, signature: str) -> Admitted:
     return Admitted(ledger_id, repository, appended.commit, appended.digest, genesis_digest(record), qualification.state)
 
 
-__all__ = ["Admitted", "GenesisRefused", "GenesisSpec", "Home", "Prepared", "admit_genesis", "genesis_approval_message",
+__all__ = ["Admitted", "GenesisRefused", "GenesisSpec", "Home", "HomeRefused", "Prepared", "admit_genesis", "genesis_approval_message",
            "genesis_digest", "genesis_proposal", "genesis_violations", "prepare_genesis"]

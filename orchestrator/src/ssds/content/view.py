@@ -101,6 +101,11 @@ class TreeView:
     def governed(self, path: str) -> bool:
         return path in self.tree and self.structure.governed(path)
 
+    def term_region(self, term: Term) -> Region | None:
+        """One scope term's §1.3 resolution in this tree, before any ownership test; None is ``ABSENT``."""
+
+        return resolve(term, self.tree, self.governed).region
+
     @cached_property
     def term_resolutions(self) -> dict[str, tuple[Region | None, ...]]:
         """Each unit's terms resolved by §1.3, in declared order."""

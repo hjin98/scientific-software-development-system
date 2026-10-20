@@ -9,7 +9,7 @@ governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 decided, SD-56, its text's independent Review pending)
 g2_authorization: SD-55 (shadow implementation only)
 stakeholder_amendment: SD-56 (one program `ssds`; operator data in the SSDS home; §6-§7 answered); SD-57 (a first release with no predecessor installation; the genesis approval key)
-active_serious_challenge: none (SC-D1 resolved by SD-56)
+active_serious_challenge: SC-1 of the 0e49deb Phase D Review (catalogue §6.5 bounding currency), at the G2 register's owner (SC-D1 resolved by SD-56)
 ---
 
 Governing SSDP version: 7.2.1.
@@ -30,8 +30,14 @@ DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 ren
              `ssdp-shadow` in the SSDS home (`QUALIFIED`; derived with a current assertion, no
              findings, no obligations); evidence in
              `qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`.
-NEXT ACTION: the Phase D implementation Review (with Manual A7). §7 Q5 is needed only when a
-             setting is first read.
+             The Phase D Review of 0e49deb is NO-PASS on both subjects
+             (`qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-0E49DEB-DIFFERENT-FAMILY-NO-PASS.md`);
+             its implementation blockers A-B1 to A-B4 are repaired (§9).
+SERIOUS CHALLENGE: SC-1 of that Review (catalogue §6.5 bounding currency against S5 §6
+             `genuine_fix_is_stale`, §8 reading 1) is open at the G2 register's owner; A7 blocker
+             B-B1 (two Manual §26.4 rows) waits for the Manual's owner.
+NEXT ACTION: the SC-1 decision and the B-B1 text, then a Review of the repaired candidate. §7 Q5
+             is needed only when a setting is first read.
 ```
 
 ## 1. Scope and authority
@@ -163,3 +169,14 @@ Where the catalogue leaves a choice to D4 or names a later owner, step 4 reads i
 14. *What validation refuses.* A missing or unparsable manifest, any §1.9 static error, a mode naming an undeclared subject, a subject with no mode and no `"*"` default, a mode other than `LEGACY(p)` or `UNGOVERNED`, `LEGACY` without `p`, an unparsable policy, no or malformed human key, a witness model failing its class or the quorum inequality, an unreachable witness or one already holding checkpoints for the ledger, and an existing ledger. Other S0 defects of the baseline (relation vocabulary, cycle legality, single definer) are reported in the validation report as ordinary findings: they are §5.7 integrity checks of derivation, not §1.9 static checks.
 15. *The gate.* The stakeholder signs the approval message `ssds genesis <digest>` with `ssh-keygen -Y sign -n ssds`; the digest covers the whole genesis record but its id and approval. Admission takes the approval key to be whichever registered human key verifies the signature, re-reads the proposal from the workspace and refuses it if it changed. The genesis record's `governs` is `LEGACY(p)` of the protocol the shadow runs under; its policy object is the baseline's `policy_path` file, or `schema = 1` when there is none; its analyzer object lists the system ruleset's analyzers.
 16. *Admitted.* The entry is admitted when the file witness has the fsynced checkpoint (`q_a = 1`) and the read-back chain qualifies `QUALIFIED` at position 0; the high-water mark is then set. Nothing is written to the product repository (checked at run time on its refs, objects and status) and the ledger repository carries only `refs/ssds/ledger/<id>`.
+
+## 9. Repairs after the 0e49deb Review
+
+The Review's implementation blockers are D4 defects at their owners; each repair carries the Review's executed discriminator as a test that fails without it.
+
+- **A-B1** (currentness without qualification). The step 7 report consumer (`scripts/shadow_genesis.py`) now qualifies the chain against the declared witnesses and the high-water mark before deriving (witness reads stay outside derivation, Manual §5.1), derives the qualified prefix through `H*` only, and reports the qualification state, `H*`, any provisional successor and critical obligations. Without a current-qualified head it gives historical views only and exits non-zero. Tests: a removed witness checkpoint (`UNQUALIFIED`), a high-water mark past the chain (`ROLLBACK`), and an appended, never-checkpointed successor (`QUALIFIED` at 0, provisional 1, the answer derived at 0).
+- **A-B2** (undeclared responders). `ledger.qualification.qualify` counts only reports keyed by declared witnesses and qualifies nothing over a witness model that fails validation (class, quorum inequality, `N` distinct identities). Test: relabelled copies, a missing declared witness, duplicated identities.
+- **A-B3** (writes outside the home). `admission.genesis.Home` checks the ledger id against the unit identity grammar and every resolved path, symbolic links followed, for containment in the resolved home, before any filesystem effect; `prepare_genesis` and `admit_genesis` refuse a bad id having written nothing. Tests: traversal, absolute, slash and upper-case ids at the owner and through the CLI; a symbolic link out of the home.
+- **A-B4** (an unresolved term at genesis). `derivation.baseline_structure` requires every non-`prefix` term to resolve in the baseline tree to a present file (possibly empty) or a found span (catalogue §1.9), through `TreeView.term_region`. Tests: missing file, heading, symbol and anchor; an empty file and an empty prefix pass.
+
+The admitted shadow ledger is unaffected: its baseline passes the stricter genesis check, and the repaired consumer qualifies it at head 0 with a current assertion. Not repaired here: SC-1 (an owner decision) and B-B1 (Manual text). The Review's non-blocking N1 (a checkpoint body digest does not authenticate the cached fold) and N2 (the content facade exposes a Git reader the import sensor cannot see) are Phase H and sensor questions, recorded, not changed; N3 (backing up the home-resident ledger) belongs to the first-day docs once the ledger is operated.

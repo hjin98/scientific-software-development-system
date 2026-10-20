@@ -92,6 +92,60 @@ class ShadowGenesisScript(unittest.TestCase):
         self.assertEqual((git(self.repo, "for-each-ref"), git(self.repo, "status", "--porcelain", "--ignored")), before,
                          "the repository is only read")
 
+    def admitted(self) -> None:
+        prepared = self.run_script("prepare", "--public-key", str(self.public))
+        message = Path(re.search(r"approval message:\s+(\S+)", prepared.stdout).group(1))
+        subprocess.run(["ssh-keygen", "-q", "-Y", "sign", "-f", str(self.private), "-n", "ssds", str(message)],
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=60)
+        self.assertEqual(self.run_script("admit", "--signature", str(message) + ".sig").returncode, 0)
+
+    def report(self) -> tuple[int, dict]:
+        result = self.run_script("derive")
+        return result.returncode, json.loads((self.home / "genesis" / "demo" / "derivation.json").read_text())
+
+    def test_no_current_assertion_without_qualification(self) -> None:
+        """Review 0e49deb A-B1: the report qualifies first; an unqualified replica gives historical views only."""
+
+        self.admitted()
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"], report["qualified_head"], report["current_assertion"]),
+                         (0, "QUALIFIED", 0, True))
+        checkpoint = next((self.home / "witness" / "demo").glob("*.json"))
+        held = checkpoint.read_bytes()
+        checkpoint.unlink()
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "UNQUALIFIED", False))
+        self.assertTrue(report["assertion_withheld"][0].startswith("qualification UNQUALIFIED"))
+        checkpoint.write_bytes(held)
+        mark = self.home / "state" / "demo" / "high-water.json"
+        kept = mark.read_bytes()
+        mark.write_text(json.dumps({"position": 5, "entry_digest": "sha256:" + "5" * 64}))
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "ROLLBACK", False))
+        mark.write_bytes(kept)
+        self.assertEqual(self.report()[0], 0, "restored, it qualifies again")
+
+    def test_a_provisional_successor_is_never_the_current_head(self) -> None:
+        from ssds.ledger.append import HostKey, append_entry
+        from ssds.ledger.read import read_chain
+
+        from ._fixtures import entry, record
+
+        self.admitted()
+        repository = self.home / "ledgers" / "demo.git"
+        chain = read_chain(repository, "demo")
+        key = HostKey.from_private_bytes((self.home / "keys" / "admission" / "demo.ed25519").read_bytes())
+        adoption = record("RULESET_ADOPTION", target=None, actor="human:SHA256:x",
+                          fields={"system": "ssds-rules/1", "policy": "sha256:" + "0" * 64, "analyzers": ["x/1"]})
+        append_entry(repository, entry("demo", 1, chain.entries[0].digest, key, lifecycle=adoption, obs=self.baseline),
+                     key, chain.entries[0].commit)  # appended, never checkpointed: provisional
+        code, report = self.report()
+        self.assertEqual((report["entries"], report["qualification"], report["qualified_head"], report["provisional"]),
+                         (2, "QUALIFIED", 0, 1))
+        self.assertEqual((report["position"], report["head"]), (0, chain.entries[0].digest),
+                         "the answer is derived at H*, not at the provisional entry")
+        self.assertEqual((code, report["current_assertion"]), (0, True))
+
     def test_a_refused_genesis_prints_why_and_publishes_nothing(self) -> None:
         (self.repo / ".ssds" / "manifest.toml").write_text(MANIFEST.replace('id = "ssds8.manual"', 'id = "other"'))
         commit(self.repo, "no manual subject")
@@ -100,6 +154,15 @@ class ShadowGenesisScript(unittest.TestCase):
         self.assertIn("ssds8.manual, which the manifest does not declare", prepared.stdout)
         self.assertFalse((self.home / "ledgers").exists())
 
+
+    def test_the_cli_refuses_a_traversing_ledger_id(self) -> None:
+        result = subprocess.run([sys.executable, str(SCRIPT), "--repository", str(self.repo), "--ledger-id", "../../escaped",
+                                 "prepare", "--public-key", str(self.public)],
+                                capture_output=True, text=True, env=self.env, timeout=240, check=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("not a ledger id", result.stdout)
+        self.assertFalse(self.home.exists())
+        self.assertFalse((self.home.parent.parent / "escaped").exists())
 
 if __name__ == "__main__":
     unittest.main()
