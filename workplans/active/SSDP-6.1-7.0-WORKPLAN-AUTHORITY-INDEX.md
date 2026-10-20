@@ -1,10 +1,10 @@
 ---
 kind: protocol-workplan-authority-index
 workplan_id: SSDP-6.1-7.0-WORKPLAN-AUTHORITY-INDEX
-protocol_version: 6.6.0
+protocol_version: 7.2.1
 status: active
 created_date: 2026-09-09
-reviewed_date: 2026-10-12
+reviewed_date: 2026-10-19
 active_serious_challenge: none
 current_handoffs:
   protocol-7.0: workplans/active/SSDP-7.0-SCIENTIFIC-EPISTEMIC-CLOSURE-AND-DISCOVERY-CONSOLIDATED.md
@@ -22,9 +22,11 @@ The **Scientific Software Development Protocol (SSDP)** uses D1 scientific/mathe
 
 The frontmatter `current_handoffs` map is the machine-readable projection of the single-current-handoff routes below; like the prose, it routes and authorizes nothing. Do not copy substantive requirements into this index. Read the listed governing artifacts themselves. Archived workplans preserve the exact historical handoff that governed completed cycles or design-review snapshots; later work may supersede current release/closeout disposition without rewriting those historical artifacts.
 
-## Current major-version reassignment
+## Protocol 7 handoff (closed at 7.2.1)
 
-Protocol 7.0 is now the proposed **Scientific Inspectability, Epistemic Initiative, and Scientific Feedback Loop** major revision (workplan IDs retain the historical `EPISTEMIC-CLOSURE` lexeme). Its single current planning handoff is:
+Protocol 7 closed at 7.2.1, accepted with conditions on 2026-10-12 (`qualification/ssdp70/STAKEHOLDER-RATIFICATION-2026-10-12-PROTOCOL-7.2.1.md`), under the consolidated handoff below as amended by `SSDP-7X-SKILLS-ONLY-RELIABILITY-AND-QUALIFICATION-V2`. Release identities are owned by `PROTOCOL-RELEASE-STATE.yaml`. Both workplans stay in `workplans/active/` as the owners of that cycle's record and its acceptance conditions; they are version-bound to 6.6.0 and are not reinterpreted. The rest of this section, including its status block, is the cycle's chronology up to 2026-09-28: it is historical and no longer describes current state.
+
+Protocol 7.0 was then the proposed **Scientific Inspectability, Epistemic Initiative, and Scientific Feedback Loop** major revision (workplan IDs retain the historical `EPISTEMIC-CLOSURE` lexeme). Its single current planning handoff is:
 
 - `workplans/active/SSDP-7.0-SCIENTIFIC-EPISTEMIC-CLOSURE-AND-DISCOVERY-CONSOLIDATED.md`
 
@@ -47,6 +49,7 @@ The first Stage A qualification-framework draft failed its independent pre-run c
 A fresh Stage F pre-run integrity review at tooling head `1d2ac73ceabb8efce40005540c118e5fbfc407af` returned **STOP/BLOCKED** and is recorded at `qualification/ssdp70/STAGE-F-PRE-RUN-QUALIFICATION-INTEGRITY-REVIEW-STOP-BLOCKED-2026-09-28.md`. It found unavailable required withheld/actual-runner evidence and D4 tooling fail-open paths; no comparative campaign ran and the semantic candidate `db94a2d...` remained unchanged. The stakeholder then directed the Stage F plan to remove environment/vendor lock-in. The first portable architecture amendment at `62aa1bbaa9d2d1dfef1b48cede6bc1500837658f` received a fresh independent **NO-PASS** at `qualification/ssdp70/STAGE-F-PORTABLE-EXECUTION-ARCHITECTURE-INDEPENDENT-REVIEW-NO-PASS-2026-09-28.md`: the core/adapter split was accepted in principle, but execution-profile equivalence, capability/containment/custody semantics, normalized-trace completeness, exact scoring closure, provenance and profile-scoped PASS remained under-specified. The current workplan/contract/amendment repair closes those five D3 gaps while keeping the Protocol 7 semantic candidate unchanged. **Fresh independent Review of the repaired exact bytes is still required before dependent Stage F tooling repair or candidate runs.** Historical Claude Code/`claude-sonnet-5` observations remain bounded evidence about 6.6, not a normative runtime requirement.
 
 ```text
+HISTORICAL (2026-09-28; superseded by the 7.2.1 closure above):
 PROTOCOL 7 WORKPLAN DESIGN REVIEW: 62aa1bb Stage F portable amendment received fresh independent NO-PASS (011b4fe review record); B1-B5 D3 repair authored and PENDING FRESH INDEPENDENT REVIEW
 PROTOCOL 7 D4: stakeholder-authorized Stages A-F; Stages A-E COMPLETE (65b0121, 645ba2e, 980ec18, 67977c6, db94a2d); Stage F PRE-RUN remains STOP/BLOCKED pending repaired-architecture Review PASS, portable-runner tooling repair, and withheld/actual-runner requalification; no active Serious Challenge
 PROTOCOL 7 SD-B: SUPERSEDE (2026-09-27); size budget is a compression target, never a reason to break a lossless condition;

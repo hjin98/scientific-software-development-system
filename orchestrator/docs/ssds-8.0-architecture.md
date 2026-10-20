@@ -22,7 +22,7 @@ amendment_a3: accepted (SD-53, stakeholder decision record item 49); restores §
 amendments_a4_a6: accepted (SD-55, stakeholder decision record item 51) with the post-review corrections; A4 the §5.10 (e) cross-item owner (finding 913db8f N6); A5 and A6 the 2a17a83 Review's N1 and N2 (§32.2, §17.5, §32.3); no decision changes
 accepted_at_g1: SD-50 (stakeholder decision record item 46), semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5, blob b4077eb5879570b0aee56b068be8588beeaa5e9e
 amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b; SD-55 (item 51), A4-A6 reviewed at afd3be2640b6a6e33a3d744efd76d324c6e5931a and accepted with corrections at cb468ecad19ba41715527b4de42d90262e02cf87, blob 0e304061b965eea8b124c9942f5c9aff4fa9a2d6
-amendment_a7: decided (SD-56, stakeholder decision record item 52); the program is `ssds` and operator data lives in an SSDS home outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4); text written by the author, independent Review pending (batched with the Phase D implementation Review)
+amendment_a7: decided (SD-56, SD-57; stakeholder decision record items 52-53); the program is `ssds` and operator data lives in an SSDS home outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4); text written by the author, independent Review pending (batched with the Phase D implementation Review)
 d4: shadow-only (G2, SD-55); no SSDS authority over any subject before G4
 active_serious_challenge: none
 ---
@@ -43,7 +43,7 @@ AMENDMENTS A4-A6: ACCEPTED (SD-55, 2026-10-19) after the independent D3 Review
           non-blocking corrections at cb468ec: A4, the owner where a reach crosses items or plans
           (§5.10 (e)); A5, waiting with qualified independent people present (§32.2); A6, runner-attribute
           costs and two reopen triggers (§17.5, §32.3). No decision changes.
-AMENDMENT A7: DECIDED by the stakeholder (SD-56, 2026-10-19): one program named `ssds` (distribution,
+AMENDMENT A7: DECIDED by the stakeholder (SD-56, SD-57, 2026-10-19): one program named `ssds` (distribution,
           import package and command; the `sdp` names retired, Level 0 Core as `ssds.core` with its
           behaviour unchanged) and one SSDS home for operator data outside every repository (§0.5, §16.10,
           §21.5, §26.2-§26.4). The text is the author's; its independent Review is pending.
@@ -1473,7 +1473,7 @@ Also enforced: no derivation module reads the clock, the network, environment va
   - the derived index and caches (§21.6);
   - Dispatcher workspaces, and operator state and journals.
 
-  SSDS keeps none of these inside a product or program repository. Core's configuration owner (defaults -> config/profile -> environment allowlist -> explicit CLI/API) holds operator-local SSDS settings in a namespaced `[ssds]` section: repository and ledger locations, key references, harness routes, runner endpoints, witness endpoints. Secrets are references, never values. A configuration file at the retired program's location is reported by `ssds doctor`, never read or migrated. Project policy is not configuration: it is governed content adopted by the ledger (§25.3).
+  SSDS keeps none of these inside a product or program repository. Core's configuration owner (defaults -> config/profile -> environment allowlist -> explicit CLI/API) holds operator-local SSDS settings in a namespaced `[ssds]` section: repository and ledger locations, key references, harness routes, runner endpoints, witness endpoints. Secrets are references, never values. There is no earlier installation to detect or migrate (SD-57). Project policy is not configuration: it is governed content adopted by the ledger (§25.3).
 
 #### 26.4 Executed supersession of Architecture 1.6.0 for SSDS-governed scopes [D3 decision]
 
