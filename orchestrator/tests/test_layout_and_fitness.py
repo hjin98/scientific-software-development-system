@@ -159,7 +159,7 @@ class NamespaceTests(unittest.TestCase):
             for dep in config["project"]["dependencies"]
         }
         self.assertEqual(
-            names, {"typer", "pydantic", "python-frontmatter", "packaging"}
+            names, {"typer", "pydantic", "python-frontmatter", "packaging", "cryptography"}
         )
 
     def test_clipboard_is_an_optional_extra(self) -> None:

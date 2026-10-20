@@ -22,9 +22,9 @@ STATUS: ACTIVE. Companion to the G2 shadow workplan, Stage D (§5.2 Phase D row)
         register (G2 workplan §4.2) and changes no Manual decision.
 SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNED; no cutover. The
         document-controlled 7.2.1 baseline governs. The shadow genesis human gate is the stakeholder's.
-DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), then the SD-56 rename (§2): one
-             program `ssds`, Core as `ssds.core`, the root module `ssds.cli`.
-NEXT ACTION: §3 step 2 (content and analyzers); §7 Q5 before step 3 needs SSDS settings.
+DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 rename (§2), step 2
+             (content and analyzers) and step 3 (the ledger).
+NEXT ACTION: §3 step 4 (derivation S0-S2). §7 Q5 is needed only when a setting is first read.
 ```
 
 ## 1. Scope and authority
@@ -112,7 +112,7 @@ A discriminator is a case a shallow or proxy implementation passes and a correct
 
 Step 1 found that Manual §26.3's `sdp ssds` command group needed a Core CLI seam Core did not have, while G2 workplan §5.1 item 1 forbade a Core change. The stakeholder resolved it by renaming rather than adding a seam (SD-56, decision record item 52): the whole orchestrator is one program `ssds` whose root module composes Core's commands and the SSDS operations (Manual A7; §2 above). SD-56 supersedes §5.1 item 1's "no Core change" and limits §2 item 6 to Core's behaviour.
 
-Reconciliations, no decision changed: RFC 8785 canonical JSON is needed by `content` (the `sem` hash, catalogue §1.5) and by `ledger` (record identity, §3.2), and §26.2 lets each import only Core's public API, so one strict encoder is an additive export of `ssds.core.api.v1` (`canonical_json`), as Core's v1 compatibility rule allows; Core's own frozen `sdp.*` digest schemes are untouched. Manual §26.3 places SSDS settings in a namespaced `[ssds]` configuration section, but Core's configuration schema is closed (`schema_version`, `core`, `projects`, `protocol_sources`, `extensions`), so that section needs a Core configuration change when the first SSDS setting is needed (§7 Q5).
+Reconciliations, no decision changed: RFC 8785 canonical JSON is needed by `content` (the `sem` hash, catalogue §1.5) and by `ledger` (record identity, §3.2), and §26.2 lets each import only Core's public API, so one strict encoder is an additive export of `ssds.core.api.v1` (`canonical_json`), as Core's v1 compatibility rule allows; Core's own frozen `sdp.*` digest schemes are untouched. Qualification reads catalogue §23.4's "`A` is `H*` or `H*`'s single provisional successor" as allowing an observed checkpoint one position beyond `H*` (a checkpoint still being distributed), and nothing further. Git before 2.36 has no reference fsync setting; on such a host the ledger ref update's durability rests on the operating system (a host limit, disclosed in `ledger.append`). Manual §26.3 places SSDS settings in a namespaced `[ssds]` configuration section, but Core's configuration schema is closed (`schema_version`, `core`, `projects`, `protocol_sources`, `extensions`), so that section needs a Core configuration change when the first SSDS setting is needed (§7 Q5).
 
 ## 7. Questions for the stakeholder
 
