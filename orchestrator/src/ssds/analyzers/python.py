@@ -116,9 +116,12 @@ def imports(path: str, data: bytes) -> ImportFacts:
                     markers.add("relative-import-above-package")
                     continue
                 base = package[: len(package) - (node.level - 1)]
-                modules.add(".".join(base + ([node.module] if node.module else [])))
+                parent = ".".join(base + ([node.module] if node.module else []))
+                modules.add(parent)
+                modules.update(f"{parent}.{alias.name}" if parent else alias.name for alias in node.names if alias.name != "*")
             elif node.module:
                 modules.add(node.module)
+                modules.update(f"{node.module}.{alias.name}" for alias in node.names if alias.name != "*")
         elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             if node.func.id == "__import__":
                 markers.add("dynamic-import")

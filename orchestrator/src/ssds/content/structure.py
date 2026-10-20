@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import Any
 
-from .manifest import GOVERNED_KEY, ID_RE, KINDS, ROLES, UNIT_FIELDS, Term
+from .manifest import GOVERNED_KEY, ID_RE, KINDS, ROLES, UNIT_FIELDS, Term, parse_term
 
 #: Reserved system units (§1.8).
 SYSTEM_UNITS = {"ssds.manifest": "MANIFEST", "ssds.policy": "POLICY", "ssds.unclassified": "UNCLASSIFIED"}
@@ -296,3 +296,47 @@ def _contains(outer: Term, inner: Term) -> bool:
     if inner.kind == "symbol":
         return str(inner.arg).startswith(str(outer.arg) + ".")
     return False
+
+
+# -- the JSON form of structure, as genesis and admission entries carry it -----------------
+
+
+def value_to_json(field: str, value: Any) -> Any:
+    if field == "scope":
+        return [t.to_json() for t in value]
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def value_from_json(field: str, value: Any) -> Any:
+    if value is None:
+        return None
+    if field == "scope":
+        return tuple(parse_term(t) for t in value)
+    if isinstance(value, list):
+        return tuple(value)
+    return value
+
+
+def decl_to_json(decl: Decl) -> dict[str, Any]:
+    """``{"units": {id: {field: value}}, "governed": {"ignore": [...]}}``."""
+
+    units: dict[str, dict[str, Any]] = {}
+    governed: dict[str, Any] = {}
+    for (uid, field), value in sorted(decl.items()):
+        if (uid, field) == GOVERNED_KEY:
+            governed["ignore"] = list(value)
+        else:
+            units.setdefault(uid, {})[field] = value_to_json(field, value)
+    return {"units": units, "governed": governed}
+
+
+def decl_from_json(raw: Mapping[str, Any]) -> dict[tuple[str, str], Any]:
+    decl: dict[tuple[str, str], Any] = {}
+    for uid, fields in raw.get("units", {}).items():
+        for field, value in fields.items():
+            decl[(uid, field)] = value_from_json(field, value)
+    if "ignore" in raw.get("governed", {}):
+        decl[GOVERNED_KEY] = tuple(raw["governed"]["ignore"])
+    return decl

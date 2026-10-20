@@ -164,34 +164,40 @@ class ChainVerification(LedgerFixture):
 
 
 class GenesisChecks(LedgerFixture):
-    """A shadow genesis: only LEGACY or UNGOVERNED modes, a sound witness model and a verified human approval."""
+    """Admission's genesis validation: only LEGACY or UNGOVERNED modes, a sound witness model, a verified approval.
 
-    def halt_reasons(self, genesis: dict) -> tuple[str, ...]:
-        self.count = getattr(self, "count", 0) + 1
-        ledger = create_ledger_repository(self.root / "home" / "ledgers" / f"case-{self.count}.git")
-        import_commits(ledger, self.product, [self.baseline])
-        appended = append_entry(ledger, entry("demo", 0, None, self.key, lifecycle=genesis), self.key, None,
-                                referenced=[self.baseline])
-        chain = read_chain(ledger, "demo", appended.commit)
-        return chain.halt_reasons if chain.halt == 0 else ()
+    The Ledger Store never interprets records (Manual §26.1), so a chain carrying any genesis
+    content still verifies; the checks below are Admission's (§19.9, Phase D step 6).
+    """
 
-    def test_a_valid_shadow_genesis_does_not_halt(self) -> None:
-        self.assertEqual(self.halt_reasons(self.genesis(modes={"docs": {"mode": "LEGACY", "protocol": "7.2.1"}})), ())
+    def problems(self, genesis: dict) -> list[str]:
+        from ssds.admission.genesis import genesis_violations
+
+        return genesis_violations(genesis)
+
+    def test_a_valid_shadow_genesis_passes(self) -> None:
+        self.assertEqual(self.problems(self.genesis(modes={"docs": {"mode": "LEGACY", "protocol": "7.2.1"}})), [])
 
     def test_a_native_mode_is_refused_in_shadow(self) -> None:
-        reasons = self.halt_reasons(self.genesis(modes={"docs": {"mode": "NATIVE", "ruleset": "ssds-rules/1"}}))
-        self.assertTrue(any("only LEGACY or UNGOVERNED" in r for r in reasons), reasons)
+        problems = self.problems(self.genesis(modes={"docs": {"mode": "NATIVE", "ruleset": "ssds-rules/1"}}))
+        self.assertTrue(any("only LEGACY or UNGOVERNED" in p for p in problems), problems)
 
     def test_an_approval_by_another_key_or_over_other_bytes_is_refused(self) -> None:
+        from ssds.ledger.read import with_id
+
         other_private, _ = human_key(self.root, "intruder")
         forged = approve(genesis_record(self.key, self.human_line, self.witness.root, self.baseline), other_private)
-        self.assertTrue(any("approval signature" in r for r in self.halt_reasons(forged)))
+        self.assertTrue(any("approval signature" in p for p in self.problems(forged)))
         genesis = self.genesis()
         altered = dict(genesis)
         altered["fields"] = {**genesis["fields"], "project": "other-project"}
-        from ssds.ledger.read import with_id
+        self.assertTrue(any("approval signature" in p for p in self.problems(with_id(altered))))
 
-        self.assertTrue(any("approval signature" in r for r in self.halt_reasons(with_id(altered))))
+    def test_the_ledger_does_not_interpret_genesis_content(self) -> None:
+        appended = append_entry(self.ledger, entry("demo", 0, None, self.key,
+                                                   lifecycle=self.genesis(modes={"docs": {"mode": "NATIVE", "ruleset": "x"}})),
+                                self.key, None, referenced=[self.baseline])
+        self.assertIsNone(read_chain(self.ledger, "demo", appended.commit).halt)
 
 
 def _model(n: int, q_a: int, r: int, f: int, cls: str = "TEAM") -> WitnessModel:

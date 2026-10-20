@@ -39,7 +39,7 @@ from .schema import (
     tier,
     with_id,
 )
-from .signatures import entry_message, human_key_id, verify_host, verify_sshsig
+from .signatures import entry_message, human_key_id, verify_host, verify_sshsig  # noqa: F401 - authentication API
 
 LEDGER_REF_PREFIX = "refs/ssds/ledger/"
 _OBJECT_PATH = re.compile(r"^objects/([0-9a-f]{64})\.json$")
@@ -211,52 +211,9 @@ def verify_chain(ledger_id: str, raws: Sequence[RawEntry]) -> Chain:
             records.append(entry["lifecycle"])
         for record in records:
             problems.extend(f"record: {p}" for p in record_violations(record))
-        if position == 0 and not problems:
-            problems.extend(genesis_violations(entry["lifecycle"]))
         if problems:
             halt, halt_reasons = position, tuple(problems)
     return Chain(ledger_id, tuple(accepted), halt, halt_reasons, unreadable)
-
-
-def genesis_violations(genesis: Mapping[str, Any]) -> list[str]:
-    """The genesis record's own checks: shadow modes, the witness model, the human approval (catalogue §19.9)."""
-
-    from .qualification import WitnessModel  # noqa: PLC0415 - one owner for the witness model
-
-    problems: list[str] = []
-    fields = genesis["fields"]
-    for subject, mode in fields["modes"].items():
-        if mode.get("mode") not in ("LEGACY", "UNGOVERNED"):
-            problems.append(f"shadow genesis declares {subject} {mode.get('mode')}; only LEGACY or UNGOVERNED")
-    try:
-        WitnessModel.from_json(fields["witnesses"]).validate()
-    except (KeyError, TypeError, ValueError) as exc:
-        problems.append(f"witness model: {exc}")
-    approval = fields["approval"]
-    humans = {human_key_id(k["public_key"]): k["public_key"] for k in fields["trust_roots"].get("human_keys", [])}
-    key = humans.get(approval.get("key_id"))
-    if key is None:
-        problems.append("the genesis approval key is not a registered human key")
-    elif not verify_sshsig(key, genesis_approval_message(genesis), approval.get("signature", "")):
-        problems.append("the genesis approval signature does not verify")
-    return problems
-
-
-def genesis_proposal(genesis: Mapping[str, Any]) -> dict[str, Any]:
-    """The genesis record as the human gate approves it: without its id and approval."""
-
-    fields = {k: v for k, v in genesis["fields"].items() if k != "approval"}
-    return {k: (fields if k == "fields" else v) for k, v in genesis.items() if k != "id"}
-
-
-def genesis_digest(genesis: Mapping[str, Any]) -> str:
-    return "sha256:" + hashlib.sha256(canonical_json(genesis_proposal(genesis))).hexdigest()
-
-
-def genesis_approval_message(genesis: Mapping[str, Any]) -> bytes:
-    """The exact bytes the human signs: one line naming the genesis digest."""
-
-    return f"ssds genesis {genesis_digest(genesis)}\n".encode("ascii")
 
 
 # -- the Git store ------------------------------------------------------------------------
@@ -344,7 +301,7 @@ def index_records(chain: Chain, through: int | None = None) -> RecordIndex:
 __all__ = [
     "CHALLENGE_TIER", "Chain", "ChainRejected", "KINDS", "LEDGER_REF_PREFIX", "LIFECYCLE_TIER", "LedgerEntry",
     "OBSERVATION_TIER", "RECOVERY_LIFECYCLE", "RawEntry", "RecordIndex", "SCHEMA_VERSION", "SUPPORT_TIER",
-    "SYSTEM_RULESET", "SchemaViolation", "entry_digest", "entry_violations", "genesis_approval_message",
-    "genesis_digest", "genesis_proposal", "genesis_violations", "index_records", "ledger_head", "ledger_ref",
-    "read_chain", "read_raw", "record_id", "record_violations", "tier", "verify_chain", "with_id",
+    "SYSTEM_RULESET", "SchemaViolation", "entry_digest", "entry_violations", "human_key_id", "index_records",
+    "ledger_head", "ledger_ref", "read_chain", "read_raw", "record_id", "record_violations", "tier",
+    "verify_chain", "verify_sshsig", "with_id",
 ]

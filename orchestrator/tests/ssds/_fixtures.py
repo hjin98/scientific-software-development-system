@@ -128,7 +128,8 @@ def genesis_record(host_key, human_line: str, witness_root: Path, baseline: str,
 
 
 def approve(genesis: dict, private_key: Path) -> dict:
-    from ssds.ledger.read import genesis_approval_message, with_id
+    from ssds.admission.genesis import genesis_approval_message
+    from ssds.ledger.read import with_id
 
     signed = dict(genesis)
     signed["fields"] = dict(genesis["fields"])
@@ -141,3 +142,62 @@ def entry(ledger_id: str, position: int, prev, key, *, kind="LIFECYCLE", lifecyc
     return {"ledger_id": ledger_id, "position": position, "schema": 1, "prev": prev, "entry_kind": kind,
             "host_key_id": key.key_id, "incarnation_id": "incarnation-1", "obs": obs, "admission": admission,
             "absorption": absorption, "lifecycle": lifecycle, "records": list(records)}
+
+
+# -- derivation fixtures: an authenticated chain as derivation receives it -------------------
+
+def chain_of(ledger_id: str, entries: list[dict]):
+    """A verified chain built in memory: derivation's input once the Ledger Store has authenticated it."""
+
+    from ssds.core.api.v1 import canonical_json
+    from ssds.ledger.read import Chain, LedgerEntry
+
+    out = []
+    for position, body in enumerate(entries):
+        data = canonical_json(body)
+        out.append(LedgerEntry(position, f"{position:040x}", (), body, data, b"", f"sha256:{position:064x}", {}))
+    return Chain(ledger_id, tuple(out))
+
+
+def genesis_body(baseline: str, structure: dict, modes: dict | None = None, ruleset: dict | None = None,
+                 manifest_path: str = ".ssds/manifest.toml") -> dict:
+    fields = {
+        "project": "demo", "ledger_id": "demo", "location": {}, "trust_roots": {"admission_keys": []},
+        "witnesses": {}, "structure": structure, "modes": modes or {}, "baseline_commit": baseline,
+        "deployment_class": "LOCAL_TRUST", "manifest_path": manifest_path, "policy_path": ".ssds/policy.toml",
+        "approval": {},
+    }
+    genesis = record("GENESIS", target=None, actor="admission:ed25519:test", actor_class="ADMISSION", fields=fields)
+    if ruleset:
+        genesis = dict(genesis, ruleset=ruleset)
+    return {"ledger_id": "demo", "position": 0, "schema": 1, "prev": None, "entry_kind": "LIFECYCLE",
+            "host_key_id": "ed25519:test", "incarnation_id": "i", "obs": None, "admission": None, "absorption": None,
+            "lifecycle": genesis, "records": []}
+
+
+def admission_body(position: int, base: str, admitted: str, records=(), deltas=(), integrates=None,
+                   decision: str = "ACCEPT") -> dict:
+    return {"ledger_id": "demo", "position": position, "schema": 1, "prev": f"sha256:{position - 1:064x}",
+            "entry_kind": "ADMISSION", "host_key_id": "ed25519:test", "incarnation_id": "i", "obs": base,
+            "admission": {"request_id": "sha256:" + f"{position:064x}", "decision": decision, "reasons": [],
+                          "base_commit": base, "admitted_commit": admitted, "adopted_deltas": list(deltas),
+                          "integrates": integrates, "refused": []},
+            "absorption": None, "lifecycle": None, "records": list(records)}
+
+
+def lifecycle_body(position: int, lifecycle: dict, obs=None) -> dict:
+    return {"ledger_id": "demo", "position": position, "schema": 1, "prev": f"sha256:{position - 1:064x}",
+            "entry_kind": "LIFECYCLE", "host_key_id": "ed25519:test", "incarnation_id": "i", "obs": obs,
+            "admission": None, "absorption": None, "lifecycle": lifecycle, "records": []}
+
+
+def absorption_body(position: int, observed: str) -> dict:
+    return {"ledger_id": "demo", "position": position, "schema": 1, "prev": f"sha256:{position - 1:064x}",
+            "entry_kind": "ABSORPTION", "host_key_id": "ed25519:test", "incarnation_id": "i", "obs": observed,
+            "admission": None, "absorption": {"fence": None}, "lifecycle": None, "records": []}
+
+
+def commit_id(name: str) -> str:
+    import hashlib
+
+    return hashlib.sha1(name.encode()).hexdigest()

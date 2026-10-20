@@ -114,7 +114,8 @@ TARGET_TYPES: dict[str, Check] = {
     "realization": shape({"realization": is_digest, "obligation": is_token}),
     "units": shape({"units": list_of(is_unit)}),
     "unit_rev": UNIT_REV,
-    "task": shape({"task": is_token}, {"candidate": is_commit, "transformation": is_digest}),
+    "task": shape({"task": is_token}, {"candidate": is_commit, "transformation": is_digest, "base": is_commit,
+                                        "adopts": list_of(is_json_object)}),
     "obligation": shape({"obligation": is_token}),
     "gate": shape({"gate": is_token, "subject": TRIPLE, "core": is_digest}),
     "spec": shape({"spec": UNIT_REV, "claim": list_of(UNIT_REV)}),
@@ -254,7 +255,11 @@ _ENVELOPE_REQUIRED: dict[str, Check] = {
     "outcome": lambda v: v is None or isinstance(v, str),
     "reason": list_of(is_token),
     "supersedes": list_of(is_digest),
-    "binding": lambda v: v is None or isinstance(v, dict),
+    "binding": optional(shape(
+        {"task": is_token, "obligation": is_token, "role": is_token, "lineage": list_of(is_token),
+         "lineage_class": one_of("ATTESTED_FRESH", "HUMAN_ATTESTED_FRESH", "UNKNOWN")},
+        {"item": shape({"unit": is_unit, "rev": is_digest}), "item_key": is_digest, "write_scope": list_of(is_unit),
+         "envelope": is_digest})),
     "governs": lambda v: shape({"mode": one_of("NATIVE"), "ruleset": is_token})(v)
     or shape({"mode": one_of("LEGACY"), "protocol": is_token})(v),
     "provenance": lambda v: v is None or isinstance(v, dict),
@@ -345,9 +350,11 @@ def tier(kind: str) -> str:
     return KINDS[kind].tier
 
 
+DELTA = shape({"key": list_of(is_token), "value": lambda v: True, "source": one_of("AUTHORED", "ADOPTED")})
 _ADMISSION_SECTION = shape(
     {"request_id": is_digest, "decision": one_of("ACCEPT", "REJECT"), "reasons": list_of(is_token),
-     "base_commit": is_commit, "admitted_commit": is_commit, "adopted_deltas": list_of(is_json_object),
+     "base_commit": is_commit, "admitted_commit": is_commit, "adopted_deltas": list_of(DELTA),
+     "integrates": optional(is_digest),
      "refused": list_of(shape({"record_id": is_digest, "reasons": list_of(is_token)}, {"object": is_digest}))}
 )
 _ABSORPTION_SECTION = shape({"fence": optional(shape({"base": is_commit, "fence_commit": is_commit}))})
