@@ -52,7 +52,11 @@ DERIVATION_VERSION = "ssds-derivation/1"
 
 
 class CheckpointInvalid(ValueError):
-    """A derivation checkpoint whose key does not recompute from the ledger, or whose body is altered."""
+    """A derivation checkpoint whose key does not recompute from the ledger, or whose body digest does not match.
+
+    The body digest detects accidental corruption only; it does not authenticate the cached fold. A
+    checkpoint is private cache: on any doubt, discard it and derive from genesis (catalogue §21.6).
+    """
 
 
 class History:

@@ -67,6 +67,14 @@ writes for an operator lives in that home, outside every repository. The home is
 created the first time SSDS writes there; `ssds doctor` names it and, until a
 configuration exists, says where to create one.
 
+**Back up the SSDS home.** It holds what no repository clone carries: each
+project's ledger repository (`ledgers/`), the local witness's checkpoints
+(`witness/`), high-water marks (`state/`) and the Admission host keys (`keys/`).
+Copy the whole directory, with its permissions, to a medium that is not rolled
+back together with the machine; keep the copy as private as the keys in it. A
+restored copy that is older than a witnessed checkpoint is reported as a rollback,
+never silently treated as current.
+
 A normal current Protocol 6 project needs only the project entry. Explicitly
 naming the current profile is useful for clarity but optional because Protocol 6
 is the Core default:

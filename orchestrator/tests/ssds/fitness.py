@@ -95,6 +95,9 @@ DERIVATION_STDLIB = frozenset(
     }
 )  # tomllib parses bytes the ledger stores (the policy object); it reads no file
 DERIVATION_IO_BUILTINS = frozenset({"open", "input", "breakpoint", "print"})
+#: Git readers the facades derivation may import also expose (Review 0e49deb N2): derivation takes
+#: trees and chains from its caller and may name none of them, by import or by attribute.
+DERIVATION_IO_NAMES = frozenset({"read_tree", "GitReadError", "read_chain", "read_raw", "ledger_head"})
 DYNAMIC_BUILTINS = frozenset({"__import__", "eval", "exec", "compile"})
 DYNAMIC_MODULES = frozenset({"importlib"})
 
@@ -393,6 +396,13 @@ def check(repo_root: Path, repo_files: list[str], model_stems: frozenset[str]) -
             else:
                 violations.append(Violation("F12", where, f"{line}: {imp.target} is not a declared dependency"))
 
+        if owner == "derivation":
+            for imp in _imports(module, known):
+                for name in sorted(set(imp.names) & DERIVATION_IO_NAMES):
+                    violations.append(Violation("F8", where, f"line {imp.line}: derivation reads no Git ({name})"))
+            for node in ast.walk(module.tree):
+                if isinstance(node, ast.Attribute) and node.attr in DERIVATION_IO_NAMES:
+                    violations.append(Violation("F8", where, f"line {node.lineno}: derivation reads no Git ({node.attr})"))
         for name, lineno in _called_builtins(module.tree):
             if name in DYNAMIC_BUILTINS:
                 violations.append(Violation("F11", where, f"line {lineno}: dynamic code ({name})"))

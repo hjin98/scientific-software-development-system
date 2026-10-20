@@ -209,6 +209,16 @@ class DependencyRuleDiscriminatorTests(_Discriminator):
         path = f"{S}/derivation/view.py"
         self.assertViolations({path: "def f(p):\n    return open(p).read()\n"}, {("F8", path)})
 
+    def test_derivation_reaches_no_git_reader_through_a_permitted_facade(self) -> None:
+        """Review 0e49deb N2: the content facade exposes read_tree; derivation must not use it."""
+
+        path = f"{S}/derivation/view.py"
+        for text in ("from ssds.content import read_tree\ndef f(r):\n    return read_tree(r, 'HEAD')\n",
+                     "from ssds import content\ndef f(r):\n    return content.read_tree(r, 'HEAD')\n",
+                     "from ..ledger.read import read_chain\n"):
+            with self.subTest(text=text):
+                self.assertViolations({path: text}, {("F8", path)})
+
     def test_derivation_imports_no_third_party_module(self) -> None:
         path = f"{S}/derivation/view.py"
         self.assertViolations({path: "import typer\n"}, {("F8", path)})
