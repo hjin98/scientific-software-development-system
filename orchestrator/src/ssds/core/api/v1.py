@@ -15,6 +15,7 @@ from typing import Protocol, runtime_checkable
 
 from ..application import CORE_CAPABILITIES, create_application
 from ..errors import ERROR_CODES, OrchestratorError, Problem
+from ..jcs import CanonicalJSONError, canonical_json
 from ..events import PROMPT_RENDERED_EVENT, PROMPT_RENDERED_SCHEMA_VERSION, logical_event_id
 from ..profile import RESULT_SCHEMA_ID, RESULT_SCHEMA_VERSION
 from ..records import (
@@ -124,11 +125,13 @@ __all__ = [
     "BlockerRecord",
     "CORE_CAPABILITIES",
     "CandidateRef",
+    "CanonicalJSONError",
     "CapabilityKey",
     "CapabilityProvision",
     "CapabilityRequirement",
     "CapabilityStatus",
     "CoreAPI",
+    "canonical_json",
     "DigestRef",
     "ERROR_CODES",
     "EventEnvelope",

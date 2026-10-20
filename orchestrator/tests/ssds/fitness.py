@@ -208,6 +208,25 @@ def _strings(tree: ast.Module) -> list[tuple[str, int]]:
     ]
 
 
+def _git_subcommands(tree: ast.Module) -> list[tuple[str, int]]:
+    """Subcommands of argv-shaped literals: ``["git", <options>, sub, ...]`` or a list starting with ``sub``."""
+
+    found = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.List, ast.Tuple)) or not node.elts:
+            continue
+        values = [e.value if isinstance(e, ast.Constant) and isinstance(e.value, str) else None for e in node.elts]
+        if values[0] == "git":
+            rest = values[1:]
+            while rest and rest[0] is not None and rest[0].startswith("-"):
+                rest = rest[2:] if rest[0] in ("-C", "-c") else rest[1:]
+            if rest and rest[0] is not None:
+                found.append((rest[0], node.lineno))
+        elif values[0] is not None:
+            found.append((values[0], node.lineno))
+    return found
+
+
 def _called_builtins(tree: ast.Module) -> list[tuple[str, int]]:
     return [
         (node.func.id, node.lineno)
@@ -387,7 +406,7 @@ def check(repo_root: Path, repo_files: list[str], model_stems: frozenset[str]) -
                 if imp.target == LEDGER_APPEND:
                     violations.append(Violation("F3", where, f"line {imp.line}: the ledger package re-exports append"))
         if owner in PROCESS_OWNERS and module.name != LEDGER_APPEND:
-            for value, lineno in _strings(module.tree):
+            for value, lineno in _git_subcommands(module.tree):
                 if value in WRITING_GIT:
                     violations.append(Violation("B1", where, f"line {lineno}: writing Git subcommand {value!r}"))
         for value, lineno in _strings(module.tree):

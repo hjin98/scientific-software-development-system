@@ -58,7 +58,7 @@ CLEAN: dict[str, str] = {
         "from ssds.core.api.v1 import DigestRef\n"
     ),
     f"{S}/interface/render.py": "",
-    f"{S}/content/model.py": "import frontmatter\n",
+    f"{S}/content/model.py": "import frontmatter\nTEXT = b''.decode('utf-8', 'replace')\nKIND = 'commit'\n",
     f"{S}/derivation/strata.py": (
         "from __future__ import annotations\n"
         "import hashlib, json\n"
@@ -291,6 +291,9 @@ class ShadowBoundarySensorTests(_Discriminator):
         self.assertViolations({path: "ARGS = ['git', 'push']\n"}, {("B1", path)})
         path = f"{S}/content/git.py"
         self.assertViolations({path: "ARGS = ['git', 'update-ref']\n"}, {("B1", path)})
+        self.assertViolations({path: "ARGS = ['git', '-C', 'repo', 'push']\n"}, {("B1", path)})
+        self.assertViolations({path: "run(repo, ['hash-object', '-w'])\n"}, {("B1", path)})
+        self.assertViolations({path: "run(repo, ['cat-file', '--batch'])\n"}, set())
 
     def test_only_content_and_ledger_start_processes(self) -> None:
         path = f"{S}/admission/genesis.py"
