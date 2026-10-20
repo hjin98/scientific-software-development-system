@@ -1,0 +1,127 @@
+schema = 1
+
+# SSDS shadow genesis, Case B (Manual §19.9): this repository's legacy subjects as section-level parts,
+# without rewriting any file. Modes are given at genesis: the two document-controlled subjects are
+# LEGACY under the accepted protocol; every other subject is UNGOVERNED. SSDS holds no authority here.
+
+# The protocol release tree, accepted as a whole by its release process; its parts are its components.
+[[unit]]
+id = "ssdp.protocol"
+kind = "D3"
+role = "composite"
+scope = [{ prefix = "source/" }]
+
+[[unit]]
+id = "ssdp.protocol.role-scientific-formulation"
+subject = false
+part_of = "ssdp.protocol"
+scope = [{ prefix = "source/roles/scientific-formulation/" }]
+
+[[unit]]
+id = "ssdp.protocol.role-numerical-algorithm-design"
+subject = false
+part_of = "ssdp.protocol"
+scope = [{ prefix = "source/roles/numerical-algorithm-design/" }]
+
+[[unit]]
+id = "ssdp.protocol.role-software-design"
+subject = false
+part_of = "ssdp.protocol"
+scope = [{ prefix = "source/roles/software-design/" }]
+
+[[unit]]
+id = "ssdp.protocol.role-software-implementation"
+subject = false
+part_of = "ssdp.protocol"
+scope = [{ prefix = "source/roles/software-implementation/" }]
+
+[[unit]]
+id = "ssdp.protocol.shared"
+subject = false
+part_of = "ssdp.protocol"
+scope = [{ prefix = "source/shared/" }]
+
+[[unit]]
+id = "ssdp.protocol.specialists"
+subject = false
+part_of = "ssdp.protocol"
+scope = [{ prefix = "source/specialists/" }]
+
+# The SSDS 8 Architecture Manual, accepted at gate G1 as one document; its parts are its Parts.
+[[unit]]
+id = "ssds8.manual"
+kind = "D3"
+role = "composite"
+scope = [{ path = "orchestrator/docs/ssds-8.0-architecture.md" }]
+
+[[unit]]
+id = "ssds8.manual.orientation"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part 0. Orientation"] }]
+
+[[unit]]
+id = "ssds8.manual.primitives"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part I. Primitives"] }]
+
+[[unit]]
+id = "ssds8.manual.derivation"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part II. Derivation"] }]
+
+[[unit]]
+id = "ssds8.manual.admission"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part III. Admission and concurrency"] }]
+
+[[unit]]
+id = "ssds8.manual.work"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part IV. Work, workflow and verification"] }]
+
+[[unit]]
+id = "ssds8.manual.interface"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part V. Interface"] }]
+
+[[unit]]
+id = "ssds8.manual.evidence"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part VI. Evidence and intake"] }]
+
+[[unit]]
+id = "ssds8.manual.migration"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part VII. Migration and external units"] }]
+
+[[unit]]
+id = "ssds8.manual.persistence"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part VIII. Persistence, publication, trust and security"] }]
+
+[[unit]]
+id = "ssds8.manual.components"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part IX. Components, evolution and versions"] }]
+
+[[unit]]
+id = "ssds8.manual.assurance"
+subject = false
+part_of = "ssds8.manual"
+scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part X. Assurance"] }]
+
+# The program's source, coarse and UNGOVERNED: SSDS derives over it and governs nothing.
+[[unit]]
+id = "orchestrator.program"
+kind = "D4"
+scope = [{ prefix = "orchestrator/src/" }]
