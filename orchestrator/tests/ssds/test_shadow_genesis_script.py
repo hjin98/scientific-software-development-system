@@ -229,6 +229,27 @@ class ShadowGenesisScript(unittest.TestCase):
         self.assertTrue("outside the SSDS home" in result.stdout or "symbolic link" in result.stdout, result.stdout)
         self.assertEqual(sentinel.read_text(), "untouched\n")
 
+    def test_a_hard_linked_report_never_overwrites_the_product(self) -> None:
+        """Review d8bdfd3 A-B8, through the CLI."""
+
+        self.admitted()
+        manual = (self.repo / "manual.md").read_bytes()
+        target = self.home / "genesis" / "demo" / "derivation.json"
+        target.unlink()
+        os.link(self.repo / "manual.md", target)
+        code, report = self.report()
+        self.assertEqual((code, report["current_assertion"]), (0, True))
+        self.assertEqual((self.repo / "manual.md").read_bytes(), manual)
+
+    def test_a_home_inside_the_repository_is_refused(self) -> None:
+        """Review d8bdfd3 A-B10, through the CLI."""
+
+        self.env["SSDS_HOME"] = str(self.repo / "operator-state")
+        result = self.run_script("prepare", "--public-key", str(self.public))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("outside every repository", result.stdout)
+        self.assertFalse((self.repo / "operator-state").exists())
+
     def test_a_refused_genesis_prints_why_and_publishes_nothing(self) -> None:
         (self.repo / ".ssds" / "manifest.toml").write_text(MANIFEST.replace('id = "ssds8.manual"', 'id = "other"'))
         commit(self.repo, "no manual subject")

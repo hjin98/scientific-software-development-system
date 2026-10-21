@@ -146,7 +146,7 @@ def write_checkpoint(witness: FileWitness, checkpoint: Checkpoint) -> None:
     path = folder / name
     if path.exists():
         return
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)  # a new file only
     try:
         os.write(descriptor, canonical_json(checkpoint.to_json()))
         os.fsync(descriptor)

@@ -225,6 +225,11 @@ class DependencyRuleDiscriminatorTests(_Discriminator):
         pure = ("from dataclasses import dataclass\n@dataclass\nclass Snapshot:\n    read_raw: bytes\n"
                 "def f(snapshot):\n    return snapshot.read_raw\n")
         self.assertViolations({path: pure}, set())  # Review 517af45 NF1: an unrelated attribute of that name is pure
+        unrelated = ("def f():\n    import ssds.content as c\n    return c.TreeView\n"
+                     "def g(c):\n    return c.read_raw\n")
+        self.assertViolations({path: unrelated}, set())  # Review d8bdfd3 NF6: another scope's binding
+        aliased = "import ssds.content as c\nreader = c\nvalue = reader.read_tree\n"
+        self.assertViolations({path: aliased}, {("F8", path)})  # d8bdfd3 NF6: an assignment alias
 
     def test_derivation_imports_no_third_party_module(self) -> None:
         path = f"{S}/derivation/view.py"

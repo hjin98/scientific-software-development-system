@@ -227,8 +227,8 @@ class Qualification(unittest.TestCase):
         stale = qualify(self.chain(5), {"w0": [self.cp(4), self.cp(5)], "w1": [self.cp(4), self.cp(5)]}, model, self.keys)
         # UNQUALIFIED: one response for a read quorum of two
         few = qualify(self.chain(6), {"w0": [self.cp(5)], "w1": None, "w2": None}, model, self.keys)
-        # QUALIFIED@5: 5 held by two, 6 by one; the replica's 6 is the provisional successor
-        held = qualify(self.chain(7), {"w0": [self.cp(5), self.cp(6)], "w1": [self.cp(5)]}, model, self.keys,
+        # QUALIFIED@5: 5 held by two; the replica's 6, which no responder shows a checkpoint for, is provisional
+        held = qualify(self.chain(7), {"w0": [self.cp(5)], "w1": [self.cp(5)]}, model, self.keys,
                        HighWaterMark(5, "sha256:" + f"{5:064x}"))
         # FORK: an observed checkpoint on a conflicting chain
         fork = qualify(self.chain(7), {"w0": [self.cp(5, "sha256:" + "e" * 64)], "w1": [self.cp(5, "sha256:" + "e" * 64)]},
@@ -279,6 +279,28 @@ class Qualification(unittest.TestCase):
                          "a successor never qualified stays provisional")
         restored = qualify(self.chain(6), {"w0": [self.cp(4), self.cp(5)], "w1": [self.cp(5)]}, model, self.keys, mark5)
         self.assertEqual((restored.state, restored.head), ("QUALIFIED", 5))
+
+    def test_the_qualified_head_extends_every_observed_checkpoint(self) -> None:
+        """Review d8bdfd3 A-B9: an observed newer checkpoint is never relabelled a provisional successor."""
+
+        model = _model(3, 2, 2, 0)
+        # head 1 admitted by w0 + w2; a read reaches w0 + w1 only
+        partial = {"w0": [self.cp(0), self.cp(1)], "w1": [self.cp(0)], "w2": None}
+        for mark in (None, HighWaterMark(0, "sha256:" + f"{0:064x}")):
+            with self.subTest(mark=mark):
+                self.assertEqual(qualify(self.chain(2), partial, model, self.keys, mark).state, "UNQUALIFIED",
+                                 "1 is observed but not confirmable here: no older head is current")
+        repaired = {"w0": [self.cp(0), self.cp(1)], "w1": [self.cp(0), self.cp(1)], "w2": None}  # read repair
+        self.assertEqual(qualify(self.chain(2), repaired, model, self.keys).head, 1)
+        unwitnessed = qualify(self.chain(2), {"w0": [self.cp(0)], "w1": [self.cp(0)], "w2": None}, model, self.keys)
+        self.assertEqual((unwitnessed.state, unwitnessed.head, unwitnessed.provisional), ("QUALIFIED", 0, 1),
+                         "a successor no responder has a checkpoint for is the provisional successor")
+        for p in range(3):  # property: every qualified head extends every observed checkpoint and the mark
+            reports = {"w0": [self.cp(q) for q in range(p + 1)], "w1": [self.cp(0)], "w2": [self.cp(q) for q in range(p + 1)]}
+            result = qualify(self.chain(3), reports, model, self.keys)
+            if result.current:
+                observed = max(c.position for cps in reports.values() for c in cps)
+                self.assertGreaterEqual(result.head, observed)
 
     def test_loss_bounds(self) -> None:
         self.assertEqual((loss_status(0, 1, 0, 2), loss_status(1, 1, 0, 2), loss_status(2, 0, 1, 2)),

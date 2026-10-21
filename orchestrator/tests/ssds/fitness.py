@@ -197,45 +197,80 @@ def _imports(module: _Module, known: frozenset[str]) -> list[_Import]:
 def _git_readers(module: _Module) -> list[tuple[str, int]]:
     """Git readers a module reaches through the content or ``ledger.read`` facade, by import or attribute.
 
-    A name is flagged only when it is imported from one of those modules, or read as an attribute of a
-    name bound to one of them in any scope of the module (``content.read_tree``, ``ssds.content.read_tree``);
-    an unrelated object's attribute of the same spelling is not. Scopes are not separated, so a name that
-    denotes one of those modules anywhere is treated as denoting it everywhere: conservative, never blind.
+    Scope-aware (Reviews 137b763 NF4, d8bdfd3 NF6): each module, class and function body binds its own
+    names, from imports and from plain assignment of a bound name (``reader = content``); a nested
+    scope inherits its enclosing bindings unless a parameter or a local binding shadows them. An
+    attribute is flagged when its base name denotes one of those modules in its own scope; an
+    unrelated object's attribute of the same spelling is not. A sensor, not a proof (Manual §26.2).
     """
 
     is_package = module.path.name == "__init__.py"
     package = module.name if is_package else module.name.rpartition(".")[0]
-    bound: dict[str, set[str]] = {}  # local name -> every module it denotes in any scope (Review 137b763 NF4)
     found: list[tuple[str, int]] = []
-    for node in ast.walk(module.tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.asname:
-                    bound.setdefault(alias.asname, set()).add(alias.name)
-                else:
-                    bound.setdefault(alias.name.split(".")[0], set()).add(alias.name.split(".")[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.level:
-                base = package.split(".")
-                if node.level > 1:
-                    base = base[: -(node.level - 1)]
-                parent = ".".join(base + ([node.module] if node.module else []))
+
+    def parent_of(node: ast.ImportFrom) -> str:
+        if node.level:
+            base = package.split(".")
+            if node.level > 1:
+                base = base[: -(node.level - 1)]
+            return ".".join(base + ([node.module] if node.module else []))
+        return node.module or ""
+
+    scopes = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+
+    def own_nodes(body: list[ast.stmt]):
+        """The nodes of one scope; a nested function or class is yielded but not entered."""
+
+        stack = list(body)
+        while stack:
+            node = stack.pop()
+            yield node
+            if not isinstance(node, scopes):
+                stack.extend(ast.iter_child_nodes(node))
+
+    def dotted(node: ast.expr) -> tuple[str, list[str]] | None:
+        parts: list[str] = []
+        while isinstance(node, ast.Attribute):
+            parts.insert(0, node.attr)
+            node = node.value
+        return (node.id, parts) if isinstance(node, ast.Name) else None
+
+    def visit(body: list[ast.stmt], inherited: dict[str, str], shadowed: set[str]) -> None:
+        bound = {name: target for name, target in inherited.items() if name not in shadowed}
+        nodes = list(own_nodes(body))
+        for node in sorted((n for n in nodes if isinstance(n, (ast.Import, ast.ImportFrom))), key=lambda n: n.lineno):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    name = alias.asname or alias.name.split(".")[0]
+                    bound[name] = alias.name if alias.asname else alias.name.split(".")[0]
             else:
-                parent = node.module or ""
-            for alias in node.names:
-                if parent in DERIVATION_IO_MODULES and alias.name in DERIVATION_IO_NAMES:
-                    found.append((alias.name, node.lineno))
-                bound.setdefault(alias.asname or alias.name, set()).add(f"{parent}.{alias.name}")
-    for node in ast.walk(module.tree):
-        if isinstance(node, ast.Attribute) and node.attr in DERIVATION_IO_NAMES:
-            parts: list[str] = []
-            value = node.value
-            while isinstance(value, ast.Attribute):
-                parts.insert(0, value.attr)
-                value = value.value
-            if isinstance(value, ast.Name) and value.id in bound:
-                if any(".".join([module, *parts]) in DERIVATION_IO_MODULES for module in bound[value.id]):
+                parent = parent_of(node)
+                for alias in node.names:
+                    if parent in DERIVATION_IO_MODULES and alias.name in DERIVATION_IO_NAMES:
+                        found.append((alias.name, node.lineno))
+                    bound[alias.asname or alias.name] = f"{parent}.{alias.name}"
+        for node in sorted((n for n in nodes if isinstance(n, ast.Assign)), key=lambda n: n.lineno):
+            source = dotted(node.value)
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    if source and source[0] in bound:
+                        bound[target.id] = ".".join([bound[source[0]], *source[1]])
+                    else:
+                        bound.pop(target.id, None)
+        for node in nodes:
+            if isinstance(node, ast.Attribute) and node.attr in DERIVATION_IO_NAMES:
+                base = dotted(node.value)
+                if base and base[0] in bound and ".".join([bound[base[0]], *base[1]]) in DERIVATION_IO_MODULES:
                     found.append((node.attr, node.lineno))
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                arguments = node.args
+                params = {a.arg for a in arguments.posonlyargs + arguments.args + arguments.kwonlyargs}
+                params |= {a.arg for a in (arguments.vararg, arguments.kwarg) if a}
+                visit(node.body if isinstance(node.body, list) else [ast.Expr(node.body)], bound, params)
+            elif isinstance(node, ast.ClassDef):
+                visit(node.body, bound, set())
+
+    visit(module.tree.body, {}, set())
     return found
 
 

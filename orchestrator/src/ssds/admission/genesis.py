@@ -32,7 +32,14 @@ from typing import Any
 from ssds.core.api.v1 import canonical_json
 from ssds.derivation import Policy, baseline_structure
 from ssds.ledger.append import HostKey, append_entry, create_ledger_repository, import_commits, write_checkpoint
-from ssds.ledger.qualification import FileWitness, HighWaterMark, HighWaterStore, WitnessModel, qualify
+from ssds.ledger.qualification import (
+    FileWitness,
+    HighWaterMark,
+    HighWaterStore,
+    WitnessModel,
+    publish_private,
+    qualify,
+)
 from ssds.ledger.read import (
     SYSTEM_RULESET,
     entry_violations,
@@ -104,7 +111,9 @@ class Home:
     workspace and state, and the directories that hold them) contains no
     symbolic link at all, checked by :meth:`check` before any effect. The ledger
     id must be a unit identity (catalogue §1.1), every resolved path must stay
-    inside the resolved home, and writes open with ``O_NOFOLLOW`` as a backstop.
+    inside the resolved home, and every write publishes a fresh file over the name
+    (``ledger.qualification.publish_private``), so no existing file object, a hard link
+    included, is ever written through.
     The home itself may be reached through a link; nothing inside it may be one.
     A genesis creates its ledger repository afresh, so no pre-existing Git
     layout (internal links, alternates, configuration) is ever written through.
@@ -169,7 +178,6 @@ class Home:
 
     def high_water(self, ledger_id: str) -> HighWaterStore:
         self.check_ledger_id(ledger_id)
-        self._file("state", ledger_id, "high-water.tmp")
         return HighWaterStore(self._file("state", ledger_id, "high-water.json"))
 
     def operator_tree(self, ledger_id: str) -> tuple[Path, ...]:
@@ -179,9 +187,22 @@ class Home:
         return (self.root / "ledgers" / f"{ledger_id}.git", self.root / "witness", self.root / "keys" / "admission",
                 self.root / "genesis" / ledger_id, self.root / "state" / ledger_id)
 
-    def check(self, ledger_id: str) -> None:
-        """Refuse before any filesystem effect: no link anywhere in this ledger's operator tree, every path inside."""
+    def outside_repositories(self) -> None:
+        """The resolved home lies outside every repository (SD-56, Manual §26.3): no ancestor, nor the home
+        itself, is a Git worktree (holds ``.git``) or a bare repository (``HEAD``, ``objects/``, ``refs/``)."""
 
+        resolved = self.root.resolve()
+        for directory in (resolved, *resolved.parents):
+            if (directory / ".git").exists() or ((directory / "HEAD").is_file() and (directory / "objects").is_dir()
+                                                 and (directory / "refs").is_dir()):
+                raise HomeRefused(f"the SSDS home {self.root} lies inside the repository at {directory}; "
+                                  "set SSDS_HOME to a directory outside every repository")
+
+    def check(self, ledger_id: str) -> None:
+        """Refuse before any filesystem effect: the home outside every repository, no link anywhere in this
+        ledger's operator tree, every path inside."""
+
+        self.outside_repositories()
         for top in self.operator_tree(ledger_id):
             relative = top.relative_to(self.root).parts
             for depth in range(1, len(relative) + 1):  # the directories that hold it
@@ -206,13 +227,7 @@ class HomeRefused(ValueError):
 
 
 def _write_private(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
-    try:
-        os.write(descriptor, data)
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
+    publish_private(path, data)  # never through an existing file: a fresh file renamed over the name
 
 
 def _host_key(home: Home, ledger_id: str) -> HostKey:

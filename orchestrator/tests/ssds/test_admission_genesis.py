@@ -9,6 +9,7 @@ compare the product repository before and after at run time.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -237,7 +238,7 @@ class Refusals(GenesisFixture):
         (workspace / "report.json").unlink()
         state = self.home.root / "state" / "demo"
         state.mkdir(parents=True)
-        (state / "high-water.tmp").symlink_to(sentinel)
+        (state / "high-water.json").symlink_to(sentinel)
         self.assertFalse(prepare_genesis(self.spec(), self.home, self.trees).valid)
         self.assertEqual(sentinel.read_text(), "untouched\n")
 
@@ -298,6 +299,46 @@ class Refusals(GenesisFixture):
         self.assertEqual(product_state(self.product), before, "nothing was written to the product")
         self.assertEqual(admit_genesis(self.home, "demo", signature).qualification, "QUALIFIED", "the clean control")
         self.assertEqual(product_state(self.product), before)
+
+    def test_operator_files_are_published_never_written_through(self) -> None:
+        """Review d8bdfd3 A-B8: a hard link at an operator file never carries the write to its other name."""
+
+        before = product_state(self.product)
+        guide = (self.product / "guide.md").read_bytes()
+        workspace = self.home.root / "genesis" / "demo"
+        workspace.mkdir(parents=True)
+        os.link(self.product / "guide.md", workspace / "report.json")
+        state = self.home.root / "state" / "demo"
+        state.mkdir(parents=True)
+        os.link(self.product / "guide.md", state / "high-water.json")
+        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+        self.assertTrue(prepared.valid, prepared.problems)
+        admitted = admit_genesis(self.home, "demo", sshsig(self.private, prepared.message))
+        self.assertEqual(admitted.qualification, "QUALIFIED")
+        self.assertEqual((self.product / "guide.md").read_bytes(), guide, "the product file keeps its bytes")
+        self.assertEqual(product_state(self.product), before)
+        self.assertEqual(json.loads((workspace / "report.json").read_bytes())["valid"], True, "the name was replaced")
+        self.assertEqual(os.stat(workspace / "report.json").st_nlink, 1)
+        self.assertEqual(json.loads((state / "high-water.json").read_bytes())["position"], 0)
+
+    def test_the_home_lies_outside_every_repository(self) -> None:
+        """Review d8bdfd3 A-B10: a home inside the product worktree is refused before anything is created."""
+
+        before = product_state(self.product)
+        inside = Home(self.product / "operator-state")
+        prepared = prepare_genesis(self.spec(), inside, self.trees)
+        self.assertFalse(prepared.valid)
+        self.assertTrue(any("outside every repository" in p for p in prepared.problems), prepared.problems)
+        self.assertFalse((self.product / "operator-state").exists())
+        self.assertEqual(product_state(self.product), before)
+        bare = self.root / "bare.git"
+        subprocess.run(["git", "init", "--quiet", "--bare", str(bare)], check=True)
+        self.assertFalse(prepare_genesis(self.spec(), Home(bare / "home"), self.trees).valid, "nor in a bare one")
+        outside = self.root / "real-home"
+        outside.mkdir()
+        (self.root / "linked-home").symlink_to(outside, target_is_directory=True)
+        linked = prepare_genesis(self.spec(), Home(self.root / "linked-home"), self.trees)
+        self.assertTrue(linked.valid, linked.problems)
 
     def test_an_unreadable_baseline_or_policy(self) -> None:
         self.assertRefused("cannot be read", baseline_commit="0" * 40)

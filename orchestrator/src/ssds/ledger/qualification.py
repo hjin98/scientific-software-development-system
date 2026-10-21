@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -153,17 +154,36 @@ class HighWaterStore:
         return HighWaterMark(raw["position"], raw["entry_digest"])
 
     def set(self, mark: HighWaterMark) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_suffix(".tmp")
-        # O_NOFOLLOW: a symbolic link at the temporary name never redirects the write (os.replace then
-        # replaces a link at the mark's own name rather than writing through it).
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+        publish_private(self.path, canonical_json({"position": mark.position, "entry_digest": mark.entry_digest}))
+
+
+def publish_private(path: Path, data: bytes) -> None:
+    """The one way operator state is written: a fresh file, then an atomic rename over the name.
+
+    The bytes go into a newly created file (``O_CREAT | O_EXCL | O_NOFOLLOW``, mode 0600, a unique
+    name in the same directory), which is fsynced and then renamed over ``path``, and the directory is
+    fsynced. No existing file is ever opened for writing, so whatever ``path`` was (a hard link to
+    another file, a symbolic link, a stale temporary) nothing but the name is replaced.
+    """
+
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
         try:
-            os.write(descriptor, canonical_json({"position": mark.position, "entry_digest": mark.entry_digest}))
+            os.write(descriptor, data)
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
-        os.replace(temporary, self.path)
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+    directory = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
 
 
 @dataclass(frozen=True)
@@ -238,12 +258,12 @@ def qualify(
         return Qualification("ROLLBACK" if authoritative else "BEHIND")
     holders = {p: sum(1 for cps in responders.values() if any(c.position == p and c.entry_digest == digests[p] for c in cps))
                for p in range(len(digests))}
-    floor = max((p for p, _ in marks), default=-1)
-    # An observed checkpoint may be H*'s single provisional successor, still being distributed (plan §6);
-    # the retained mark has no such allowance: H* extends it (§23.1, §23.4).
-    candidates = [p for p, n in holders.items() if n >= model.q_a and p >= floor - 1]
-    candidates = [p for p in candidates if all(p >= m or m == p + 1 for m, _ in marks)]
-    candidates = [p for p in candidates if retained is None or p >= retained]
+    # H* extends every checkpoint the evaluator observes and its own retained mark (§23.1, §23.4): an
+    # observed checkpoint not yet held by an admission quorum withholds currentness until read repair; it
+    # is never relabelled a provisional successor. The provisional successor is only the replica's own
+    # entry beyond H* that no responder has shown a checkpoint for.
+    floor = max([p for p, _ in marks] + ([retained] if retained is not None else []), default=-1)
+    candidates = [p for p, n in holders.items() if n >= model.q_a and p >= floor]
     if not candidates:
         return Qualification("UNQUALIFIED")
     head = max(candidates)
@@ -266,6 +286,7 @@ def loss_status(h: int, m: int, f: int, q_a: int) -> str:
 
 __all__ = [
     "Checkpoint", "DEPLOYMENT_CLASSES", "FileWitness", "HighWaterMark", "HighWaterStore", "Qualification",
-    "STATES", "WitnessModel", "WitnessSpec", "checkpoint_body", "checkpoint_message", "loss_status", "qualify",
+    "STATES", "WitnessModel", "WitnessSpec", "checkpoint_body", "checkpoint_message", "loss_status",
+    "publish_private", "qualify",
     "quorum_sound",
 ]
