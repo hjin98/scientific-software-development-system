@@ -230,6 +230,14 @@ class DependencyRuleDiscriminatorTests(_Discriminator):
         self.assertViolations({path: unrelated}, set())  # Review d8bdfd3 NF6: another scope's binding
         aliased = "import ssds.content as c\nreader = c\nvalue = reader.read_tree\n"
         self.assertViolations({path: aliased}, {("F8", path)})  # d8bdfd3 NF6: an assignment alias
+        before_rebinding = "import ssds.content as c\nx = c.read_tree\nc = None\n"
+        self.assertViolations({path: before_rebinding}, {("F8", path)})  # b341109 NF7: binding order
+        annotated = ("import ssds.content as c\nclass Snapshot:\n    read_raw: bytes\n"
+                     "def f(snapshot):\n    c: Snapshot = snapshot\n    return c.read_raw\n")
+        self.assertViolations({path: annotated}, set())  # b341109 NF7: an annotated local shadows
+        class_local = ("class K:\n    import ssds.content as c\n    def m(self):\n        return c.read_raw\n"
+                       "c = object()\n")
+        self.assertViolations({path: class_local}, set())  # b341109 NF7: methods do not see the class body
 
     def test_derivation_imports_no_third_party_module(self) -> None:
         path = f"{S}/derivation/view.py"

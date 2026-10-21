@@ -334,11 +334,35 @@ class Refusals(GenesisFixture):
         bare = self.root / "bare.git"
         subprocess.run(["git", "init", "--quiet", "--bare", str(bare)], check=True)
         self.assertFalse(prepare_genesis(self.spec(), Home(bare / "home"), self.trees).valid, "nor in a bare one")
+        marker_only = self.root / "plain"
+        (marker_only / ".git").mkdir(parents=True)  # an empty .git directory is not a repository
+        self.assertTrue(prepare_genesis(self.spec(ledger_id="plain"), Home(marker_only / "home"), self.trees).valid)
         outside = self.root / "real-home"
         outside.mkdir()
         (self.root / "linked-home").symlink_to(outside, target_is_directory=True)
         linked = prepare_genesis(self.spec(), Home(self.root / "linked-home"), self.trees)
         self.assertTrue(linked.valid, linked.problems)
+
+    def test_no_repository_inside_the_operator_tree(self) -> None:
+        """Review b341109 A-B12: a repository nested at an operator write location is refused before any write."""
+
+        for location in ("genesis/demo", "state/demo", "genesis", "keys/admission"):
+            with self.subTest(location=location):
+                nested = init_repo(self.home.root / location)
+                (nested / "report.json").write_text("tracked\n")
+                commit(nested, "a tracked output")
+                before = product_state(nested)
+                prepared = prepare_genesis(self.spec(), self.home, self.trees)
+                self.assertFalse(prepared.valid)
+                self.assertTrue(any("is a repository" in p for p in prepared.problems), prepared.problems)
+                self.assertEqual((nested / "report.json").read_text(), "tracked\n")
+                self.assertEqual(product_state(nested), before)
+                shutil.rmtree(self.home.root)
+        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+        self.assertTrue(prepared.valid, "the clean control")
+        admitted = admit_genesis(self.home, "demo", sshsig(self.private, prepared.message))
+        self.assertEqual(admitted.qualification, "QUALIFIED", "the ledger's own repository is allowed")
+        self.home.check("demo")
 
     def test_an_unreadable_baseline_or_policy(self) -> None:
         self.assertRefused("cannot be read", baseline_commit="0" * 40)

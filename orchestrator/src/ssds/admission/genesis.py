@@ -107,6 +107,7 @@ class Home:
     """Where Admission keeps a project's operator data, under the SSDS home (created on first write).
 
     One rule closes every way a path could be redirected out of the home: the
+    home lies outside every repository and holds none but its own ledgers, and the
     operator tree a ledger uses (its ledger repository, witness, keys, genesis
     workspace and state, and the directories that hold them) contains no
     symbolic link at all, checked by :meth:`check` before any effect. The ledger
@@ -193,8 +194,7 @@ class Home:
 
         resolved = self.root.resolve()
         for directory in (resolved, *resolved.parents):
-            if (directory / ".git").exists() or ((directory / "HEAD").is_file() and (directory / "objects").is_dir()
-                                                 and (directory / "refs").is_dir()):
+            if _is_repository(directory):
                 raise HomeRefused(f"the SSDS home {self.root} lies inside the repository at {directory}; "
                                   "set SSDS_HOME to a directory outside every repository")
 
@@ -203,23 +203,46 @@ class Home:
         ledger's operator tree, every path inside."""
 
         self.outside_repositories()
+        ledger = self.root / "ledgers" / f"{ledger_id}.git"
         for top in self.operator_tree(ledger_id):
             relative = top.relative_to(self.root).parts
             for depth in range(1, len(relative) + 1):  # the directories that hold it
                 component = self.root.joinpath(*relative[:depth])
                 if component.is_symlink():
                     raise HomeRefused(f"{component} is a symbolic link; nothing inside the SSDS home may be one")
+                if component != ledger and _is_repository(component):
+                    raise HomeRefused(f"{component} is a repository; the SSDS home holds none but its ledgers")
             if not top.exists():
                 continue
             for directory, dirnames, filenames in os.walk(top, followlinks=False):
+                here = Path(directory)
+                if here != ledger and _is_repository(here):  # Review b341109 A-B12: a nested repository
+                    raise HomeRefused(f"{here} is a repository; the SSDS home holds none but its ledgers")
                 for name in dirnames + filenames:
-                    path = Path(directory, name)
+                    path = here / name
                     if path.is_symlink():
                         raise HomeRefused(f"{path} is a symbolic link; nothing inside the SSDS home may be one")
         self.ledger_repository(ledger_id), self.witness_root, self.witness_directory(ledger_id)
         self.admission_key(ledger_id), self.workspace(ledger_id), self.high_water(ledger_id)
         for name in self.WORKSPACE_FILES:
             self.workspace_file(ledger_id, name)
+
+
+def _is_repository(directory: Path) -> bool:
+    """A Git worktree or a bare repository at ``directory``.
+
+    A worktree has a ``.git`` file (a ``gitdir:`` pointer) or a ``.git`` directory that is a Git directory
+    (``HEAD`` inside); a bare repository has ``HEAD``, ``objects/`` and ``refs/``. An empty ``.git``
+    directory is not a repository.
+    """
+
+    def git_directory(path: Path) -> bool:
+        return (path / "HEAD").is_file() and (path / "objects").is_dir() and (path / "refs").is_dir()
+
+    marker = directory / ".git"
+    if marker.is_symlink() or marker.is_file():
+        return True
+    return (marker.is_dir() and (marker / "HEAD").exists()) or git_directory(directory)
 
 
 class HomeRefused(ValueError):

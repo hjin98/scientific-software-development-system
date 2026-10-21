@@ -157,13 +157,25 @@ class HighWaterStore:
         publish_private(self.path, canonical_json({"position": mark.position, "entry_digest": mark.entry_digest}))
 
 
+def write_all(descriptor: int, data: bytes) -> None:
+    """Write every byte or raise: ``os.write`` may return a short count (Review b341109 A-B13)."""
+
+    view = memoryview(data)
+    while view:
+        written = os.write(descriptor, view)
+        if written <= 0:
+            raise OSError("no progress writing operator state")
+        view = view[written:]
+
+
 def publish_private(path: Path, data: bytes) -> None:
     """The one way operator state is written: a fresh file, then an atomic rename over the name.
 
     The bytes go into a newly created file (``O_CREAT | O_EXCL | O_NOFOLLOW``, mode 0600, a unique
     name in the same directory), which is fsynced and then renamed over ``path``, and the directory is
     fsynced. No existing file is ever opened for writing, so whatever ``path`` was (a hard link to
-    another file, a symbolic link, a stale temporary) nothing but the name is replaced.
+    another file, a symbolic link, a stale temporary) nothing but the name is replaced. Every byte is
+    written before the rename; a short or failed write publishes nothing and leaves no temporary.
     """
 
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -171,7 +183,7 @@ def publish_private(path: Path, data: bytes) -> None:
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     try:
         try:
-            os.write(descriptor, data)
+            write_all(descriptor, data)
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
@@ -200,7 +212,11 @@ class Qualification:
 
 
 def _abandoned(chain: Chain, through: int) -> frozenset[str]:
-    """Entry digests an admitted human-gated resolution in the chain names as abandoned."""
+    """Entry digests the human-gated resolutions in the chain's first ``through + 1`` entries name as abandoned.
+
+    Admission of those records is the caller's to establish: ``qualify`` reads them only inside a
+    quorum-held prefix.
+    """
 
     out = set()
     for entry in chain.entries[: through + 1]:
@@ -238,40 +254,50 @@ def qualify(
         return Qualification("UNQUALIFIED")
     digests = chain.digests()
     top = len(digests) - 1
-    abandoned = _abandoned(chain, top)
     seen = {(c.position, c.entry_digest) for cps in responders.values() for c in cps}
-    by_position: dict[int, set[str]] = {}
-    for position, digest in seen:
-        by_position.setdefault(position, set()).add(digest)
-    for position, found in by_position.items():
-        if len(found - abandoned) > 1:
-            return Qualification("FORK")
-        if position <= top and any(d != digests[position] and d not in abandoned for d in found):
-            return Qualification("FORK")
-    marks = [(p, d) for p, d in seen if d not in abandoned]
-    retained = None  # the evaluator's own high-water mark: the last head it qualified (§23.4)
-    if high_water is not None and high_water.entry_digest not in abandoned:
-        if high_water.position <= top and digests[high_water.position] != high_water.entry_digest:
-            return Qualification("FORK")
-        retained = high_water.position
-    if any(p > top for p, _ in marks) or (retained is not None and retained > top):
-        return Qualification("ROLLBACK" if authoritative else "BEHIND")
     holders = {p: sum(1 for cps in responders.values() if any(c.position == p and c.entry_digest == digests[p] for c in cps))
                for p in range(len(digests))}
-    # H* extends every checkpoint the evaluator observes and its own retained mark (§23.1, §23.4): an
-    # observed checkpoint not yet held by an admission quorum withholds currentness until read repair; it
-    # is never relabelled a provisional successor. The provisional successor is only the replica's own
-    # entry beyond H* that no responder has shown a checkpoint for.
-    floor = max([p for p, _ in marks] + ([retained] if retained is not None else []), default=-1)
-    candidates = [p for p, n in holders.items() if n >= model.q_a and p >= floor]
-    if not candidates:
-        return Qualification("UNQUALIFIED")
-    head = max(candidates)
-    critical = ()
-    if top > head + 1:
-        critical = ("more than one entry beyond the qualified head",)
-    provisional = head + 1 if top >= head + 1 else None
-    return Qualification("QUALIFIED", head, digests[head], provisional, critical)
+    quorum_held = sorted((p for p, n in holders.items() if n >= model.q_a), reverse=True)
+
+    def assess(through: int) -> tuple[str, int]:
+        """The read under the abandonment that recovery records within the prefix through ``through`` admit.
+
+        A recovery record counts only once it lies inside a quorum-held prefix (Review b341109 A-B11): a
+        signed record in the replica's unwitnessed suffix is not admitted and abandons nothing. Returns
+        ("OK", floor) or the failing state.
+        """
+
+        abandoned = _abandoned(chain, through) if through >= 0 else frozenset()
+        by_position: dict[int, set[str]] = {}
+        for position, digest in seen:
+            by_position.setdefault(position, set()).add(digest)
+        for position, found in by_position.items():
+            if len(found - abandoned) > 1:
+                return "FORK", -1
+            if position <= top and any(d != digests[position] and d not in abandoned for d in found):
+                return "FORK", -1
+        marks = [p for p, d in seen if d not in abandoned]
+        retained = None  # the evaluator's own high-water mark: the last head it qualified (§23.4)
+        if high_water is not None and high_water.entry_digest not in abandoned:
+            if high_water.position <= top and digests[high_water.position] != high_water.entry_digest:
+                return "FORK", -1
+            retained = high_water.position
+        if any(p > top for p in marks) or (retained is not None and retained > top):
+            return ("ROLLBACK" if authoritative else "BEHIND"), -1
+        # H* extends every checkpoint the evaluator observes and its own retained mark (§23.1, §23.4): an
+        # observed checkpoint not yet held by an admission quorum withholds currentness until read repair;
+        # it is never relabelled a provisional successor. The provisional successor is only the replica's
+        # own entry beyond H* that no responder has shown a checkpoint for.
+        return "OK", max(marks + ([retained] if retained is not None else []), default=-1)
+
+    for head in quorum_held:  # the highest quorum-held prefix whose own recovery records explain every mark
+        state, floor = assess(head)
+        if state == "OK" and head >= floor:
+            critical = ("more than one entry beyond the qualified head",) if top > head + 1 else ()
+            provisional = head + 1 if top >= head + 1 else None
+            return Qualification("QUALIFIED", head, digests[head], provisional, critical)
+    state, _ = assess(quorum_held[0] if quorum_held else -1)
+    return Qualification(state if state != "OK" else "UNQUALIFIED")
 
 
 def loss_status(h: int, m: int, f: int, q_a: int) -> str:
@@ -287,6 +313,6 @@ def loss_status(h: int, m: int, f: int, q_a: int) -> str:
 __all__ = [
     "Checkpoint", "DEPLOYMENT_CLASSES", "FileWitness", "HighWaterMark", "HighWaterStore", "Qualification",
     "STATES", "WitnessModel", "WitnessSpec", "checkpoint_body", "checkpoint_message", "loss_status",
-    "publish_private", "qualify",
+    "publish_private", "qualify", "write_all",
     "quorum_sound",
 ]

@@ -14,6 +14,7 @@ durability rests on the operating system, a limit of the host, not of the rule.
 from __future__ import annotations
 
 import os
+import secrets
 import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -22,7 +23,7 @@ from typing import Any
 
 from ssds.core.api.v1 import canonical_json
 
-from .qualification import Checkpoint, FileWitness, checkpoint_body, checkpoint_message
+from .qualification import Checkpoint, FileWitness, checkpoint_body, checkpoint_message, write_all
 from .read import entry_digest, ledger_head, ledger_ref
 from .signatures import HostKey, entry_message
 
@@ -138,20 +139,33 @@ def append_entry(
 
 
 def write_checkpoint(witness: FileWitness, checkpoint: Checkpoint) -> None:
-    """Durably retain a checkpoint: an exclusive, fsynced write; an existing checkpoint is never replaced."""
+    """Durably retain a checkpoint: append-only, complete, fsynced; an existing checkpoint is never replaced.
+
+    The complete checkpoint is written and fsynced in a fresh, exclusively created temporary file, then
+    given its name by a hard link, which fails if the name exists, so the name only ever denotes a
+    complete checkpoint (Review b341109 A-B13). An existing checkpoint of that name must be this one.
+    """
 
     folder = witness.directory(checkpoint.ledger_id)
     folder.mkdir(parents=True, exist_ok=True)
     name = f"{checkpoint.position:012d}-{checkpoint.entry_digest.removeprefix('sha256:')}.json"
     path = folder / name
-    if path.exists():
-        return
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)  # a new file only
+    data = canonical_json(checkpoint.to_json())
+    temporary = folder / f".{name}.{secrets.token_hex(8)}.tmp"
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)  # a new file only
     try:
-        os.write(descriptor, canonical_json(checkpoint.to_json()))
-        os.fsync(descriptor)
+        try:
+            write_all(descriptor, data)
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            if path.is_symlink() or path.read_bytes() != data:
+                raise AppendFailed(f"the witness holds a different file at {path}") from None
     finally:
-        os.close(descriptor)
+        temporary.unlink(missing_ok=True)
     directory = os.open(folder, os.O_RDONLY)
     try:
         os.fsync(directory)

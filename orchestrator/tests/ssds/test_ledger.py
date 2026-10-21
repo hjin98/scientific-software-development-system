@@ -9,17 +9,22 @@ admission halves are Phase F.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest import mock
 
 from ssds.core.api.v1 import canonical_json
-from ssds.ledger.append import AppendRefused, append_entry, create_ledger_repository, import_commits, write_checkpoint
+from ssds.ledger.append import AppendFailed, AppendRefused, append_entry, create_ledger_repository, import_commits, write_checkpoint
 from ssds.ledger.qualification import (
     Checkpoint,
     FileWitness,
     HighWaterMark,
+    HighWaterStore,
     WitnessModel,
     WitnessSpec,
     checkpoint_body,
@@ -85,9 +90,58 @@ class AppendAndRead(LedgerFixture):
     def test_a_checkpoint_is_never_overwritten(self) -> None:
         first = self.append_genesis()
         forged = replace(first.checkpoint, entry_commit="f" * 40)
-        write_checkpoint(self.witness, forged)
+        with self.assertRaises(AppendFailed):
+            write_checkpoint(self.witness, forged)
         held = self.witness.read("demo")
         self.assertEqual([c.entry_commit for c in held], [first.commit])
+        write_checkpoint(self.witness, first.checkpoint)  # the same checkpoint again is a no-op
+        self.assertEqual(len(self.witness.read("demo")), 1)
+
+
+class CompleteWrites(LedgerFixture):
+    """Review b341109 A-B13: a short write is finished or fails; it is never published as complete."""
+
+    MARK = "from ssds.ledger.qualification import HighWaterMark, HighWaterStore\n"
+
+    def child(self, code: str) -> subprocess.CompletedProcess[str]:
+        prelude = "import resource\nresource.setrlimit(resource.RLIMIT_FSIZE, (1, 1))\n"
+        return subprocess.run([sys.executable, "-c", prelude + code], capture_output=True, text=True, timeout=60,
+                              env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src")})
+
+    def test_a_progressing_short_write_completes(self) -> None:
+        from ssds.ledger import qualification
+
+        real = os.write
+        with mock.patch.object(qualification.os, "write", lambda fd, data: real(fd, bytes(data[:1]))):
+            store = HighWaterStore(self.root / "state" / "high-water.json")
+            store.set(HighWaterMark(7, "sha256:" + "7" * 64))
+            first = self.append_genesis()
+            witness = FileWitness(self.root / "w2")
+            write_checkpoint(witness, first.checkpoint)
+        self.assertEqual(store.get(), HighWaterMark(7, "sha256:" + "7" * 64))
+        self.assertEqual([c.entry_digest for c in witness.read("demo")], [first.digest])
+
+    def test_a_failing_write_keeps_the_old_mark_and_leaves_no_temporary(self) -> None:
+        path = self.root / "state" / "high-water.json"
+        HighWaterStore(path).set(HighWaterMark(1, "sha256:" + "1" * 64))
+        old = path.read_bytes()
+        result = self.child(self.MARK + f"HighWaterStore(__import__('pathlib').Path({str(path)!r}))"
+                                        ".set(HighWaterMark(2, 'sha256:' + '2' * 64))\n")
+        self.assertNotEqual(result.returncode, 0, "the write cannot complete under a one-byte file limit")
+        self.assertEqual(path.read_bytes(), old, "the old mark is intact")
+        self.assertEqual(sorted(p.name for p in path.parent.iterdir()), ["high-water.json"], "no temporary left")
+
+    def test_a_failing_checkpoint_write_acknowledges_nothing(self) -> None:
+        first = self.append_genesis()
+        target = self.root / "w3"
+        body = json.dumps(first.checkpoint.to_json())
+        result = self.child("import json\nfrom ssds.ledger.qualification import Checkpoint, FileWitness\n"
+                            "from ssds.ledger.append import write_checkpoint\n"
+                            f"write_checkpoint(FileWitness(__import__('pathlib').Path({str(target)!r})), "
+                            f"Checkpoint.from_json(json.loads({body!r})))\n")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(FileWitness(target).read("demo"), [], "no partial checkpoint is held")
+        self.assertEqual([p.name for p in (target / "demo").iterdir()], [], "and no temporary is left")
 
 
 class ChainVerification(LedgerFixture):
@@ -301,6 +355,29 @@ class Qualification(unittest.TestCase):
             if result.current:
                 observed = max(c.position for cps in reports.values() for c in cps)
                 self.assertGreaterEqual(result.head, observed)
+
+    def test_a_recovery_record_counts_only_once_its_quorum_holds_it(self) -> None:
+        """Review b341109 A-B11: an unwitnessed LEDGER_LOSS or FORK_RESOLUTION abandons nothing."""
+
+        from ssds.ledger.read import Chain, LedgerEntry
+
+        local = WitnessModel("LOCAL_TRUST", 1, 1, 1, 0, (WitnessSpec("w0", "FILE", "/w"),))
+        old = "sha256:" + "e" * 64  # E1: admitted at 1, witnessed, then lost by a rewind
+        recovery_digest = "sha256:" + "d" * 64
+        for kind in ("LEDGER_LOSS", "FORK_RESOLUTION"):
+            with self.subTest(kind=kind):
+                recovery = {"kind": kind, "fields": {"abandoned": [{"digest": old}]}}
+                entries = (LedgerEntry(0, f"{0:040x}", (), {}, b"", b"", f"sha256:{0:064x}", {}),
+                           LedgerEntry(1, f"{1:040x}", (), {"lifecycle": recovery}, b"", b"", recovery_digest, {}))
+                chain = Chain("demo", entries)
+                mark = HighWaterMark(1, old)
+                unwitnessed = qualify(chain, {"w0": [self.cp(0), self.cp(1, old)]}, local, self.keys, mark)
+                self.assertFalse(unwitnessed.current, "the old prefix is not made current by an unadmitted recovery")
+                self.assertIsNone(unwitnessed.head)
+                admitted = qualify(chain, {"w0": [self.cp(0), self.cp(1, old), self.cp(1, recovery_digest)]}, local,
+                                   self.keys, mark)
+                self.assertEqual((admitted.state, admitted.head), ("QUALIFIED", 1),
+                                 "once the witness holds the recovery entry, its abandonment counts")
 
     def test_loss_bounds(self) -> None:
         self.assertEqual((loss_status(0, 1, 0, 2), loss_status(1, 1, 0, 2), loss_status(2, 0, 1, 2)),

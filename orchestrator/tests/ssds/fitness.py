@@ -235,40 +235,53 @@ def _git_readers(module: _Module) -> list[tuple[str, int]]:
             node = node.value
         return (node.id, parts) if isinstance(node, ast.Name) else None
 
-    def visit(body: list[ast.stmt], inherited: dict[str, str], shadowed: set[str]) -> None:
+    def visit(body: list[ast.stmt], inherited: dict[str, str], shadowed: set[str], in_class: bool = False) -> None:
+        """One scope, in source order: a binding takes effect after the expression it evaluates."""
+
         bound = {name: target for name, target in inherited.items() if name not in shadowed}
         nodes = list(own_nodes(body))
-        for node in sorted((n for n in nodes if isinstance(n, (ast.Import, ast.ImportFrom))), key=lambda n: n.lineno):
-            if isinstance(node, ast.Import):
+        events: list[tuple[tuple[int, int], int, ast.AST]] = []
+        for node in nodes:
+            if isinstance(node, (ast.Import, ast.ImportFrom, ast.Assign, ast.AnnAssign)):
+                events.append(((node.end_lineno or node.lineno, node.end_col_offset or 0), 1, node))
+            elif isinstance(node, ast.Attribute) and node.attr in DERIVATION_IO_NAMES:
+                events.append(((node.lineno, node.col_offset), 0, node))
+        nested: list[ast.AST] = [n for n in nodes if isinstance(n, scopes)]
+        for _, _, node in sorted(events, key=lambda e: (e[0], e[1])):
+            if isinstance(node, ast.Attribute):
+                base = dotted(node.value)
+                if base and base[0] in bound and ".".join([bound[base[0]], *base[1]]) in DERIVATION_IO_MODULES:
+                    found.append((node.attr, node.lineno))
+            elif isinstance(node, ast.Import):
                 for alias in node.names:
                     name = alias.asname or alias.name.split(".")[0]
                     bound[name] = alias.name if alias.asname else alias.name.split(".")[0]
-            else:
+            elif isinstance(node, ast.ImportFrom):
                 parent = parent_of(node)
                 for alias in node.names:
                     if parent in DERIVATION_IO_MODULES and alias.name in DERIVATION_IO_NAMES:
                         found.append((alias.name, node.lineno))
                     bound[alias.asname or alias.name] = f"{parent}.{alias.name}"
-        for node in sorted((n for n in nodes if isinstance(n, ast.Assign)), key=lambda n: n.lineno):
-            source = dotted(node.value)
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    if source and source[0] in bound:
-                        bound[target.id] = ".".join([bound[source[0]], *source[1]])
-                    else:
-                        bound.pop(target.id, None)
-        for node in nodes:
-            if isinstance(node, ast.Attribute) and node.attr in DERIVATION_IO_NAMES:
-                base = dotted(node.value)
-                if base and base[0] in bound and ".".join([bound[base[0]], *base[1]]) in DERIVATION_IO_MODULES:
-                    found.append((node.attr, node.lineno))
+            else:  # Assign, AnnAssign: a name now denotes what its value denotes, or nothing the rule tracks
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                source = dotted(node.value) if node.value is not None else None
+                for target in targets:
+                    if isinstance(target, ast.Name):
+                        if source and source[0] in bound:
+                            bound[target.id] = ".".join([bound[source[0]], *source[1]])
+                        else:
+                            bound.pop(target.id, None)
+        # A nested function resolves free names through enclosing function and module scopes, never a
+        # class body, and at call time, so it sees this scope's final bindings.
+        enclosing = inherited if in_class else bound
+        for node in nested:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
                 arguments = node.args
                 params = {a.arg for a in arguments.posonlyargs + arguments.args + arguments.kwonlyargs}
                 params |= {a.arg for a in (arguments.vararg, arguments.kwarg) if a}
-                visit(node.body if isinstance(node.body, list) else [ast.Expr(node.body)], bound, params)
+                visit(node.body if isinstance(node.body, list) else [ast.Expr(node.body)], enclosing, params)
             elif isinstance(node, ast.ClassDef):
-                visit(node.body, bound, set())
+                visit(node.body, bound, set(), in_class=True)
 
     visit(module.tree.body, {}, set())
     return found
