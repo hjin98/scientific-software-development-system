@@ -65,7 +65,10 @@ Configuration is one TOML file, `config.toml` in the SSDS home: `$SSDS_HOME` if 
 (an absolute path), otherwise `~/.ssds`. `--config` overrides it. Everything SSDS
 writes for an operator lives in that home, outside every repository. The home is
 created the first time SSDS writes there; `ssds doctor` names it and, until a
-configuration exists, says where to create one.
+configuration exists, says where to create one. Before writing, SSDS reads every
+directory it uses in the home in full. It refuses, writing nothing, if one of
+them cannot be listed, contains a symbolic link or anything other than plain
+files and directories, or contains a repository other than the ledger's own.
 
 **Back up the SSDS home.** It holds what no repository clone carries: each
 project's ledger repository (`ledgers/`), the local witness's checkpoints

@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import secrets
+import stat
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -200,7 +201,12 @@ class Home:
 
     def check(self, ledger_id: str) -> None:
         """Refuse before any filesystem effect: the home outside every repository, no link anywhere in this
-        ledger's operator tree, every path inside."""
+        ledger's operator tree, every path inside.
+
+        A tree is certified only as far as it was read (Review df911c0 A-B12): every directory of the
+        operator tree is listed and every entry classified as a directory or a regular file; a directory
+        that cannot be listed, an entry that cannot be examined, or an entry of any other kind refuses.
+        """
 
         self.outside_repositories()
         ledger = self.root / "ledgers" / f"{ledger_id}.git"
@@ -208,24 +214,59 @@ class Home:
             relative = top.relative_to(self.root).parts
             for depth in range(1, len(relative) + 1):  # the directories that hold it
                 component = self.root.joinpath(*relative[:depth])
-                if component.is_symlink():
+                mode = _mode(component)
+                if mode is None:
+                    break
+                if stat.S_ISLNK(mode):
                     raise HomeRefused(f"{component} is a symbolic link; nothing inside the SSDS home may be one")
+                if not stat.S_ISDIR(mode):
+                    raise HomeRefused(f"{component} is not a directory; the SSDS home keeps its operator data there")
                 if component != ledger and _is_repository(component):
                     raise HomeRefused(f"{component} is a repository; the SSDS home holds none but its ledgers")
-            if not top.exists():
-                continue
-            for directory, dirnames, filenames in os.walk(top, followlinks=False):
-                here = Path(directory)
-                if here != ledger and _is_repository(here):  # Review b341109 A-B12: a nested repository
-                    raise HomeRefused(f"{here} is a repository; the SSDS home holds none but its ledgers")
-                for name in dirnames + filenames:
-                    path = here / name
-                    if path.is_symlink():
-                        raise HomeRefused(f"{path} is a symbolic link; nothing inside the SSDS home may be one")
+            else:  # the whole path is present: read the tree under it whole
+                pending = [top]
+                while pending:
+                    here = pending.pop()
+                    if here != ledger and _is_repository(here):  # Review b341109 A-B12: a nested repository
+                        raise HomeRefused(f"{here} is a repository; the SSDS home holds none but its ledgers")
+                    for path in _listing(here):
+                        mode = _mode(path)
+                        if mode is None:
+                            raise HomeRefused(f"{path} vanished while the SSDS home was read")
+                        if stat.S_ISLNK(mode):
+                            raise HomeRefused(f"{path} is a symbolic link; nothing inside the SSDS home may be one")
+                        if stat.S_ISDIR(mode):
+                            pending.append(path)
+                        elif not stat.S_ISREG(mode):
+                            raise HomeRefused(f"{path} is neither a file nor a directory; the SSDS home holds "
+                                              "only its own files")
         self.ledger_repository(ledger_id), self.witness_root, self.witness_directory(ledger_id)
         self.admission_key(ledger_id), self.workspace(ledger_id), self.high_water(ledger_id)
         for name in self.WORKSPACE_FILES:
             self.workspace_file(ledger_id, name)
+
+
+def _mode(path: Path) -> int | None:
+    """The ``lstat`` mode of ``path``, or ``None`` when nothing is there; any other failure refuses."""
+
+    try:
+        return os.lstat(path).st_mode
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    except OSError as exc:
+        raise HomeRefused(f"{path} cannot be examined ({exc.strerror}); the SSDS home certifies only what it reads"
+                          ) from None
+
+
+def _listing(directory: Path) -> list[Path]:
+    """Every entry of ``directory``; a directory that cannot be listed whole refuses."""
+
+    try:
+        with os.scandir(directory) as entries:
+            return sorted(directory / entry.name for entry in entries)
+    except OSError as exc:
+        raise HomeRefused(f"{directory} cannot be listed ({exc.strerror}); the SSDS home certifies only what it "
+                          "reads") from None
 
 
 def _is_repository(directory: Path) -> bool:
@@ -233,16 +274,17 @@ def _is_repository(directory: Path) -> bool:
 
     A worktree has a ``.git`` file (a ``gitdir:`` pointer) or a ``.git`` directory that is a Git directory
     (``HEAD`` inside); a bare repository has ``HEAD``, ``objects/`` and ``refs/``. An empty ``.git``
-    directory is not a repository.
+    directory is not a repository. A marker that cannot be examined refuses rather than counting as absent.
     """
 
-    def git_directory(path: Path) -> bool:
-        return (path / "HEAD").is_file() and (path / "objects").is_dir() and (path / "refs").is_dir()
-
-    marker = directory / ".git"
-    if marker.is_symlink() or marker.is_file():
+    marker = _mode(directory / ".git")
+    if marker is not None and not stat.S_ISDIR(marker):
         return True
-    return (marker.is_dir() and (marker / "HEAD").exists()) or git_directory(directory)
+    if marker is not None and _mode(directory / ".git" / "HEAD") is not None:
+        return True
+    head, objects, refs = (_mode(directory / name) for name in ("HEAD", "objects", "refs"))
+    return (head is not None and not stat.S_ISDIR(head)
+            and all(m is not None and (stat.S_ISDIR(m) or stat.S_ISLNK(m)) for m in (objects, refs)))
 
 
 class HomeRefused(ValueError):

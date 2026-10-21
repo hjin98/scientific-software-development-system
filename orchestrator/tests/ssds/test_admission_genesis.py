@@ -15,8 +15,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from ssds.admission.genesis import GenesisRefused, GenesisSpec, Home, admit_genesis, prepare_genesis
+from ssds.admission.genesis import GenesisRefused, GenesisSpec, Home, HomeRefused, admit_genesis, prepare_genesis
 from ssds.content import read_tree
 from ssds.derivation import consequences
 from ssds.ledger.qualification import FileWitness
@@ -183,7 +184,7 @@ class Refusals(GenesisFixture):
         if self.home.witness_root.is_dir():
             self.home.witness_root.rmdir()
         self.home.witness_root.write_text("a file, not a witness directory\n")
-        self.assertRefused("witness unreachable")
+        self.assertRefused("not a directory")  # Review df911c0 A-B12: the Home check refuses before reachability
 
     def test_a_ledger_id_never_directs_a_write_outside_the_home(self) -> None:
         """Review 0e49deb A-B3: the id is checked before any path is built or anything is written."""
@@ -363,6 +364,152 @@ class Refusals(GenesisFixture):
         admitted = admit_genesis(self.home, "demo", sshsig(self.private, prepared.message))
         self.assertEqual(admitted.qualification, "QUALIFIED", "the ledger's own repository is allowed")
         self.home.check("demo")
+
+    def assertNoOperatorEffect(self, *names: str) -> None:
+        for name in names:
+            self.assertFalse((self.home.root / name).exists(), f"{name} was created before the refusal")
+
+    def lock(self, directory: Path, mode: int) -> None:
+        """Set a restrictive mode, restored at cleanup so the temporary tree can be removed."""
+
+        directory.chmod(mode)
+        self.addCleanup(lambda: directory.exists() and directory.chmod(0o700))
+
+    def test_a_nested_witness_repository_or_in_home_link_is_refused_when_readable(self) -> None:
+        """Review df911c0 A-B12, the readable controls: both collisions refuse before any operator effect."""
+
+        nested = init_repo(self.home.root / "witness" / "demo")
+        (nested / "sentinel.txt").write_text("product\n")
+        commit(nested, "a product")
+        before = product_state(nested)
+        self.assertRefused("is a repository")
+        self.assertEqual(product_state(nested), before)
+        shutil.rmtree(nested)
+        other = init_repo(self.home.root / "projects" / "app")
+        (other / "sentinel.txt").write_text("product\n")
+        commit(other, "another product")
+        before = product_state(other)
+        (self.home.root / "witness" / "demo").symlink_to(other, target_is_directory=True)
+        self.assertRefused("symbolic link")
+        self.assertEqual(product_state(other), before)
+        self.assertNoOperatorEffect("genesis", "keys", "state", "ledgers")
+
+    @unittest.skipIf(os.geteuid() == 0, "root lists every directory; the injected failures below cover this run")
+    def test_an_operator_tree_that_cannot_be_read_whole_is_refused(self) -> None:
+        """Review df911c0 A-B12: a directory the check cannot list hides a nested repository or a link.
+
+        Plain permissions, no hostile actor: ``witness`` at mode 0300 is traversable but not listable. The
+        check refuses before any workspace, key, state or ledger directory exists and before any change to
+        the nested product, whether the misconfiguration precedes preparation or appears after the gate.
+        """
+
+        witness = self.home.root / "witness"
+        nested = init_repo(witness / "demo")
+        (nested / "sentinel.txt").write_text("product\n")
+        commit(nested, "a product")
+        before = product_state(nested)
+        self.lock(witness, 0o300)
+        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+        self.assertFalse(prepared.valid)
+        self.assertTrue(any("cannot be listed" in p for p in prepared.problems), prepared.problems)
+        self.assertNoOperatorEffect("genesis", "keys", "state", "ledgers")
+        self.assertEqual(product_state(nested), before)
+
+        witness.chmod(0o700)
+        shutil.rmtree(nested)
+        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+        self.assertTrue(prepared.valid, prepared.problems)
+        signature = sshsig(self.private, prepared.message)
+        nested = init_repo(witness / "demo")  # appears between the gate and the append
+        (nested / "sentinel.txt").write_text("product\n")
+        commit(nested, "a product")
+        before = product_state(nested)
+        witness.chmod(0o300)
+        with self.assertRaises(GenesisRefused) as refused:
+            admit_genesis(self.home, "demo", signature)
+        self.assertTrue(any("cannot be listed" in p for p in refused.exception.problems), refused.exception.problems)
+        self.assertNoOperatorEffect("state", "ledgers")
+        self.assertEqual(product_state(nested), before, "no checkpoint entered the nested product")
+
+        witness.chmod(0o700)
+        shutil.rmtree(nested)
+        (self.home.root / "projects").mkdir()
+        other = init_repo(self.home.root / "projects" / "app")
+        (other / "sentinel.txt").write_text("product\n")
+        commit(other, "another product")
+        before = product_state(other)
+        (witness / "demo").symlink_to(other, target_is_directory=True)  # the in-home-link sibling
+        witness.chmod(0o300)
+        with self.assertRaises(GenesisRefused):
+            admit_genesis(self.home, "demo", signature)
+        self.assertNoOperatorEffect("state", "ledgers")
+        self.assertEqual(product_state(other), before)
+        witness.chmod(0o700)
+        (witness / "demo").unlink()
+        self.assertEqual(admit_genesis(self.home, "demo", signature).qualification, "QUALIFIED", "the clean control")
+        self.assertEqual(product_state(other), before)
+
+    @unittest.skipIf(os.geteuid() == 0, "root lists every directory; the injected failures below cover this run")
+    def test_every_used_tree_is_read_whole(self) -> None:
+        """Review df911c0 A-B12 siblings: an unlistable (0300) or unsearchable (0600) directory in any used tree
+        refuses, though it hides only a link out of the home."""
+
+        outside = self.root / "outside"
+        outside.mkdir()
+        for tree in ("genesis/demo", "state/demo", "keys/admission", "ledgers/demo.git", "witness"):
+            for mode, fragment in ((0o300, "cannot be listed"), (0o600, "cannot be examined")):
+                with self.subTest(tree=tree, mode=oct(mode)):
+                    hidden = self.home.root / tree / "hidden"
+                    hidden.mkdir(parents=True)
+                    (hidden / "planted").symlink_to(outside, target_is_directory=True)
+                    hidden.chmod(mode)
+                    try:
+                        with self.assertRaises(HomeRefused) as refused:
+                            self.home.check("demo")
+                        self.assertIn(fragment, str(refused.exception))
+                        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+                        self.assertFalse(prepared.valid)
+                        self.assertTrue(any(fragment in p for p in prepared.problems), prepared.problems)
+                    finally:
+                        hidden.chmod(0o700)
+                        shutil.rmtree(self.home.root)
+        self.assertEqual(list(outside.iterdir()), [], "nothing was written outside the home")
+
+    def test_a_failure_to_read_any_used_tree_refuses(self) -> None:
+        """Review df911c0 A-B12 at the lower boundary, under any user: listing or examining fails in each used tree.
+
+        The operating system's directory listing and ``lstat`` are made to fail at one named path; the real
+        check above them must refuse rather than certify what it did not read.
+        """
+
+        trees = ("genesis/demo", "state/demo", "keys/admission", "ledgers/demo.git", "witness")
+        real_scandir, real_lstat = os.scandir, os.lstat
+        for tree in trees:
+            hidden = self.home.root / tree / "hidden"
+            hidden.mkdir(parents=True)
+            (hidden / "data").write_text("x\n")
+        for tree in trees:
+            hidden = self.home.root / tree / "hidden"
+            for name, target, fragment in (("scandir", hidden, "cannot be listed"),
+                                           ("lstat", hidden / "data", "cannot be examined")):
+                def failing(path, *args, _real=real_scandir if name == "scandir" else real_lstat, _target=target,
+                            **kwargs):
+                    if Path(path) == _target:
+                        raise PermissionError(13, "Permission denied", str(path))
+                    return _real(path, *args, **kwargs)
+
+                with self.subTest(tree=tree, call=name), mock.patch.object(os, name, failing):
+                    with self.assertRaises(HomeRefused) as refused:
+                        self.home.check("demo")
+                    self.assertIn(fragment, str(refused.exception))
+        self.home.check("demo")  # every tree reads whole: the same layout passes
+
+    def test_only_directories_and_regular_files_in_the_operator_tree(self) -> None:
+        """Review df911c0 A-B12, classification: an entry that is neither file nor directory refuses."""
+
+        (self.home.root / "state" / "demo").mkdir(parents=True)
+        os.mkfifo(self.home.root / "state" / "demo" / "pipe")
+        self.assertRefused("neither a file nor a directory")
 
     def test_an_unreadable_baseline_or_policy(self) -> None:
         self.assertRefused("cannot be read", baseline_commit="0" * 40)
