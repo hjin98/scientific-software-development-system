@@ -73,7 +73,7 @@ class Flow:
                         outcome=outcome, actor=agent("maker"), actor_class="AGENT", frame={"transformation": x},
                         fields={"slots": SLOTS})
         result["binding"] = dict(fresh(agent("maker"), task), obligation=item.obligation.id,
-                                 contract_revision={"unit": "plan.work.item", "rev": self.sc.rev("plan.work.item")})
+                                 item={"unit": "plan.work.item", "rev": self.sc.rev("plan.work.item")})
         self.sc.admit(with_id(result))
         return x, cand
 

@@ -144,7 +144,7 @@ class Runs:
         transformation = target.get("transformation")
         if not transformation or target.get("task") != self.s.enactment(transformation):
             return False
-        named = (record.get("binding") or {}).get("contract_revision")
+        named = (record.get("binding") or {}).get("item")
         if not isinstance(named, dict) or not {"unit", "rev"} <= set(named):
             return False
         found = self.s.plans.item_at(named["unit"], named["rev"])

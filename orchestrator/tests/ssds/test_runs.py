@@ -81,7 +81,7 @@ def assessed_result(sc: Scenario, base: str, cand: str, x: str, task: str, produ
     result["binding"] = fresh(producer, task)
     result["binding"]["obligation"] = obligation
     if item:
-        result["binding"]["contract_revision"] = {"unit": "plan.work.item", "rev": sc.rev("plan.work.item")}
+        result["binding"]["item"] = {"unit": "plan.work.item", "rev": sc.rev("plan.work.item")}
     return with_id(result)
 
 

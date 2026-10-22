@@ -42,7 +42,7 @@ def submit(sc: Scenario, files: dict[str, str], slots: dict | None = None, outco
                     outcome=outcome, actor=producer, actor_class="AGENT", frame={"transformation": x},
                     fields={"slots": SLOTS if slots is None else slots})
     result["binding"] = dict(fresh(producer, task), obligation="obl-item",
-                             contract_revision={"unit": "plan.work.item", "rev": sc.rev("plan.work.item")})
+                             item={"unit": "plan.work.item", "rev": sc.rev("plan.work.item")})
     result = with_id(result)
     sc.admit(result)
     return x, cand, result

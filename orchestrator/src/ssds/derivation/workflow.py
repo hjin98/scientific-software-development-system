@@ -172,6 +172,11 @@ class Workflow:
         for item in self.items.all:
             found.append(item.obligation)
             found.extend(item.route.decisions)
+            for part in item.parts:
+                found.append(part.obligation)
+                found.extend(part.route.decisions)
+            if item.route.route == "item-level-review" and not item.waived and item.item_level_target is not None:
+                found.append(make("REVIEW", item.item_level_target, holder=REVIEWER, plan=item.plan))
         found += self._revalidations(found)
         unique = {o.id: o for o in found}
         return tuple(sorted(unique.values()))
@@ -389,6 +394,8 @@ class Workflow:
             return record["target"] == target
         if o.kind == "SPEC_REVIEW":
             return record["target"] == target
+        if o.kind == "REVIEW" and "integrated" in target:
+            return record["target"] == target
         if o.kind == "REVIEW":
             return record["target"].get("transformation") == target["transformation"]
         if o.kind == "JOINT_INVARIANT":
@@ -408,7 +415,8 @@ class Workflow:
         out = []
         for rid in self.s.of_kind(kind):
             # A review of X declares frame id(X) (§11.5): it answers REVIEW(X) in that frame, the obligation's state.
-            in_frame = o.kind == "REVIEW" and self.s.record(rid)["frame"] == {"transformation": o.target["transformation"]}
+            in_frame = o.kind == "REVIEW" and "transformation" in o.target and \
+                self.s.record(rid)["frame"] == {"transformation": o.target["transformation"]}
             if not (self.s.acts(rid) or in_frame) or not self._on_target(o, rid):
                 continue
             if subject and self._revised_kind(subject) and self.s.runs.named(rid, subject) != self.s.runs.rid(subject):
@@ -473,7 +481,9 @@ class Workflow:
         return None
 
     def _support_for(self, o: Obligation) -> Any:
-        return self._frame_support(o.target["transformation"]) if o.kind == "REVIEW" else self.d
+        if o.kind == "REVIEW" and "transformation" in o.target:
+            return self._frame_support(o.target["transformation"])
+        return self.d
 
     def _qualifies(self, o: Obligation, rid: str) -> bool:
         """A passing judgment that may discharge ``o``: by an actor qualified for its kind, independent where
@@ -562,6 +572,13 @@ class Workflow:
             for entry in [target["objective"], *target["items"]]:
                 out |= self.s.authors(entry["unit"], entry["rev"])
             return frozenset(out)
+        if o.kind == "REVIEW" and "integrated" in target:
+            item = next((i for i in self.items.all if i.key == target["of"]), None)
+            authors: set[str] = set()
+            for part in item.parts if item is not None else ():
+                for unit, rev in part.outputs.items():
+                    authors |= self.s.authors(unit, rev)
+            return frozenset(authors) or frozenset({UNKNOWN})
         if o.kind == "REVIEW":
             return frozenset(self.s._makers(target["transformation"])) or frozenset({UNKNOWN})
         if o.kind in ("ADJUDICATE", "ADJUDICATE_DISAGREEMENT", "REVALIDATE"):

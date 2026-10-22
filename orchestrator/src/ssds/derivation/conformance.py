@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cached_property
 from typing import Any
 
@@ -124,11 +124,18 @@ class Conformance:
         """The contract at the task's basis: the item revision the binding names, else the system contract."""
 
         binding = self.record.get("binding") or {}
-        named = binding.get("contract_revision")
+        named = binding.get("item")
         if isinstance(named, dict) and {"unit", "rev"} <= set(named):
             found = self.s.plans.item_at(named["unit"], named["rev"])
             if found is not None and isinstance(found[1].parsed, Item) and found[1].parsed.contract is not None:
-                return found[1].parsed.contract, found[1].parsed, ""
+                contract = found[1].parsed.contract
+                part = self.w.items.of(binding.get("obligation", "")) if binding.get("obligation") else None
+                if part is not None and part.share is not None:
+                    # A part's contract is the item's restricted mechanically to its share (§13.7).
+                    _, _, obligations, scope = part.share
+                    contract = replace(contract, write_scope=tuple(scope),
+                                       obligations=tuple(o for o in contract.obligations if o.id in obligations))
+                return contract, found[1].parsed, ""
             return None, None, f"no contract at item revision {named['unit']}@{named['rev']}"
         kind = self._bound_kind(binding.get("obligation"))
         if kind is None:
