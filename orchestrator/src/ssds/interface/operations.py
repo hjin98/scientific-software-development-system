@@ -12,9 +12,10 @@ answer names the head it was derived at.
 
 The Interface holds no state of its own and reads no Git: its caller (the root
 module) supplies a :class:`LedgerAccess` and a tree source. Phase E has no tasks
-(reading E1): ``read`` returns content at the answer's basis and records nothing.
-``open``, which renders a derived obligation's brief labeled ``NOT ISSUED``, is
-step 7's. A query naming nothing it can answer about is :class:`Refused`.
+(reading E1): ``read`` returns content at the answer's basis and records nothing;
+``open`` renders a derived obligation's brief, labeled ``NOT ISSUED``, and
+``inspect`` the inspector view (``interface.render``). A query naming nothing it
+can answer about is :class:`Refused`.
 """
 
 from __future__ import annotations
@@ -27,6 +28,8 @@ from typing import Any, Protocol
 
 from ssds import derivation
 from ssds.ledger.qualification import HighWaterMark, Qualification, WitnessModel, qualify
+
+from .render import Doctrine, Renderer
 
 
 class Refused(ValueError):
@@ -111,9 +114,10 @@ _QUERIES = ("governs", "depends", "explain", "evidence", "blocked", "stale", "im
 class Session:
     """``ask`` and ``read`` at one presented head (snapshot isolation, §16.1)."""
 
-    def __init__(self, access: LedgerAccess, trees: Callable[[str], Any]) -> None:
+    def __init__(self, access: LedgerAccess, trees: Callable[[str], Any], doctrine: Doctrine | None = None) -> None:
         self.access = access
         self.trees = trees
+        self.doctrine: Doctrine = doctrine or (lambda source, path: None)
         self.presented = present(access, trees)
 
     def _answer(self, query: str, answer: Any) -> dict[str, Any]:
@@ -162,6 +166,25 @@ class Session:
             return self._answer(query, function(w, *args))
         except derivation.queries.QueryError as exc:
             raise Refused(str(exc)) from None
+
+    def open(self, obligation: str) -> dict[str, Any]:
+        """The brief of a derived obligation at the presented head, labeled ``NOT ISSUED`` (reading E1)."""
+
+        w = self.presented.workflow
+        if w is None:
+            return self._answer("open", None)
+        found = next((o for o in w.obligations if o.id == obligation), None)
+        if found is None:
+            raise Refused(f"{obligation} is not an obligation derived at the presented head")
+        return self._answer("open", Renderer(w, self.presented.head, self.doctrine).brief(found).to_json())
+
+    def inspect(self) -> dict[str, Any]:
+        """The inspector view: open human attention by ``(-w, c, p, id)``, then the digest (§16.8)."""
+
+        w = self.presented.workflow
+        if w is None:
+            return self._answer("inspect", None)
+        return self._answer("inspect", Renderer(w, self.presented.head, self.doctrine).inspector())
 
     def read(self, ref: str) -> dict[str, Any]:
         """Content by unit identity or path at the answer's basis; nothing is recorded (no task basis, E1)."""

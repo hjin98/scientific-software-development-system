@@ -45,11 +45,12 @@ class CompositionRootTests(unittest.TestCase):
             }))
             """
         )
-        self.assertEqual(report["root"], report["core"] + ["status", "ask", "read"], "Core's commands, then the Interface's (Phase E)")
+        self.assertEqual(report["root"], report["core"] + ["status", "ask", "read", "open", "inspect"],
+                         "Core's commands, then the Interface's (Phase E)")
         self.assertEqual(len(report["root"]), len(set(report["root"])))
         self.assertLessEqual(CORE_COMMANDS, set(report["root"]))
         self.assertIn("implementation", report["root"], "profile stage commands are mounted")
-        self.assertEqual(report["ssds"], 3, "the Interface's status, ask and read (Phase E step 6)")
+        self.assertEqual(report["ssds"], 5, "the Interface's status, ask, read, open and inspect (Phase E)")
 
     def test_a_name_claimed_twice_fails_composition(self) -> None:
         report = _probe(

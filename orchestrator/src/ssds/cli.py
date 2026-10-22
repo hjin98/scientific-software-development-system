@@ -59,7 +59,17 @@ def connect(ledger_id: str, repository: Path) -> Session:
         except GitReadError as exc:  # the repository named is not the one the ledger records
             raise Refused(f"cannot read {commit} from {repository}: {exc}") from None
 
-    return Session(HomeAccess(Home(ssds_home()), ledger_id), trees)
+    def doctrine(source: str, path: str) -> bytes | None:
+        """A file of the pinned doctrine source, read at its immutable commit from ``repository`` when that
+        repository holds it (reading E37); None otherwise, and the brief says the text is not rendered."""
+
+        try:
+            entry = read_tree(repository, source).get(path)
+        except GitReadError:
+            return None
+        return entry.data if entry is not None else None
+
+    return Session(HomeAccess(Home(ssds_home()), ledger_id), trees, doctrine)
 
 
 #: SSDS operations mounted beside Core's commands; each joins when its owner exists.

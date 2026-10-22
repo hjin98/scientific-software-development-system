@@ -656,6 +656,46 @@ class Workflow:
             current = target.get("record") if isinstance(target, dict) else None
         return False
 
+    # -- what the renderers read (Phase E step 7) --------------------------------------------------------
+
+    def item_of(self, o: Obligation) -> Any:
+        """The item or part obligation ``o`` is, or None."""
+
+        return self.items.of(o.id) if o.kind in ITEM_KINDS else None
+
+    def at(self, position: int) -> "Workflow":
+        """The workflow of the same ledger at an earlier position (a historical view)."""
+
+        from .state import State
+        from .support import Support
+
+        return Workflow(Support(State(self.s.h, position)))
+
+    def challenges_on(self, subject: str) -> list[str]:
+        """The challenge records on the subject's current triple."""
+
+        if subject not in self.s.view.structure.units:
+            return []
+        key = triple_key(*self.s.subject_triple(subject))
+        return [c for c in self.s.targeting.get(key, []) if self.s.record(c)["kind"] == "CHALLENGE"]
+
+    def standing_adverse(self) -> list[str]:
+        """Every standing adverse judgment, in admission order (§5.10 (c))."""
+
+        out = []
+        for rid, fact in sorted(self.s.records.items(), key=lambda kv: (kv[1].position, kv[0])):
+            record = fact.record
+            if ADVERSE.get(record["kind"]) == record["outcome"] and self.d.j.stands_adverse(rid):
+                out.append(rid)
+        return out
+
+    def subject_of(self, o: Obligation) -> str | None:
+        """The subject an obligation is about, for its version binding and briefs (§16.9): a judgment's subject,
+        else the subject of the plan an item or decision belongs to, else none (a system obligation)."""
+
+        subject = self._subject_of(o) or (o.target.get("subject") if o.kind == REVISING_REVIEW else None)
+        return subject if subject is not None else o.plan
+
     def domain_of(self, o: Obligation) -> str | None:
         """The domain an answer to ``o`` is judged in: its subject's, its plan's, or its record's (§5.10 (e))."""
 

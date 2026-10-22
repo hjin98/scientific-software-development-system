@@ -387,6 +387,13 @@ def compatible_versions(profile_id: str) -> tuple[str, ...]:
     return definition(profile_id).compatible_versions
 
 
+def profile_for_protocol(protocol_version: str) -> str | None:
+    """The frozen profile whose compatible versions include ``protocol_version``, or None (read-only lookup)."""
+
+    found = sorted(pid for pid, defn in _DEFINITIONS.items() if protocol_version in defn.compatible_versions)
+    return found[-1] if found else None
+
+
 def _stage_ref(defn: ProfileDefinition, stage_key: str) -> StageRef:
     return StageRef(profile_id=defn.profile_id, protocol_version=defn.protocol_version, stage_key=stage_key)
 

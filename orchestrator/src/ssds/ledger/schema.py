@@ -216,8 +216,11 @@ KINDS: dict[str, KindSpec] = {
                    "manifest_path": is_token, "policy_path": is_token, "approval": is_json_object},
                   ("project", "ledger_id", "location", "trust_roots", "witnesses", "structure", "modes",
                    "baseline_commit", "deployment_class", "manifest_path", "policy_path", "approval")),
+    # ``doctrine`` pins the SSDP version and immutable public-source commit of native briefs (§16.9, §28;
+    # Phase E reading E37); optional, so an adoption without one renders no native doctrine text
     "RULESET_ADOPTION": _k("lifecycle", _LIFECYCLE_TARGET, None,
-                           {"system": is_token, "policy": is_digest, "analyzers": list_of(is_token)},
+                           {"system": is_token, "policy": is_digest, "analyzers": list_of(is_token),
+                            "doctrine": shape({"version": is_token, "source": is_commit})},
                            ("system", "policy", "analyzers")),
     "SCHEMA_MIGRATION": _k("lifecycle", _LIFECYCLE_TARGET, None, {"to": is_int, "rules": is_json_object}, ("to", "rules")),
     "MODE_TRANSITION": _k("lifecycle", _LIFECYCLE_TARGET, None, {"subject": is_unit, "mode": is_json_object}, ("subject", "mode")),

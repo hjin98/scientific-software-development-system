@@ -100,6 +100,25 @@ class ItemObligation:
         part.whole = self
         return part
 
+    @property
+    def required_slots(self) -> list[str]:
+        """The slots its result owes: those the item triggers and those its contract names (§13.5)."""
+
+        from .plans import required_slots
+
+        return sorted(required_slots(self.item) | set(self.item.contract.slots if self.item.contract else ()))
+
+    @property
+    def write_units(self) -> set[str]:
+        """The units its write scope holds at the current head."""
+
+        from .plans import units_in
+
+        if self.item.contract is None:
+            return set()
+        atoms, _ = resolve(self.s.view, self.share[3] if self.share is not None else self.item.contract.write_scope)
+        return set(units_in(self.s.view, atoms))
+
     # -- identity (SD-52) ------------------------------------------------------------------------
 
     @cached_property

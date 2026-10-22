@@ -1,4 +1,5 @@
-"""The Interface's commands, mounted by the root module (Manual §16.10, §26.3): ``status``, ``ask``, ``read``.
+"""The Interface's commands, mounted by the root module (Manual §16.10, §26.3): ``status``, ``ask``, ``read``,
+``open`` and ``inspect``.
 
 Each command takes the ledger explicitly (``--ledger``; Phase D plan §7 Q5 stays unasked) and the repository
 whose history the ledger names (``--repository``, default the working directory). The root module supplies
@@ -62,8 +63,24 @@ def make_commands(connect: Connect) -> tuple[CommandInfo, ...]:
 
         _print(_answer(lambda: connect(ledger, repository.resolve()).read(ref)))
 
+    def open_(obligation: str = typer.Argument(..., help="a derived obligation's identity"),
+              text: bool = typer.Option(False, "--text", help="print the rendered brief, not JSON"),
+              ledger: str = ledger_option, repository: Path = repository_option) -> None:
+        """A derived obligation's brief at the presented head, labeled NOT ISSUED."""
+
+        answer = _answer(lambda: connect(ledger, repository.resolve()).open(obligation))
+        if text and answer["answer"] is not None:
+            typer.echo(answer["answer"]["text"])
+        else:
+            _print(answer)
+
+    def inspect(ledger: str = ledger_option, repository: Path = repository_option) -> None:
+        """The inspector view: open human attention in order, then the digest."""
+
+        _print(_answer(lambda: connect(ledger, repository.resolve()).inspect()))
+
     return tuple(CommandInfo(name=name, callback=callback) for name, callback in
-                 (("status", status), ("ask", ask), ("read", read)))
+                 (("status", status), ("ask", ask), ("read", read), ("open", open_), ("inspect", inspect)))
 
 
 __all__ = ["Connect", "make_commands"]

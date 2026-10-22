@@ -18,7 +18,7 @@ from ..errors import ERROR_CODES, OrchestratorError, Problem
 from ..config import ssds_home
 from ..jcs import CanonicalJSONError, canonical_json
 from ..events import PROMPT_RENDERED_EVENT, PROMPT_RENDERED_SCHEMA_VERSION, logical_event_id
-from ..profile import RESULT_SCHEMA_ID, RESULT_SCHEMA_VERSION
+from ..profile import RESULT_SCHEMA_ID, RESULT_SCHEMA_VERSION, profile_for_protocol
 from ..records import (
     ActivationPolicy,
     ApplicationRequest,
@@ -134,6 +134,7 @@ __all__ = [
     "CoreAPI",
     "canonical_json",
     "ssds_home",
+    "profile_for_protocol",
     "DigestRef",
     "ERROR_CODES",
     "EventEnvelope",

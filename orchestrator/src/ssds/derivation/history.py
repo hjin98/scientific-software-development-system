@@ -129,7 +129,7 @@ class History:
                     mode = dict(mode)
                     mode[fields["subject"]] = dict(fields["mode"])
                 elif record["kind"] == "RULESET_ADOPTION":
-                    ruleset = {"system": fields["system"], "policy": fields["policy"], "analyzers": fields["analyzers"]}
+                    ruleset = _adopted(fields)
                 elif record["kind"] == "LEDGER_LOSS":
                     self.boundaries.append(entry.position)
         carried = list(body["records"]) + ([body["lifecycle"]] if body["lifecycle"] else [])
@@ -260,8 +260,16 @@ def _ruleset_at(chain: Chain, position: int) -> Mapping[str, Any]:
     for entry in chain.entries[1: position + 1]:
         record = entry.lifecycle
         if record and record["kind"] == "RULESET_ADOPTION":
-            fields = record["fields"]
-            ruleset = {"system": fields["system"], "policy": fields["policy"], "analyzers": fields["analyzers"]}
+            ruleset = _adopted(record["fields"])
+    return ruleset
+
+
+def _adopted(fields: Mapping[str, Any]) -> dict[str, Any]:
+    """The ruleset an adoption puts in force, with the doctrine pin it names, if any (§16.9, §28)."""
+
+    ruleset = {"system": fields["system"], "policy": fields["policy"], "analyzers": fields["analyzers"]}
+    if "doctrine" in fields:
+        ruleset["doctrine"] = dict(fields["doctrine"])
     return ruleset
 
 

@@ -336,6 +336,37 @@ class Commands(unittest.TestCase):
         self.assertEqual((result.returncode, result.stdout), (2, ""), "a repository that is not the ledger's refuses")
         self.assertIn("refused: cannot read", result.stderr)
 
+    def test_open_and_inspect(self) -> None:
+        from ssds.ledger.append import HostKey, append_entry, write_checkpoint
+        from ssds.ledger.qualification import FileWitness
+        from ssds.ledger.read import read_chain
+
+        from ._fixtures import entry, record
+
+        # a native subject owes work to open; the shadow ledger's LEGACY and UNGOVERNED subjects owe none
+        repository = self.home / "ledgers" / "demo.git"
+        chain = read_chain(repository, "demo")
+        key = HostKey.from_private_bytes((self.home / "keys" / "admission" / "demo.ed25519").read_bytes())
+        native = record("MODE_TRANSITION", target=None, actor="human:SHA256:x",
+                        fields={"subject": "orchestrator.program", "mode": {"mode": "NATIVE", "ruleset": "ssds-rules/1"}})
+        appended = append_entry(repository, entry("demo", 1, chain.entries[0].digest, key, lifecycle=native,
+                                                  obs=self.baseline), key, chain.entries[0].commit)
+        write_checkpoint(FileWitness(self.home / "witness"), appended.checkpoint)
+        code, report, err = self.ssds("status")
+        self.assertEqual(code, 0, err)
+        self.assertTrue(report["obligations"], "the fixture derives obligations to open")
+        for obligation in report["obligations"]:
+            code, answer, err = self.ssds("open", obligation["id"])
+            self.assertEqual(code, 0, err)
+            self.assertEqual(answer["head"]["label"], "QUALIFIED")
+            self.assertIn("NOT ISSUED", answer["answer"]["text"])
+        code, answer, err = self.ssds("open", "sha256:" + "0" * 64)
+        self.assertEqual((code, answer), (2, None), "an obligation not derived is refused")
+        code, view, err = self.ssds("inspect")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(set(view["answer"]), {"head", "entries", "digest"})
+        self.assertEqual(self.ssds("inspect")[1], view, "deterministic")
+
     def test_the_mark_is_raised_only_through_a_rechecked_home(self) -> None:
         from ssds.cli import HomeAccess
         from ssds.ledger.qualification import HighWaterMark, Home, HomeRefused
