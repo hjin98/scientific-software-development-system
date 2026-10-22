@@ -195,7 +195,8 @@ class BudgetChains(unittest.TestCase):
         f = self.spent()
         first = self.decision(f)
         f.decide(first, "ESCALATE")
-        self.assertEqual((f.route(), self.decision(f).id), ("COORDINATE:budget-spent", first.id))
+        self.assertEqual((f.route(), self.decision(f).id), ("COORDINATE:budget-spent", first.id),
+                         "budget_escalate_answers_nothing")
 
     def test_amend_elsewhere_waits_then_a_new_decision_names_it(self) -> None:
         f = self.spent()

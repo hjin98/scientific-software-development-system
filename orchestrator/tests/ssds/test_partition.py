@@ -156,7 +156,7 @@ class Partition(unittest.TestCase):
         f.partition(f.budget_decision(f.item()), [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])])
         item = f.item()
         self.assertEqual(len(item.parts), 2)
-        self.assertTrue(item.route.route.startswith("partitioned:"))
+        self.assertTrue(item.route.route.startswith("partitioned:"), "budget_partitioned_after_answer")
         self.assertEqual([p.route.route for p in item.parts], ["dispatch", "dispatch"])
 
     def test_an_invalid_partition_answers_nothing(self) -> None:

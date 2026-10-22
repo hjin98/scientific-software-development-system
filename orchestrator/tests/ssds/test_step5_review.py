@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import itertools
+import os
 import random
 import unittest
 from contextlib import contextmanager
@@ -480,6 +481,24 @@ class Lifecycle(unittest.TestCase):
             for seq in sample:
                 with self.subTest(condition=condition, chain=seq):
                     self.assertEqual(self.replay(condition, seq), [])
+
+
+@unittest.skipUnless(os.environ.get("SSDS_SLOW"), "the named slow check of reading E15: set SSDS_SLOW=1")
+class LifecycleFull(Lifecycle):
+    """Reading E15's full enumeration: every chain up to length 4 for both conditions, through the real owner."""
+
+    def test_every_chain_up_to_length_two_and_a_sample_of_length_four(self) -> None:
+        pass  # the sample is the suite's; this class runs the whole enumeration
+
+    def test_every_chain_up_to_length_four(self) -> None:
+        bad = []
+        for condition in ("budget-spent", "item-level-no-part"):
+            for k in range(5):
+                for seq in chains(k):
+                    problems = self.replay(condition, seq)
+                    if problems:
+                        bad.append((condition, seq, problems))
+        self.assertEqual(bad, [])
 
 
 if __name__ == "__main__":
