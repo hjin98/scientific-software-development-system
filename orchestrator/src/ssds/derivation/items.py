@@ -244,9 +244,39 @@ class ItemObligation:
 
         structure = self.s.view.structure
         own = frozenset(s for s in (structure.subj(u) for u in self.outputs) if s)
-        if self.share is None and self.partition is not None:
-            own = own.union(*(part.subjects for part in self.parts))
+        if self.share is not None:
+            return own | self.whole._retained_in(self.share[3])
+        if self.partition is not None:
+            return self.retained_subjects
         return own
+
+    @cached_property
+    def retained_subjects(self) -> frozenset[str]:
+        """Every subject the item's integrated work changed, by whom ever it was done: the whole item's own
+        enactments and every part's of every partition, a replaced part's included (§10.4: a re-dispatch never
+        narrows the terms discharge reads; §13.7: a partition splits the execution, never the item; re-Review of
+        89684fb, E-R1)."""
+
+        structure = self.s.view.structure
+        holders = [self] + [self.part_obligation(p, i) for p in self.partitions for i in range(len(p.parts))]
+        return frozenset(s for h in holders for s in (structure.subj(u) for u in h.outputs) if s)
+
+    def _retained_in(self, scope: tuple[str, ...]) -> frozenset[str]:
+        """The retained subjects whose units lie in a write scope: the work a part answers for."""
+
+        from .plans import units_in
+
+        atoms, _ = resolve(self.s.view, scope)
+        structure = self.s.view.structure
+        held = {structure.subj(u) for u in units_in(self.s.view, atoms)}
+        return frozenset(self.retained_subjects & held)
+
+    @cached_property
+    def uncovered_subjects(self) -> frozenset[str]:
+        """Retained subjects no required part's write scope holds: the whole item answers for them itself."""
+
+        covered = frozenset().union(*(self._retained_in(p.share[3]) for p in self.parts)) if self.parts else frozenset()
+        return self.retained_subjects - covered
 
     # -- reviews of an enactment and the pending candidate ------------------------------------------
 
@@ -332,7 +362,14 @@ class ItemObligation:
         value = max((self.d.current(r) for r in self.reviews(latest.transformation)
                      if self.s.record(r)["outcome"] == "PASS" and not self.d.j.nonind(r)
                      and self.w.covers_outputs(r, latest.transformation)), default=F)
-        for subject in self.subjects:
+        return min(value, self._subject_terms(self.subjects))
+
+    def _subject_terms(self, subjects: frozenset[str]) -> int:
+        """The per-head terms every subject of the item's work owes: unblocked, its required evidence (``ev``)
+        and no counting disagreement (``qual``), every gate of the item (§10.4)."""
+
+        value = T
+        for subject in subjects:
             status = self.s.status1(triple_key(*self.s.subject_triple(subject)))
             if status in ("REVOKED", "BLOCKED"):
                 return F
@@ -500,6 +537,8 @@ class ItemObligation:
     @cached_property
     def _composite_predicate(self) -> int:
         value = min((part.predicate for part in self.parts), default=F)
+        # retained work no required part answers for is the whole item's own (re-Review of 89684fb, E-R1)
+        value = min(value, self._subject_terms(self.uncovered_subjects))
         if value == F or any(not self._named_parts(r) for r in self._objections):
             return F  # its predicate fails while an item-level review naming no part is adverse (RR-6)
         if self.waived:
@@ -680,7 +719,9 @@ class ItemObligation:
         if any(part.discharge() == "OPEN" for part in self.parts):
             return Route(f"partitioned:{self.partition.decision}", beside)
         no_part = [r for r in self._objections if not self._named_parts(r)]
-        if no_part:
+        # an adverse condition of the integrated item naming no part: an objection, or retained work outside
+        # every part's scope whose terms fail; the principal answers it on SD-54's chain (reading E32)
+        if no_part or self._subject_terms(self.uncovered_subjects) < T:
             route, opened, _ = self.chain("item-level-no-part")
             return Route(route, beside + opened)
         return Route("item-level-review", beside)

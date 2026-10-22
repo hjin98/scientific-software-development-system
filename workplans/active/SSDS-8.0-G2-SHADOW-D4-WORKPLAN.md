@@ -36,8 +36,8 @@ DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's gover
 NEXT ACTION: Stage D Phase E (§5.2): implementation complete under
              `workplans/active/SSDS-8.0-G2-PHASE-E-PLAN.md` (steps 1-8, each reviewed and repaired);
              SC-E1 resolved by SD-61; amendment A9 accepted (SD-62). The Phase E Review of 09f3505
-             found six blockers, repaired; the re-Review of b791215 found four more, repaired; then the
-             new shadow genesis under A9.
+             found six blockers, repaired; the re-Reviews of b791215 and 89684fb found four more and one,
+             repaired; then the new shadow genesis under A9.
 ```
 
 ## 0. Purpose and authority
@@ -254,7 +254,7 @@ Each entry of catalogue C.2 is closed here for G2 at the same no-blocker bar, pe
 | RR-2 transformation judged scope and retained units | S2 (§4.5); register rows §5.10 (b), §8.3 step 2 | S2 transformation and binding cases (10) | group 3 |
 | RR-3 review target typing | S2 (§4.5); register row §3.4 | S2 target cases (5) | groups 3, 5 |
 | RR-4 identity under a loosening amendment | Q2, decided by SD-52, amendment A2 accepted (SD-53); register row §10.4 identity | S3 `IDENTITY_CASES` (4) | group 5: the assembled transition (`out(o)`, subjects, count through amendment, acceptance wait and budget change), which the identity cases do not implement (2a17a83 Review) |
-| RR-5 to RR-8 routing residuals | S3 (§4.7); register rows §10.4; RR-5 and RR-6, reopened by 13d67be B1 and d8ab75c B1, closed by SD-54's chain with recurrence inside it (§4.13) | S3 routing cases (32) and the lifecycle property check (14,508 answer chains) | group 5: the real-owner routing replay the register names (§5.4) |
+| RR-5 to RR-8 routing residuals | S3 (§4.7); register rows §10.4; RR-5 and RR-6, reopened by 13d67be B1 and d8ab75c B1, closed by SD-54's chain with recurrence inside it (§4.13) | S3 routing cases (31, five of them fence cases) and the lifecycle property check (14,508 answer chains) | group 5: the real-owner routing replay the register names (§5.4) |
 | RR-9 historical findings | S4 index, S5 and its revision 2 repair (§4.9, §4.10, §4.12) | `G2-S4-FINDING-INDEX.md`: 709 findings from 90 records, each with its own disposition and witness, none open; `finding_inventory_check.py`, keyed by record identity, zero misses, and its `--self-test` fails on the d8ab75c projections | the `STAGE-D` rows (§5.3) |
 | RR-10 diagnostic construction | S1-S5: models whose expectations are stated from the Manual and from recorded histories; the earlier diagnostics kept as regression seeds | `run_models.py --seeds`; each step's stated limits (§4.4-§4.10) | expected values rule (§5.1 item 3) |
 | RR-11 owner exception, missing-judge waiting, per-state eligibility | S2 (§4.5) and Q1, decided by SD-51, amendment A1 accepted (SD-53) | S2 route cases (7), `G1_QUESTIONS` | group 3: per-record judged content, acting state, class and basis admissibility through the resolver and Dispatcher (2a17a83 Review) |

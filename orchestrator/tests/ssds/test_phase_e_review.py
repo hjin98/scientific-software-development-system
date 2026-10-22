@@ -319,5 +319,132 @@ class ReReview(unittest.TestCase):
         self.assertIn(qualified["id"], entries, "only loss of eligibility or supersession removes it")
         self.assertEqual(entries[qualified["id"]]["evidence_core"]["current"], "F")
 
+
+# -- the re-Review of 89684fb (E-R1): retained work across partition history, its constructions as tests -----
+
+
+FOLLOWUP_UNIT = '''
+    [[unit]]
+    id = "plan.work.followup"
+    part_of = "plan.work"
+    subject = false
+    scope = [{ file = "plans/work.md", heading = ["Followup"] }]
+'''
+
+
+def _retained_flow():
+    from .test_lint import item_block, plan_text
+    from .test_partition import NOTES, PartFlow, plan
+
+    text = plan().replace('verifier = "REVIEW"', 'verifier = "REVIEW"\nsecondary = [{check="TEST_INTEGRITY.no_skips"}, '
+                                                 '{check="BOUNDARY.write_scope"}]')
+    followup = item_block(kind="DOCUMENT", write_scope='["notes/b.md"]', affected='["notes/b.md"]', o1_verifier='"REVIEW"',
+                          secondary="[]", dependencies="{}", extra_item='depends_on = ["work"]')
+    followup = followup.replace('item = "work"', 'item = "followup"').replace('ref = "#item"', 'ref = "#followup"')
+    text += "\n## Followup" + plan_text(followup).split("## Item", 1)[1]
+
+    class RetainedFlow(PartFlow):
+        def __init__(self) -> None:
+            self.sc = Scenario(D4_RECORDS + NOTES + FOLLOWUP_UNIT, {**FILES, "plans/work.md": text, "notes/a.md": "a\n",
+                                                                    "notes/b.md": "b\n"},
+                               policy='schema = 1\n[domains.D4]\nevidence = ["health"]\n')
+            self.counter = 0
+            from ._scenario import OWNER
+
+            units = ["plan.work.item", "plan.work.followup"]
+            sc = self.sc
+            sc.admit(judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
+                              basis=[content("plan.work.objective", sc.rev("plan.work.objective"))]
+                              + [content(u, sc.rev(u), "PLAN_CONTROL") for u in units],
+                              fields={"objective": {"unit": "plan.work.objective", "rev": sc.rev("plan.work.objective")},
+                                      "items": [{"unit": u, "rev": sc.rev(u)} for u in units]}))
+
+        def item(self):
+            return self.w().items.by_id("plan.work", "work")
+
+    return RetainedFlow()
+
+
+def _retained(kind: str):
+    f = _retained_flow()
+    if kind == "whole":  # history A: the whole item integrated the work before its first partition
+        x, cand = _submit(f, {"records.md": "# Retained whole result\n"})
+        f.review(x, cand, "PASS")
+        f.integrate(x, cand)
+        real = _realization(f)
+        EvidenceFlow.assessment(f, real, "PASS")
+        assert f.item().discharge() == "DISCHARGED"
+        EvidenceFlow.assessment(f, real, "FAIL")
+        assert f.item().discharge() == "OPEN"
+        f.attempt(f.item().obligation, "notes/a.md")
+        f.partition(f.budget_decision(f.item()), [(["o1"], ["records", "notes.a"]), (["o2", "o3"], ["notes.b"])])
+        f.work_part(f.item().parts[0], {"notes/a.md": "a final\n"})
+        f.work_part(f.item().parts[1], {"notes/b.md": "b final\n"})
+    else:  # history B: a part integrated the work, then was replaced by a re-partition
+        f.spend(f.item().obligation)
+        f.partition(f.budget_decision(f.item()), [(["o1"], ["records", "notes.a"]), (["o2", "o3"], ["notes.b"])])
+        f.work_part(f.item().parts[0], {"records.md": "# Retained part result\n"})
+        real = _realization(f)
+        EvidenceFlow.assessment(f, real, "PASS")
+        f.work_part(f.item().parts[1], {"notes/b.md": "b done\n"})
+        f.item_level("PASS")
+        assert f.item().discharge() == "DISCHARGED"
+        EvidenceFlow.assessment(f, real, "FAIL")
+        assert f.item().discharge() == "OPEN"
+        f.attempt(f.item().parts[0].obligation, "notes/a.md")
+        f.partition(f.budget_decision(f.item().parts[0]), [(["o1"], ["records", "notes.a"])])
+        replacement = next(p for p in f.item().parts if p.share[2] == frozenset({"o1"}))
+        f.work_part(replacement, {"notes/a.md": "a replaced\n"})
+    f.item_level("PASS")
+    return f
+
+
+class RetainedWork(unittest.TestCase):
+    """E-R1: a failing term of retained work reopens the item across partition history, its restoring route is
+    live and dependent work waits; complete permission gives at most provisional discharge."""
+
+    def check(self, kind: str) -> None:
+        for scope, want in ((None, "OPEN"), ([], "OPEN"), (["records", "notes.a", "notes.b"], "DISCHARGED_PROVISIONAL")):
+            with self.subTest(history=kind, permission=scope):
+                f = _retained(kind)
+                if scope is not None:
+                    ReReview().override(f, scope)
+                w = f.w()
+                item = w.items.by_id("plan.work", "work")
+                followup = w.items.by_id("plan.work", "followup")
+                self.assertIn("records", item.subjects, "the retained subject is the item's")
+                self.assertEqual(item.discharge(), want)
+                if want == "OPEN":
+                    self.assertNotEqual(item.route.route, "discharged")
+                    self.assertEqual(followup.readiness().state, "WAITING", "dependent work waits")
+                    restoring = [p for p in item.parts if p.discharge() == "OPEN"]
+                    self.assertTrue(restoring, "the part that answers for the retained work reopens")
+                    self.assertIn(restoring[0].route.route.split(":")[0], ("re-dispatch", "COORDINATE", "dispatch"))
+
+    def test_history_a_work_of_the_whole_before_its_partition(self) -> None:
+        self.check("whole")
+
+    def test_history_b_work_of_a_replaced_part(self) -> None:
+        self.check("replacement")
+
+    def test_retained_work_no_part_covers_goes_to_the_principal(self) -> None:
+        f = _retained_flow()
+        x, cand = _submit(f, {"records.md": "# Retained whole result\n"})
+        f.review(x, cand, "PASS")
+        f.integrate(x, cand)
+        real = _realization(f)
+        EvidenceFlow.assessment(f, real, "PASS")
+        EvidenceFlow.assessment(f, real, "FAIL")
+        f.attempt(f.item().obligation, "notes/a.md")
+        f.partition(f.budget_decision(f.item()), [(["o1"], ["notes.a"]), (["o2", "o3"], ["notes.b"])])
+        f.work_part(f.item().parts[0], {"notes/a.md": "a final\n"})
+        f.work_part(f.item().parts[1], {"notes/b.md": "b final\n"})
+        f.item_level("PASS")
+        item = f.item()
+        self.assertEqual(item.uncovered_subjects, frozenset({"records"}))
+        self.assertEqual(item.discharge(), "OPEN")
+        self.assertEqual(item.route.route, "COORDINATE:item-level-no-part", "the principal decides, on SD-54's chain")
+        self.assertTrue(item.route.decisions)
+
 if __name__ == "__main__":
     unittest.main()
