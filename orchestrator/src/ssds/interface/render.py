@@ -348,8 +348,16 @@ class Renderer:
         out = []
         for unit, rev in units:
             current = self.s.cur(unit) if unit in self.s.view.structure.units else None
-            note = "" if rev is None or rev == current else f" (named {rev}; the current revision is {current})"
-            out.append(f"### {unit} @ {current}{note}\n\n{self._unit_text(unit)}")
+            if rev is None or rev == current:
+                out.append(f"### {unit} @ {current}\n\n{self._unit_text(unit)}")
+                continue
+            # the exact text at the revision named, never the current one in its place (Phase E review B5)
+            data = derivation.queries.content_at(self.w, unit, rev)
+            note = f"the current revision is {current}, not shown here" if current else "the unit is not at this head"
+            if data is None:
+                out.append(f"### {unit} @ {rev}\n\nUNAVAILABLE: no admitted state holds this revision ({note})")
+            else:
+                out.append(f"### {unit} @ {rev} ({note})\n\n{data.decode('utf-8', 'replace')}")
         return "\n\n".join(out)
 
     def _incompleteness(self, work: Any, extra: list[str]) -> str:
@@ -522,9 +530,7 @@ class Renderer:
         disclosure = "none"
         if result is not None:
             record = self.s.record(result)
-            files = conformance.changed_files
-            candidate = "\n".join(f"- {path}: {'added' if old is None else 'removed' if new is None else 'changed'}"
-                                  for path, (old, new) in sorted(files.items())) or "no file changed"
+            candidate = _candidate_diff(conformance, record)
             slot_values = ((record.get("fields") or {}).get("slots") or {})
             # §16.5: the result's disclosure slots, labeled as the author's claims to test; never its outcome,
             # rationale, narrative, commit messages or transcripts
@@ -738,6 +744,14 @@ class Renderer:
             out.append({"obligation": h.id, "kind": h.kind, "key": {"w": -key[0], "c": c, "p": key[2]},
                         "evidence_core": self._attention_core(h), "framing": "none recorded (interpretation)",
                         "allowed_outcomes": self._r3_outcomes(h)})
+        # §16.8: a QUALIFIED gate ACCEPT stays an entry while it is eligible, until superseded; nothing waits on
+        # it, so it follows the open obligations of its consequence class, oldest first
+        gates = sorted(self.w.briefing.qualified_gates(), key=lambda g: (g["position"], g["record"]))
+        for g in gates:
+            out.append({"obligation": g["record"], "kind": "QUALIFIED_GATE", "key": {"w": 0, "c": "CRITICAL", "p": g["position"]},
+                        "evidence_core": g, "framing": "none recorded (interpretation)",
+                        "allowed_outcomes": "a superseding GATE_DECISION by an authenticated gate holder"})
+        out.sort(key=lambda e: (-e["key"]["w"], rank.get(e["key"]["c"], 3), e["key"]["p"], e["obligation"]))
         return {"head": self.head, "entries": out, "digest": self.digest_items()}
 
     def _r3_outcomes(self, h: Any) -> str:
@@ -798,6 +812,48 @@ class Renderer:
             ("Ordering key", _json({"w": self.weight(h, waits), "c": self.consequence(h), "p": self.opened_at(h)})),
         )
         return Brief("ATTENTION", h.id, governs, ("role:HUMAN",), sections)
+
+
+#: The most diff lines inlined per file; a longer change is bound by its content identities instead (§16.5).
+DIFF_LINES = 400
+
+
+def _candidate_diff(conformance: Any, record: dict[str, Any]) -> str:
+    """The candidate diff (§16.5): bound to its base, candidate and transformation, every changed path with its
+    type and mode change and a unified diff of its text; binary or overlong content by its content identity."""
+
+    import difflib
+
+    target = record["target"]
+    lines = [f"transformation {target.get('transformation')}: base {target.get('base')} -> candidate {target.get('candidate')}"]
+    base, cand = conformance.base_tree, conformance.candidate_tree
+    if base is None or cand is None:
+        return "\n".join(lines + ["the candidate's frame is not available at this head: no diff can be shown"])
+    for path in sorted(set(base) | set(cand)):
+        old, new = base.get(path), cand.get(path)
+        if old is not None and new is not None and old.mode == new.mode and old.data == new.data:
+            continue
+        kind = "added" if old is None else "removed" if new is None else "changed"
+        mode = "" if old is None or new is None or old.mode == new.mode else f"; mode {old.mode} -> {new.mode}"
+        lines.append(f"\n### {path}: {kind}{mode}")
+        before = old.data if old is not None else b""
+        after = new.data if new is not None else b""
+        try:
+            a_text, b_text = before.decode("utf-8"), after.decode("utf-8")
+        except UnicodeDecodeError:
+            lines.append(f"binary content: {_identity(before)} -> {_identity(after)}")
+            continue
+        diff = list(difflib.unified_diff(a_text.splitlines(keepends=True), b_text.splitlines(keepends=True),
+                                         fromfile=f"a/{path}", tofile=f"b/{path}"))
+        if len(diff) > DIFF_LINES:
+            lines.append(f"{len(diff)} diff lines, not inlined: {_identity(before)} -> {_identity(after)}")
+        else:
+            lines.append("```diff\n" + "".join(d if d.endswith("\n") else d + "\n" for d in diff) + "```")
+    return "\n".join(lines) if len(lines) > 1 else lines[0] + "\nno file changed"
+
+
+def _identity(data: bytes) -> str:
+    return f"{len(data)} bytes, sha256:{hashlib.sha256(data).hexdigest()}" if data else "absent"
 
 
 def _carried_text(carried: list[dict[str, Any]]) -> str:

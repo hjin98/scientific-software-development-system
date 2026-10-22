@@ -312,7 +312,9 @@ class ItemObligation:
     @cached_property
     def predicate(self) -> int:
         """Clean conformance and a current, qualified, independent passing review of the latest integrated
-        enactment; its subjects unblocked; every gate of the item (reading E30)."""
+        enactment; its subjects unblocked; for each subject its integrated enactments changed, every evidence
+        obligation its domain requires (``ev``) and no counting disagreement (``qual``), never latched (§10.4,
+        SD-36; Phase E review of 09f3505 B1); every gate of the item (reading E30)."""
 
         if self.share is None and self.partition is not None:
             return self._composite_predicate
@@ -330,6 +332,10 @@ class ItemObligation:
                 return F
             if status == "PROVISIONAL":
                 value = min(value, P)
+            a, d = self.d.a, self.d
+            for obligation in self.s.policy.get(self.s.view.structure.domain(subject), "evidence"):
+                value = min(value, a.ev(subject, obligation, self.w._value, d.base, d.j.nonind))
+            value = min(value, a.qual(subject, self.w._value, d.base, d.j.nonind))
             for gate in self.item.gates:
                 value = min(value, self.d.gterm(subject, gate, self.w._value))
         return value

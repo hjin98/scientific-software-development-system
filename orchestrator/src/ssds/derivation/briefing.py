@@ -19,6 +19,7 @@ from .conformance import system_slots
 from .items import IMPLEMENTER_KINDS, ItemObligation
 from .plans import resolve, units_in, work_key
 from .reports import NO_REPORT_OUTCOMES, Reports
+from .state import F
 
 ROUTE_OUTCOMES = ("AMEND", "ESCALATE", "PARTITION")  # §15.5: an item route's decision; DECLINE for a kept fence
 TASK_OUTCOMES = ("COMPLETE", "PARTIAL", "BLOCKED", "INFEASIBLE")
@@ -135,20 +136,27 @@ class Briefing:
         return sorted(out.values(), key=lambda e: (e["position"], e["record"]))
 
     def _unresolved_reviews(self, plan: str, asked: Any) -> list[tuple[str, Any]]:
+        """Every earlier NO-PASS review of work on an item of ``plan``, from the admitted history: the item it
+        was bound to belonged to the plan when the work was submitted or belongs to it now, whatever obligation,
+        amendment or partition the work was done under (Phase E review of 09f3505 B3)."""
+
         w, s = self.w, self.s
         out = []
-        holders = [h for h in w.items.holders if h.plan == plan]
-        seen: set[str] = set()
-        for holder in holders:
-            for e in holder.enactments:
-                if not e.transformation or e.transformation == asked.target.get("transformation"):
-                    continue
-                for rid in holder.reviews(e.transformation):
-                    if rid in seen or s.record(rid)["outcome"] != "NO_PASS":
-                        continue
-                    seen.add(rid)
-                    if not self._resolved(rid):
-                        out.append((rid, w.items.findings_of(rid)))
+        for rid in s.of_kind("REVIEW"):
+            record = s.record(rid)
+            x = record["target"].get("transformation") if isinstance(record["target"], dict) else None
+            if record["outcome"] != "NO_PASS" or x is None or x == asked.target.get("transformation"):
+                continue
+            result = w.submitting_result(x)
+            named = (s.record(result).get("binding") or {}).get("item") if result else None
+            if not isinstance(named, dict):
+                continue
+            unit = named.get("unit")
+            then = s.h.view(s.position_of(result))
+            if not any(v.structure.subj(unit) == plan for v in (then, s.view) if unit in v.structure.units):
+                continue
+            if not self._resolved(rid):
+                out.append((rid, w.items.findings_of(rid)))
         return out
 
     def _resolved(self, review: str) -> bool:
@@ -219,36 +227,41 @@ class Briefing:
         return sorted(ROUTE_OUTCOMES)
 
     def required_evidence(self, subject: str) -> list[dict[str, Any]]:
-        """Each evidence obligation the subject's domain requires, holding through its current passing
-        admissible assessments, or why not: ``UNAVAILABLE``, stale, disputed or failing (§16.6)."""
+        """Each evidence obligation the subject's domain requires: holding exactly when the production evidence
+        term ``ev`` holds (§5.5, §16.6), through its current passing assessments, or why not: provisional,
+        disputed, failing, stale or ``UNAVAILABLE`` (Phase E review of 09f3505 B2)."""
 
         from . import queries
+        from .state import P, T
 
         structure = self.s.view.structure
         if subject not in structure.units:
             return []
+        a, d = self.d.a, self.d
         claims = [u for u in structure.units if structure.subj(u) == subject]
         entries = [e for claim in claims for e in queries.evidence(self.w, claim) if "assessment" in e]
         out = []
         for obligation in self.s.policy.get(structure.domain(subject), "evidence"):
             mine = sorted({e["assessment"]: e for e in entries if e["obligation"] == obligation}.values(),
                           key=lambda e: e["assessment"])
-            passing = [e["assessment"] for e in mine if e["outcome"] == "PASS" and e["status"] == "current"]
-            if any(e["status"] == "disputed" for e in mine):
+            value = a.ev(subject, obligation, self.w._value, d.base, d.j.nonind)
+            supporting = [e["assessment"] for e in mine if e["outcome"] == "PASS" and e["status"] == "current"]
+            if value == T:
+                status = "holding"
+            elif value == P:
+                status = "provisional"
+            elif any(e["status"] == "disputed" for e in mine):
                 status = "disputed"
             elif any(e["outcome"] == "FAIL" and e["status"] == "current" for e in mine):
                 status = "failing"
-            elif passing:
-                status = "holding"
-            elif mine:
+            elif any(e["status"] == "stale" for e in mine):
                 status = "stale"
             else:
                 status = "UNAVAILABLE"
-            out.append({"obligation": obligation, "holds": status == "holding", "status": status,
-                        "via": passing if status == "holding" else [],
-                        "records": [{"assessment": e["assessment"], "outcome": e["outcome"], "status": e["status"],
-                                     **({"failing_outputs": e["failing_outputs"]} if "failing_outputs" in e else {})}
-                                    for e in mine]})
+            out.append({"obligation": obligation, "holds": value == T, "status": status,
+                        "via": supporting if value > F else [],
+                        "records": [{k: e[k] for k in ("assessment", "outcome", "status", "current", "reason",
+                                                       "failing_outputs") if k in e} for e in mine]})
         return out
 
     def unfloored_failures(self) -> list[tuple[str, str]]:
@@ -259,6 +272,27 @@ class Briefing:
         return [(obligation, rid) for obligation, records in sorted(a.by_obligation.items()) for rid in records
                 if a.failing(rid) and a.starts(rid) and not a.stale(rid, d.base, self.w._value)
                 and f"disagreement:{rid}" not in floors]
+
+    def qualified_gates(self) -> list[dict[str, Any]]:
+        """Every eligible, current, unsuperseded ``QUALIFIED`` gate ``ACCEPT``: an inspector entry in each state
+        where it is eligible, naming its qualifying records, until superseded (§16.8; Phase E review B6)."""
+
+        s, d = self.s, self.d
+        structure = s.view.structure
+        out = []
+        for subject, unit in sorted(structure.units.items()):
+            if not unit.subject:
+                continue
+            for gate in s.policy.get(structure.domain(subject), "gates"):
+                for rid in d.eligible_gate_decisions(subject, gate):
+                    record = s.record(rid)
+                    if record["outcome"] == "ACCEPT" and record["fields"].get("qualification") == "QUALIFIED" \
+                            and d.current(rid) > F:
+                        out.append({"record": rid, "subject": subject, "gate": gate, "actor": record["actor"],
+                                    "position": s.position_of(rid), "adequacy": record["fields"].get("adequacy"),
+                                    "qualifying": list(record["fields"].get("qualifying") or []),
+                                    "basis": record["basis"]})
+        return out
 
     def r3(self, o: Any) -> bool:
         """Whether a human decides it (§12.4 R3): a gate, human attention, an obligation held by the human, an

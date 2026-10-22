@@ -283,6 +283,15 @@ class Support:
     def gterm(self, subject: str, gate: str, value: Callable[[Node], int]) -> int:
         """The gate term: the minimum over every eligible decision, ``F`` when none is eligible (§5.5)."""
 
+        eligible = self.eligible_gate_decisions(subject, gate)
+        if not eligible:
+            return F
+        return min(min(value(("current", rid)), P if self.s.record(rid)["fields"]["qualification"] == "QUALIFIED" else T)
+                   for rid in eligible)
+
+    def eligible_gate_decisions(self, subject: str, gate: str) -> list[str]:
+        """``elig``: the passing gate decisions on the subject's current triple that may count for ``gate`` (§5.5)."""
+
         holders = self.s.policy.get(self.s.view.structure.domain(subject), "gate_holders", None)
         # For a NATIVE D1/D2 subject the gate obligation G derives carries its run rid_G(s) (§5.5 elig, §10.2):
         # a new run's gate decides afresh, so a decision of an earlier run is not eligible in it.
@@ -293,10 +302,7 @@ class Support:
                     and self.s.record(rid)["actor_class"] == "HUMAN"
                     and (holders is None or self.s.record(rid)["actor"] in holders)
                     and (not by_run or self.s.runs.named(rid, subject) == run)]
-        if not eligible:
-            return F
-        return min(min(value(("current", rid)), P if self.s.record(rid)["fields"]["qualification"] == "QUALIFIED" else T)
-                   for rid in eligible)
+        return eligible
 
     def ok(self, subject: str) -> bool:
         return self.s.s0.well_formed(subject) and subject not in self.s.s0.affected_subjects

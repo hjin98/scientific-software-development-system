@@ -223,10 +223,20 @@ def evidence(w: Any, claim: str) -> list[dict[str, Any]]:
                 continue
             seen.add(obligation)
             stale = a.stale(rid, w.d.base, w._value)
+            current = w.d.current(rid)
+            if stale:
+                status = "stale"
+            elif obligation in disputed:
+                status = "disputed"
+            elif current == F:
+                status = "unavailable"  # challenged, withheld or inadmissible: not current at this head
+            else:
+                status = "current"
             entry = {"assessment": rid, "obligation": obligation, "realization": a.real(rid),
-                     "outcome": s.record(rid)["outcome"], "label": EVIDENTIAL,
-                     "status": "stale" if stale else ("disputed" if obligation in disputed else "current"),
-                     "current": _VALUE[w.d.current(rid)]}
+                     "outcome": s.record(rid)["outcome"], "label": EVIDENTIAL, "status": status,
+                     "current": _VALUE[current]}
+            if status == "unavailable":
+                entry["reason"] = "the assessment is not current at this head"
             if a.failing(rid):
                 entry["failing_outputs"] = a.failing_outputs(rid)  # the discriminating observations
             out.append(entry)
@@ -317,6 +327,20 @@ def lineage(w: Any, unit: str) -> list[str]:
                 names.add(previous)
                 frontier.append(previous)
     return sorted(names)
+
+
+def content_at(w: Any, unit: str, rev: str) -> bytes | None:
+    """The exact bytes of revision ``rev`` of ``unit`` from the admitted history, latest position first; None
+    when no admitted state holds that revision (§16.3 (3): governing content at the basis revisions)."""
+
+    for k in range(w.s.n, -1, -1):
+        view = w.s.h.view(k)
+        if unit in view.structure.units and view.rev(unit) == rev:
+            region = view.regions.get(unit)
+            if not region:
+                return None
+            return b"".join(view.tree[sp.path].data[sp.start:sp.end] for sp in region)
+    return None
 
 
 def locate(w: Any, locator: str) -> dict[str, Any]:
