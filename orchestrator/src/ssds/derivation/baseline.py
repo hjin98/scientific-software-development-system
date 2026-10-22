@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ssds.content import Manifest, Structure, Tree, TreeView, decl_to_json, static_errors
+from ssds.content import UNCLASSIFIED, Manifest, Structure, Tree, TreeView, decl_from_json, decl_to_json, static_errors
 
 from .history import manifest_decl
 from .s0 import StructureFacts
@@ -43,9 +43,24 @@ def baseline_structure(tree: Tree, manifest_path: str) -> BaselineStructure:
         for term in structure.units[uid].scope:
             if term.kind != "prefix" and declared.term_region(term) is None:
                 problems += (f"TERM_ABSENT {uid}: {term.to_json()} resolves to nothing in the baseline tree",)
+    problems += genesis_structure_problems(structure)
     facts = StructureFacts(declared, manifest_decl(view))
     findings = tuple(f"{d.code} {d.unit}: {d.detail}" for d in facts.defects if (d.code, d.unit, d.detail) not in static)
     return BaselineStructure(decl_to_json(structure.decl), subjects, problems, findings)
 
 
-__all__ = ["BaselineStructure", "baseline_structure"]
+def genesis_structure_problems(structure: Structure | dict) -> tuple[str, ...]:
+    """A genesis structure declares ``ssds.unclassified`` with the empty prefix, so every governed byte has an
+    owner and every change is in some effective unit's write set (Manual §1.8, §1.9 as amended by A9, SD-61).
+    Takes a ``Structure`` or the ledger's JSON form of one."""
+
+    if isinstance(structure, dict):
+        structure = Structure(decl_from_json(structure))
+    unit = structure.units.get(UNCLASSIFIED)
+    if unit is None or not any(t.kind == "prefix" and t.file == "" for t in unit.scope):
+        return (f"UNCLASSIFIED_MISSING {UNCLASSIFIED}: a genesis declares {UNCLASSIFIED} with the empty prefix, "
+                "the outermost owner of every governed byte no other unit contains (Manual §1.8, A9)",)
+    return ()
+
+
+__all__ = ["BaselineStructure", "baseline_structure", "genesis_structure_problems"]

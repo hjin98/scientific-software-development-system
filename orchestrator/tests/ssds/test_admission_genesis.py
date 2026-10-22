@@ -43,6 +43,11 @@ scope = [{ file = "guide.md", heading = ["Introduction"] }]
 id = "code"
 kind = "D4"
 scope = [{ prefix = "src/" }]
+
+[[unit]]
+id = "ssds.unclassified"
+kind = "UNCLASSIFIED"
+scope = [{ prefix = "" }]
 '''
 GUIDE = "# Guide\n\n## Introduction\n\nHello.\n\n## Usage\n\nRun it.\n"
 LEGACY = {"mode": "LEGACY", "protocol": "7.2.1"}
@@ -106,7 +111,7 @@ class Admission(GenesisFixture):
         self.assertTrue(view.current_assertion, view.assertion_withheld)
         self.assertEqual(view.s.mode("guide"), "LEGACY")
         self.assertEqual(view.s.mode("code"), "UNGOVERNED", "a subject without its own mode takes \"*\"")
-        self.assertEqual(sorted(view.s.view.structure.units), ["code", "guide", "guide.intro"])
+        self.assertEqual(sorted(view.s.view.structure.units), ["code", "guide", "guide.intro", "ssds.unclassified"])
         self.assertFalse(view.s.s0.quarantine, "Σ_0 is the baseline manifest")
 
         self.assertEqual(product_state(self.product), before, "nothing is written to the product repository")
@@ -125,6 +130,27 @@ class Admission(GenesisFixture):
 
 
 class Refusals(GenesisFixture):
+    def test_a9_a_genesis_without_the_unclassified_leaf_is_refused(self) -> None:
+        """Manual §1.8 as amended by A9 (SD-61): every governed byte has an owner."""
+
+        without = MANIFEST[: MANIFEST.index('\n[[unit]]\nid = "ssds.unclassified"')] + "\n"
+        (self.product / ".ssds" / "manifest.toml").write_text(without)
+        self.assertRefused("UNCLASSIFIED_MISSING", baseline_commit=commit(self.product, "no unclassified leaf"))
+        narrowed = MANIFEST.replace('scope = [{ prefix = "" }]', 'scope = [{ prefix = "docs/" }]')
+        (self.product / ".ssds" / "manifest.toml").write_text(narrowed)
+        self.assertRefused("ssds.unclassified", baseline_commit=commit(self.product, "a narrowed leaf"))
+
+    def test_a9_admission_refuses_a_genesis_record_without_the_leaf(self) -> None:
+        from ssds.admission.genesis import genesis_violations
+        from ssds.content import decl_from_json, decl_to_json
+
+        prepared = prepare_genesis(self.spec(), self.home, self.trees)
+        record = json.loads((prepared.workspace / "proposal.json").read_bytes())
+        decl = {k: v for k, v in decl_from_json(record["fields"]["structure"]).items() if k[0] != "ssds.unclassified"}
+        record["fields"]["structure"] = decl_to_json(decl)
+        record["fields"]["approval"] = {"key_id": "none", "signature": ""}
+        self.assertTrue(any(p.startswith("UNCLASSIFIED_MISSING") for p in genesis_violations(record)))
+
     def assertRefused(self, fragment: str, **overrides) -> None:
         prepared = prepare_genesis(self.spec(**overrides), self.home, self.trees)
         self.assertFalse(prepared.valid)

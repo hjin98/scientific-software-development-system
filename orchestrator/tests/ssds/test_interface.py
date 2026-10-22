@@ -255,7 +255,8 @@ class Commands(unittest.TestCase):
                          ("QUALIFIED", 0, "QUALIFIED"))
         self.assertTrue(report["current_assertion"])
         self.assertEqual({s: v["mode"] for s, v in report["subjects"].items()},
-                         {"ssdp.protocol": "LEGACY", "ssds8.manual": "LEGACY", "orchestrator.program": "UNGOVERNED"})
+                         {"ssdp.protocol": "LEGACY", "ssds8.manual": "LEGACY", "orchestrator.program": "UNGOVERNED",
+                          "ssds.unclassified": "UNGOVERNED"})
         self.assertEqual(self.ssds("status")[1], report, "identical state, identical answer")
 
     def test_ask_and_read_answer_at_the_head(self) -> None:

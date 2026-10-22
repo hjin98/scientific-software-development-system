@@ -24,6 +24,7 @@ accepted_at_g1: SD-50 (stakeholder decision record item 46), semantic candidate 
 amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b; SD-55 (item 51), A4-A6 reviewed at afd3be2640b6a6e33a3d744efd76d324c6e5931a and accepted with corrections at cb468ecad19ba41715527b4de42d90262e02cf87, blob 0e304061b965eea8b124c9942f5c9aff4fa9a2d6; SD-60 (item 56), A7 and A8 confirmed by the Phase D Reviews 517af45 to 39fe39b and accepted, blob 6226f323365966bbcf653545f3a35b1fd7d6e060
 amendment_a7: accepted (SD-56, SD-57, SD-60; stakeholder decision record items 52-53, 56); the program is `ssds` and operator data lives in an SSDS home outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4)
 amendment_a8: accepted (SD-58, SD-60; stakeholder decision record items 54, 56); a bounding completeness judgment is checked on the content the run it bounds ran on (§6.5); resolves SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb
+amendment_a9: proposed (SD-61, stakeholder decision record item 57), pending its independent Review and acceptance; `ssds.unclassified` mandatory at genesis and never removed, so every governed byte has an owner (§1.8, §1.9); resolves SERIOUS CHALLENGE SC-E1 of the Phase E step 4 review
 d4: shadow-only (G2, SD-55); no SSDS authority over any subject before G4
 active_serious_challenge: none
 ---
@@ -52,6 +53,11 @@ AMENDMENTS A7 and A8: ACCEPTED (SD-60, 2026-10-21) after the independent Phase D
           corrected to it after the Phase D Review 0e49deb (finding B-B1). A8 (SD-58): a completeness
           judgment that bounds a run's basis is checked on the content that run ran on, not on the state
           of evaluation (§6.5), resolving SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb.
+AMENDMENT A9: PROPOSED (SD-61, 2026-10-22), pending its independent Review and the stakeholder's
+          acceptance: genesis declares `ssds.unclassified`, and no structure change removes it, so every
+          governed byte has an owner and every change is in the effect-keyed write set (§1.8, §1.9),
+          resolving SERIOUS CHALLENGE SC-E1 of the Phase E step 4 review. Until accepted, the A8 text
+          governs and a genesis may omit the leaf.
 GOVERNING PROTOCOL: SSDP 7.2.1 (release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0
 BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic candidate
@@ -279,11 +285,11 @@ Semantic declarations are authored relations (§2), defined-object declarations,
 
 #### 1.8 System units and genesis structure
 
-Genesis declares the reserved leaves `ssds.manifest`, `ssds.policy` (protected, §25.3) and, optionally, `ssds.unclassified`, the outermost owner of every governed byte no other top-level unit contains, so that the uncovered region is empty.
+Genesis declares the reserved leaves `ssds.manifest`, `ssds.policy` (protected, §25.3) and `ssds.unclassified`, the outermost owner of every governed byte no other top-level unit contains, so that the uncovered region is empty: every change then lies in some effective unit, so the effect-keyed write set (§1.2), the write-scope boundary (§14.3), Admission's proof (§8.3) and derived impact (§5.8) see it. A genesis whose structure does not declare `ssds.unclassified` with the empty prefix is refused. *[Amendment A9, SD-61.]* An item that may write content no other unit owns names that content in its write scope (§13.1).
 
 #### 1.9 Static structural checks
 
-Every admission checks the merged tree's structure (§8.3 step 4), and the checks define part of `well_formed` (§2.5): identity grammar and uniqueness; kind present on subjects and absent on parts; membership a forest; sibling disjointness and containment; scope conservation for a refinement; every term well formed and resolved by a pure resolver; every newly declared or changed file or span term resolving at its admission; no `renamed_from` cycle; residual identities never declared.
+Every admission checks the merged tree's structure (§8.3 step 4), and the checks define part of `well_formed` (§2.5): identity grammar and uniqueness; kind present on subjects and absent on parts; membership a forest; sibling disjointness and containment; scope conservation for a refinement; every term well formed and resolved by a pure resolver; every newly declared or changed file or span term resolving at its admission; no `renamed_from` cycle; residual identities never declared; the reserved leaves of §1.8 declared, `ssds.unclassified` with the empty prefix (*Amendment A9, SD-61*).
 
 #### 1.10 What each identity establishes
 

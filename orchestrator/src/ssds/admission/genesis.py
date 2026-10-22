@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
-from ssds.derivation import Policy, baseline_structure
+from ssds.derivation import Policy, baseline_structure, genesis_structure_problems
 from ssds.ledger.append import HostKey, append_entry, create_ledger_repository, import_commits, write_checkpoint
 from ssds.ledger.qualification import (
     FileWitness,
@@ -65,10 +65,15 @@ SYSTEM_ANALYZERS = ("ssds.analyzer.python/1",)
 
 
 def genesis_violations(genesis: Mapping[str, Any]) -> list[str]:
-    """The genesis record's own checks: shadow modes, the witness model, the human approval (catalogue §19.9)."""
+    """The genesis record's own checks: the uncovered region owned (§1.8, A9), shadow modes, the witness model,
+    the human approval (catalogue §19.9)."""
 
     problems: list[str] = []
     fields = genesis["fields"]
+    try:
+        problems += genesis_structure_problems(fields["structure"])
+    except (KeyError, TypeError, ValueError) as exc:
+        problems.append(f"structure: {exc}")
     for subject, mode in fields["modes"].items():
         if mode.get("mode") not in SHADOW_MODES:
             problems.append(f"shadow genesis declares {subject} {mode.get('mode')}; only LEGACY or UNGOVERNED")

@@ -125,3 +125,10 @@ scope = [{ file = "orchestrator/docs/ssds-8.0-architecture.md", heading = ["Part
 id = "orchestrator.program"
 kind = "D4"
 scope = [{ prefix = "orchestrator/src/" }]
+
+# The outermost owner of every governed byte no other top-level unit contains, so the uncovered region is
+# empty and every change lies in some unit's write set (Manual §1.8 as amended by A9, SD-61). UNGOVERNED.
+[[unit]]
+id = "ssds.unclassified"
+kind = "UNCLASSIFIED"
+scope = [{ prefix = "" }]

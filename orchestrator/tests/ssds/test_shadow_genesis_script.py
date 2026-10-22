@@ -41,6 +41,11 @@ scope = [{ path = "manual.md" }]
 id = "orchestrator.program"
 kind = "D4"
 scope = [{ prefix = "orchestrator/src/" }]
+
+[[unit]]
+id = "ssds.unclassified"
+kind = "UNCLASSIFIED"
+scope = [{ prefix = "" }]
 '''
 RELEASE_STATE = 'schema_version: 1\naccepted_current:\n  version: "9.9.9"\n'
 
@@ -86,7 +91,8 @@ class ShadowGenesisScript(unittest.TestCase):
         derivation = json.loads((self.home / "genesis" / "demo" / "derivation.json").read_text())
         self.assertTrue(derivation["current_assertion"], derivation["assertion_withheld"])
         self.assertEqual({s: v["mode"] for s, v in derivation["subjects"].items()},
-                         {"ssdp.protocol": "LEGACY", "ssds8.manual": "LEGACY", "orchestrator.program": "UNGOVERNED"})
+                         {"ssdp.protocol": "LEGACY", "ssds8.manual": "LEGACY", "orchestrator.program": "UNGOVERNED",
+                          "ssds.unclassified": "UNGOVERNED"})
         self.assertEqual(derivation["subjects"]["ssdp.protocol"]["parts"], ["ssdp.protocol.roles"])
         self.assertEqual(self.run_script("derive").returncode, 0)
         self.assertEqual((git(self.repo, "for-each-ref"), git(self.repo, "status", "--porcelain", "--ignored")), before,
