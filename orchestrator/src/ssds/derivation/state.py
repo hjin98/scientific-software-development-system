@@ -288,10 +288,20 @@ class State:
                 return target.get("analyzer") in self.analyzer_set
             return True
         if kind in ("ACCEPTANCE", "GATE_DECISION") and record["outcome"] in ("PASS", "ACCEPT"):
-            subject = record["target"]["subject"]["subject"] if kind == "GATE_DECISION" else record["target"]["subject"]
+            target = record["target"]["subject"] if kind == "GATE_DECISION" else record["target"]
+            subject = target["subject"]
             if self.mode(subject) == "NATIVE" and self.view.structure.kind(subject) in ("D1", "D2"):
-                return False  # the revision run rid(s) is §10.2 (Phase E); until then fail closed
+                # §10.2: current only in its revision run, and only with its counting premise (reading E19)
+                return self.runs.in_run(rid, subject) and self.runs.counting_premise(rid, subject, target["rev"])
         return True
+
+    @cached_property
+    def runs(self) -> Any:
+        """The revision runs of this state (§10.2)."""
+
+        from .runs import Runs
+
+        return Runs(self)
 
     def membership_digest(self, scope: Iterable[str]) -> str:
         return self.view.membership_digest(tuple(scope))

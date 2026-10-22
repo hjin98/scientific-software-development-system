@@ -49,7 +49,7 @@ from .structure import (
     value_to_json,
 )
 from .tree import MODES, Entry, Tree
-from .view import ABSENT, IntegrityFinding, Segment, TreeView, recorded_identity, scope_identity
+from .view import ABSENT, IntegrityFinding, Segment, TreeView, jcs, recorded_identity, scope_identity
 from .writeset import write_set
 
 __all__ = [
@@ -57,6 +57,6 @@ __all__ = [
     "ITEM_KINDS", "Item", "ItemFailure", "ItemPart", "Plan", "REVIEW", "Ref", "SLOTS", "parse_item", "plans", "GOVERNED_KEY", "GitReadError", "ID_RE", "IntegrityFinding",
     "KINDS", "MODES", "Manifest", "ManifestFailure", "RESIDUAL_SUFFIX", "Region", "SYSTEM_UNITS", "Segment",
     "Span", "StaticError", "Structure", "Term", "Tree", "TreeView", "UNCLASSIFIED", "UNCOVERED", "Unit",
-    "decl_from_json", "decl_to_json", "ignored", "merge3", "merge_text", "parse_manifest", "parse_term", "read_tree", "recorded_identity", "scope_identity", "static_errors",
+    "decl_from_json", "decl_to_json", "ignored", "jcs", "merge3", "merge_text", "parse_manifest", "parse_term", "read_tree", "recorded_identity", "scope_identity", "static_errors",
     "value_from_json", "value_to_json", "write_set",
 ]

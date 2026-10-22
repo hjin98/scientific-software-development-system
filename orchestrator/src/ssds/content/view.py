@@ -50,8 +50,13 @@ def _hash(*fields: bytes) -> str:
     return "sha256:" + digest.hexdigest()
 
 
-def _jcs(value: Any) -> bytes:
+def jcs(value: Any) -> bytes:
+    """RFC 8785 canonical JSON, the one encoding identities hash (catalogue §1.5, §6)."""
+
     return canonical_json(value)
+
+
+_jcs = jcs
 
 
 def _bytes_of(region: Region) -> int:

@@ -282,10 +282,15 @@ class Support:
         """The gate term: the minimum over every eligible decision, ``F`` when none is eligible (§5.5)."""
 
         holders = self.s.policy.get(self.s.view.structure.domain(subject), "gate_holders", None)
+        # For a NATIVE D1/D2 subject the gate obligation G derives carries its run rid_G(s) (§5.5 elig, §10.2):
+        # a new run's gate decides afresh, so a decision of an earlier run is not eligible in it.
+        by_run = self.s.mode(subject) == "NATIVE" and self.s.view.structure.kind(subject) in ("D1", "D2")
+        run = self.s.runs.rid(subject) if by_run else None
         eligible = [rid for rid in self.gate_decisions(subject)
                     if self.s.record(rid)["target"]["gate"] == gate and self.s.acts(rid) and not self.s.superseded(rid)
                     and self.s.record(rid)["actor_class"] == "HUMAN"
-                    and (holders is None or self.s.record(rid)["actor"] in holders)]
+                    and (holders is None or self.s.record(rid)["actor"] in holders)
+                    and (not by_run or self.s.runs.named(rid, subject) == run)]
         if not eligible:
             return F
         return min(min(value(("current", rid)), P if self.s.record(rid)["fields"]["qualification"] == "QUALIFIED" else T)

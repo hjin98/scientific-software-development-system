@@ -94,6 +94,11 @@ class Frame:
 
         return frozenset(u for u in self.structure.units if self._base_view.rev(u) != self._candidate_view.rev(u))
 
+    def candidate_rev(self, unit: str) -> str | None:
+        """The revision ``tree(C)`` gives ``unit`` under the frame's structure."""
+
+        return self._candidate_view.rev(unit) if unit in self.structure.units else None
+
     def role(self, unit: str, rev: str) -> str:
         """The role of a ``content`` entry ``(u, r)`` of a frame-``X`` record (§7.3)."""
 
