@@ -15,6 +15,10 @@ from ssds.content import ABSENT, Tree, TreeView, named_spans, write_set
 
 from .state import F, P, T, triple_key
 
+class QueryError(ValueError):
+    """A query's arguments name nothing it can answer about (the Interface's refusal, never a derivation fault)."""
+
+
 GOVERNING, IMPLIED, ADJACENT, EVIDENTIAL, HISTORICAL, CANDIDATE = (
     "GOVERNING", "IMPLIED", "ADJACENT", "EVIDENTIAL", "HISTORICAL", "CANDIDATE")
 CLASSES = ("DEF", "WARRANT", "GOVERNING", "EXEC", "STRUCT")
@@ -41,14 +45,43 @@ def status(w: Any, unit: str) -> str:
     acceptances = d.acceptances(subject)
     if acceptances and not any(s.cont(r) for r in acceptances):
         return "loss-withheld"
+    if disputes(w, subject):
+        return "disputed"
     valid = d.valid(subject)
     if valid == T:
         return "valid"
     if valid == P:
         return "provisional"
+    if _drifted(w, subject):
+        return "drift"
     if acceptances:
         return "stale"
     return "unclassified" if s.mode(subject) == "UNGOVERNED" else "stale"
+
+
+def disputes(w: Any, subject: str) -> dict[str, tuple[list[str], list[str]]]:
+    """The evidence disagreements about ``subject`` (§6.6-§6.7): per obligation, its current passing assessments
+    and the counting adverse ones no disposition settles."""
+
+    a, d = w.d.a, w.d
+    out = {}
+    for obligation, records in sorted(a.by_obligation.items()):
+        adverse = [r for r in a.adverse(subject, obligation, d.base, w._value)
+                   if a.disposition(r, w._value, d.base, d.j.nonind) < T]
+        passing = [r for r in records if a.passing(r) and a.admissible(r, obligation) and a.about(r, subject)
+                   and not a.stale(r, d.base, w._value)]
+        if adverse and passing:
+            out[obligation] = (passing, adverse)
+    return out
+
+
+def _drifted(w: Any, subject: str) -> bool:
+    """An open item obligation whose outputs inside ``subject`` moved since its latest integration (§10.4)."""
+
+    structure = w.s.view.structure
+    return any(h.moved and h.discharge() == "OPEN" and any(structure.subj(u) == subject for u in h.outputs
+                                                           if u in structure.units)
+               for h in w.items.holders)
 
 
 def _relations(w: Any, classes: frozenset[str]) -> list[Any]:
@@ -94,10 +127,19 @@ def depends(w: Any, x: str, cls: str = "WARRANT", direction: str = "prerequisite
     a widened scope, or ``UNBOUNDED`` (§16.2, §4.5-§4.6)."""
 
     if cls not in CLASSES or direction not in ("prerequisites", "dependents"):
-        raise ValueError(f"depends takes a class in {CLASSES} and prerequisites or dependents")
+        raise QueryError(f"depends takes a class in {CLASSES} and prerequisites or dependents")
     classes = frozenset({cls})
     relations = _relations(w, classes)
-    label = ADJACENT if cls == "STRUCT" else IMPLIED
+    s0 = w.s.s0
+    complete = lambda scope, c: _complete(w, scope, c)  # noqa: E731
+
+    def label(unit: str, inside: bool) -> str:
+        # §16.2: IMPLIED only inside a judged-complete scope; what a missing judgment widens to is CANDIDATE,
+        # never authority or closure support (§4.6: missing dependency knowledge never proves independence)
+        if cls == "STRUCT":
+            return ADJACENT
+        return IMPLIED if inside else CANDIDATE
+
     if direction == "dependents":
         reached, frontier = set(), [x]
         while frontier:
@@ -106,7 +148,14 @@ def depends(w: Any, x: str, cls: str = "WARRANT", direction: str = "prerequisite
                 if r.object == unit and r.subject not in reached and r.subject != x:
                     reached.add(r.subject)
                     frontier.append(r.subject)
-        return {"widening": "EXACT", "items": [_item(w, u, label) for u in sorted(reached)]}
+        # every dependent is known only when every other unit's prerequisites are judged complete in the class
+        unbounded = sorted(u for u in w.s.view.structure.units if u != x
+                           and next((sc for sc in s0.chain(u) if all(complete(sc, c) for c in classes)), None) is None)
+        out = {"widening": "UNBOUNDED" if unbounded else "EXACT",
+               "items": [_item(w, u, label(u, not unbounded), via="relation") for u in sorted(reached)]}
+        if unbounded:
+            out["unbounded"] = unbounded
+        return out
     exact, frontier = set(), [x]
     while frontier:
         unit = frontier.pop()
@@ -114,10 +163,15 @@ def depends(w: Any, x: str, cls: str = "WARRANT", direction: str = "prerequisite
             if r.subject == unit and r.object not in exact and r.object != x:
                 exact.add(r.object)
                 frontier.append(r.object)
-    reached, unbounded = w.s.s0.closure([x], classes, lambda scope, c: _complete(w, scope, c))
+    reached, unbounded = s0.closure([x], classes, complete)
     reached = set(reached) - {x}
     widening = "UNBOUNDED" if unbounded else ("EXACT" if reached <= exact else "WIDENED")
-    return {"widening": widening, "items": [_item(w, u, label, exact=u in exact) for u in sorted(reached | exact)]}
+    items = [_item(w, u, label(u, not unbounded), via="relation" if u in exact else "widening")
+             for u in sorted(reached | exact)]
+    out = {"widening": widening, "items": items}
+    if widening == "WIDENED":
+        out["scope"] = sorted(reached)  # the judged-complete scope the closure widened to
+    return out
 
 
 def explain(w: Any, ref: str) -> dict[str, Any]:
@@ -151,23 +205,35 @@ def explain(w: Any, ref: str) -> dict[str, Any]:
             return {"obligation": ref, "kind": o.kind, "target": o.target, "holder": o.holder, "plan": o.plan,
                     "readiness": readiness.state, "waiting_on": list(readiness.waiting_on), "discharge": w.discharge(o),
                     "detail": o.detail}
-    raise KeyError(f"{ref} is no unit, record or obligation of this state")
+    raise QueryError(f"{ref} is no unit, record or obligation of this state")
 
 
 def evidence(w: Any, claim: str) -> list[dict[str, Any]]:
     """Evidence for a claim: realizations, assessments, disagreement state, binding health (§16.2)."""
 
     s, a = w.s, w.d.a
+    structure = s.view.structure
+    subject = structure.subj(claim) if claim in structure.units else None
+    disputed = disputes(w, subject) if subject is not None else {}
     out = []
+    seen: set[str] = set()
     for obligation, records in sorted(a.by_obligation.items()):
         for rid in records:
             if claim not in a.claim_units(rid):
                 continue
+            seen.add(obligation)
             stale = a.stale(rid, w.d.base, w._value)
-            out.append({"assessment": rid, "obligation": obligation, "realization": a.real(rid),
-                        "outcome": s.record(rid)["outcome"], "label": EVIDENTIAL,
-                        "status": "stale" if stale else ("disputed" if a.failing(rid) else "current"),
-                        "current": _VALUE[w.d.current(rid)]})
+            entry = {"assessment": rid, "obligation": obligation, "realization": a.real(rid),
+                     "outcome": s.record(rid)["outcome"], "label": EVIDENTIAL,
+                     "status": "stale" if stale else ("disputed" if obligation in disputed else "current"),
+                     "current": _VALUE[w.d.current(rid)]}
+            if a.failing(rid):
+                entry["failing_outputs"] = a.failing_outputs(rid)  # the discriminating observations
+            out.append(entry)
+    if subject is not None:
+        for obligation in s.policy.get(structure.domain(subject), "evidence"):
+            if obligation not in seen:  # required and never realized: unavailable, never passing (§6 of the plan)
+                out.append({"obligation": obligation, "label": EVIDENTIAL, "status": "unavailable"})
     return out
 
 
@@ -229,15 +295,45 @@ def impact(w: Any, workspace: Tree) -> dict[str, Any]:
     return {"write_set": writes, "impacted": [_item(w, u, ADJACENT) for u in sorted(reached)]}
 
 
+def lineage(w: Any, unit: str) -> list[str]:
+    """``unit`` and its predecessors (§1.11): former names folded over every admitted structure (``renamed_from``,
+    so a removed declaration keeps its lineage) and ``SUPERSEDES``/``REPLACES`` predecessors, transitively."""
+
+    cache = w.__dict__.setdefault("_lineage_edges", {})
+    if not cache:
+        edges: dict[str, set[str]] = {}
+        for k in range(w.s.n + 1):
+            for name, decl in w.s.h.view(k).structure.units.items():
+                for former in getattr(decl, "renamed_from", ()) or ():
+                    edges.setdefault(name, set()).add(former)
+        for r in w.s.s0.relations:
+            if r.type in ("SUPERSEDES", "REPLACES"):
+                edges.setdefault(r.subject, set()).add(r.object)
+        cache.update(edges)
+    names, frontier = {unit}, [unit]
+    while frontier:
+        for previous in cache.get(frontier.pop(), ()):
+            if previous not in names:
+                names.add(previous)
+                frontier.append(previous)
+    return sorted(names)
+
+
 def locate(w: Any, locator: str) -> dict[str, Any]:
     """§1.11 resolution of a locator ``unit[@rev][#name]``: the unit's region and current revision, whether the
-    named revision is current, and the named anchor or heading inside it."""
+    named revision is current, and the named anchor or heading inside it. A former name resolves to the one
+    current unit whose lineage holds it."""
 
     unit, _, name = locator.partition("#")
     unit, _, rev = unit.partition("@")
     view = w.s.view
+    via = None
     if unit not in view.structure.units:
-        return {"locator": locator, "resolved": False, "reason": f"{unit} is not a unit"}
+        heirs = sorted(u for u in view.structure.units if unit in lineage(w, u))
+        if len(heirs) != 1:
+            reason = f"{unit} is not a unit" if not heirs else f"{unit} is a former name of {', '.join(heirs)}"
+            return {"locator": locator, "resolved": False, "reason": reason}
+        via, unit = unit, heirs[0]
     region = view.regions.get(unit)
     out: dict[str, Any] = {"locator": locator, "unit": unit, "rev": view.rev(unit),
                            "current": (rev == view.rev(unit)) if rev else True,
@@ -245,6 +341,9 @@ def locate(w: Any, locator: str) -> dict[str, Any]:
     if name and region:
         spans = [sp for r in region for sp in named_spans(r.path, view.tree[r.path].data, r, name)]
         out["named"] = [[sp.path, sp.start, sp.end] for sp in spans]
+    if via is not None:
+        out["former_name"] = via
+        out["current"] = not rev  # a revision named under a former name is not the current unit's
     out["resolved"] = region is not ABSENT and (not name or len(out.get("named", [])) == 1)
     return out
 
@@ -254,10 +353,7 @@ def tensions(w: Any, authority: str) -> list[dict[str, Any]]:
     earlier revisions and predecessors (§16.2); native homes are listed as searchable elsewhere."""
 
     s = w.s
-    names = {authority}
-    unit = s.view.structure.units.get(authority)
-    if unit is not None:
-        names |= set(unit.renamed_from)
+    names = set(lineage(w, authority))
     out = []
     for r in s.s0.relations:
         if r.type == "CHALLENGES" and r.object in names:
@@ -269,6 +365,8 @@ def tensions(w: Any, authority: str) -> list[dict[str, Any]]:
         if bound in names:
             out.append({"source": "challenge", "record": c, "rev": target.get("rev"), "open": s.open(c),
                         "asserter": s.record(c)["actor"], "label": EVIDENTIAL})
+    # native homes (issue trackers, project evidence) are outside the ledger: listed with the identities to search
+    out.append({"source": "native", "searchable_elsewhere": True, "identities": sorted(names), "label": EVIDENTIAL})
     return out
 
 
@@ -325,7 +423,7 @@ def verify(w: Any, item_unit: str, workspace: Tree) -> dict[str, Any]:
     never a stand-in for the designated runner, and an agent's report of it is a finding, never evidence."""
 
     if item_unit not in w.s.plans.items:
-        raise KeyError(f"{item_unit} is not an item of a plan in this state")
+        raise QueryError(f"{item_unit} is not an item of a plan in this state")
     rev = w.s.cur(item_unit)
     advisory = _Advisory(w, item_unit, rev, workspace)
     return {"advisory": True, "item": item_unit, "classes": sorted(advisory.classes), "view": advisory.view(),

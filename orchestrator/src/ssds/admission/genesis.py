@@ -110,7 +110,41 @@ def _write_private(path: Path, data: bytes) -> None:
     publish_private(path, data)  # never through an existing file: a fresh file renamed over the name
 
 
-def _host_key(home: Home, ledger_id: str) -> HostKey:
+class AdmissionHome(Home):
+    """The SSDS home as Admission uses it: the ledger store's operator tree, plus Admission's own files, its
+    admission key and a ledger's genesis workspace, which only Admission and the operator script reach."""
+
+    #: The files of a ledger's genesis workspace.
+    WORKSPACE_FILES = ("proposal.json", "objects.json", "approval-message.txt", "source.json", "report.json",
+                       "derivation.json")
+
+    def admission_key(self, ledger_id: str) -> Path:
+        self.check_ledger_id(ledger_id)
+        return self._file("keys", "admission", f"{ledger_id}.ed25519")
+
+    def workspace(self, ledger_id: str) -> Path:
+        self.check_ledger_id(ledger_id)
+        return self._inside("genesis", ledger_id)
+
+    def workspace_file(self, ledger_id: str, name: str) -> Path:
+        self.check_ledger_id(ledger_id)
+        if name not in self.WORKSPACE_FILES:
+            raise HomeRefused(f"{name} is not a genesis workspace file")
+        return self._file("genesis", ledger_id, name)
+
+    def write_workspace(self, ledger_id: str, name: str, data: bytes) -> Path:
+        path = self.workspace_file(ledger_id, name)
+        publish_private(path, data)  # never through an existing file
+        return path
+
+    def _check_paths(self, ledger_id: str) -> None:
+        super()._check_paths(ledger_id)
+        self.admission_key(ledger_id), self.workspace(ledger_id)
+        for name in self.WORKSPACE_FILES:
+            self.workspace_file(ledger_id, name)
+
+
+def _host_key(home: "AdmissionHome", ledger_id: str) -> HostKey:
     """The project's Admission host key, held only in private operator state (catalogue §23.2)."""
 
     path = home.admission_key(ledger_id)
@@ -160,7 +194,7 @@ class Prepared:
         return not self.problems
 
 
-def prepare_genesis(spec: GenesisSpec, home: Home, trees: TreeSource) -> Prepared:
+def prepare_genesis(spec: GenesisSpec, home: "AdmissionHome", trees: TreeSource) -> Prepared:
     """Build and validate the genesis in its isolated workspace; publishes nothing.
 
     The workspace holds the proposal, the approval message and a validation
@@ -307,7 +341,7 @@ class Admitted:
     findings: tuple[str, ...] = field(default=())
 
 
-def admit_genesis(home: Home, ledger_id: str, signature: str) -> Admitted:
+def admit_genesis(home: "AdmissionHome", ledger_id: str, signature: str) -> Admitted:
     """Append and admit the prepared genesis once the human gate's signature verifies.
 
     The proposal is read back from the workspace and must be byte-for-byte what
@@ -376,5 +410,5 @@ def admit_genesis(home: Home, ledger_id: str, signature: str) -> Admitted:
     return Admitted(ledger_id, repository, appended.commit, appended.digest, genesis_digest(record), qualification.state)
 
 
-__all__ = ["Admitted", "GenesisRefused", "GenesisSpec", "Prepared", "admit_genesis", "genesis_approval_message",
+__all__ = ["AdmissionHome", "Admitted", "GenesisRefused", "GenesisSpec", "Prepared", "admit_genesis", "genesis_approval_message",
            "genesis_digest", "genesis_proposal", "genesis_violations", "prepare_genesis"]

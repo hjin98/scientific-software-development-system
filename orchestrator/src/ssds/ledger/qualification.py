@@ -324,7 +324,10 @@ __all__ = [
 
 
 class Home:
-    """Where Admission keeps a project's operator data, under the SSDS home (created on first write).
+    """A project's operator data under the SSDS home (created on first write): the ledger repository, the
+    witnesses and the high-water mark, and the check that guards the whole operator tree. Admission's own
+    files (its key, the genesis workspace) are its subclass's (``admission.genesis.AdmissionHome``), so the
+    Interface and the Dispatcher, which may import this module, reach none of them (§26.1-§26.2).
 
     One rule closes every way a path could be redirected out of the home: the
     home lies outside every repository and holds none but its own ledgers, and the
@@ -339,10 +342,6 @@ class Home:
     A genesis creates its ledger repository afresh, so no pre-existing Git
     layout (internal links, alternates, configuration) is ever written through.
     """
-
-    #: The files of a ledger's genesis workspace.
-    WORKSPACE_FILES = ("proposal.json", "objects.json", "approval-message.txt", "source.json", "report.json",
-                       "derivation.json")
 
     def __init__(self, root: Path) -> None:
         if not root.is_absolute():
@@ -373,25 +372,6 @@ class Home:
     @property
     def witness_root(self) -> Path:
         return self._inside("witness")
-
-    def admission_key(self, ledger_id: str) -> Path:
-        self.check_ledger_id(ledger_id)
-        return self._file("keys", "admission", f"{ledger_id}.ed25519")
-
-    def workspace(self, ledger_id: str) -> Path:
-        self.check_ledger_id(ledger_id)
-        return self._inside("genesis", ledger_id)
-
-    def workspace_file(self, ledger_id: str, name: str) -> Path:
-        self.check_ledger_id(ledger_id)
-        if name not in self.WORKSPACE_FILES:
-            raise HomeRefused(f"{name} is not a genesis workspace file")
-        return self._file("genesis", ledger_id, name)
-
-    def write_workspace(self, ledger_id: str, name: str, data: bytes) -> Path:
-        path = self.workspace_file(ledger_id, name)
-        publish_private(path, data)  # never through an existing file
-        return path
 
     def witness_directory(self, ledger_id: str) -> Path:
         self.check_ledger_id(ledger_id)
@@ -459,10 +439,13 @@ class Home:
                         elif not stat.S_ISREG(mode):
                             raise HomeRefused(f"{path} is neither a file nor a directory; the SSDS home holds "
                                               "only its own files")
+        self._check_paths(ledger_id)
+
+    def _check_paths(self, ledger_id: str) -> None:
+        """Every path this home names for the ledger resolves inside it."""
+
         self.ledger_repository(ledger_id), self.witness_root, self.witness_directory(ledger_id)
-        self.admission_key(ledger_id), self.workspace(ledger_id), self.high_water(ledger_id)
-        for name in self.WORKSPACE_FILES:
-            self.workspace_file(ledger_id, name)
+        self.high_water(ledger_id)
 
 
 def _mode(path: Path) -> int | None:

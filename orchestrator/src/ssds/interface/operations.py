@@ -6,23 +6,32 @@ high-water mark before deriving (witness reads stay outside derivation, Manual
 §5.1), derives the qualified prefix through ``H*``, and keeps ``H*`` as the
 high-water mark, never lowering it (§23.4; Phase D repairs A-B1, A-B5, A-B7, NF5).
 With no current-qualified head every answer is labeled ``UNQUALIFIED`` and is a
-historical view. Every answer names the head it was derived at.
+historical view; at a qualified head whose derivation withholds the current
+assertion the head is ``QUALIFIED`` and ``current_assertion`` is false. Every
+answer names the head it was derived at.
 
 The Interface holds no state of its own and reads no Git: its caller (the root
 module) supplies a :class:`LedgerAccess` and a tree source. Phase E has no tasks
-(reading E1): ``read`` returns content at the answer's basis and records nothing;
-``open`` renders a derived obligation's brief, labeled ``NOT ISSUED``.
+(reading E1): ``read`` returns content at the answer's basis and records nothing.
+``open``, which renders a derived obligation's brief labeled ``NOT ISSUED``, is
+step 7's. A query naming nothing it can answer about is :class:`Refused`.
 """
 
 from __future__ import annotations
 
 import dataclasses
 from collections.abc import Callable
+import inspect
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 from ssds import derivation
 from ssds.ledger.qualification import HighWaterMark, Qualification, WitnessModel, qualify
+
+
+class Refused(ValueError):
+    """A request the Interface refuses before presenting anything: an unknown query class, arguments the query
+    cannot take, a reference naming nothing, or content that cannot be read."""
 
 
 class LedgerAccess(Protocol):
@@ -65,7 +74,8 @@ class Presented:
         if self.workflow is None:
             return {"label": "UNQUALIFIED", "position": None, "digest": None}
         s = self.workflow.s
-        label = "QUALIFIED" if self.current else "UNQUALIFIED"
+        qualified = self.qualification is not None and self.qualification.current
+        label = "QUALIFIED" if qualified else "UNQUALIFIED"
         return {"label": label, "position": s.n, "digest": s.h.chain.entries[s.n].digest, "qualification": self.state}
 
 
@@ -132,15 +142,26 @@ class Session:
         """A typed query of §16.2 at the presented head."""
 
         if query not in _QUERIES:
-            raise ValueError(f"unknown query {query!r}; the query classes are {', '.join(_QUERIES)}")
+            raise Refused(f"unknown query {query!r}; the query classes are {', '.join(_QUERIES)}")
+        function = getattr(derivation.queries, query)
+        if query == "changed":
+            try:
+                args = (int(args[0]), list(args[1:]) or None) if args else (0, None)
+            except ValueError:
+                raise Refused("changed takes a ledger position, then units") from None
+        try:
+            inspect.signature(function).bind(None, *args)
+        except TypeError as exc:
+            raise Refused(f"{query}: {exc}") from None
         w = self.presented.workflow
         if w is None:
             return self._answer(query, None)
         if query in ("impact", "verify"):
-            args = tuple(self.trees(a) if i == len(args) - 1 else a for i, a in enumerate(args))  # a commit names the workspace
-        if query == "changed":
-            args = (int(args[0]), list(args[1:]) or None) if args else (0, None)
-        return self._answer(query, getattr(derivation.queries, query)(w, *args))
+            args = (*args[:-1], self.trees(args[-1]))  # the last argument is a commit naming the workspace
+        try:
+            return self._answer(query, function(w, *args))
+        except derivation.queries.QueryError as exc:
+            raise Refused(str(exc)) from None
 
     def read(self, ref: str) -> dict[str, Any]:
         """Content by unit identity or path at the answer's basis; nothing is recorded (no task basis, E1)."""
@@ -155,7 +176,7 @@ class Session:
             return self._answer("read", {"unit": ref, "rev": view.rev(ref), "content": text})
         if ref in view.tree:
             return self._answer("read", {"path": ref, "content": view.tree[ref].data.decode("utf-8", "replace")})
-        raise KeyError(f"{ref} is neither a unit nor a path at the presented head")
+        raise Refused(f"{ref} is neither a unit nor a path at the presented head")
 
 
-__all__ = ["LedgerAccess", "Presented", "Session", "present"]
+__all__ = ["LedgerAccess", "Presented", "Refused", "Session", "present"]

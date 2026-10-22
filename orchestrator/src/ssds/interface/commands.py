@@ -17,7 +17,9 @@ from pathlib import Path
 import typer
 from typer.models import CommandInfo
 
-from .operations import Session
+from ssds.ledger.qualification import HomeRefused
+
+from .operations import Refused, Session
 
 Connect = Callable[[str, Path], Session]
 
@@ -29,7 +31,7 @@ def _print(value: object) -> None:
 def _answer(produce: Callable[[], dict]) -> dict:
     try:
         return produce()
-    except (KeyError, ValueError) as refused:  # HomeRefused is a ValueError
+    except (Refused, HomeRefused) as refused:  # only refusals: a fault elsewhere is never reported as one
         typer.echo(f"refused: {refused.args[0] if refused.args else refused}", err=True)
         raise typer.Exit(2) from None
 

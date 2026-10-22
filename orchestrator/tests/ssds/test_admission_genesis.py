@@ -17,10 +17,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ssds.admission.genesis import GenesisRefused, GenesisSpec, admit_genesis, prepare_genesis
+from ssds.admission.genesis import AdmissionHome, GenesisRefused, GenesisSpec, admit_genesis, prepare_genesis
 from ssds.content import read_tree
 from ssds.derivation import consequences
-from ssds.ledger.qualification import FileWitness, Home, HomeRefused
+from ssds.ledger.qualification import FileWitness, HomeRefused
 from ssds.ledger.read import read_chain
 
 from ._fixtures import commit, git, human_key, init_repo, sshsig
@@ -67,7 +67,7 @@ class GenesisFixture(unittest.TestCase):
         (self.product / "src").mkdir()
         (self.product / "src" / "tool.py").write_text("import os\n")
         self.baseline = commit(self.product, "baseline")
-        self.home = Home(self.root / "ssds-home")
+        self.home = AdmissionHome(self.root / "ssds-home")
         self.private, self.public = human_key(self.root)
 
     def trees(self, commit_id: str):
@@ -326,7 +326,7 @@ class Refusals(GenesisFixture):
         """Review d8bdfd3 A-B10: a home inside the product worktree is refused before anything is created."""
 
         before = product_state(self.product)
-        inside = Home(self.product / "operator-state")
+        inside = AdmissionHome(self.product / "operator-state")
         prepared = prepare_genesis(self.spec(), inside, self.trees)
         self.assertFalse(prepared.valid)
         self.assertTrue(any("outside every repository" in p for p in prepared.problems), prepared.problems)
@@ -334,14 +334,14 @@ class Refusals(GenesisFixture):
         self.assertEqual(product_state(self.product), before)
         bare = self.root / "bare.git"
         subprocess.run(["git", "init", "--quiet", "--bare", str(bare)], check=True)
-        self.assertFalse(prepare_genesis(self.spec(), Home(bare / "home"), self.trees).valid, "nor in a bare one")
+        self.assertFalse(prepare_genesis(self.spec(), AdmissionHome(bare / "home"), self.trees).valid, "nor in a bare one")
         marker_only = self.root / "plain"
         (marker_only / ".git").mkdir(parents=True)  # an empty .git directory is not a repository
-        self.assertTrue(prepare_genesis(self.spec(ledger_id="plain"), Home(marker_only / "home"), self.trees).valid)
+        self.assertTrue(prepare_genesis(self.spec(ledger_id="plain"), AdmissionHome(marker_only / "home"), self.trees).valid)
         outside = self.root / "real-home"
         outside.mkdir()
         (self.root / "linked-home").symlink_to(outside, target_is_directory=True)
-        linked = prepare_genesis(self.spec(), Home(self.root / "linked-home"), self.trees)
+        linked = prepare_genesis(self.spec(), AdmissionHome(self.root / "linked-home"), self.trees)
         self.assertTrue(linked.valid, linked.problems)
 
     def test_no_repository_inside_the_operator_tree(self) -> None:

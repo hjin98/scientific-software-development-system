@@ -20,8 +20,9 @@ from pathlib import Path
 
 from ssds.derivation import Workflow, queries
 
-from ._fixtures import commit, human_key, init_repo, tree
-from ._scenario import Scenario
+from ._fixtures import commit, git, human_key, init_repo, tree
+from ._scenario import HUMAN, Scenario, agent, content, judgment, on_record, submit
+from ._scenario import integrate as integrate_change
 from .test_shadow_genesis_script import MANIFEST, RELEASE_STATE, SCRIPT
 
 LAUNCHER = Path(__file__).resolve().parents[2] / "bin" / "ssds"
@@ -60,10 +61,11 @@ class Queries(unittest.TestCase):
     def test_depends_by_class_and_direction(self) -> None:
         w = self.workflow()
         warrant = queries.depends(w, "tool")
-        self.assertEqual([i["unit"] for i in warrant["items"] if i["exact"]], ["impl"])
+        self.assertEqual([i["unit"] for i in warrant["items"] if i["via"] == "relation"], ["impl"])
         self.assertEqual(warrant["widening"], "UNBOUNDED", "with no completeness judgment the closure is the whole tree")
         self.assertEqual([i["unit"] for i in queries.depends(w, "impl", direction="dependents")["items"]], ["tool"])
-        self.assertEqual(queries.depends(w, "impl", "GOVERNING")["items"][0]["label"], "IMPLIED")
+        self.assertEqual(queries.depends(w, "impl", "GOVERNING")["items"][0]["label"], "CANDIDATE",
+                         "no completeness judgment: not inside a judged-complete scope")
         with self.assertRaises(ValueError):
             queries.depends(w, "impl", "NOPE")
 
@@ -95,7 +97,7 @@ class Queries(unittest.TestCase):
         self.assertEqual(queries.explain(w, "tool")["mode"], "UNGOVERNED")
         self.assertEqual(queries.status(w, "tool"), "unclassified")
         self.assertEqual(queries.status(w, "impl"), "stale", "a NATIVE subject with no acceptance is not valid")
-        with self.assertRaises(KeyError):
+        with self.assertRaises(queries.QueryError):
             queries.explain(w, "nothing")
 
     def test_impact_takes_the_write_set_and_its_dependents(self) -> None:
@@ -113,6 +115,105 @@ class Queries(unittest.TestCase):
                              json.dumps(getattr(queries, name)(second, *args), sort_keys=True), name)
 
 
+class StepSixReview(unittest.TestCase):
+    """The step 6 review of f9e26a81 (B1-B3), each case failing on the reviewed code; expected values from
+    Manual §16.2's labels and statuses, §4.6 and §1.11."""
+
+    def layers(self) -> Scenario:
+        return Scenario(LAYERS, {"arch.md": "# Arch\n", "impl.md": "<!-- ssds:rel CONCRETIZES arch -->\nimpl\n",
+                                 "tool.md": "<!-- ssds:rel DEPENDS_ON impl -->\ntool\n"})
+
+    def test_b1_depends_claims_no_exactness_it_lacks(self) -> None:
+        sc = self.layers()
+        w = Workflow(sc.derive())
+        prerequisites = queries.depends(w, "tool")
+        self.assertEqual(prerequisites["widening"], "UNBOUNDED")
+        self.assertEqual({i["label"] for i in prerequisites["items"]}, {"CANDIDATE"},
+                         "nothing is IMPLIED outside a judged-complete scope")
+        dependents = queries.depends(w, "impl", direction="dependents")
+        self.assertEqual(dependents["widening"], "UNBOUNDED", "missing dependency knowledge never proves independence")
+        self.assertEqual([(i["unit"], i["label"]) for i in dependents["items"]], [("tool", "CANDIDATE")])
+        d = sc.derive()
+        for unit in ("arch", "impl", "tool"):
+            sc.admit(judgment("COMPLETENESS", {"scope": [unit], "classes": ["WARRANT"],
+                                               "membership": d.s.membership_digest([unit])}, "COMPLETE", actor=HUMAN,
+                              basis=[content(unit, sc.rev(unit))]))
+        w = Workflow(sc.derive())
+        self.assertEqual(queries.depends(w, "tool")["widening"], "EXACT")
+        self.assertEqual([(i["unit"], i["label"]) for i in queries.depends(w, "tool")["items"]], [("impl", "IMPLIED")])
+        dependents = queries.depends(w, "impl", direction="dependents")
+        self.assertEqual((dependents["widening"], [(i["unit"], i["label"]) for i in dependents["items"]]),
+                         ("EXACT", [("tool", "IMPLIED")]))
+
+    def test_b2_disputed_and_unavailable_evidence(self) -> None:
+        from .test_assessment import BAD, GOOD, Runs
+
+        none = Runs()
+        self.assertEqual(queries.evidence(Workflow(none.sc.derive()), "code"),
+                         [{"obligation": "obl", "label": "EVIDENTIAL", "status": "unavailable"}])
+        r = Runs()
+        t0 = r.tree("T0")
+        r.fail(r.run(t0, BAD))
+        w = Workflow(r.sc.derive())
+        self.assertEqual([e["status"] for e in queries.evidence(w, "code")], ["current"], "a lone failure is no dispute")
+        good = r.run(t0, GOOD)
+        view = r.sc.view(t0)
+        r.sc.admit(judgment("EVIDENCE_ASSESSMENT", {"realization": good["id"], "obligation": "obl"}, "PASS",
+                            actor=agent("assessor"), actor_class="AGENT",
+                            basis=[on_record(good["id"]), content("spec", view.rev("spec"))],
+                            fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}}))
+        w = Workflow(r.sc.derive())
+        self.assertEqual(queries.status(w, "code"), "disputed")
+        self.assertEqual(sorted((e["outcome"], e["status"]) for e in queries.evidence(w, "code")),
+                         [("FAIL", "disputed"), ("PASS", "disputed")], "the pair is the disagreement")
+
+    def test_b2_drift(self) -> None:
+        from .test_routes import Flow
+
+        f = Flow()
+        x, cand = f.submit("# Records\nDone.\n")
+        f.review(x, cand, "PASS")
+        f.integrate(x, cand)
+        f.sc.absorb({"records.md": "# Records\nSomeone else.\n"})
+        self.assertEqual(queries.status(f.w(), "records"), "drift", "its item's outputs moved (§10.4)")
+
+    def test_b3_tensions_and_locate_follow_lineage(self) -> None:
+        units = LAYERS + '''
+            [[unit]]
+            id = "pred"
+            kind = "D3"
+            scope = [{ path = "pred.md" }]
+            [[unit]]
+            id = "succ"
+            kind = "D3"
+            scope = [{ path = "succ.md" }]
+            [[unit]]
+            id = "critic"
+            kind = "EVIDENCE_RECORD"
+            scope = [{ path = "critic.md" }]
+            [[unit]]
+            id = "newname"
+            kind = "D3"
+            renamed_from = ["oldname"]
+            scope = [{ path = "new.md" }]
+        '''
+        files = {"arch.md": "a\n", "impl.md": "i\n", "tool.md": "t\n", "pred.md": "p\n",
+                 "succ.md": "<!-- ssds:rel SUPERSEDES pred -->\ns\n", "critic.md": "<!-- ssds:rel CHALLENGES pred -->\nc\n",
+                 "new.md": "# New\n"}
+        sc = Scenario(units, files)
+        w = Workflow(sc.derive())
+        found = queries.tensions(w, "succ")
+        self.assertIn(("relation", "critic"), [(t["source"], t.get("unit")) for t in found], "predecessors' tensions")
+        native = [t for t in found if t["source"] == "native"]
+        self.assertEqual(native[0]["identities"], ["pred", "succ"], "native homes listed with their identities")
+        located = queries.locate(w, "oldname")
+        self.assertEqual((located["resolved"], located["unit"], located["former_name"]), (True, "newname", "oldname"))
+        x, cand, _ = submit(sc, {}, agent("restructurer"), "t-1", manifest=units.replace('renamed_from = ["oldname"]\n', ""))
+        integrate_change(sc, x, cand)
+        w = Workflow(sc.derive())
+        self.assertEqual(queries.locate(w, "oldname")["unit"], "newname", "lineage folds over every admitted structure")
+
+
 class Commands(unittest.TestCase):
     """``status``, ``ask`` and ``read`` through the root module over a temporary SSDS home."""
 
@@ -126,7 +227,7 @@ class Commands(unittest.TestCase):
                            "orchestrator/src/tool.py": "import os\n"}.items():
             (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
             (self.repo / path).write_text(text)
-        commit(self.repo, "baseline")
+        self.baseline = commit(self.repo, "baseline")
         self.home = root / "home"
         private, _ = human_key(root)
         self.env = {**os.environ, "SSDS_HOME": str(self.home)}
@@ -187,6 +288,65 @@ class Commands(unittest.TestCase):
         self.assertEqual((code, report), (2, None), "nothing is presented from a home that fails its check")
         self.assertIn("is a symbolic link", err)
         self.assertEqual(mark.read_bytes(), held, "and nothing is written")
+
+    def test_b4_the_mark_rises_to_a_qualified_head_whose_assertion_is_withheld(self) -> None:
+        """NF5: the high-water mark keeps the last head qualified, whatever derivation withholds there."""
+
+        from ssds.ledger.append import HostKey, append_entry, write_checkpoint
+        from ssds.ledger.qualification import FileWitness
+        from ssds.ledger.read import read_chain
+
+        from ._fixtures import entry, record
+
+        repository = self.home / "ledgers" / "demo.git"
+        chain = read_chain(repository, "demo")
+        key = HostKey.from_private_bytes((self.home / "keys" / "admission" / "demo.ed25519").read_bytes())
+        adoption = record("RULESET_ADOPTION", target=None, actor="human:SHA256:x",
+                          fields={"system": "ssds-rules/1", "policy": "sha256:" + "0" * 64, "analyzers": ["x/1"]})
+        appended = append_entry(repository, entry("demo", 1, chain.entries[0].digest, key, lifecycle=adoption,
+                                                  obs=self.baseline), key, chain.entries[0].commit)
+        write_checkpoint(FileWitness(self.home / "witness"), appended.checkpoint)
+        code, report, err = self.ssds("status")
+        self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "QUALIFIED", False), err)
+        self.assertEqual((report["head"]["label"], report["head"]["position"]), ("QUALIFIED", 1),
+                         "a qualified head with its assertion withheld is still the qualified head")
+        mark = json.loads((self.home / "state" / "demo" / "high-water.json").read_text())
+        self.assertEqual((mark["position"], mark["entry_digest"]), (1, appended.digest))
+
+    def test_b4_the_commands_only_read_the_product(self) -> None:
+        def snapshot() -> tuple[str, ...]:
+            files = sorted((str(p.relative_to(self.repo)), p.read_bytes()) for p in self.repo.rglob("*")
+                           if p.is_file() and ".git" not in p.parts)
+            return (git(self.repo, "for-each-ref"), git(self.repo, "count-objects", "-v"),
+                    git(self.repo, "status", "--porcelain", "--ignored"), repr(files))
+
+        before = snapshot()
+        for args in (("status",), ("ask", "governs", "ssds8.manual"), ("ask", "search", "Manual"), ("ask", "changed"),
+                     ("ask", "impact", self.baseline), ("read", "manual.md")):
+            self.assertIn(self.ssds(*args)[0], (0, 1), args)
+        self.assertEqual(snapshot(), before)
+
+    def test_refusals_present_nothing(self) -> None:
+        for args, says in ((("ask", "impact"), "impact"), (("ask", "changed", "nope"), "position")):
+            code, answer, err = self.ssds(*args)
+            self.assertEqual((code, answer), (2, None), args)
+            self.assertIn(says, err)
+        result = subprocess.run([sys.executable, str(LAUNCHER), "status", "--ledger", "demo", "--repository",
+                                 str(self.home)], capture_output=True, text=True, env=self.env, timeout=240, check=False)
+        self.assertEqual((result.returncode, result.stdout), (2, ""), "a repository that is not the ledger's refuses")
+        self.assertIn("refused: cannot read", result.stderr)
+
+    def test_the_mark_is_raised_only_through_a_rechecked_home(self) -> None:
+        from ssds.cli import HomeAccess
+        from ssds.ledger.qualification import HighWaterMark, Home, HomeRefused
+
+        access = HomeAccess(Home(self.home), "demo")
+        mark = self.home / "state" / "demo" / "high-water.json"
+        held = mark.read_bytes()
+        (self.home / "genesis" / "demo" / "planted").symlink_to(self.repo)
+        with self.assertRaises(HomeRefused):
+            access.raise_high_water(HighWaterMark(5, "sha256:" + "5" * 64))
+        self.assertEqual(mark.read_bytes(), held)
 
 
 if __name__ == "__main__":

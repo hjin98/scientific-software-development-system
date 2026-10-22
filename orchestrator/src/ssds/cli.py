@@ -15,11 +15,11 @@ from pathlib import Path
 import typer
 from typer.models import CommandInfo
 
-from ssds.content import read_tree
+from ssds.content import GitReadError, read_tree
 from ssds.core import cli as core_cli
 from ssds.core.api.v1 import ssds_home
 from ssds.interface.commands import make_commands
-from ssds.interface.operations import Session
+from ssds.interface.operations import Refused, Session
 from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, WitnessModel
 from ssds.ledger.read import read_chain
 
@@ -53,7 +53,13 @@ class HomeAccess:
 def connect(ledger_id: str, repository: Path) -> Session:
     """A session over a ledger in the SSDS home, its trees read from ``repository``."""
 
-    return Session(HomeAccess(Home(ssds_home()), ledger_id), lambda commit: read_tree(repository, commit))
+    def trees(commit: str):
+        try:
+            return read_tree(repository, commit)
+        except GitReadError as exc:  # the repository named is not the one the ledger records
+            raise Refused(f"cannot read {commit} from {repository}: {exc}") from None
+
+    return Session(HomeAccess(Home(ssds_home()), ledger_id), trees)
 
 
 #: SSDS operations mounted beside Core's commands; each joins when its owner exists.

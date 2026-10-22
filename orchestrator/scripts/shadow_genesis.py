@@ -32,6 +32,7 @@ REPOSITORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY / "orchestrator" / "src"))
 
 from ssds.admission.genesis import (  # noqa: E402
+    AdmissionHome,
     GenesisRefused,
     GenesisSpec,
     admit_genesis,
@@ -39,10 +40,10 @@ from ssds.admission.genesis import (  # noqa: E402
 )
 from ssds.cli import HomeAccess  # noqa: E402
 from ssds.content import read_tree  # noqa: E402
-from ssds.core.config import ssds_home  # noqa: E402
+from ssds.core.api.v1 import ssds_home  # noqa: E402
 from ssds.derivation import Consequences  # noqa: E402
 from ssds.interface.operations import present  # noqa: E402
-from ssds.ledger.qualification import Home, HomeRefused  # noqa: E402
+from ssds.ledger.qualification import HomeRefused  # noqa: E402
 
 LEDGER_ID = "ssdp-shadow"
 PROJECT = "hjin98/scientific-software-development-protocol"
@@ -76,7 +77,7 @@ def prepare(args: argparse.Namespace) -> int:
     spec = GenesisSpec(project=PROJECT, ledger_id=args.ledger_id, product_repository=repository,
                        baseline_commit=resolve_commit(repository, args.baseline), human_keys=(public,),
                        protocol=protocol, modes=modes)
-    prepared = prepare_genesis(spec, Home(ssds_home()), lambda commit: read_tree(repository, commit))
+    prepared = prepare_genesis(spec, AdmissionHome(ssds_home()), lambda commit: read_tree(repository, commit))
     if prepared.report is not None:
         print(f"validation report: {prepared.report}")
     if not prepared.valid:
@@ -91,7 +92,7 @@ def prepare(args: argparse.Namespace) -> int:
     return 0
 
 
-def derivation_report(home: Home, ledger_id: str, repository: Path) -> dict:
+def derivation_report(home: AdmissionHome, ledger_id: str, repository: Path) -> dict:
     """The end-to-end derivation report. Qualification and the current assertion are the Interface's, the one
     owner of presenting anything as current (Phase E plan §2): it qualifies the chain against the declared
     witnesses, a witness's retirement and the high-water mark, derives the qualified prefix through ``H*`` and
@@ -131,7 +132,7 @@ def derivation_report(home: Home, ledger_id: str, repository: Path) -> dict:
 
 def admit(args: argparse.Namespace) -> int:
     repository = Path(args.repository).resolve()
-    home = Home(ssds_home())
+    home = AdmissionHome(ssds_home())
     signature = Path(args.signature).expanduser().read_text(encoding="utf-8")
     try:
         admitted = admit_genesis(home, args.ledger_id, signature)
@@ -147,7 +148,7 @@ def admit(args: argparse.Namespace) -> int:
     return write_derivation(home, args.ledger_id, repository)
 
 
-def write_derivation(home: Home, ledger_id: str, repository: Path) -> int:
+def write_derivation(home: AdmissionHome, ledger_id: str, repository: Path) -> int:
     home.check(ledger_id)
     report = derivation_report(home, ledger_id, repository)
     path = home.write_workspace(ledger_id, "derivation.json",
@@ -164,7 +165,7 @@ def write_derivation(home: Home, ledger_id: str, repository: Path) -> int:
 
 def derive(args: argparse.Namespace) -> int:
     try:
-        return write_derivation(Home(ssds_home()), args.ledger_id, Path(args.repository).resolve())
+        return write_derivation(AdmissionHome(ssds_home()), args.ledger_id, Path(args.repository).resolve())
     except HomeRefused as refused:
         print(f"refused: {refused}")
         return 1
