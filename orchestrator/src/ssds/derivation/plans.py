@@ -14,6 +14,7 @@ than naming the unit.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cached_property
@@ -29,6 +30,7 @@ from ssds.content import (
     ItemPart,
     Plan,
     TreeView,
+    jcs,
     parse_term,
     plans,
 )
@@ -181,6 +183,27 @@ def tightens(old: Item, old_prose: bytes, new: Item, new_prose: bytes, view: Tre
     if not (set(a.slots) <= set(b.slots) and set(a.triggers) <= set(b.triggers)):
         return False
     return (a.artifacts, a.evidence) == (b.artifacts, b.evidence)
+
+
+def work_key(item: Item, prose: bytes) -> str:
+    """The key of an item's work: its prose and fixed fields (§13.4, §10.4; SD-52).
+
+    The fixed fields are those control tightening keeps unchanged: everything but the tightenable fields
+    (write scope, dependency allowance, evidence specifications, homes, frozen interface, secondary checks,
+    slots, triggers, budget, the ``scientific`` flag)."""
+
+    contract = item.contract
+    fixed = {
+        "id": item.id, "kind": item.kind, "authority": item.authority, "specialist": item.specialist,
+        "objective": item.objective.name, "governing": [list(g) for g in item.governing],
+        "acceptance_criteria": [list(c) for c in item.acceptance_criteria], "affected": list(item.affected),
+        "gates": list(item.gates), "depends_on": list(item.depends_on),
+        "obligations": None if contract is None else [
+            [o.id, o.statement.name, repr(o.verifier)] for o in contract.obligations],
+        "artifacts": None if contract is None else list(contract.artifacts),
+        "evidence": None if contract is None else list(contract.evidence),
+    }
+    return "sha256:" + hashlib.sha256(prose + b"\x00" + jcs(fixed)).hexdigest()
 
 
 # -- partition lint (§13.7) --------------------------------------------------------------------------

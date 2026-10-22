@@ -39,6 +39,8 @@ DISCHARGED, DISCHARGED_PROVISIONAL, OPEN, REFUSED = "DISCHARGED", "DISCHARGED_PR
 #: The judgment kind that answers each judgment obligation kind (§10.3).
 ANSWER_KIND = {"ACCEPT": "ACCEPTANCE", "GATE": "GATE_DECISION", "PLAN_ACCEPT": "PLAN_ACCEPTANCE",
                "ADJUDICATE": "ADJUDICATION", "SPEC_REVIEW": "REVIEW", "JOINT_INVARIANT": "REVIEW", "REVIEW": "REVIEW"}
+#: Item obligation kinds (§10.2): an accepted, issuable item of that kind with a contract.
+ITEM_KINDS = frozenset({"IMPLEMENT", "REPAIR", "MIGRATE", "AUTHOR", "DOCUMENT", "INVESTIGATE"})
 #: Obligation kinds answered by a judgment, which wait on an eligible judge (§10.3).
 JUDGED = frozenset(ANSWER_KIND) | {REVISING_REVIEW, "ADJUDICATE_DISAGREEMENT", "REVALIDATE"}
 #: Subject kinds that owe no ACCEPT(s): plans (PLAN_ACCEPT, §11.2) and the system units (§1.8).
@@ -167,6 +169,9 @@ class Workflow:
         found += self._disagreement_obligations()
         found += self._spec_and_invariant_obligations()
         found += self._review_obligations()
+        for item in self.items.all:
+            found.append(item.obligation)
+            found.extend(item.route.decisions)
         found += self._revalidations(found)
         unique = {o.id: o for o in found}
         return tuple(sorted(unique.values()))
@@ -279,6 +284,14 @@ class Workflow:
         return [k for k in range(self.s.n, 0, -1)
                 if unit in h.view(k).structure.units and (unit not in h.view(k - 1).structure.units
                                                            or h.view(k - 1).rev(unit) != h.view(k).rev(unit))]
+
+    # -- item obligations (§10.4) --------------------------------------------------------------------
+
+    @cached_property
+    def items(self) -> Any:
+        from .items import Items
+
+        return Items(self)
 
     # -- conformance and REVIEW(X) (§11.5, §14) ------------------------------------------------------
 
@@ -480,6 +493,9 @@ class Workflow:
         target (in its run) satisfies the predicate, whatever the order of admission; ``REFUSED`` when it is
         answered and a standing, unrelieved adverse judgment of its kind is in its reach; otherwise ``OPEN``."""
 
+        if o.kind in ITEM_KINDS:
+            item = self.items.of(o.id)
+            return item.discharge() if item is not None else OPEN
         if o.kind not in ANSWER_KIND:
             return OPEN
         support = self._support_for(o)
@@ -511,6 +527,9 @@ class Workflow:
     # -- readiness (§10.3) ----------------------------------------------------------------------
 
     def readiness(self, o: Obligation) -> Readiness:
+        if o.kind in ITEM_KINDS:
+            item = self.items.of(o.id)
+            return item.readiness() if item is not None else Readiness(WAITING, ("not derived",))
         if o.kind in ANSWER_KIND and self.answer(o) is not None:
             return Readiness(ANSWERED)
         waiting: list[str] = []
