@@ -11,6 +11,7 @@ from .python import (
     Definition,
     ImportFacts,
     TestFacts,
+    UnitFacts,
     declared_requirements,
     imports,
     is_test_file,
@@ -20,7 +21,10 @@ from .python import (
     requirement_name,
     stubs,
     test_facts,
+    unit_comments,
+    unit_facts,
 )
+from .units import dimension
 
 #: Analyzer identity per file extension in the system ruleset's analyzer set.
 ANALYZER_SET = {".py": python.ANALYZER_ID}
@@ -44,5 +48,5 @@ def resolve_symbol(path: str, data: bytes, symbol: str) -> tuple[int, int] | Non
 __all__ = [
     "ANALYZER_SET", "Definition", "ImportFacts", "TestFacts", "analyzer_for", "declared_requirements", "imports",
     "is_test_file", "module_names", "parses", "public_interface", "python", "requirement_name", "resolve_symbol",
-    "stubs", "test_facts",
+    "stubs", "test_facts", "UnitFacts", "dimension", "unit_comments", "unit_facts",
 ]

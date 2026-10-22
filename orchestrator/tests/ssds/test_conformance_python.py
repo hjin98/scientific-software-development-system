@@ -27,13 +27,13 @@ class TestSolver(unittest.TestCase):
 
 
 def classes_of(template: str, files: dict[str, str], params: str = "", base: dict[str, str] | None = None,
-               outcome: str = "PARTIAL") -> set[str]:
+               outcome: str = "PARTIAL", slots: dict | None = None) -> set[str]:
     check = f'{{ check = "{template}"{", params = " + params if params else ""} }}'
     secondary = f'[ {{ check = "BOUNDARY.write_scope" }}, {{ check = "TEST_INTEGRITY.evidence_specs_untouched" }}, {check} ]'
     sc = accepted_plan(item_block(secondary=secondary))
     if base:
         sc.absorb(base)  # the plan is unchanged, so its acceptance stays current
-    _, cand, result = submit(sc, files, outcome=outcome)
+    _, cand, result = submit(sc, files, outcome=outcome, slots=slots)
     realize(sc, cand)
     c = conformance(sc, result)[1]
     return {h.cls for h in c.hits if h.template == template}

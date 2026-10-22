@@ -9,8 +9,11 @@ incomplete.
 from __future__ import annotations
 
 import ast
+import re as _re
 import warnings
 from dataclasses import dataclass
+
+from . import units as _units
 
 ANALYZER_ID = "ssds.analyzer.python/1"
 LANGUAGE = "python"
@@ -342,3 +345,153 @@ def declared_requirements(path: str, data: bytes) -> frozenset[str] | None:
             found.extend(r for r in group if isinstance(r, str))
         return frozenset(requirement_name(r) for r in found if isinstance(r, str))
     return None
+
+
+# -- unit annotations and dimensional consistency (catalogue §14.5) ---------------------------------------
+#
+# Two annotation forms: ``typing.Annotated[<type>, Unit("<expr>")]`` on an assignment target or a parameter,
+# and the comment form ``ssds:unit <name> = <expr>``. The analysis is complete for annotated names only: it
+# checks every addition, subtraction, comparison and assignment among them, where both sides' dimensions are
+# known (a literal or an unannotated name is unknown and compatible). Its markers are unanalyzable unit
+# expressions; unannotated quantities are left to the HEURISTIC template.
+
+_UNIT_COMMENT = _re.compile(r"#\s*ssds:unit\s+([A-Za-z_][\w.]*)\s*=\s*(\S+)")
+_QUANTITY_SUFFIX = _re.compile(r"_(?:m|mm|cm|km|s|ms|us|ns|kg|g|K|mol|Pa|kPa|J|N|W|Hz|V|A|eV|m2|m3|mps|m_s)$")
+
+
+def _unit_of(annotation: ast.expr | None) -> str | None:
+    """The expression of ``Annotated[<type>, Unit("<expr>")]``, or None."""
+
+    if not isinstance(annotation, ast.Subscript):
+        return None
+    base = annotation.value
+    if not ((isinstance(base, ast.Name) and base.id == "Annotated") or (isinstance(base, ast.Attribute) and base.attr == "Annotated")):
+        return None
+    elements = annotation.slice.elts if isinstance(annotation.slice, ast.Tuple) else [annotation.slice]
+    for element in elements[1:]:
+        if isinstance(element, ast.Call) and _names_in(element.func) & {"Unit"} and element.args and \
+                isinstance(element.args[0], ast.Constant) and isinstance(element.args[0].value, str):
+            return element.args[0].value
+    return None
+
+
+@dataclass(frozen=True)
+class UnitFacts:
+    declared: tuple[tuple[str, str], ...]  # (name, expression) of every annotation found
+    unanalyzable: tuple[str, ...]  # expressions outside the analyzer's UCUM subset
+    problems: tuple[str, ...]  # dimensional inconsistencies among annotated names, without line numbers
+    unannotated: tuple[str, ...]  # quantity-named targets carrying no unit (for the HEURISTIC template)
+
+
+def unit_facts(data: bytes) -> UnitFacts | None:
+    tree = _parse(data)
+    if tree is None:
+        return None
+    declared: list[tuple[str, str]] = []
+    comments = {m.group(1): m.group(2) for m in _UNIT_COMMENT.finditer(data.decode("utf-8", "replace"))}
+    declared.extend(sorted(comments.items()))
+    unanalyzable: set[str] = set()
+    problems: set[str] = set()
+    unannotated: set[str] = set()
+
+    def resolve(expression: str) -> "_units.Dimension | None":
+        dim = _units.dimension(expression)
+        if dim is None:
+            unanalyzable.add(expression)
+        return dim
+
+    def collect(body: list[ast.stmt], scope: dict[str, "_units.Dimension"]) -> None:
+        for node in body:
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                expression = _unit_of(node.annotation)
+                if expression is not None:
+                    declared.append((node.target.id, expression))
+                    dim = resolve(expression)
+                    if dim is not None:
+                        scope[node.target.id] = dim
+
+    module_scope: dict[str, _units.Dimension] = {}
+    for name, expression in comments.items():
+        dim = resolve(expression)
+        if dim is not None:
+            module_scope[name] = dim
+    collect(tree.body, module_scope)
+
+    def dim_of(node: ast.expr, scope: dict[str, "_units.Dimension"]) -> "_units.Dimension | None":
+        if isinstance(node, ast.Name):
+            return scope.get(node.id)
+        if isinstance(node, ast.UnaryOp):
+            return dim_of(node.operand, scope)
+        if isinstance(node, ast.BinOp):
+            left, right = dim_of(node.left, scope), dim_of(node.right, scope)
+            if isinstance(node.op, (ast.Add, ast.Sub)):
+                if left is not None and right is not None and left != right:
+                    problems.add(f"{ast.unparse(node)}: adds {_units.show(left)} and {_units.show(right)}")
+                return left if left is not None else right
+            if isinstance(node.op, (ast.Mult, ast.Div)) and left is not None and right is not None:
+                return tuple(a + (b if isinstance(node.op, ast.Mult) else -b) for a, b in zip(left, right))  # type: ignore[return-value]
+            if isinstance(node.op, ast.Pow) and left is not None and isinstance(node.right, ast.Constant) and \
+                    isinstance(node.right.value, int):
+                return tuple(a * node.right.value for a in left)  # type: ignore[return-value]
+            return None
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ("abs", "min", "max"):
+            dims = {dim_of(a, scope) for a in node.args}
+            known = {d for d in dims if d is not None}
+            if len(known) > 1:
+                problems.add(f"{ast.unparse(node)}: mixes {', '.join(sorted(_units.show(d) for d in known))}")
+            return known.pop() if len(known) == 1 and None not in dims else None
+        return None
+
+    def check(body: list[ast.stmt], scope: dict[str, "_units.Dimension"]) -> None:
+        for node in body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                inner = dict(scope)
+                for arg in node.args.posonlyargs + node.args.args + node.args.kwonlyargs:
+                    expression = _unit_of(arg.annotation)
+                    if expression is not None:
+                        declared.append((f"{node.name}.{arg.arg}", expression))
+                        dim = resolve(expression)
+                        if dim is not None:
+                            inner[arg.arg] = dim
+                    elif arg.arg in inner:
+                        inner.pop(arg.arg)
+                collect(node.body, inner)
+                check(node.body, inner)
+                continue
+            if isinstance(node, ast.ClassDef):
+                check(node.body, scope)
+                continue
+            for inner_node in ast.walk(node) if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) else ():
+                if isinstance(inner_node, ast.expr) and isinstance(inner_node, (ast.BinOp, ast.Call)):
+                    dim_of(inner_node, scope)
+                if isinstance(inner_node, ast.Compare):
+                    dims = [dim_of(inner_node.left, scope)] + [dim_of(c, scope) for c in inner_node.comparators]
+                    known = {d for d in dims if d is not None}
+                    if len(known) > 1:
+                        problems.add(f"{ast.unparse(inner_node)}: compares {', '.join(sorted(_units.show(d) for d in known))}")
+            targets: list[ast.expr] = []
+            value = None
+            if isinstance(node, ast.Assign):
+                targets, value = node.targets, node.value
+            elif isinstance(node, (ast.AnnAssign, ast.AugAssign)) and node.value is not None:
+                targets, value = [node.target], node.value
+            for target in targets:
+                if isinstance(target, ast.Name):
+                    if target.id in scope and value is not None:
+                        got = dim_of(value, scope)
+                        if got is not None and got != scope[target.id] and not (
+                                isinstance(node, ast.AugAssign) and isinstance(node.op, (ast.Mult, ast.Div))):
+                            problems.add(f"{target.id} = {ast.unparse(value)}: assigns {_units.show(got)} to "
+                                         f"{_units.show(scope[target.id])}")
+                    elif _QUANTITY_SUFFIX.search(target.id) and not (isinstance(node, ast.AnnAssign) and _unit_of(node.annotation)):
+                        unannotated.add(target.id)
+
+    check(tree.body, module_scope)
+    return UnitFacts(tuple(sorted(set(declared))), tuple(sorted(unanalyzable)), tuple(sorted(problems)),
+                     tuple(sorted(unannotated)))
+
+
+def unit_comments(data: bytes) -> tuple[tuple[str, str], ...]:
+    """``ssds:unit`` comment declarations in any file with a ``#`` comment leader."""
+
+    return tuple(sorted((m.group(1), m.group(2)) for m in _UNIT_COMMENT.finditer(data.decode("utf-8", "replace"))))

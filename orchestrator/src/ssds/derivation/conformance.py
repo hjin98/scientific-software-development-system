@@ -561,6 +561,76 @@ class Conformance:
                     break
         return findings
 
+    # -- DOMAIN (§14.3, §14.5; class INCOMPLETE, reading E25) ------------------------------------------
+
+    def _unit_changes(self) -> tuple[list[tuple[str, Any, Any]], list[str]]:
+        """(path, base unit facts, candidate unit facts) for changed Python files, and findings for files the
+        pinned analyzers cannot read or that declare units in a language they do not cover."""
+
+        out, findings = [], []
+        for path, (before, after) in self.changed_files.items():
+            if after is None:
+                continue
+            if not path.endswith(".py"):
+                if py.unit_comments(after):
+                    findings.append(f"{path} declares units in a language the pinned analyzers do not cover")
+                continue
+            facts_after = py.unit_facts(after)
+            if facts_after is None:
+                findings.append(f"{path} cannot be analyzed")
+                continue
+            facts_before = py.unit_facts(before) if before is not None else None
+            out.append((path, facts_before, facts_after))
+        return out, findings
+
+    def _t_domain_dimensional_consistency(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        """Dimensional consistency of annotated quantities the candidate introduces (reading E29)."""
+
+        changes, findings = self._unit_changes()
+        for path, before, after in changes:
+            old_problems = set(before.problems) if before else set()
+            old_unanalyzable = set(before.unanalyzable) if before else set()
+            findings += [f"{path}: {p}" for p in after.problems if p not in old_problems]
+            findings += [f"{path}: unit expression {e!r} is outside the analyzer's UCUM subset"
+                         for e in after.unanalyzable if e not in old_unanalyzable]
+        return findings
+
+    def _t_domain_tolerance_declared(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        """A numerical claim in annotated units carries its tolerance and precision (reading E29)."""
+
+        findings = []
+        for claim in self.slots.get("claims") or []:
+            if isinstance(claim, dict) and "unit" in claim:
+                missing = [k for k in ("tolerance", "precision") if k not in claim]
+                if missing:
+                    findings.append(f"claim {str(claim.get('claim', ''))[:40]!r} in {claim['unit']} lacks {', '.join(missing)}")
+                elif py.dimension(str(claim["unit"])) is None:
+                    findings.append(f"claim unit {claim['unit']!r} is outside the analyzer's UCUM subset")
+        return findings
+
+    def _t_domain_layer_direction(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        """Declared references respect layer order: no layer-ascending relation the candidate introduces."""
+
+        from .history import manifest_decl
+        from .s0 import StructureFacts
+
+        if self.base_view is None or self.candidate_view is None:
+            return []
+
+        def ascending(view: TreeView) -> set[tuple[str, str]]:
+            facts = StructureFacts(view, manifest_decl(view))
+            return {(d.unit, d.detail) for d in facts.defects if d.code == "RELATION_LAYER"}
+
+        return [f"{unit}: {detail}" for unit, detail in sorted(ascending(self.candidate_view) - ascending(self.base_view))]
+
+    def _t_domain_unit_inference(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        changes, _ = self._unit_changes()
+        findings = []
+        for path, before, after in changes:
+            old = set(before.unannotated) if before else set()
+            findings += [f"{path}: {name} looks like a quantity but carries no unit" for name in after.unannotated if name not in old]
+        return findings
+
     # -- HEURISTIC signals over the result's own text ----------------------------------------------
 
     def _strings(self) -> list[str]:
