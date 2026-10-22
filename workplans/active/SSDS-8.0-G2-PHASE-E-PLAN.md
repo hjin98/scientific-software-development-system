@@ -28,8 +28,10 @@ SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNE
 DONE SO FAR: §3 step 1 (the F8 sensor follows Python's binding and evaluation order: NF8 and its
              definition-time siblings); step 2 (plans, items and contracts in `content.plan`; the
              `[workflow]` policy keys in `derivation.Policy`); step 3a (revision runs and
-             revision-assessment records, `derivation.runs`).
-NEXT ACTION: §3 step 3b (plan facts and lint), then 3c (obligations, readiness, discharge).
+             revision-assessment records, `derivation.runs`); step 3b (lint, the plan invariants,
+             control tightening and partition lint, `derivation.plans`; the check library's catalogue,
+             `derivation.library`).
+NEXT ACTION: §3 step 3c (obligations, readiness, discharge).
 ```
 
 ## 1. Scope and authority
@@ -106,6 +108,9 @@ Where the Manual and catalogue leave a choice to D4 or name a later owner, Phase
 - **E17** *Governing entries.* The catalogue's example `"numerics.solver@rev:…"` elides the revision; an entry is read as `<unit>@sha256:<revision>`, the unit's revision digest (§1.5).
 - **E18** *Scoped review.* §11.4 lets a plan's policy section allow scoped review of an R2 amendment, but the catalogue gives that section no form. Until it has one, every R2 amendment needs whole-plan review, the stricter reading.
 - **E19** *The run a record names.* Catalogue §10.2 has machinery fill a passing acceptance's, gate decision's and assessment entry's run and Admission check it; the ledger's closed schema has no such field. The run is a function of the record's declared frame and admission position (`rid` in `D_p[X]` or `D_p`), so derivation computes it. A passing acceptance or gate decision on a `NATIVE` D1/D2 subject without a `standing` entry on a revision-assessment record for its revision in the run is refused by Admission (§8.3 step 7) and, in the meantime, is not current (fail closed). A second integration of one enactment, which Admission refuses, is its own event and so a new run. Gate eligibility filters by run as §5.5 `elig` states.
+- **E20** *Runner classes.* Lint checks that an evidence verifier names an existing evidence specification and a runner class; whether that class is designated (§17.5) is checked once runner designation exists (Phase F).
+- **E21** *Layer direction and required gates.* An item's layer is its authority domain for an `AUTHOR` item (D1 above D2 above D3) and D4 for implementer kinds; an item depends only on items of its own or a higher layer, and an `INVESTIGATE` item is layer-free. The gates "policy requires for the item kinds and domains" (§11.3) are the policy's gates of the item's authority domain for an `AUTHOR` item, else of every D1-D4 domain whose units its write scope meets.
+- **E22** *Slot triggers and coverage.* §13.5's triggers that turn on a judgment about the work (`null_envelope`, `variant_search`, `tension_search`, `choices`, `retention`, `delegate_returns`) are required whenever `scientific = APPLIES`, the 7.2.1 scientific-checks predicate, since a slot may hold `NONE` with an enumerated reason; `findings` under `APPLIES` and for every investigator; `o1_content` for a scientific `AUTHOR` item; `revision_assessments` for an `AUTHOR` item of D1 or D2. §13.3's "`ACCEPT` obligation at the domain's class" for an `AUTHOR` item is the §10.2 `ACCEPT(s)` derived for its subject, not a contract obligation, so lint checks the `REVIEW` obligation only.
 - **E15** *Lifecycle replay at the real owner.* The G2 lifecycle property check enumerates every answer chain up to length 4 (14,508 chains, properties P1-P7 stated from the Manual). Phase E replays the full enumeration through the real derivation if one run finishes within the repository suite's budget; otherwise the suite runs a seeded, stratified sample covering every condition and chain length, and the full enumeration runs as a named slow check before the Phase E Review, its result recorded.
 
 ## 6. Fail closed until a later owner

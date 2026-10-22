@@ -182,6 +182,8 @@ class Support:
         current = self.s.cur(unit)
         if current == rev:
             return T
+        if cls == "PLAN_CONTROL" and self.s.plans.tightens_to_current(unit, rev):
+            return T  # the one rule-defined coverage order: control tightening (§4.4, §13.4)
         best = {rev: T}
         frontier = [rev]
         while frontier:  # widest (max-min) path, visiting no revision twice along a path

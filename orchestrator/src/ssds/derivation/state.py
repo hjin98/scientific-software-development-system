@@ -296,6 +296,14 @@ class State:
         return True
 
     @cached_property
+    def plans(self) -> Any:
+        """Plans, lint and amendment classes in this state (§11, §13)."""
+
+        from .plans import PlanFacts
+
+        return PlanFacts(self)
+
+    @cached_property
     def runs(self) -> Any:
         """The revision runs of this state (§10.2)."""
 

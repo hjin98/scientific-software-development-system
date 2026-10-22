@@ -38,7 +38,7 @@ SLOTS = frozenset(
 )
 REVIEW = "REVIEW"
 _TOKEN = re.compile(r"^[A-Z][A-Z0-9_]{0,62}$")
-_TEMPLATE = re.compile(r"^[A-Z][A-Z_]*\.[a-z][a-z_]*$")
+_TEMPLATE = re.compile(r"^[A-Z][A-Z_]*\.[A-Za-z][A-Za-z_]*$")
 _REVISION = re.compile(r"^sha256:[0-9a-f]{64}$")
 _ITEM_KEYS = frozenset(
     {"item", "kind", "authority", "specialist", "objective", "governing", "acceptance_criteria", "affected", "gates",
