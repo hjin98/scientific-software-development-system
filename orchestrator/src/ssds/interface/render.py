@@ -834,8 +834,9 @@ def _candidate_diff(conformance: Any, record: dict[str, Any]) -> str:
         if old is not None and new is not None and old.mode == new.mode and old.data == new.data:
             continue
         kind = "added" if old is None else "removed" if new is None else "changed"
-        mode = "" if old is None or new is None or old.mode == new.mode else f"; mode {old.mode} -> {new.mode}"
-        lines.append(f"\n### {path}: {kind}{mode}")
+        endpoints = f"{_entry(old)} -> {_entry(new)}"  # existence, type and mode of both ends (§1.5)
+        mode = "" if old is not None and new is not None and old.mode == new.mode else f"; mode {old.mode if old else 'absent'} -> {new.mode if new else 'absent'}"
+        lines.append(f"\n### {path}: {kind} ({endpoints}){mode}")
         before = old.data if old is not None else b""
         after = new.data if new is not None else b""
         try:
@@ -848,8 +849,14 @@ def _candidate_diff(conformance: Any, record: dict[str, Any]) -> str:
         if len(diff) > DIFF_LINES:
             lines.append(f"{len(diff)} diff lines, not inlined: {_identity(before)} -> {_identity(after)}")
         else:
-            lines.append("```diff\n" + "".join(d if d.endswith("\n") else d + "\n" for d in diff) + "```")
+            # a line with no final newline keeps git's marker, so the patch reconstructs the bytes it shows
+            lines.append("```diff\n" + "".join(d if d.endswith("\n") else d + "\n\\ No newline at end of file\n"
+                                               for d in diff) + "```")
     return "\n".join(lines) if len(lines) > 1 else lines[0] + "\nno file changed"
+
+
+def _entry(entry: Any) -> str:
+    return "absent" if entry is None else f"{entry.type} {entry.mode}"
 
 
 def _identity(data: bytes) -> str:

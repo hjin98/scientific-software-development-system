@@ -239,8 +239,14 @@ class ItemObligation:
 
     @property
     def subjects(self) -> frozenset[str]:
+        """The subjects its integrated enactments changed (§10.4); for a partitioned item, also every required
+        part's, since the parts' work is the item's (§13.7; re-Review of b791215, E-B1)."""
+
         structure = self.s.view.structure
-        return frozenset(s for s in (structure.subj(u) for u in self.outputs) if s)
+        own = frozenset(s for s in (structure.subj(u) for u in self.outputs) if s)
+        if self.share is None and self.partition is not None:
+            own = own.union(*(part.subjects for part in self.parts))
+        return own
 
     # -- reviews of an enactment and the pending candidate ------------------------------------------
 
@@ -504,6 +510,8 @@ class ItemObligation:
     def discharge(self) -> str:
         from .workflow import DISCHARGED, DISCHARGED_PROVISIONAL, OPEN
 
+        if self.share is None and self.partition is not None and any(p.discharge() == OPEN for p in self.parts):
+            return OPEN  # discharged only when every required part is (§13.7), each under its own permission
         if self.predicate == T:
             return DISCHARGED
         if self.predicate == P and self.w.provisional_scope(self.item.kind, tuple(sorted(self.subjects)), (self.unit,)):

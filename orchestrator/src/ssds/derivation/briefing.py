@@ -141,23 +141,39 @@ class Briefing:
         amendment or partition the work was done under (Phase E review of 09f3505 B3)."""
 
         w, s = self.w, self.s
+        keyed: dict[str, list[str]] = {}  # an item's work key -> the results its parts' tasks submitted under it
+        for result in s.of_kind("TASK_RESULT"):
+            key = (s.record(result).get("binding") or {}).get("item_key")
+            if key:
+                keyed.setdefault(key, []).append(result)
         out = []
         for rid in s.of_kind("REVIEW"):
             record = s.record(rid)
-            x = record["target"].get("transformation") if isinstance(record["target"], dict) else None
-            if record["outcome"] != "NO_PASS" or x is None or x == asked.target.get("transformation"):
+            target = record["target"] if isinstance(record["target"], dict) else {}
+            if record["outcome"] != "NO_PASS" or target == asked.target:
                 continue
-            result = w.submitting_result(x)
-            named = (s.record(result).get("binding") or {}).get("item") if result else None
-            if not isinstance(named, dict):
+            if "transformation" in target:
+                results = [w.submitting_result(target["transformation"])]
+            elif target.get("integrated") == "ITEM":  # an item-level review: the work its parts did (re-Review E-B2)
+                results = keyed.get(target.get("of"), [])
+            else:
                 continue
-            unit = named.get("unit")
-            then = s.h.view(s.position_of(result))
-            if not any(v.structure.subj(unit) == plan for v in (then, s.view) if unit in v.structure.units):
+            if not any(self._of_plan(result, plan) for result in results if result):
                 continue
             if not self._resolved(rid):
                 out.append((rid, w.items.findings_of(rid)))
         return out
+
+    def _of_plan(self, result: str, plan: str) -> bool:
+        """The item a result was bound to belonged to ``plan`` when the result was admitted, or does now."""
+
+        s = self.s
+        named = (s.record(result).get("binding") or {}).get("item")
+        if not isinstance(named, dict):
+            return False
+        unit = named.get("unit")
+        then = s.h.view(s.position_of(result))
+        return any(v.structure.subj(unit) == plan for v in (then, s.view) if unit in v.structure.units)
 
     def _resolved(self, review: str) -> bool:
         """A later independent, acting, unvetoed review records the earlier review's findings ``RESOLVED`` (a
@@ -274,8 +290,9 @@ class Briefing:
                 and f"disagreement:{rid}" not in floors]
 
     def qualified_gates(self) -> list[dict[str, Any]]:
-        """Every eligible, current, unsuperseded ``QUALIFIED`` gate ``ACCEPT``: an inspector entry in each state
-        where it is eligible, naming its qualifying records, until superseded (§16.8; Phase E review B6)."""
+        """Every eligible, unsuperseded ``QUALIFIED`` gate ``ACCEPT``, current or not: an inspector entry in each
+        state where it is eligible, naming its qualifying records and its currency, until superseded (§16.8;
+        eligibility is §5.5's ``elig``, distinct from currency; Phase E Review B6, re-Review E-B4)."""
 
         s, d = self.s, self.d
         structure = s.view.structure
@@ -286,9 +303,10 @@ class Briefing:
             for gate in s.policy.get(structure.domain(subject), "gates"):
                 for rid in d.eligible_gate_decisions(subject, gate):
                     record = s.record(rid)
-                    if record["outcome"] == "ACCEPT" and record["fields"].get("qualification") == "QUALIFIED" \
-                            and d.current(rid) > F:
+                    if record["outcome"] == "ACCEPT" and record["fields"].get("qualification") == "QUALIFIED":
+                        current = d.current(rid)
                         out.append({"record": rid, "subject": subject, "gate": gate, "actor": record["actor"],
+                                    "current": {F: "F", 1: "P", 2: "T"}[current],
                                     "position": s.position_of(rid), "adequacy": record["fields"].get("adequacy"),
                                     "qualifying": list(record["fields"].get("qualifying") or []),
                                     "basis": record["basis"]})
