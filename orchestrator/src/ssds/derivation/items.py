@@ -257,7 +257,8 @@ class ItemObligation:
         if self.share is not None and self.whole._objections_naming(self.share[1]):
             return F  # an adverse item-level review naming this part is a standing adverse review of it (§13.7)
         value = max((self.d.current(r) for r in self.reviews(latest.transformation)
-                     if self.s.record(r)["outcome"] == "PASS" and not self.d.j.nonind(r)), default=F)
+                     if self.s.record(r)["outcome"] == "PASS" and not self.d.j.nonind(r)
+                     and self.w.covers_outputs(r, latest.transformation)), default=F)
         for subject in self.subjects:
             status = self.s.status1(triple_key(*self.s.subject_triple(subject)))
             if status in ("REVOKED", "BLOCKED"):

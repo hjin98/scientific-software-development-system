@@ -27,7 +27,7 @@ class TestSolver(unittest.TestCase):
 
 
 def classes_of(template: str, files: dict[str, str], params: str = "", base: dict[str, str] | None = None,
-               outcome: str = "PARTIAL", slots: dict | None = None) -> set[str]:
+               outcome: str = "PARTIAL", slots: dict | None = None, named_only: bool = False) -> set[str]:
     check = f'{{ check = "{template}"{", params = " + params if params else ""} }}'
     secondary = f'[ {{ check = "BOUNDARY.write_scope" }}, {{ check = "TEST_INTEGRITY.evidence_specs_untouched" }}, {check} ]'
     sc = accepted_plan(item_block(secondary=secondary))
@@ -36,7 +36,8 @@ def classes_of(template: str, files: dict[str, str], params: str = "", base: dic
     _, cand, result = submit(sc, files, outcome=outcome, slots=slots)
     realize(sc, cand)
     c = conformance(sc, result)[1]
-    return {h.cls for h in c.hits if h.template == template}
+    found = {h.cls for h in c.hits if h.template == template and (not named_only or h.obligation != "*")}
+    return found - {CLEAN} if found - {CLEAN} else found  # a template may run by name and as a family minimum
 
 
 class TestIntegrity(unittest.TestCase):
@@ -61,7 +62,9 @@ class TestIntegrity(unittest.TestCase):
     def test_selectors_restrict_the_check(self) -> None:
         skipped = TEST_FILE.replace("    def test_io(self):", "    @unittest.skip('later')\n    def test_io(self):")
         self.assertEqual(classes_of("TEST_INTEGRITY.no_skips", {"src/test_solver.py": skipped}, '{ selectors = ["other/"] }',
-                                    base=self.base), {CLEAN})
+                                    base=self.base, named_only=True), {CLEAN}, "the named check reads only its selectors")
+        self.assertEqual(classes_of("TEST_INTEGRITY.no_skips", {"src/test_solver.py": skipped}, '{ selectors = ["other/"] }',
+                                    base=self.base), {VIOLATION}, "the family minimum on a D4 item reads every test (§13.3)")
 
     def test_fewer_assertions_and_widened_tolerance_only_signal(self) -> None:
         fewer = TEST_FILE.replace("        self.assertEqual(solver.step(), 1)\n", "")

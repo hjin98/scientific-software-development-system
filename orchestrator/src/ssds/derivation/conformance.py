@@ -49,8 +49,12 @@ FAMILY_CLASS = {"BOUNDARY": VIOLATION, "TEST_INTEGRITY": VIOLATION, "OBLIGATION"
                 "FAITHFULNESS": DISCREPANCY, "DOMAIN": INCOMPLETE}
 RESULT_LEVEL = ("OBLIGATION.slots_filled", "FAITHFULNESS.outcome_consistent", "FAITHFULNESS.deviations_declared",
                 "FAITHFULNESS.citations_support", "FAITHFULNESS.governing_at_basis")
+#: The contract's boundaries, checked on every candidate (§13.1, §14.3; reading E26).
 CANDIDATE_LEVEL = ("BOUNDARY.write_scope", "BOUNDARY.protected_surfaces", "BOUNDARY.generated_untouched",
+                   "BOUNDARY.frozen_interface", "BOUNDARY.dependency_allowance", "BOUNDARY.credential_values",
                    "TEST_INTEGRITY.evidence_specs_untouched")
+#: Every HARD test-integrity template, on every candidate of an item writing D4 or evidence-specification units (§13.3).
+TEST_LEVEL = ("TEST_INTEGRITY.no_deletions", "TEST_INTEGRITY.no_skips", "TEST_INTEGRITY.no_xfail")
 SIGNALS = tuple(sorted(name for name, t in TEMPLATES.items() if t.force == HEURISTIC))
 #: Templates a designated runner executes on the exact candidate (§14.1, §14.5).
 RUNNER = frozenset({"OBLIGATION.mutation_strength"})
@@ -71,7 +75,14 @@ _CREDENTIALS = (
 _TOKEN = re.compile(r"[A-Za-z0-9+/=_-]{32,}")
 #: Dependency manifests of languages this ruleset does not analyze: a change to one cannot be checked here.
 _OTHER_MANIFESTS = ("package.json", "Cargo.toml", "go.mod", "environment.yml", "environment.yaml", "Gemfile",
-                    "pom.xml", "build.gradle", "setup.py", "setup.cfg", "Pipfile", "poetry.lock")
+                    "pom.xml", "build.gradle", "setup.py", "setup.cfg", "Pipfile", "poetry.lock", "CMakeLists.txt",
+                    "meson.build", "conanfile.txt", "vcpkg.json")
+#: Test-collection configuration: a change can hide tests from the run without touching a test file (B6).
+_COLLECTION = {"conftest.py": None, "pytest.ini": None, "tox.ini": "[pytest]", "setup.cfg": "[tool:pytest]",
+               "pyproject.toml": "[tool.pytest"}
+#: Source in languages the pinned analyzers do not cover: a stub or test there cannot be checked (reading E8).
+_CODE = (".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".f", ".f90", ".f95", ".rs", ".go", ".java", ".js", ".ts",
+         ".jl", ".m", ".r", ".R", ".cu", ".scala", ".kt", ".swift", ".cs", ".rb", ".php", ".sh")
 _NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?:e[+-]?\d+)?(?![\w.])", re.I)
 
 
@@ -82,6 +93,7 @@ class Hit:
     cls: str  # VIOLATION | INCOMPLETE | DISCREPANCY | SIGNAL | CLEAN
     finding: str
     observations: tuple[str, ...] = ()
+    units: tuple[str, ...] = ()  # the units a boundary or test-integrity breach touched
 
 
 def _filled(value: Any) -> bool:
@@ -137,17 +149,28 @@ class Conformance:
                                        obligations=tuple(o for o in contract.obligations if o.id in obligations))
                 return contract, found[1].parsed, ""
             return None, None, f"no contract at item revision {named['unit']}@{named['rev']}"
-        kind = self._bound_kind(binding.get("obligation"))
-        if kind is None:
+        if self.transformation:
+            return None, None, "a result submitting a candidate names its item's contract revision in its binding"
+        bound = self.w.binding_index().get(binding.get("obligation", ""))
+        if bound is None:
             return None, None, "the result names no contract and no derived obligation"
-        slots = SYSTEM_SLOTS.get(kind, JUDGMENT_SLOTS)
-        return Contract("NOT_APPLIES", 3, (), (), (), (), (), (), (), (), tuple(slots), ()), None, ""
+        slots = list(SYSTEM_SLOTS.get(bound.kind, JUDGMENT_SLOTS))
+        if bound.kind == "REVIEW" and self._scientific_review(bound):
+            slots.append("bidirectional")  # §13.6: a review of a scientific subject
+        budget = self.s.policy.flow("budget")
+        return Contract("NOT_APPLIES", budget, (), (), (), (), (), (), (), (), tuple(slots), ()), None, ""
 
-    def _bound_kind(self, obligation: str | None) -> str | None:
-        for o in self.w.obligations:
-            if o.id == obligation:
-                return o.kind
-        return None
+    def _scientific_review(self, bound: Any) -> bool:
+        """Whether a REVIEW(X) judges work under a contract with ``scientific = APPLIES``."""
+
+        x = bound.target.get("transformation") if isinstance(bound.target, dict) else None
+        result = self.w.submitting_result(x) if x else None
+        if result is None:
+            return False
+        named = (self.s.record(result).get("binding") or {}).get("item")
+        found = self.s.plans.item_at(named["unit"], named["rev"]) if isinstance(named, dict) else None
+        return bool(found and isinstance(found[1].parsed, Item) and found[1].parsed.contract is not None
+                    and found[1].parsed.contract.scientific == "APPLIES")
 
     @cached_property
     def base_view(self) -> TreeView | None:
@@ -188,9 +211,21 @@ class Conformance:
         if contract is None:
             return (Hit(WHOLE, "OBLIGATION.slots_filled", INCOMPLETE, problem),)
         hits: list[Hit] = []
+        if self.transformation and (self.frame is None or not self.frame.exists):
+            # §14.1: conformance is evaluated in the candidate's frame; with none, nothing about it holds (B4)
+            hits.append(Hit(WHOLE, "BOUNDARY.write_scope", INCOMPLETE, "the candidate's frame does not exist"))
+            hits.extend(self._evaluate(WHOLE, Check(RESULT_LEVEL[0]), contract, item))
+            return tuple(sorted(set(hits)))
         if self.frame is not None:
             for template in CANDIDATE_LEVEL:
                 hits.extend(self._evaluate(WHOLE, Check(template), contract, item))
+            if self._writes_tests(contract):
+                for template in TEST_LEVEL:
+                    hits.extend(self._evaluate(WHOLE, Check(template), contract, item))
+            for artifact in contract.artifacts:
+                hits.extend(self._evaluate(WHOLE, Check("OBLIGATION.required_artifact", (("artifact", artifact),)), contract, item))
+            for spec in contract.evidence:
+                hits.extend(self._evaluate(WHOLE, Check("OBLIGATION.required_evidence", (("spec", spec),)), contract, item))
         for ob in contract.obligations:
             if ob.verifier == REVIEW:
                 pass
@@ -208,6 +243,17 @@ class Conformance:
             for template in SIGNALS:
                 hits.extend(self._evaluate(WHOLE, Check(template), contract, item))
         return tuple(sorted(set(hits)))
+
+    def _writes_tests(self, contract: Contract) -> bool:
+        """The item's write scope holds a D4 or evidence-specification unit (§13.3)."""
+
+        if self.candidate_view is None:
+            return False
+        scope, _ = resolve(self.candidate_view, contract.write_scope)
+        from .plans import units_in
+
+        kinds = {self.candidate_view.structure.kind(u) for u in units_in(self.candidate_view, scope)}
+        return bool(kinds & {"D4", "EVIDENCE_SPEC"})
 
     @cached_property
     def classes(self) -> frozenset[str]:
@@ -247,29 +293,47 @@ class Conformance:
         findings = method(params, contract, item)
         if not findings:
             return [Hit(obligation, template, CLEAN, "")]
-        return [Hit(obligation, template, failing, f) for f in findings]
+        out = []
+        for found in findings:
+            text, units = (found, ()) if isinstance(found, str) else found
+            out.append(Hit(obligation, template, failing, text, (), tuple(sorted(units))))
+        return out
+
+    def _current(self, rid: str) -> int:
+        """Currency of a record, in the candidate's frame when it declares that frame (§11.5)."""
+
+        if self.transformation and self.s.record(rid)["frame"] == {"transformation": self.transformation}:
+            framed = self.w._frame_support(self.transformation)
+            return framed.current(rid) if framed is not None else F
+        return self.d.current(rid)
+
+    def _observations(self, obligation: str, template: str) -> list[str]:
+        candidate = self.record["target"].get("candidate")
+        return [rid for rid in self.s.of_kind("CHECK_EXECUTION")
+                if (self.s.record(rid)["target"].get("candidate"), self.s.record(rid)["target"].get("obligation"),
+                    self.s.record(rid)["fields"].get("template")) == (candidate, obligation, template)
+                and self._current(rid) > F]
 
     def _observation(self, obligation: str, template: str) -> str | None:
-        candidate = self.record["target"].get("candidate")
-        found = None
-        for rid in self.s.of_kind("CHECK_EXECUTION"):
-            record = self.s.record(rid)
-            target = record["target"]
-            if (target.get("candidate"), target.get("obligation"), record["fields"].get("template")) == \
-                    (candidate, obligation, template) and self.d.current(rid) > F:
-                found = rid  # the latest observation of that check on that exact candidate
-        return found
+        found = self._observations(obligation, template)
+        return found[-1] if found else None
 
     def _observed(self, obligation: str, template: str, failing: str) -> Hit:
-        rid = self._observation(obligation, template)
-        if rid is None:
+        """Any current failing observation of the check on the exact candidate fails it; a re-run that passes
+        does not hide an earlier failure (B9). A HARD template never yields SIGNAL (§14.2)."""
+
+        found = self._observations(obligation, template)
+        if not found:
             return Hit(obligation, template, INCOMPLETE, "a required execution is missing for the exact candidate")
-        outcome = self.s.record(rid)["outcome"]
-        if outcome == "CLEAN":
-            return Hit(obligation, template, CLEAN, "", (rid,))
-        if outcome == "SIGNAL":
-            return Hit(obligation, template, SIGNAL, "the runner reported a signal", (rid,))
-        return Hit(obligation, template, failing, "the runner reported a failure", (rid,))
+        hard = TEMPLATES.get(template) is None or TEMPLATES[template].force != HEURISTIC
+        outcomes = {self.s.record(r)["outcome"] for r in found}
+        if "VIOLATION" in outcomes:
+            return Hit(obligation, template, failing, "the runner reported a failure", tuple(found))
+        if "SIGNAL" in outcomes:
+            if hard:
+                return Hit(obligation, template, INCOMPLETE, "a HARD check reported only a signal", tuple(found))
+            return Hit(obligation, template, SIGNAL, "the runner reported a signal", tuple(found))
+        return Hit(obligation, template, CLEAN, "", tuple(found))
 
     # -- BOUNDARY and the evidence-specification boundary -------------------------------------------
 
@@ -280,7 +344,7 @@ class Conformance:
             out[unit] = view.structure.kind(unit) if view is not None else None
         return out
 
-    def outside_scope(self, contract: Contract) -> list[str]:
+    def outside_scope(self, contract: Contract) -> list[str]:  # noqa: D401 - units of the write set
         """Units in the write set whose bytes lie outside the write scope: the detected boundary breaches."""
 
         if self.candidate_view is None:
@@ -293,20 +357,51 @@ class Conformance:
                 out.append(unit)
         return out
 
-    def _t_boundary_write_scope(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
-        findings = [f"{u} changed outside the write scope" for u in self.outside_scope(contract)]
+    def owners(self, path: str) -> tuple[str, ...]:
+        """The units whose region lies in ``path``, in the candidate or else the base; ``<path>`` when none."""
+
+        found: set[str] = set()
+        for view in (self.candidate_view, self.base_view):
+            if view is None:
+                continue
+            for uid, region in view.regions.items():
+                if region and any(span.path == path for span in region):
+                    found.add(uid)
+        return tuple(sorted(found)) or (f"<{path}>",)
+
+    def uncovered_outside(self, contract: Contract) -> list[str]:
+        """Changed files no unit owns, outside the write scope: a write the effect-keyed write set cannot see
+        when genesis declares no ``ssds.unclassified`` (§1.8). §12.3 limits a write to the write scope, so this
+        fails closed (step 4 review SC-1, put to the stakeholder)."""
+
+        if self.candidate_view is None:
+            return []
+        scope, _ = resolve(self.candidate_view, contract.write_scope)
+        out = []
+        for path in self.changed_files:
+            if self.owners(path) != (f"<{path}>",) or path == self.s.h.manifest_path:
+                continue
+            if not contained(self.candidate_view, [("file", path)], scope):
+                out.append(path)
+        return out
+
+    def _t_boundary_write_scope(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
+        findings: list[Any] = [(f"{u} changed outside the write scope", (u,)) for u in self.outside_scope(contract)]
+        findings += [(f"{p} (owned by no unit) changed outside the write scope", (f"<{p}>",)) for p in self.uncovered_outside(contract)]
         kinds = self._kinds()
         kind = item.kind if item is not None else None
         if kind in ("IMPLEMENT", "REPAIR", "MIGRATE", "DOCUMENT") or kind is None:
-            findings += [f"{u} is a {k} unit: only an AUTHOR item of that domain changes it" for u, k in sorted(kinds.items())
-                         if k in ("D1", "D2", "D3")]
+            findings += [(f"{u} is a {k} unit: only an AUTHOR item of that domain changes it", (u,))
+                         for u, k in sorted(kinds.items()) if k in ("D1", "D2", "D3")]
         elif kind == "AUTHOR":
             allowed = {item.authority, "MANIFEST", "EVIDENCE_RECORD"}
-            findings += [f"{u} is a {k} unit outside the AUTHOR {item.authority} domain" for u, k in sorted(kinds.items())
-                         if k not in allowed and u not in contract.evidence_specs]
+            findings += [(f"{u} is a {k} unit outside the AUTHOR {item.authority} domain", (u,))
+                         for u, k in sorted(kinds.items()) if k not in allowed and u not in contract.evidence_specs]
         return findings
 
-    def _t_boundary_protected_surfaces(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+    def _t_boundary_protected_surfaces(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
+        """Any touch of a protected surface (§25.3), by changed path as well as by unit (B8)."""
+
         if self.candidate_view is None:
             return []
         entries = list(self.s.policy.flow("protected_surfaces"))
@@ -314,14 +409,20 @@ class Conformance:
             entries.append("ssds.policy")
         protected, _ = resolve(self.candidate_view, entries)
         protected.append(("file", self.s.h.policy_path))
-        return [f"{u} is a protected surface" for u in sorted(self.writes)
-                if any(intersects(self.candidate_view, protected, a[1], a[2], a[3]) for a in self._region_atoms(u))]
+        findings: list[Any] = [(f"{u} is a protected surface", (u,)) for u in sorted(self.writes)
+                               if any(intersects(self.candidate_view, protected, a[1], a[2], a[3]) for a in self._region_atoms(u))]
+        for path, (before, after) in self.changed_files.items():
+            length = max(len(before or b""), len(after or b""))
+            if any(intersects(self.candidate_view, [atom], path, 0, max(length, 1)) for atom in protected
+                   if atom[0] in ("prefix", "file")):
+                findings.append((f"{path} is a protected surface", self.owners(path)))
+        return findings
 
-    def _t_boundary_generated_untouched(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
-        return [f"{u} is GENERATED and was edited by hand" for u, k in sorted(self._kinds().items()) if k == "GENERATED"]
+    def _t_boundary_generated_untouched(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
+        return [(f"{u} is GENERATED and was edited by hand", (u,)) for u, k in sorted(self._kinds().items()) if k == "GENERATED"]
 
-    def _t_test_integrity_evidence_specs_untouched(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
-        return [f"evidence specification {u} changed but is not named in evidence_specs"
+    def _t_test_integrity_evidence_specs_untouched(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
+        return [(f"evidence specification {u} changed but is not named in evidence_specs", (u,))
                 for u, k in sorted(self._kinds().items()) if k == "EVIDENCE_SPEC" and u not in contract.evidence_specs]
 
     # -- OBLIGATION ------------------------------------------------------------------------------
@@ -342,10 +443,12 @@ class Conformance:
             record = self.s.record(rid)
             if record["target"]["spec"]["unit"] != spec or (record["fields"].get("execution") or {}).get("tree") != candidate:
                 continue
+            if record["actor_class"] != "MACHINERY":
+                continue  # by a designated runner (§14.3, §17.5); an agent's own realization is never evidence (B10)
             realized = True
             for a in self.s.of_kind("EVIDENCE_ASSESSMENT"):
                 assessment = self.s.record(a)
-                if assessment["target"].get("realization") == rid and assessment["outcome"] == "PASS" and self.d.current(a) > F:
+                if assessment["target"].get("realization") == rid and assessment["outcome"] == "PASS" and self._current(a) > F:
                     return []
         if not realized:
             return [f"required evidence {spec} is not realized on the exact candidate"]
@@ -362,8 +465,12 @@ class Conformance:
             out.append(Hit(WHOLE, "FAITHFULNESS.outcome_consistent", DISCREPANCY, "COMPLETE with an unmet obligation"))
         else:
             out.append(Hit(WHOLE, "FAITHFULNESS.outcome_consistent", CLEAN, ""))
-        declared = {d.get("unit") for d in self.slots.get("deviations") or [] if isinstance(d, dict)}
+        deviations = self.slots.get("deviations")
+        declared = {d.get("unit") for d in deviations if isinstance(d, dict)} if isinstance(deviations, list) else set()
         detected = set(self.outside_scope(contract))
+        for hit in hits:
+            if hit.cls == VIOLATION and hit.template.split(".")[0] in ("BOUNDARY", "TEST_INTEGRITY"):
+                detected |= set(hit.units) or {f"<{hit.template}>"}
         problems = [f"undisclosed breach of {u}" for u in sorted(detected - declared)]
         problems += [f"declared deviation {u} was not detected" for u in sorted(declared - detected) if u]
         out += [Hit(WHOLE, "FAITHFULNESS.deviations_declared", DISCREPANCY, p) for p in problems] or \
@@ -419,6 +526,27 @@ class Conformance:
         selectors = params.get("selectors")
         return py.is_test_file(path) and (not selectors or any(path.startswith(sel) for sel in selectors))
 
+    def _test_surface_findings(self, params: dict) -> list[Any]:
+        """Changes the Python test analysis cannot judge: test-collection configuration, and test files in
+        languages the pinned analyzers do not cover (step 4 review B5, B6). Each fails closed."""
+
+        selectors = params.get("selectors")
+        findings: list[Any] = []
+        for path, (before, after) in self.changed_files.items():
+            if selectors and not any(path.startswith(sel) for sel in selectors):
+                continue
+            name = path.rsplit("/", 1)[-1]
+            if name in _COLLECTION:
+                section = _COLLECTION[name]
+                if section is None or _section(before, section) != _section(after, section):
+                    findings.append((f"{path} changes test collection", self.owners(path)))
+                continue
+            stem = name.rsplit(".", 1)[0]
+            testish = "/tests/" in f"/{path}" or "/test/" in f"/{path}" or stem.startswith("test") or stem.endswith(("_test", "Test", "Tests"))
+            if testish and path.endswith(_CODE):
+                findings.append((f"test file {path} is in a language the pinned analyzers do not cover", self.owners(path)))
+        return findings
+
     def _test_change(self, params: dict) -> tuple[list[tuple[str, Any, Any]], list[str]]:
         """(path, base facts, candidate facts) for changed test files, and the files the analyzer cannot read."""
 
@@ -434,28 +562,32 @@ class Conformance:
             out.append((path, facts_before, facts_after))
         return out, unreadable
 
-    def _t_test_integrity_no_deletions(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+    def _t_test_integrity_no_deletions(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
         changes, unreadable = self._test_change(params)
-        findings = [f"test file {p} cannot be analyzed" for p in unreadable]
+        findings: list[Any] = [(f"test file {p} cannot be analyzed", self.owners(p)) for p in unreadable]
+        findings += self._test_surface_findings(params)
         for path, before, after in changes:
             gone = (before.tests if before else frozenset()) - (after.tests if after else frozenset())
-            findings += [f"test {path}::{t} was deleted" for t in sorted(gone)]
+            gone |= (after.shadowed if after else frozenset()) - (before.shadowed if before else frozenset())
+            findings += [(f"test {path}::{t} was deleted or shadowed", self.owners(path)) for t in sorted(gone)]
         return findings
 
-    def _t_test_integrity_no_skips(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+    def _t_test_integrity_no_skips(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
         changes, unreadable = self._test_change(params)
-        findings = [f"test file {p} cannot be analyzed" for p in unreadable]
+        findings: list[Any] = [(f"test file {p} cannot be analyzed", self.owners(p)) for p in unreadable]
+        findings += self._test_surface_findings(params)
         for path, before, after in changes:
             new = (after.skipped if after else frozenset()) - (before.skipped if before else frozenset())
-            findings += [f"test {path}::{t} is now skipped" for t in sorted(new)]
+            findings += [(f"test {path}::{t} is now skipped", self.owners(path)) for t in sorted(new)]
         return findings
 
-    def _t_test_integrity_no_xfail(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+    def _t_test_integrity_no_xfail(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
         changes, unreadable = self._test_change(params)
-        findings = [f"test file {p} cannot be analyzed" for p in unreadable]
+        findings: list[Any] = [(f"test file {p} cannot be analyzed", self.owners(p)) for p in unreadable]
+        findings += self._test_surface_findings(params)
         for path, before, after in changes:
             new = (after.xfail if after else frozenset()) - (before.xfail if before else frozenset())
-            findings += [f"test {path}::{t} is now expected to fail" for t in sorted(new)]
+            findings += [(f"test {path}::{t} is now expected to fail", self.owners(path)) for t in sorted(new)]
         return findings
 
     def _t_test_integrity_fewer_assertions(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
@@ -483,6 +615,9 @@ class Conformance:
     def _t_obligation_no_new_stubs(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
         findings = []
         for path, (before, after) in self.changed_files.items():
+            if after is not None and path.endswith(_CODE):
+                findings.append(f"{path} is source in a language the pinned analyzers do not cover")
+                continue
             if after is None or not path.endswith(".py") or py.is_test_file(path):
                 continue
             if not py.parses(after):
@@ -526,15 +661,15 @@ class Conformance:
                     if symbol.startswith(module + "."):
                         homes.append((len(module), path, symbol[len(module) + 1:]))
             if not homes:
-                findings.append(f"frozen symbol {symbol} is not a public name of any analyzed module")
+                findings.append((f"frozen symbol {symbol} is not a public name of any analyzed module", (f"<{symbol}>",)))
                 continue
             _, path, qualname = max(homes)
             before = py.public_interface(base[path].data).get(qualname)
             after = py.public_interface(cand[path].data).get(qualname) if path in cand else None
             if before is None:
-                findings.append(f"frozen symbol {symbol} is not public in {path}")
+                findings.append((f"frozen symbol {symbol} is not public in {path}", self.owners(path)))
             elif after != before:
-                findings.append(f"frozen symbol {symbol} changed: {before} -> {after or 'removed'}")
+                findings.append((f"frozen symbol {symbol} changed: {before} -> {after or 'removed'}", self.owners(path)))
         return findings
 
     def _t_boundary_dependency_allowance(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
@@ -544,13 +679,14 @@ class Conformance:
         for path, (before, after) in self.changed_files.items():
             name = path.rsplit("/", 1)[-1]
             if name in _OTHER_MANIFESTS:
-                findings.append(f"dependency manifest {path} is of a language this ruleset does not analyze")
+                findings.append((f"dependency manifest {path} is not one this ruleset analyzes", self.owners(path)))
                 continue
             new = py.declared_requirements(path, after) if after is not None else None
             if new is None:
                 continue
             old = py.declared_requirements(path, before) if before is not None else frozenset()
-            findings += [f"{path} adds {r}, outside the dependency allowance" for r in sorted(new - (old or frozenset()) - allowed)]
+            findings += [(f"{path} adds {r}, outside the dependency allowance", self.owners(path))
+                         for r in sorted(new - (old or frozenset()) - allowed)]
         return findings
 
     def _t_boundary_credential_values(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
@@ -564,7 +700,7 @@ class Conformance:
                 if line in old_lines:
                     continue
                 if any(p.search(line) for p in patterns) or any(_entropy(t) >= 4.5 for t in _TOKEN.findall(line)):
-                    findings.append(f"{path}: an added line carries a credential-shaped value")
+                    findings.append((f"{path}: an added line carries a credential-shaped value", self.owners(path)))
                     break
         return findings
 
@@ -608,7 +744,7 @@ class Conformance:
         findings = []
         for claim in self.slots.get("claims") or []:
             if isinstance(claim, dict) and "unit" in claim:
-                missing = [k for k in ("tolerance", "precision") if k not in claim]
+                missing = [k for k in ("tolerance", "precision") if claim.get(k) in (None, "")]
                 if missing:
                     findings.append(f"claim {str(claim.get('claim', ''))[:40]!r} in {claim['unit']} lacks {', '.join(missing)}")
                 elif py.dimension(str(claim["unit"])) is None:
@@ -672,3 +808,19 @@ def _entropy(token: str) -> float:
     for ch in token:
         counts[ch] = counts.get(ch, 0) + 1
     return -sum(c / len(token) * math.log2(c / len(token)) for c in counts.values())
+
+
+def _section(data: bytes | None, header: str) -> str:
+    """The text of an INI or TOML section whose header starts with ``header``, for collection configuration."""
+
+    if data is None:
+        return ""
+    lines = data.decode("utf-8", "replace").splitlines()
+    out, inside = [], False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("["):
+            inside = stripped.startswith(header)
+        if inside:
+            out.append(line)
+    return "\n".join(out)

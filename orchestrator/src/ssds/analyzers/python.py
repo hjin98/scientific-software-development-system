@@ -151,7 +151,8 @@ def parses(data: bytes) -> bool:
 
 
 def _signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
-    return f"{'async ' if isinstance(node, ast.AsyncFunctionDef) else ''}({ast.unparse(node.args)})" + (
+    decorators = "".join(f"@{ast.unparse(d)} " for d in node.decorator_list)
+    return f"{decorators}{'async ' if isinstance(node, ast.AsyncFunctionDef) else ''}({ast.unparse(node.args)})" + (
         f" -> {ast.unparse(node.returns)}" if node.returns is not None else "")
 
 
@@ -196,14 +197,15 @@ def is_test_file(path: str) -> bool:
 
 @dataclass(frozen=True)
 class TestFacts:
-    tests: frozenset[str]  # test qualified names
-    skipped: frozenset[str]  # tests marked or calling skip
+    tests: frozenset[str]  # test qualified names that are collected
+    skipped: frozenset[str]  # tests marked, raising or calling skip, or under a skipping module or class
     xfail: frozenset[str]  # tests marked expected-to-fail
     assertions: tuple[tuple[str, int], ...]  # (test, assertion count)
     tolerances: tuple[tuple[str, float], ...]  # (test, largest tolerance literal it passes)
+    shadowed: frozenset[str] = frozenset()  # earlier definitions a later one of the same name hides
 
 
-_SKIP = ("skip", "skipIf", "skipUnless", "skipTest")
+_SKIP = ("skip", "skipIf", "skipUnless", "skipTest", "skipif", "importorskip", "SkipTest")
 _XFAIL = ("xfail", "expectedFailure")
 _TOLERANCE_KEYWORDS = ("rtol", "atol", "rel", "abs", "delta", "places", "tol", "tolerance")
 _ASSERTING = ("assert", "assertEqual", "assertTrue", "assertFalse", "assertAlmostEqual", "assertIn", "assertRaises",
@@ -230,6 +232,25 @@ def test_facts(data: bytes) -> TestFacts | None:
     assertions: dict[str, int] = {}
     tolerances: dict[str, float] = {}
 
+    def module_markers(body: list[ast.stmt]) -> set[str]:
+        """Markers a module or class applies to all its tests: ``pytestmark``, a top-level skip or SkipTest."""
+
+        found: set[str] = set()
+        for stmt in body:
+            if isinstance(stmt, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in stmt.targets):
+                found |= _names_in(stmt.value)
+            elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+                found |= _names_in(stmt.value.func) & {"skip", "importorskip", "skipTest"}
+            elif isinstance(stmt, ast.Raise) and stmt.exc is not None:
+                found |= _names_in(stmt.exc) & {"SkipTest", "skip"}
+        return found
+
+    def collected(body: list[ast.stmt]) -> bool:
+        """``__test__ = False`` turns collection off for a module or class."""
+
+        return not any(isinstance(stmt, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "__test__" for t in stmt.targets)
+                       and isinstance(stmt.value, ast.Constant) and stmt.value.value is False for stmt in body)
+
     def visit_function(node: ast.FunctionDef | ast.AsyncFunctionDef, name: str, inherited: set[str]) -> None:
         tests.add(name)
         markers = inherited | set().union(*(_names_in(d) for d in node.decorator_list)) if node.decorator_list else set(inherited)
@@ -249,7 +270,9 @@ def test_facts(data: bytes) -> TestFacts | None:
                             isinstance(keyword.value.value, (int, float)) and not isinstance(keyword.value.value, bool):
                         value = float(keyword.value.value)
                         largest = max(largest, 10.0 ** -value if keyword.arg == "places" else value)
-        if markers & set(_SKIP) or body_calls & {"skip", "skipTest"}:
+        raises_skip = any(isinstance(n, ast.Raise) and n.exc is not None and _names_in(n.exc) & {"SkipTest", "skip"}
+                          for n in ast.walk(node))
+        if markers & set(_SKIP) or body_calls & {"skip", "skipTest", "importorskip"} or raises_skip:
             skipped.add(name)
         if markers & set(_XFAIL) or body_calls & {"xfail"}:
             xfail.add(name)
@@ -257,17 +280,30 @@ def test_facts(data: bytes) -> TestFacts | None:
         if largest:
             tolerances[name] = largest
 
+    seen: dict[str, int] = {}
+    shadowed: set[str] = set()
+    if not collected(tree.body):
+        return TestFacts(frozenset(), frozenset(), frozenset(), (), ())
+    top = module_markers(tree.body)
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
-            visit_function(node, node.name, set())
+            seen[node.name] = seen.get(node.name, 0) + 1
+            visit_function(node, node.name, set(top))
         elif isinstance(node, ast.ClassDef) and node.name.startswith("Test") or (
                 isinstance(node, ast.ClassDef) and any("TestCase" in ast.unparse(b) for b in node.bases)):
-            class_markers = set().union(*(_names_in(d) for d in node.decorator_list)) if node.decorator_list else set()
+            if not collected(node.body):
+                continue
+            class_markers = set(top) | module_markers(node.body)
+            class_markers |= set().union(*(_names_in(d) for d in node.decorator_list)) if node.decorator_list else set()
             for member in node.body:
                 if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) and member.name.startswith("test"):
-                    visit_function(member, f"{node.name}.{member.name}", class_markers)
+                    qualified = f"{node.name}.{member.name}"
+                    seen[qualified] = seen.get(qualified, 0) + 1
+                    visit_function(member, qualified, class_markers)
+    # A later definition of the same name shadows the earlier test: that test is no longer collected.
+    shadowed = {f"{name}#{i}" for name, count in seen.items() for i in range(1, count)}
     return TestFacts(frozenset(tests), frozenset(skipped), frozenset(xfail), tuple(sorted(assertions.items())),
-                     tuple(sorted(tolerances.items())))
+                     tuple(sorted(tolerances.items())), frozenset(shadowed))
 
 
 def _is_stub(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
@@ -322,14 +358,33 @@ def requirement_name(requirement: str) -> str:
     return "-".join(part for part in head.lower().replace("_", "-").replace(".", "-").split("-") if part)
 
 
+_REQUIREMENTS_FILE = _re.compile(r"(^|/)([^/]*(requirements|constraints)[^/]*\.(txt|in)|requirements/[^/]+\.(txt|in))$")
+_UNCHECKABLE = ("-r", "-c", "-e", "--requirement", "--constraint", "--editable", "-i", "--index-url",
+                "--extra-index-url", "-f", "--find-links")
+
+
+def is_requirements_file(path: str) -> bool:
+    return bool(_REQUIREMENTS_FILE.search(path))
+
+
 def declared_requirements(path: str, data: bytes) -> frozenset[str] | None:
-    """Normalized names a Python dependency manifest declares, or None when ``path`` is not one."""
+    """Normalized names a Python dependency manifest declares, or None when ``path`` is not one. A line this
+    analyzer cannot check (an include, an editable or URL requirement, an index option) is ``<unchecked:...>``,
+    so adding one fails closed."""
 
     name = path.rsplit("/", 1)[-1]
     text = data.decode("utf-8", "replace")
-    if name.startswith("requirements") and name.endswith(".txt"):
-        return frozenset(requirement_name(line) for line in text.splitlines()
-                         if line.strip() and not line.strip().startswith(("#", "-")))
+    if is_requirements_file(path):
+        out = set()
+        for line in text.splitlines():
+            line = line.split(" #")[0].strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith(_UNCHECKABLE) or "://" in line or line.startswith("git+") or " @ " in line:
+                out.add(f"<unchecked:{line}>")
+            else:
+                out.add(requirement_name(line))
+        return frozenset(out)
     if name == "pyproject.toml":
         import tomllib
 
@@ -343,7 +398,14 @@ def declared_requirements(path: str, data: bytes) -> frozenset[str] | None:
             found.extend(extra)
         for group in raw.get("dependency-groups", {}).values():
             found.extend(r for r in group if isinstance(r, str))
-        return frozenset(requirement_name(r) for r in found if isinstance(r, str))
+        found.extend(raw.get("build-system", {}).get("requires", []))
+        names = {requirement_name(r) for r in found if isinstance(r, str)}
+        poetry = raw.get("tool", {}).get("poetry", {})
+        tables = [poetry.get("dependencies", {}), poetry.get("dev-dependencies", {})]
+        tables += [g.get("dependencies", {}) for g in poetry.get("group", {}).values() if isinstance(g, dict)]
+        for table in tables:
+            names |= {requirement_name(k) for k in table if k.lower() != "python"}
+        return frozenset(names)
     return None
 
 
@@ -356,6 +418,7 @@ def declared_requirements(path: str, data: bytes) -> frozenset[str] | None:
 # expressions; unannotated quantities are left to the HEURISTIC template.
 
 _UNIT_COMMENT = _re.compile(r"#\s*ssds:unit\s+([A-Za-z_][\w.]*)\s*=\s*(\S+)")
+_ANY_UNIT_MARKER = _re.compile(r"ssds:unit\b")
 _QUANTITY_SUFFIX = _re.compile(r"_(?:m|mm|cm|km|s|ms|us|ns|kg|g|K|mol|Pa|kPa|J|N|W|Hz|V|A|eV|m2|m3|mps|m_s)$")
 
 
@@ -400,8 +463,25 @@ def unit_facts(data: bytes) -> UnitFacts | None:
             unanalyzable.add(expression)
         return dim
 
+    def nested(node: ast.stmt) -> list[list[ast.stmt]]:
+        """The statement lists inside a compound statement other than a function or class."""
+
+        out = []
+        for field in ("body", "orelse", "finalbody"):
+            value = getattr(node, field, None)
+            if isinstance(value, list) and value and isinstance(value[0], ast.stmt):
+                out.append(value)
+        for handler in getattr(node, "handlers", []) or []:
+            out.append(handler.body)
+        for case in getattr(node, "cases", []) or []:
+            out.append(case.body)
+        return out
+
     def collect(body: list[ast.stmt], scope: dict[str, "_units.Dimension"]) -> None:
         for node in body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                for inner in nested(node):
+                    collect(inner, scope)
             if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
                 expression = _unit_of(node.annotation)
                 if expression is not None:
@@ -428,6 +508,12 @@ def unit_facts(data: bytes) -> UnitFacts | None:
                 if left is not None and right is not None and left != right:
                     problems.add(f"{ast.unparse(node)}: adds {_units.show(left)} and {_units.show(right)}")
                 return left if left is not None else right
+            # A numeric literal factor is dimensionless (step 4 review B12); alone in a sum it stays unknown.
+            numeric = (int, float)
+            if isinstance(node.left, ast.Constant) and isinstance(node.left.value, numeric) and not isinstance(node.left.value, bool):
+                left = _units.ONE
+            if isinstance(node.right, ast.Constant) and isinstance(node.right.value, numeric) and not isinstance(node.right.value, bool):
+                right = _units.ONE
             if isinstance(node.op, (ast.Mult, ast.Div)) and left is not None and right is not None:
                 return tuple(a + (b if isinstance(node.op, ast.Mult) else -b) for a, b in zip(left, right))  # type: ignore[return-value]
             if isinstance(node.op, ast.Pow) and left is not None and isinstance(node.right, ast.Constant) and \
@@ -461,7 +547,13 @@ def unit_facts(data: bytes) -> UnitFacts | None:
             if isinstance(node, ast.ClassDef):
                 check(node.body, scope)
                 continue
-            for inner_node in ast.walk(node) if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) else ():
+            inner_bodies = nested(node)
+            for inner in inner_bodies:
+                check(inner, scope)
+            walked = [node] if not inner_bodies else [getattr(node, f) for f in ("test", "iter", "target", "subject")
+                                                       if isinstance(getattr(node, f, None), ast.AST)]
+            walked += [item.context_expr for item in getattr(node, "items", []) or []]
+            for inner_node in (n for root in walked for n in ast.walk(root)):
                 if isinstance(inner_node, ast.expr) and isinstance(inner_node, (ast.BinOp, ast.Call)):
                     dim_of(inner_node, scope)
                 if isinstance(inner_node, ast.Compare):
@@ -492,6 +584,11 @@ def unit_facts(data: bytes) -> UnitFacts | None:
 
 
 def unit_comments(data: bytes) -> tuple[tuple[str, str], ...]:
-    """``ssds:unit`` comment declarations in any file with a ``#`` comment leader."""
+    """``ssds:unit`` declarations behind any comment leader (§14.5): every occurrence counts, so a file in a
+    language the analyzers do not cover that declares units fails closed (step 4 review B5)."""
 
-    return tuple(sorted((m.group(1), m.group(2)) for m in _UNIT_COMMENT.finditer(data.decode("utf-8", "replace"))))
+    text = data.decode("utf-8", "replace")
+    found = [(m.group(1), m.group(2)) for m in _UNIT_COMMENT.finditer(text)]
+    if not found and _ANY_UNIT_MARKER.search(text):
+        found = [("<marker>", "<unanalyzed>")]
+    return tuple(sorted(found))

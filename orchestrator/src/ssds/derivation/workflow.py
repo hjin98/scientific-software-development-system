@@ -313,6 +313,42 @@ class Workflow:
             self._conformance[result] = Conformance(self, result)
         return self._conformance[result]
 
+    def binding_index(self) -> dict[str, Obligation]:
+        """Obligation identity -> obligation, for resolving what a result is bound to without deriving
+        REVIEW(X) through conformance (step 4 review B2): REVIEW(X) is listed for every unintegrated submission."""
+
+        if "_binding_index" not in self.__dict__:
+            found: list[Obligation] = []
+            found += self._plan_obligations()
+            found += self._subject_obligations()
+            found += self._challenge_obligations()
+            found += self._disagreement_obligations()
+            found += self._spec_and_invariant_obligations()
+            for transformation, task in sorted(self.s.submissions.items()):
+                if task not in self.s.integrated:
+                    found.append(make("REVIEW", {"transformation": transformation}, holder=REVIEWER))
+            for item in self.items.all:
+                found.append(item.obligation)
+                found.extend(item.route.decisions)
+                for part in item.parts:
+                    found.append(part.obligation)
+            self.__dict__["_binding_index"] = {o.id: o for o in found}
+        return self.__dict__["_binding_index"]
+
+    def covers_outputs(self, review: str, transformation: str) -> bool:
+        """A judgment about work carries a content entry on every unit of its judged content (§4.3, §5.10 (b)):
+        each unit ``X`` changed, at its output revision (step 4 review B13; Admission's §8.3 minimum in Phase F)."""
+
+        from .frames import Frame, transformation_of
+
+        x = transformation_of(self.s, transformation)
+        if x is None:
+            return False
+        frame = Frame(self.s.h, self.s.n, x, self.s.enactment(transformation))
+        entries = {(e["target"].get("unit"), e["target"].get("rev")) for e in self.s.record(review)["basis"]
+                   if e["mode"] == "content"}
+        return all((unit, frame.candidate_rev(unit)) in entries for unit in frame.changed)
+
     def submitting_result(self, transformation: str) -> str | None:
         """The task result that first submitted ``X`` (§7.1)."""
 
@@ -495,6 +531,8 @@ class Workflow:
         subject = self._subject_of(o)
         domain = self.s.view.structure.domain(subject) if subject else self.domain_of(o)
         if not self.d.qualified(record, domain):
+            return False
+        if o.kind == "REVIEW" and "transformation" in o.target and not self.covers_outputs(rid, o.target["transformation"]):
             return False
         return not (o.kind in INDEPENDENT and self.d.j.nonind(rid))
 

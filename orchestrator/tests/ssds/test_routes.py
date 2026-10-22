@@ -80,9 +80,11 @@ class Flow:
     def review(self, x: str, cand: str, outcome: str, findings: list | None = None, actor: str = agent("checker")) -> dict:
         self.counter += 1
         task = f"review-{self.counter}"
+        before, after = self.sc.view(), self.sc.view(cand)
+        changed = [u for u in after.structure.units if u not in before.structure.units or before.rev(u) != after.rev(u)]
         verdict = judgment("REVIEW", {"transformation": x}, outcome, actor=actor, actor_class="AGENT",
-                           basis=[content("records", self.sc.view(cand).rev("records")),
-                                  content("plan.work.item", self.sc.rev("plan.work.item"))],
+                           basis=[content(u, after.rev(u)) for u in sorted(changed)]
+                           + [content("plan.work.item", self.sc.rev("plan.work.item"))],
                            frame={"transformation": x}, binding=fresh(actor, task))
         result = record("TASK_RESULT", target={"task": task}, outcome="COMPLETE", actor=actor, actor_class="AGENT",
                         fields={"slots": {"claims": [], "findings": findings if findings is not None else {"none": "NONE_FOUND"}}})

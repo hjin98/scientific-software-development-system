@@ -14,6 +14,7 @@ from .python import (
     UnitFacts,
     declared_requirements,
     imports,
+    is_requirements_file,
     is_test_file,
     module_names,
     parses,
@@ -47,6 +48,6 @@ def resolve_symbol(path: str, data: bytes, symbol: str) -> tuple[int, int] | Non
 
 __all__ = [
     "ANALYZER_SET", "Definition", "ImportFacts", "TestFacts", "analyzer_for", "declared_requirements", "imports",
-    "is_test_file", "module_names", "parses", "public_interface", "python", "requirement_name", "resolve_symbol",
+    "is_requirements_file", "is_test_file", "module_names", "parses", "public_interface", "python", "requirement_name", "resolve_symbol",
     "stubs", "test_facts", "UnitFacts", "dimension", "unit_comments", "unit_facts",
 ]

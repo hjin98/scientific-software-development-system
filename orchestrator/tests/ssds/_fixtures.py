@@ -152,8 +152,14 @@ def chain_of(ledger_id: str, entries: list[dict], objects: dict[int, dict[str, b
     from ssds.core.api.v1 import canonical_json
     from ssds.ledger.read import Chain, LedgerEntry
 
+    from ssds.ledger.schema import record_violations
+
     out = []
     for position, body in enumerate(entries):
+        for rec in list(body.get("records") or []) + ([body["lifecycle"]] if body.get("lifecycle") else []):
+            problems = record_violations(rec)
+            if problems:  # derivation only ever reads records the Ledger Store authenticated under the closed schema
+                raise AssertionError(f"schema: {rec.get('kind')}: {problems}")
         data = canonical_json(body)
         out.append(LedgerEntry(position, f"{position:040x}", (), body, data, b"", f"sha256:{position:064x}",
                                (objects or {}).get(position, {})))
@@ -170,7 +176,9 @@ def genesis_body(baseline: str, structure: dict, modes: dict | None = None, rule
     }
     genesis = record("GENESIS", target=None, actor="admission:ed25519:test", actor_class="ADMISSION", fields=fields)
     if ruleset:
-        genesis = dict(genesis, ruleset=ruleset)
+        from ssds.ledger.read import with_id
+
+        genesis = with_id({k: v for k, v in dict(genesis, ruleset=ruleset).items() if k != "id"})
     return {"ledger_id": "demo", "position": 0, "schema": 1, "prev": None, "entry_kind": "LIFECYCLE",
             "host_key_id": "ed25519:test", "incarnation_id": "i", "obs": None, "admission": None, "absorption": None,
             "lifecycle": genesis, "records": []}
