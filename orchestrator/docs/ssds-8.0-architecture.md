@@ -21,10 +21,10 @@ amendment_a2: accepted (SD-52, SD-53; stakeholder decision record items 48, 49),
 amendment_a3: accepted (SD-53, stakeholder decision record item 49); restores §32.2 and §32.3 disclosures lost in the SD-47 condensation; no decision changes
 amendments_a4_a6: accepted (SD-55, stakeholder decision record item 51) with the post-review corrections; A4 the §5.10 (e) cross-item owner (finding 913db8f N6); A5 and A6 the 2a17a83 Review's N1 and N2 (§32.2, §17.5, §32.3); no decision changes
 accepted_at_g1: SD-50 (stakeholder decision record item 46), semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5, blob b4077eb5879570b0aee56b068be8588beeaa5e9e
-amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b; SD-55 (item 51), A4-A6 reviewed at afd3be2640b6a6e33a3d744efd76d324c6e5931a and accepted with corrections at cb468ecad19ba41715527b4de42d90262e02cf87, blob 0e304061b965eea8b124c9942f5c9aff4fa9a2d6; SD-60 (item 56), A7 and A8 confirmed by the Phase D Reviews 517af45 to 39fe39b and accepted, blob 6226f323365966bbcf653545f3a35b1fd7d6e060
+amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b; SD-55 (item 51), A4-A6 reviewed at afd3be2640b6a6e33a3d744efd76d324c6e5931a and accepted with corrections at cb468ecad19ba41715527b4de42d90262e02cf87, blob 0e304061b965eea8b124c9942f5c9aff4fa9a2d6; SD-60 (item 56), A7 and A8 confirmed by the Phase D Reviews 517af45 to 39fe39b and accepted, blob 6226f323365966bbcf653545f3a35b1fd7d6e060; SD-62 (item 58), A9 passed by the Phase E Review of 09f3505 and accepted, blob 25122b5e2bf0f5c7755afe0cc32161aa5a6215c4 (this header then updated to record it)
 amendment_a7: accepted (SD-56, SD-57, SD-60; stakeholder decision record items 52-53, 56); the program is `ssds` and operator data lives in an SSDS home outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4)
 amendment_a8: accepted (SD-58, SD-60; stakeholder decision record items 54, 56); a bounding completeness judgment is checked on the content the run it bounds ran on (§6.5); resolves SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb
-amendment_a9: proposed (SD-61, stakeholder decision record item 57), pending its independent Review and acceptance; `ssds.unclassified` mandatory at genesis and never removed, so every governed byte has an owner (§1.8, §1.9); resolves SERIOUS CHALLENGE SC-E1 of the Phase E step 4 review
+amendment_a9: accepted (SD-61, SD-62; stakeholder decision record items 57, 58) after the different-family Phase E Review of 09f3505 passed it; `ssds.unclassified` mandatory at genesis and never removed, so every governed byte has an owner (§1.8, §1.9); resolves SERIOUS CHALLENGE SC-E1 of the Phase E step 4 review
 d4: shadow-only (G2, SD-55); no SSDS authority over any subject before G4
 active_serious_challenge: none
 ---
@@ -53,11 +53,12 @@ AMENDMENTS A7 and A8: ACCEPTED (SD-60, 2026-10-21) after the independent Phase D
           corrected to it after the Phase D Review 0e49deb (finding B-B1). A8 (SD-58): a completeness
           judgment that bounds a run's basis is checked on the content that run ran on, not on the state
           of evaluation (§6.5), resolving SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb.
-AMENDMENT A9: PROPOSED (SD-61, 2026-10-22), pending its independent Review and the stakeholder's
-          acceptance: genesis declares `ssds.unclassified`, and no structure change removes it, so every
-          governed byte has an owner and every change is in the effect-keyed write set (§1.8, §1.9),
-          resolving SERIOUS CHALLENGE SC-E1 of the Phase E step 4 review. Until accepted, the A8 text
-          governs and a genesis may omit the leaf.
+AMENDMENT A9: ACCEPTED (SD-62, 2026-10-22) after the different-family Phase E Review
+          qualification/ssds80/PHASE-E-IMPLEMENTATION-REVIEW-SSDS-8.0-09F3505-DIFFERENT-FAMILY-NO-PASS.md
+          passed it (A9 PASS; the Phase E implementation was NO-PASS there): genesis declares
+          `ssds.unclassified`, and no structure change removes it, so every governed byte has an owner and
+          every change is in the effect-keyed write set (§1.8, §1.9), resolving SERIOUS CHALLENGE SC-E1 of
+          the Phase E step 4 review (SD-61).
 GOVERNING PROTOCOL: SSDP 7.2.1 (release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0
 BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic candidate
