@@ -7,7 +7,20 @@ never supplies one.
 """
 
 from . import python
-from .python import Definition, ImportFacts
+from .python import (
+    Definition,
+    ImportFacts,
+    TestFacts,
+    declared_requirements,
+    imports,
+    is_test_file,
+    module_names,
+    parses,
+    public_interface,
+    requirement_name,
+    stubs,
+    test_facts,
+)
 
 #: Analyzer identity per file extension in the system ruleset's analyzer set.
 ANALYZER_SET = {".py": python.ANALYZER_ID}
@@ -28,4 +41,8 @@ def resolve_symbol(path: str, data: bytes, symbol: str) -> tuple[int, int] | Non
     return None
 
 
-__all__ = ["ANALYZER_SET", "Definition", "ImportFacts", "analyzer_for", "python", "resolve_symbol"]
+__all__ = [
+    "ANALYZER_SET", "Definition", "ImportFacts", "TestFacts", "analyzer_for", "declared_requirements", "imports",
+    "is_test_file", "module_names", "parses", "public_interface", "python", "requirement_name", "resolve_symbol",
+    "stubs", "test_facts",
+]

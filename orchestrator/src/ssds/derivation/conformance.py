@@ -29,11 +29,13 @@ evaluate and no runner observed is ``INCOMPLETE``, never passing.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
 
+from ssds import analyzers as py
 from ssds.content import REVIEW, Check, Contract, EvidenceVerifier, Item, Structure, TreeView, write_set
 
 from .frames import Frame, transformation_of
@@ -58,6 +60,18 @@ SYSTEM_SLOTS = {"COORDINATE": ("claims",), "CONTRACT": ("claims",), "INTAKE": ("
 JUDGMENT_SLOTS = ("claims", "findings")
 WHOLE = "*"  # the obligation column of a result-level or candidate-level template
 _CERTAINTY = re.compile(r"\b(proves?|proven|guarantee[sd]?|certainly|definitely|always correct|never fails)\b", re.I)
+#: Credential shapes (§14.3 credential_values); a policy may add patterns through the template's parameter.
+_CREDENTIALS = (
+    re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{40,}\b"),
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"),
+    re.compile(r"\bsk-[A-Za-z0-9]{32,}\b"),
+)
+_TOKEN = re.compile(r"[A-Za-z0-9+/=_-]{32,}")
+#: Dependency manifests of languages this ruleset does not analyze: a change to one cannot be checked here.
+_OTHER_MANIFESTS = ("package.json", "Cargo.toml", "go.mod", "environment.yml", "environment.yaml", "Gemfile",
+                    "pom.xml", "build.gradle", "setup.py", "setup.cfg", "Pipfile", "poetry.lock")
 _NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?:e[+-]?\d+)?(?![\w.])", re.I)
 
 
@@ -373,6 +387,176 @@ class Conformance:
         return [Hit(WHOLE, "FAITHFULNESS.governing_at_basis", DISCREPANCY, p) for p in problems] or \
             [Hit(WHOLE, "FAITHFULNESS.governing_at_basis", CLEAN, "")]
 
+    # -- the Python analyzer's templates (§14.3, §14.5) -------------------------------------------------
+
+    @cached_property
+    def changed_files(self) -> dict[str, tuple[bytes | None, bytes | None]]:
+        """Path -> (base bytes, candidate bytes) for every file that differs between ``B`` and ``C``."""
+
+        if self.frame is None:
+            return {}
+        base, cand = self.frame.base_tree, self.frame.candidate_tree
+        out = {}
+        for path in sorted(set(base) | set(cand)):
+            before = base[path].data if path in base else None
+            after = cand[path].data if path in cand else None
+            if before != after:
+                out[path] = (before, after)
+        return out
+
+    def _selected(self, path: str, params: dict) -> bool:
+        selectors = params.get("selectors")
+        return py.is_test_file(path) and (not selectors or any(path.startswith(sel) for sel in selectors))
+
+    def _test_change(self, params: dict) -> tuple[list[tuple[str, Any, Any]], list[str]]:
+        """(path, base facts, candidate facts) for changed test files, and the files the analyzer cannot read."""
+
+        out, unreadable = [], []
+        for path, (before, after) in self.changed_files.items():
+            if not self._selected(path, params):
+                continue
+            facts_before = py.test_facts(before) if before is not None else None
+            facts_after = py.test_facts(after) if after is not None else None
+            if (before is not None and facts_before is None) or (after is not None and facts_after is None):
+                unreadable.append(path)
+                continue
+            out.append((path, facts_before, facts_after))
+        return out, unreadable
+
+    def _t_test_integrity_no_deletions(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        changes, unreadable = self._test_change(params)
+        findings = [f"test file {p} cannot be analyzed" for p in unreadable]
+        for path, before, after in changes:
+            gone = (before.tests if before else frozenset()) - (after.tests if after else frozenset())
+            findings += [f"test {path}::{t} was deleted" for t in sorted(gone)]
+        return findings
+
+    def _t_test_integrity_no_skips(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        changes, unreadable = self._test_change(params)
+        findings = [f"test file {p} cannot be analyzed" for p in unreadable]
+        for path, before, after in changes:
+            new = (after.skipped if after else frozenset()) - (before.skipped if before else frozenset())
+            findings += [f"test {path}::{t} is now skipped" for t in sorted(new)]
+        return findings
+
+    def _t_test_integrity_no_xfail(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        changes, unreadable = self._test_change(params)
+        findings = [f"test file {p} cannot be analyzed" for p in unreadable]
+        for path, before, after in changes:
+            new = (after.xfail if after else frozenset()) - (before.xfail if before else frozenset())
+            findings += [f"test {path}::{t} is now expected to fail" for t in sorted(new)]
+        return findings
+
+    def _t_test_integrity_fewer_assertions(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        changes, _ = self._test_change(params)
+        findings = []
+        for path, before, after in changes:
+            if before is None or after is None:
+                continue
+            old, new = dict(before.assertions), dict(after.assertions)
+            findings += [f"test {path}::{t} has fewer assertions ({old[t]} -> {new[t]})"
+                         for t in sorted(set(old) & set(new)) if new[t] < old[t]]
+        return findings
+
+    def _t_test_integrity_widened_tolerance(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        changes, _ = self._test_change(params)
+        findings = []
+        for path, before, after in changes:
+            if before is None or after is None:
+                continue
+            old, new = dict(before.tolerances), dict(after.tolerances)
+            findings += [f"test {path}::{t} widened a tolerance ({old[t]:g} -> {new[t]:g})"
+                         for t in sorted(set(old) & set(new)) if new[t] > old[t]]
+        return findings
+
+    def _t_obligation_no_new_stubs(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        findings = []
+        for path, (before, after) in self.changed_files.items():
+            if after is None or not path.endswith(".py") or py.is_test_file(path):
+                continue
+            if not py.parses(after):
+                findings.append(f"{path} cannot be analyzed")
+                continue
+            new = py.stubs(after) - (py.stubs(before) if before is not None else frozenset())
+            findings += [f"{path}: {name} is a placeholder" for name in sorted(new)]
+        return findings
+
+    def _t_obligation_required_artifact(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        """Present in the candidate and linked by a derived ``TESTS`` relation: a test module imports it."""
+
+        artifact = params.get("artifact")
+        if self.frame is None:
+            return ["a required artifact needs a candidate"]
+        cand = self.frame.candidate_tree
+        if artifact not in cand:
+            return [f"required artifact {artifact} is absent"]
+        if not str(artifact).endswith(".py"):
+            return [f"required artifact {artifact} is in a language the pinned analyzers do not cover"]
+        modules = set(py.module_names(artifact))
+        for path in cand:
+            if py.is_test_file(path) and path != artifact and modules & set(py.imports(path, cand[path].data).modules):
+                return []
+        return [f"required artifact {artifact} is linked by no TESTS relation"]
+
+    def _frozen_symbols(self, params: dict, contract: Contract) -> list[str]:
+        return sorted(set(contract.frozen) | set(params.get("symbols") or ()))
+
+    def _t_boundary_frozen_interface(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        if self.frame is None:
+            return []
+        base, cand = self.frame.base_tree, self.frame.candidate_tree
+        findings = []
+        for symbol in self._frozen_symbols(params, contract):
+            homes = []
+            for path in base:
+                if not path.endswith(".py"):
+                    continue
+                for module in py.module_names(path):
+                    if symbol.startswith(module + "."):
+                        homes.append((len(module), path, symbol[len(module) + 1:]))
+            if not homes:
+                findings.append(f"frozen symbol {symbol} is not a public name of any analyzed module")
+                continue
+            _, path, qualname = max(homes)
+            before = py.public_interface(base[path].data).get(qualname)
+            after = py.public_interface(cand[path].data).get(qualname) if path in cand else None
+            if before is None:
+                findings.append(f"frozen symbol {symbol} is not public in {path}")
+            elif after != before:
+                findings.append(f"frozen symbol {symbol} changed: {before} -> {after or 'removed'}")
+        return findings
+
+    def _t_boundary_dependency_allowance(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        allowed = {py.requirement_name(r) for lang, reqs in contract.dependencies if lang == "python" for r in reqs}
+        allowed |= {py.requirement_name(r) for r in params.get("allowance") or ()}
+        findings = []
+        for path, (before, after) in self.changed_files.items():
+            name = path.rsplit("/", 1)[-1]
+            if name in _OTHER_MANIFESTS:
+                findings.append(f"dependency manifest {path} is of a language this ruleset does not analyze")
+                continue
+            new = py.declared_requirements(path, after) if after is not None else None
+            if new is None:
+                continue
+            old = py.declared_requirements(path, before) if before is not None else frozenset()
+            findings += [f"{path} adds {r}, outside the dependency allowance" for r in sorted(new - (old or frozenset()) - allowed)]
+        return findings
+
+    def _t_boundary_credential_values(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
+        patterns = list(_CREDENTIALS) + [re.compile(p) for p in params.get("patterns") or () if isinstance(p, str)]
+        findings = []
+        for path, (before, after) in self.changed_files.items():
+            if after is None:
+                continue
+            old_lines = set((before or b"").decode("utf-8", "replace").splitlines())
+            for line in after.decode("utf-8", "replace").splitlines():
+                if line in old_lines:
+                    continue
+                if any(p.search(line) for p in patterns) or any(_entropy(t) >= 4.5 for t in _TOKEN.findall(line)):
+                    findings.append(f"{path}: an added line carries a credential-shaped value")
+                    break
+        return findings
+
     # -- HEURISTIC signals over the result's own text ----------------------------------------------
 
     def _strings(self) -> list[str]:
@@ -398,3 +582,12 @@ class Conformance:
         cited = {c.get("claim") for c in self.slots.get("claims") or [] if isinstance(c, dict) and c.get("records")}
         return [f"a number in prose without a cited record: {text[:60]!r}" for text in self._strings()
                 if _NUMBER.search(text) and text not in cited]
+
+
+def _entropy(token: str) -> float:
+    """Shannon entropy in bits per character."""
+
+    counts: dict[str, int] = {}
+    for ch in token:
+        counts[ch] = counts.get(ch, 0) + 1
+    return -sum(c / len(token) * math.log2(c / len(token)) for c in counts.values())
