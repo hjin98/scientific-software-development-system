@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ssds.content import Item
+
 from .obligations import obligation_id
 
 Run = tuple[str, str]  # (subject, event)
@@ -132,13 +134,21 @@ class Runs:
         return tuple(out)
 
     def _authored(self, rid: str, subject: str, rev: str) -> bool:
-        """The result of a task whose candidate yields ``r`` for ``s``."""
+        """The result of an ``AUTHOR`` task whose candidate yields ``r`` for ``s``: the task that first submitted
+        the candidate (its enactment), bound to an ``AUTHOR`` item's contract revision (§10.2)."""
 
         from .frames import Frame, transformation_of
 
-        target = self.s.record(rid)["target"]
+        record = self.s.record(rid)
+        target = record["target"]
         transformation = target.get("transformation")
-        if not transformation:
+        if not transformation or target.get("task") != self.s.enactment(transformation):
+            return False
+        named = (record.get("binding") or {}).get("contract_revision")
+        if not isinstance(named, dict) or not {"unit", "rev"} <= set(named):
+            return False
+        found = self.s.plans.item_at(named["unit"], named["rev"])
+        if found is None or not isinstance(found[1].parsed, Item) or found[1].parsed.kind != "AUTHOR":
             return False
         x = transformation_of(self.s, transformation)
         if x is None:

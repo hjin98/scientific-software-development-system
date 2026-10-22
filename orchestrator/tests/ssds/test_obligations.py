@@ -23,7 +23,7 @@ from ssds.derivation.workflow import (
 
 from ._scenario import HUMAN, HUMAN_B, OWNER, Scenario, challenge, content, judgment, on_record
 from .test_lint import FILES as PLAN_FILES, MANIFEST as PLAN_MANIFEST, item_block, plan_text
-from .test_runs import MANIFEST as RUN_MANIFEST, author
+from .test_runs import MANIFEST as RUN_MANIFEST, RUN_FILES, author
 
 TWO = '''
     [[unit]]
@@ -71,7 +71,7 @@ class Identity(unittest.TestCase):
 
     def test_a_new_run_derives_a_new_obligation(self) -> None:
         # §10.2: ACCEPT, GATE and REVIEW(s, r) carry the run, so a revert derives new obligations
-        sc = Scenario(RUN_MANIFEST, {"numerics.md": "v0\n", "notes.md": "n\n"},
+        sc = Scenario(RUN_MANIFEST, RUN_FILES,
                       policy='schema = 1\n[domains.D2]\nhumans = ["human:SHA256:alice"]\n')
         author(sc, "v1\n", "task-1")
         first = {o.id for o in wf(sc).of_kind("ACCEPT")}
@@ -126,7 +126,7 @@ class SubjectObligations(unittest.TestCase):
         self.assertEqual(w.readiness(arch).state, WAITING)
 
     def test_d2_accept_waits_on_the_revising_review(self) -> None:
-        sc = Scenario(RUN_MANIFEST, {"numerics.md": "v0\n", "notes.md": "n\n"},
+        sc = Scenario(RUN_MANIFEST, RUN_FILES,
                       policy='schema = 1\n[domains.D2]\nhumans = ["human:SHA256:alice"]\n')
         w = wf(sc)
         accept_o = [o for o in w.of_kind("ACCEPT") if o.target["subject"] == "numerics"][0]
@@ -174,7 +174,7 @@ class Answering(unittest.TestCase):
     def test_an_earlier_runs_acceptance_answers_nothing_in_a_new_run(self) -> None:
         from .test_runs import accept as run_accept
 
-        sc = Scenario(RUN_MANIFEST, {"numerics.md": "v0\n", "notes.md": "n\n"},
+        sc = Scenario(RUN_MANIFEST, RUN_FILES,
                       policy='schema = 1\n[domains.D2]\nhumans = ["human:SHA256:alice"]\n')
         r1 = author(sc, "v1\n", "task-1")
         sc.admit(run_accept(sc, r1["id"]))
@@ -225,7 +225,25 @@ class SpecAndInvariant(unittest.TestCase):
         self.assertEqual([o.target["invariant"] for o in first], ["arch-impl"])
         sc.absorb({"arch.md": "a2\n"})
         later = wf(sc).of_kind("JOINT_INVARIANT")
+        self.assertEqual(len(later), 1, "an answered earlier change no longer derives once a later one does")
         self.assertNotEqual(first[0].id, later[0].id, "a later change in scope derives JOINT_INVARIANT(i, k')")
+
+    def test_a_refused_review_is_never_retired_by_a_later_change(self) -> None:
+        # §10.2 "or while REFUSED" (SD-37), §10.4 (step 3 review B4)
+        sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
+        sc.absorb({"impl.md": "i2\n", "spec.toml": "s2\n"})
+        w = wf(sc)
+        (joint,) = w.of_kind("JOINT_INVARIANT")
+        (spec,) = w.of_kind("SPEC_REVIEW")
+        sc.admit(judgment("REVIEW", {"integrated": "JOINT_INVARIANT", "of": "arch-impl", "at": joint.target["change"],
+                                     "changes": []}, "NO_PASS", actor=HUMAN, basis=[content("impl", sc.rev("impl"))]))
+        sc.admit(judgment("REVIEW", spec.target, "NO_PASS", actor=HUMAN, basis=[content("spec", sc.rev("spec"))]))
+        w = wf(sc)
+        self.assertEqual((w.discharge(joint), w.discharge(spec)), (REFUSED, REFUSED))
+        sc.absorb({"arch.md": "a2\n", "spec.toml": "s3\n"})
+        ids = {o.id for o in wf(sc).obligations}
+        self.assertIn(joint.id, ids)
+        self.assertIn(spec.id, ids)
 
 
 class Discharge(unittest.TestCase):
@@ -242,13 +260,14 @@ class Discharge(unittest.TestCase):
         from ssds.derivation.workflow import make
 
         o = make("ACCEPT", sc.triple("arch"))
-        derived = any(x.id == o.id for x in w.of_kind("ACCEPT"))
-        self.assertEqual(derived, w.discharge(o) == OPEN, "outside the scope the obligation stays derived and open")
+        self.derived = any(x.id == o.id for x in w.of_kind("ACCEPT"))
         return w.discharge(o)
 
     def test_provisional_only_inside_a_declared_scope(self) -> None:
         self.assertEqual(self.provisional(HUMANS, []), OPEN, "an override with no kinds discharges nothing provisionally")
+        self.assertTrue(self.derived, "outside the scope the obligation stays derived")
         self.assertEqual(self.provisional(HUMANS, ["ACCEPT"]), DISCHARGED_PROVISIONAL)
+        self.assertFalse(self.derived, "inside the scope it is discharged provisionally")
         self.assertEqual(self.provisional(HUMANS + '[workflow]\nprovisional_kinds = ["ACCEPT"]\n', []), DISCHARGED_PROVISIONAL)
 
     def test_never_for_gates(self) -> None:
@@ -269,6 +288,93 @@ class Discharge(unittest.TestCase):
         sc2 = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
         sc2.admit(judgment("ACCEPTANCE", sc2.triple("arch"), "FAIL", actor=HUMAN, basis=[content("arch", sc2.rev("arch"))]))
         self.assertEqual(wf(sc2).discharge(o), REFUSED)
+
+
+class ReviewRepairs(unittest.TestCase):
+    """Regression cases from the independent review of step 3 (B2, B3, B5, B7, B8, CONTRACT readiness)."""
+
+    def test_an_unqualified_pass_discharges_nothing(self) -> None:
+        # §10.4 "by an actor qualified for kind(o)" (B2)
+        from ._scenario import agent, fresh
+
+        policy = 'schema = 1\n[domains.D4]\nacceptors = ["human:SHA256:alice"]\nhumans = ["human:SHA256:alice"]\n'
+        sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=policy)
+        sc.integrate({"impl.md": "i2\n"}, agent("maker"), "task-1")
+        (impl,) = [o for o in wf(sc).of_kind("ACCEPT") if o.target["subject"] == "impl"]
+        sc.admit(judgment("ACCEPTANCE", sc.triple("impl"), "PASS", actor=agent("checker"), actor_class="AGENT",
+                          basis=[content("impl", sc.rev("impl"))], binding=dict(fresh(agent("checker"), "t"), obligation=impl.id)))
+        w = wf(sc)
+        self.assertEqual((w.discharge(impl), impl.id in {o.id for o in w.obligations}), (OPEN, True))
+
+    def test_discharge_and_refusal_do_not_depend_on_the_order_of_admission(self) -> None:
+        # §10.4, §5.10 (h) (B3): FAIL then the author's superseding PASS discharges; a standing FAIL refuses either way
+        sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
+        fail = judgment("ACCEPTANCE", sc.triple("arch"), "FAIL", actor=HUMAN, basis=[content("arch", sc.rev("arch"))])
+        sc.admit(fail)
+        sc.admit(judgment("ACCEPTANCE", sc.triple("arch"), "PASS", actor=HUMAN, basis=[content("arch", sc.rev("arch"))],
+                          supersedes=[fail["id"]]))
+        self.assertNotIn("arch", [o.target["subject"] for o in wf(sc).of_kind("ACCEPT")], "discharged, not stranded")
+        from ssds.derivation.workflow import make
+
+        results = []
+        for first, second in (("PASS", "FAIL"), ("FAIL", "PASS")):
+            sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
+            actors = {"PASS": HUMAN, "FAIL": HUMAN_B}
+            for outcome in (first, second):
+                sc.admit(judgment("ACCEPTANCE", sc.triple("arch"), outcome, actor=actors[outcome],
+                                  basis=[content("arch", sc.rev("arch"))]))
+            results.append(wf(sc).discharge(make("ACCEPT", sc.triple("arch"))))
+        self.assertEqual(results, [REFUSED, REFUSED])
+
+    def test_a_provisional_plan_acceptance_covers_only_inside_a_scope(self) -> None:
+        # §10.3, §10.5 (B5)
+        for kinds, items, issuable in (([], [], False), (["PLAN_ACCEPT"], ["plan.work.item"], True)):
+            with self.subTest(kinds=kinds):
+                sc = Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(item_block())})
+                acceptance = PlanObligations.acceptance(None, sc)
+                sc.admit(acceptance)
+                c = challenge({"record": acceptance["id"]})
+                sc.admit(c)
+                sc.admit(judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER,
+                                  fields={"continuation": {"subjects": [], "items": items, "kinds": kinds}}))
+                w = wf(sc)
+                self.assertEqual(w.d.current(acceptance["id"]), P)
+                self.assertEqual(w.issuable("plan.work.item"), issuable)
+
+    def test_revalidation_only_for_a_passing_independent_judgment_once_current(self) -> None:
+        # §10.2, §5.10 (d), (f) (B7)
+        from ._scenario import agent, fresh
+
+        sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
+        sc.integrate({"impl.md": "i2\n"}, agent("maker"), "task-1")
+        own = judgment("ACCEPTANCE", sc.triple("impl"), "PASS", actor=agent("maker"), actor_class="AGENT",
+                       basis=[content("impl", sc.rev("impl"))], binding=fresh(agent("maker"), "task-2"))
+        sc.admit(own)
+        stale_fail = judgment("ACCEPTANCE", sc.triple("arch"), "FAIL", actor=HUMAN, basis=[content("impl", sc.rev("impl"))])
+        sc.admit(stale_fail)
+        sc.absorb({"impl.md": "i3\n"})
+        revalidated = {o.target["record"] for o in wf(sc).of_kind("REVALIDATE")}
+        self.assertNotIn(own["id"], revalidated, "a non-independent judgment supports nothing to revalidate")
+        self.assertNotIn(stale_fail["id"], revalidated, "an adverse judgment's currency is irrelevant")
+
+    def test_a_disagreement_ends_with_the_vetoed_judgments_supersession(self) -> None:
+        # §5.10 (d), §10.3 (B8)
+        sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"},
+                      policy='schema = 1\n[domains.D3]\nowner = "human:SHA256:owner"\n')
+        passing = accept(sc, "arch", actor=HUMAN)
+        sc.admit(passing)
+        sc.admit(judgment("ACCEPTANCE", sc.triple("arch"), "FAIL", actor=HUMAN_B, basis=[content("arch", sc.rev("arch"))]))
+        self.assertEqual(len(wf(sc).of_kind("ADJUDICATE_DISAGREEMENT")), 1)
+        sc.admit(judgment("ACCEPTANCE", sc.triple("arch"), "FAIL", actor=OWNER, basis=[content("arch", sc.rev("arch"))],
+                          supersedes=[passing["id"]]))
+        self.assertEqual(wf(sc).of_kind("ADJUDICATE_DISAGREEMENT"), [])
+
+    def test_a_contract_waits_on_no_judge(self) -> None:
+        sc = Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(item_block(budget=11))})
+        sc.admit(PlanObligations.acceptance(None, sc))
+        w = wf(sc)
+        (contract,) = w.of_kind("CONTRACT")
+        self.assertEqual(w.readiness(contract).state, READY, "a principal's contract obligation needs no judge")
 
 
 class PlanObligations(unittest.TestCase):

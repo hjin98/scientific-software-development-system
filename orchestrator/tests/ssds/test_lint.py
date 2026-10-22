@@ -146,6 +146,9 @@ class Lint(unittest.TestCase):
         self.assertNotIn("SCOPE", codes(named))
         protected = 'schema = 1\n[workflow]\nprotected_surfaces = ["src/io.py"]\n'
         self.assertIn("SCOPE", codes(item_block(), policy=protected))
+        # §25.3 (step 3 review B6): the project policy is protected whatever the policy says
+        policy_file = '[".ssds/policy.toml", "src/"]'
+        self.assertIn("SCOPE", codes(item_block(write_scope=policy_file, affected=policy_file)))
 
     def test_naming_a_units_whole_file_is_not_narrower(self) -> None:
         # Containment is by bytes: an affected span does not contain its whole file.

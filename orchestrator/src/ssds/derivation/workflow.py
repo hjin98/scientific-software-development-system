@@ -39,6 +39,10 @@ DISCHARGED, DISCHARGED_PROVISIONAL, OPEN, REFUSED = "DISCHARGED", "DISCHARGED_PR
 #: The judgment kind that answers each judgment obligation kind (§10.3).
 ANSWER_KIND = {"ACCEPT": "ACCEPTANCE", "GATE": "GATE_DECISION", "PLAN_ACCEPT": "PLAN_ACCEPTANCE",
                "ADJUDICATE": "ADJUDICATION", "SPEC_REVIEW": "REVIEW", "JOINT_INVARIANT": "REVIEW", "REVIEW": "REVIEW"}
+#: Obligation kinds answered by a judgment, which wait on an eligible judge (§10.3).
+JUDGED = frozenset(ANSWER_KIND) | {REVISING_REVIEW, "ADJUDICATE_DISAGREEMENT", "REVALIDATE"}
+#: Subject kinds that owe no ACCEPT(s): plans (PLAN_ACCEPT, §11.2) and the system units (§1.8).
+NO_ACCEPT_KINDS = frozenset({"PLAN", "MANIFEST", "POLICY", "UNCLASSIFIED"})
 #: Kinds whose answer carries an independence requirement (§5.10 (f)).
 INDEPENDENT = frozenset({"ACCEPT", "PLAN_ACCEPT", "SPEC_REVIEW", "JOINT_INVARIANT", REVISING_REVIEW, "ADJUDICATE",
                          "REVIEW"})
@@ -124,10 +128,22 @@ class Workflow:
                 if self.s.record(r)["outcome"] == "ACCEPTED" and self.d.current(r) > F]
 
     def covered(self, item_unit: str) -> str | None:
-        """A current plan acceptance covering the item's current revision (through ``⊑``), or None."""
+        """A current plan acceptance covering the item's current revision (through ``⊑``), or None.
 
+        Current means ``T``, or ``P`` only inside a provisional scope covering the item (§10.3, §10.5); the
+        acceptance must also name the plan's current Objective revision, which every plan acceptance names
+        ``EXACT`` (§13.2)."""
+
+        subject = self.s.plans.items[item_unit][0] if item_unit in self.s.plans.items else None
+        plan = self.s.plans.plans.get(subject) if subject else None
+        objective = (plan.objective, self.s.cur(plan.objective)) if plan is not None and plan.objective else None
         for rid in self.plan_acceptances:
-            for named in self.s.record(rid)["fields"]["items"]:
+            fields = self.s.record(rid)["fields"]
+            if objective is None or (fields["objective"]["unit"], fields["objective"]["rev"]) != objective:
+                continue
+            if self.d.current(rid) == P and not self.provisional_scope("PLAN_ACCEPT", (), (item_unit,)):
+                continue
+            for named in fields["items"]:
                 if named["unit"] == item_unit and self.s.plans.tightens_to_current(item_unit, named["rev"]):
                     return rid
         return None
@@ -182,6 +198,8 @@ class Workflow:
         for subject in self._subjects():
             if not self._native(subject):
                 continue  # LEGACY(p) and UNGOVERNED subjects owe no SSDS acceptance (§19.2)
+            if self.s.view.structure.kind(subject) in NO_ACCEPT_KINDS:
+                continue  # a plan is accepted by PLAN_ACCEPTANCE (§11.2); system units are no work (reading E23)
             triple, params = self._triple(subject), self._run_params(subject)
             domain = self.s.view.structure.domain(subject)
             holder = HUMAN if domain in ("D1", "D2") else REVIEWER
@@ -210,8 +228,8 @@ class Workflow:
     def _disagreement_obligations(self) -> list[Obligation]:
         out = []
         for z in sorted(self.s.records):
-            if not self.d.passing(z) or not self.s.acts(z):
-                continue
+            if not self.d.passing(z) or not self.s.acts(z) or self.s.superseded(z):
+                continue  # the disagreement ends with the vetoed judgment's supersession (§5.10 (d), §10.3)
             for x in self._vetoes_of(z):
                 out.append(make("ADJUDICATE_DISAGREEMENT", {"record": x}, {"vetoes": z}, holder=REVIEWER))
         for obligation, records in sorted(self.d.a.by_obligation.items()):
@@ -230,22 +248,37 @@ class Workflow:
     def _spec_and_invariant_obligations(self) -> list[Obligation]:
         out = []
         h, structure = self.s.h, self.s.view.structure
+        # The latest change derives its obligation; an earlier one stays derived while REFUSED, until a
+        # coordination decision answers it (§10.2 "or while REFUSED", SD-37; the decision is step 5's).
         for unit in sorted(u for u in structure.units if structure.kind(u) == "EVIDENCE_SPEC" and structure.subj(u) == u):
-            changed = self._last_change(unit)
-            if changed:
-                out.append(make("SPEC_REVIEW", self._triple(unit), {"change": changed}, holder=REVIEWER))
+            for index, k in enumerate(self._changes(unit)):
+                view = h.view(k)
+                target = {"subject": unit, "scope_id": view.scope_id(unit), "rev": view.rev(unit)}
+                o = make("SPEC_REVIEW", target, {"change": h.chain.entries[k].digest}, holder=REVIEWER)
+                if index == 0 or self.discharge(o) == REFUSED:
+                    out.append(o)
         for decl in self.s.view.semantic_declarations:
             if decl.get("decl") != "joint_invariant":
                 continue
-            units = set(decl["units"])
-            for k in range(self.s.n, 0, -1):
-                before, after = h.view(k - 1), h.view(k)
-                if any((u in after.structure.units) != (u in before.structure.units) or
-                       (u in after.structure.units and after.rev(u) != before.rev(u)) for u in units):
-                    out.append(make("JOINT_INVARIANT", {"invariant": decl["id"], "change": h.chain.entries[k].digest},
-                                    holder=REVIEWER))
-                    break
+            changes = [k for k in range(self.s.n, 0, -1) if self._touches(set(decl["units"]), k)]
+            for index, k in enumerate(changes):
+                o = make("JOINT_INVARIANT", {"invariant": decl["id"], "change": h.chain.entries[k].digest}, holder=REVIEWER)
+                if index == 0 or self.discharge(o) == REFUSED:
+                    out.append(o)
         return out
+
+    def _touches(self, units: set[str], k: int) -> bool:
+        before, after = self.s.h.view(k - 1), self.s.h.view(k)
+        return any((u in after.structure.units) != (u in before.structure.units) or
+                   (u in after.structure.units and after.rev(u) != before.rev(u)) for u in units)
+
+    def _changes(self, unit: str) -> list[int]:
+        """Positions at which ``unit``'s revision changed, latest first."""
+
+        h = self.s.h
+        return [k for k in range(self.s.n, 0, -1)
+                if unit in h.view(k).structure.units and (unit not in h.view(k - 1).structure.units
+                                                           or h.view(k - 1).rev(unit) != h.view(k).rev(unit))]
 
     # -- conformance and REVIEW(X) (§11.5, §14) ------------------------------------------------------
 
@@ -303,9 +336,11 @@ class Workflow:
 
         out = []
         for o in found:
-            if o.kind not in ("ACCEPT", "GATE", "PLAN_ACCEPT") or self.discharge(o) in (DISCHARGED, DISCHARGED_PROVISIONAL):
+            if o.kind not in ("ACCEPT", "GATE", "PLAN_ACCEPT") or self.discharge(o) in (DISCHARGED, DISCHARGED_PROVISIONAL, REFUSED):
                 continue
-            candidates = self._answers(o)
+            # A passing, independent judgment that was current when admitted and is no longer (§10.2); an adverse
+            # judgment's currency is irrelevant (§5.10 (d)) and a non-independent one supports nothing (§5.10 (f)).
+            candidates = [r for r in self._answers(o) if self.d.passing(r) and not self.d.j.nonind(r) and self._was_current(r)]
             if o.kind == "GATE":
                 members = candidates
             else:
@@ -315,6 +350,15 @@ class Workflow:
                     holder = HUMAN if self.s.record(x)["actor_class"] == "HUMAN" else REVIEWER
                     out.append(make("REVALIDATE", {"record": x}, {"for": o.id}, holder=holder))
         return out
+
+    def _was_current(self, rid: str) -> bool:
+        from .state import State
+        from .support import Support
+
+        position = self.s.position_of(rid)
+        if position == self.s.n and self.s.frame is None:
+            return self.d.current(rid) > F
+        return Support(State(self.s.h, position)).current(rid) > F
 
     # -- answers (§10.3) ------------------------------------------------------------------------
 
@@ -384,18 +428,26 @@ class Workflow:
         """``P`` inputs discharge provisionally only inside an in-force override's scope or where policy
         permits it for the kind; never for gate, human-attention, adjudication or integrity obligations."""
 
-        if o.kind in NEVER_PROVISIONAL:
+        target = o.target if isinstance(o.target, dict) else {}
+        items = tuple(e["unit"] for e in target.get("items", ())) + ((target["item"],) if "item" in target else ())
+        return self.provisional_scope(o.kind, (subject,) if subject else (), items)
+
+    def provisional_scope(self, kind: str, subjects: tuple[str, ...], items: tuple[str, ...]) -> bool:
+        """Whether ``kind`` may continue provisionally for these subjects and items (§10.3, §10.5): every one of
+        them inside one in-force override's declared scope that lists the kind, or the kind permitted by policy."""
+
+        if kind in NEVER_PROVISIONAL:
             return False
-        if o.kind in self.s.policy.flow("provisional_kinds"):
+        if kind in self.s.policy.flow("provisional_kinds"):
             return True
+        wanted = [(s, "subjects") for s in subjects] + [(i, "items") for i in items]
+        if not wanted:
+            return False
         for rid in self.s.of_kind("RISK_OVERRIDE"):
             scope = self.s.record(rid)["fields"]["continuation"]
-            if not self.s.in_force(rid) or not isinstance(scope, dict) or o.kind not in scope.get("kinds", ()):
+            if not self.s.in_force(rid) or not isinstance(scope, dict) or kind not in scope.get("kinds", ()):
                 continue
-            if subject is not None and subject in scope.get("subjects", ()):
-                return True
-            plan = self.s.plans.plans.get(o.plan) if o.plan is not None else None
-            if plan is not None and set(plan.items) & set(scope.get("items", ())):
+            if all(name in scope.get(field, ()) for name, field in wanted):
                 return True
         return False
 
@@ -407,23 +459,36 @@ class Workflow:
             return target["subject"]["subject"]
         return None
 
-    def discharge(self, o: Obligation) -> str:
-        answer = self.answer(o)
-        if answer is None:
-            return OPEN
-        record = self.s.record(answer)
-        if ADVERSE.get(record["kind"]) == record["outcome"] and self.d.j.stands_adverse(answer):
-            return REFUSED
+    def _support_for(self, o: Obligation) -> Any:
+        return self._frame_support(o.target["transformation"]) if o.kind == "REVIEW" else self.d
+
+    def _qualifies(self, o: Obligation, rid: str) -> bool:
+        """A passing judgment that may discharge ``o``: by an actor qualified for its kind, independent where
+        the kind requires it (§10.4)."""
+
+        record = self.s.record(rid)
         if PASSING.get(record["kind"]) != record["outcome"]:
-            return OPEN
+            return False
         subject = self._subject_of(o)
-        value = self.d.current(answer)
-        if o.kind == "REVIEW":
-            framed = self._frame_support(o.target["transformation"])
-            value = framed.current(answer) if framed is not None else F
+        domain = self.s.view.structure.domain(subject) if subject else self.domain_of(o)
+        if not self.d.qualified(record, domain):
+            return False
+        return not (o.kind in INDEPENDENT and self.d.j.nonind(rid))
+
+    def discharge(self, o: Obligation) -> str:
+        """§10.4: discharged iff some current, qualified, independent passing judgment of the kind on the exact
+        target (in its run) satisfies the predicate, whatever the order of admission; ``REFUSED`` when it is
+        answered and a standing, unrelieved adverse judgment of its kind is in its reach; otherwise ``OPEN``."""
+
+        if o.kind not in ANSWER_KIND:
+            return OPEN
+        support = self._support_for(o)
+        subject = self._subject_of(o)
+        candidates = [r for r in self._answers(o) if self._qualifies(o, r)]
+        value = max((support.current(r) for r in candidates), default=F) if support is not None else F
         if o.kind == "GATE":
             value = self.d.gterm(subject, o.target["gate"], self._value)
-        elif subject is not None and o.kind == "ACCEPT":
+        elif subject is not None and o.kind == "ACCEPT" and value > F:
             status = self.s.status1(triple_key(*self.s.subject_triple(subject)))
             if status in ("REVOKED", "BLOCKED"):
                 return OPEN
@@ -437,6 +502,10 @@ class Workflow:
             return DISCHARGED
         if value == P and self.provisional_allowed(o, subject):
             return DISCHARGED_PROVISIONAL
+        if self.answer(o) is not None and any(
+                ADVERSE.get(self.s.record(r)["kind"]) == self.s.record(r)["outcome"] and self.d.j.stands_adverse(r)
+                for r in self._answers(o)):
+            return REFUSED
         return OPEN
 
     # -- readiness (§10.3) ----------------------------------------------------------------------
@@ -456,8 +525,7 @@ class Workflow:
             findings = self.s.plans.lint.get(o.plan, ())
             if findings:
                 waiting.append(f"lint: {len(findings)} finding(s) on {o.plan}")
-        judges = self.eligible_judges(o)
-        if not judges:
+        if o.kind in JUDGED and not self.eligible_judges(o):
             waiting.append("no eligible judge")
         if waiting:
             return Readiness(WAITING, tuple(waiting))
@@ -480,6 +548,20 @@ class Workflow:
         if o.kind in ("ADJUDICATE", "ADJUDICATE_DISAGREEMENT", "REVALIDATE"):
             return self.d.j.root_authors(target["record"]) if target["record"] in self.s.records else frozenset({UNKNOWN})
         return frozenset({UNKNOWN})
+
+    def _human_chain(self, rid: str) -> bool:
+        """A challenge chain containing an authenticated human's record (§3.5, §8.3 step 3)."""
+
+        seen = set()
+        current: str | None = rid
+        while current in self.s.records and current not in seen:
+            seen.add(current)
+            record = self.s.record(current)
+            if record["actor_class"] == "HUMAN" and current != rid:
+                return True
+            target = record["target"]
+            current = target.get("record") if isinstance(target, dict) else None
+        return False
 
     def domain_of(self, o: Obligation) -> str | None:
         """The domain an answer to ``o`` is judged in: its subject's, its plan's, or its record's (§5.10 (e))."""
@@ -518,7 +600,7 @@ class Workflow:
             domain = self.d.j.domain_of(record)
             owner = policy.get(domain, "owner", None)
             names = list(policy.get(domain, "adjudicators", [owner] if owner else []))
-            if record["fields"].get("serious"):
+            if record["fields"].get("serious") or self._human_chain(o.target["record"]):
                 names = [n for n in names if n.startswith("human:")]
             return tuple(n for n in names if self.routes.independent(n, authors, domain))
         humans = list(policy.get(domain, "humans", ())) + [a for a in policy.get(domain, "acceptors", ()) or ()

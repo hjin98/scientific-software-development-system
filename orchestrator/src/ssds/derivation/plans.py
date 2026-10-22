@@ -242,8 +242,8 @@ def required_slots(item: Item) -> frozenset[str]:
         slots.add("findings")
     if scientific:
         slots |= {"null_envelope", "variant_search", "tension_search", "choices", "retention", "delegate_returns"}
-    if item.kind == "AUTHOR" and scientific:
-        slots.add("o1_content")
+    if item.kind == "AUTHOR":
+        slots.add("o1_content")  # §13.3: every AUTHOR item; NONE with a reason where it is not scientific software
     if item.kind == "AUTHOR" and item.authority in ("D1", "D2"):
         slots.add("revision_assessments")
     if item.kind == "INVESTIGATE" and item.specialist == "MAINTENANCE_AUDIT":
@@ -349,7 +349,7 @@ class PlanFacts:
         if not contained(self.view, scope, affected):
             err("SCOPE", "the write scope is not within the item's affected units")
         touched = units_in(self.view, scope)
-        protected, _ = resolve(self.view, self.policy.flow("protected_surfaces"))
+        protected = self.protected()
         if any(intersects(self.view, protected, a[1], a[2], a[3]) if a[0] == "span" else
                any(_within(self.view, p, a) or _within(self.view, a, p) for p in protected) for a in scope):
             err("SCOPE", "the write scope holds a protected surface")
@@ -380,11 +380,17 @@ class PlanFacts:
             if isinstance(verifier, Check):
                 for problem in check_problems(verifier.template, dict(verifier.params)):
                     err("VERIFIER", f"obligation {ob.id}: {problem}")
+                spec = dict(verifier.params).get("spec")
+                if verifier.template == "OBLIGATION.required_evidence" and spec is not None and spec not in specs:
+                    err("VERIFIER", f"obligation {ob.id} names {spec}, not an evidence specification")
             elif isinstance(verifier, EvidenceVerifier) and verifier.spec not in specs:
                 err("VERIFIER", f"obligation {ob.id} names {verifier.spec}, not an evidence specification")
             for check in ob.secondary:
                 for problem in check_problems(check.template, dict(check.params)):
                     err("VERIFIER", f"obligation {ob.id} secondary: {problem}")
+        for spec in contract.evidence:
+            if spec not in specs:
+                err("UNRESOLVED", f"expectations.evidence names {spec}, not an evidence specification")
         missing = required_slots(item) - set(contract.slots)
         if missing:
             err("SLOTS", f"required slots missing: {sorted(missing)}")
@@ -392,6 +398,18 @@ class PlanFacts:
         if contract.budget > BUDGET_CAP:
             err("BUDGET", f"budget {contract.budget} exceeds the system cap {BUDGET_CAP}")
         return out
+
+    def protected(self) -> list[Atom]:
+        """Protected surfaces in the tree: the system's (the policy unit and file, §25.3) and the policy's own."""
+
+        entries = list(self.policy.flow("protected_surfaces"))
+        if "ssds.policy" in self.view.structure.units:
+            entries.append("ssds.policy")
+        atoms, _ = resolve(self.view, entries)
+        policy_path = getattr(self.s.h, "policy_path", None)
+        if policy_path:
+            atoms.append(("file", policy_path))
+        return atoms
 
     def _coverage(self, item: Item, kinds: dict[str, str | None]) -> list[str]:
         """Minimum verifier coverage per item kind (§13.3); the ACCEPT obligation of an AUTHOR item is

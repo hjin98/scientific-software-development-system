@@ -302,7 +302,11 @@ class Conformance:
     def _t_boundary_protected_surfaces(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
         if self.candidate_view is None:
             return []
-        protected, _ = resolve(self.candidate_view, self.s.policy.flow("protected_surfaces"))
+        entries = list(self.s.policy.flow("protected_surfaces"))
+        if "ssds.policy" in self.candidate_view.structure.units:
+            entries.append("ssds.policy")
+        protected, _ = resolve(self.candidate_view, entries)
+        protected.append(("file", self.s.h.policy_path))
         return [f"{u} is a protected surface" for u in sorted(self.writes)
                 if any(intersects(self.candidate_view, protected, a[1], a[2], a[3]) for a in self._region_atoms(u))]
 
