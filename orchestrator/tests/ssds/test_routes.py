@@ -64,14 +64,14 @@ class Flow:
         x = "sha256:" + hashlib.sha256(f"ssds.transformation.v1|{sc.head}|{cand}".encode()).hexdigest()
         return sc.head, cand, x, merged
 
-    def submit(self, text: str, outcome: str = "COMPLETE") -> tuple[str, str]:
+    def submit(self, text: str, outcome: str = "COMPLETE", slots: dict | None = None) -> tuple[str, str]:
         self.counter += 1
         task = f"task-{self.counter}"
         base, cand, x, _ = self._candidate({"records.md": text})
         item = self.item()
         result = record("TASK_RESULT", target={"task": task, "candidate": cand, "transformation": x, "base": base},
                         outcome=outcome, actor=agent("maker"), actor_class="AGENT", frame={"transformation": x},
-                        fields={"slots": SLOTS})
+                        fields={"slots": SLOTS if slots is None else slots})
         result["binding"] = dict(fresh(agent("maker"), task), obligation=item.obligation.id,
                                  item={"unit": "plan.work.item", "rev": self.sc.rev("plan.work.item")})
         self.sc.admit(with_id(result))

@@ -162,6 +162,19 @@ class Workflow:
 
     @cached_property
     def obligations(self) -> tuple[Obligation, ...]:
+        """Every obligation of the state: the base obligations, and the report, floor and recurrence
+        obligations with human attention for judgments waiting on a missing judge (§15)."""
+
+        from .reports import Reports
+
+        reports = Reports(self)
+        base = list(self.base_obligations)
+        found = base + reports.obligations + reports.waiting_attention([o for o in base if o.kind in JUDGED])
+        unique = {o.id: o for o in found}
+        return tuple(sorted(unique.values()))
+
+    @cached_property
+    def base_obligations(self) -> tuple[Obligation, ...]:
         found: list[Obligation] = []
         found += self._plan_obligations()
         found += self._subject_obligations()
