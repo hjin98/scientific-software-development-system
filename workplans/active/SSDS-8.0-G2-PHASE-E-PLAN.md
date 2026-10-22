@@ -1,0 +1,114 @@
+---
+kind: ssds-shadow-phase-plan
+workplan_id: SSDS-8.0-G2-PHASE-E-PLAN
+protocol_version: 7.2.1
+target_system_version: 8.0.0
+status: active
+created_date: 2026-10-22
+governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase E row)
+governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 and A8 decided, SD-56 and SD-58, their text confirmed by the independent Reviews, stakeholder acceptance pending)
+g2_authorization: SD-55 (shadow implementation only)
+previous_phase: workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md (completed; Review PASS at 39fe39b)
+active_serious_challenge: none
+---
+
+Governing SSDP version: 7.2.1.
+
+# SSDS 8.0 — Stage D Phase E plan: the read-only interface and workflow layer
+
+```text
+STATUS: ACTIVE. Companion to the G2 shadow workplan, Stage D (§5.2 Phase E row). It concretizes
+        that row into files, modules and test groups; it adds no mechanism beyond the settled
+        register (G2 workplan §4.2) and changes no Manual decision.
+START:  the Phase D Review PASS at 39fe39b lets Phase E's dependent work start (G2 workplan §5.1
+        item 5); qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-39FE39B-DIFFERENT-FAMILY-PASS.md.
+SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNED; no cutover. The
+        document-controlled 7.2.1 baseline governs. Phase E writes nothing to any repository and
+        appends nothing to any ledger: it reads, derives and renders.
+DONE SO FAR: nothing; this plan opens the phase.
+NEXT ACTION: §3 step 1.
+```
+
+## 1. Scope and authority
+
+The G2 workplan's Phase E row builds the `interface` (`open`, `ask`, `read`; task, review, decision and gate briefs; the inspector view and digest), the S3 conformance, routing and escalation views, and contract lint, realizing register rows §10-§16 and §29. Its exit evidence for G3 is acceptance groups 5 and 6 (derivation halves), with the routing residual replay on recorded histories (§5.4); live trajectories only under an authorized campaign (§5.1 item 7).
+
+This file decides only D4 placement and order. Every behaviour cites the register row it realizes; a behaviour no row covers returns to Stage S (G2 workplan §5.6). G2 workplan §5.1 applies unchanged: expected values come from the register and the Stage S cases as written, never from running `qualification/ssds80/models/`, and production code never imports them (item 3); real owners (item 4); Core's suite and the frozen-profile tests pass unchanged (items 1 and 6). The Phase D threat boundary for the SSDS home (SD-59; Phase D plan §2) holds for every operator file Phase E touches.
+
+**What Phase E does not build** (each later phase's, with reason): `report`, `submit` and `decide`, which append (Admission, Phase F); task envelopes, issue keys, launches, lineage attestations, suspension and resumption (Dispatcher, Phase F); the Admission refusals of §8.3 steps 3 and 7 that some group 5 cases turn on (Phase F); intake, migration and external units (Phase G); adversarial and fault qualification (Phase H); every campaign, including Phase E's burden and doctrine measurements (Manual §31.9), which needs its own frozen plan, Review and authorization (G2 workplan §5.1 item 7).
+
+## 2. Placement
+
+The component table of Phase D plan §2 stands. Phase E fills owners as follows; public modules are unchanged except where stated.
+
+| Owner | Gains in Phase E | Register rows |
+|---|---|---|
+| `content` | plan units: the `Objective` part, item parts each with one `ssds-item` TOML block (closed item schema, catalogue §11.1) and its `[contract]` table (closed schema, §13.1); `ref` resolution confined to the item's part and the `Objective` (ref locality is checked by lint, resolution is content's); item revisions are the item parts' unit revisions | §11.1, §13.1 |
+| `analyzers` | the Python analyzer's public-interface extraction, derived `TESTS` relations, test-integrity facts (deleted, skipped, expected-to-fail tests; assertion counts, tolerances), stub detection and unit annotations (`Annotated[..., Unit(...)]`, `ssds:unit` comments), each with its completeness declaration | §14.5, §2.6 |
+| `derivation` | the S3 workflow layer: obligation kinds and identities, revision assessments and runs, readiness, iterations and answering, discharge, risk-override scope and provisional propagation, plan acceptance and issuability, amendment classes, lint and plan invariants, item routes with the SD-54 chains and the recurrence hold, partition and the item-level review, report persistence, routing, floors, decision outcomes and recurrence, conformance with the check library; and the §16.2 query functions over all strata | §10-§15, §16.2 |
+| `interface` | the logical operations `open`, `ask`, `read` (library surface re-exported by `ssds.api.v1`), the qualified presentation of every answer, the deterministic renderers of task, review, decision and gate briefs with duty compilation and version binding, the inspector view and digest, and the CLI commands it provides to the root module; `interface.render` becomes the public renderer module the Dispatcher will import in Phase F | §16, §29 |
+| root module `ssds.cli` | mounts the Interface's commands (`open`, `ask`, `read`, `status`, `inspect`) beside Core's; wires the SSDS home, the trees and the protocol sources into the Interface (readings E3 and E9) | §26.3 |
+
+**One owner for qualified presentation.** The step 7 report consumer (`scripts/shadow_genesis.py derive`) qualifies the chain before deriving, presents a current answer only at a current-qualified head `H*` and keeps `H*` as the high-water mark (Phase D repairs A-B1, A-B5, A-B7, NF5). That logic moves into the Interface, which owns presenting anything as current (Manual §16.2, catalogue §26.1), and the script calls it. Its Phase D tests move with it and keep their discriminators.
+
+**Shadow boundary (G2 workplan §5.1 item 2).** No Phase E module appends, starts a process other than through `content` or `ledger`, or writes to a repository. The only operator file Phase E writes is the high-water mark, through the checked Phase D owner (reading E3). Fitness rule B1 is unchanged and the run-time check of Phase D (product refs, objects and status unchanged) is repeated for every Phase E command on the shadow ledger.
+
+## 3. Steps, in order
+
+| Step | Modules | Realizes register rows | Tests (under `orchestrator/tests/ssds/`) |
+|---|---|---|---|
+| **1** fitness sensor | `orchestrator/tests/ssds/fitness.py`: the F8 Git-reader rule follows Python's binding and evaluation order (the four NF8 cases of the 39fe39b Review, keeping the NF4, NF6 and NF7 controls), before derivation grows | §26.2 | `test_fitness.py`: the four NF8 cases with the expected outcomes the Review states, each failing on the current checker |
+| **2** plans and contracts | `content`: plan parts, item and contract parsing with closed schemas, `ref` resolution, item revisions; the policy keys of reading E10 | §11.1, §13.1 | group 5 structure cases: unknown key, missing field, a `ref` resolving outside the item and `Objective` (S5 §13 `ref_outside_item_part_rejected`), item revisions under an edit of another item |
+| **3** S3 workflow core | `derivation`: obligation identity (reading E4) and the §10.2 kinds and triggers; revision-assessment records and revision runs; answered judgment obligations and iterations (§10.3); readiness; discharge with its four values (§10.4); risk-override scope and provisional propagation (§10.5); plan acceptance, issuability and the amendment class `⊑` (§11.2, §11.4, §13.4); lint and the plan invariants (§11.3, §13.2, §13.3, §13.5, §13.6); partition lint (§13.7) | §10.2-§10.5, §11, §13 | S5 §8-§13 derivation halves (the 13 cases other than the three admission cases); the D1/D2 revision-run discriminators deferred from Phase D (575dc78 N5, f7419d5 N4, f22b4dc N5 run variants); 63ddf91 N5's plan half (relief after a non-overlapping amendment, tightening) |
+| **4** routes, reports and escalation | `derivation`: the one route of an item obligation (§10.4) with the SD-54 answer-qualified chains, the recurrence hold after 3 counted answers (SD-55), partition and the item-level review, out-of-scope adverse reviews; report persistence (§15.2), the routing table (§15.3), floors (§15.4), allowed decision outcomes (§15.5), annotation, merge and reclassification (§15.6), recurrence detection (§15.7); `HUMAN_ATTENTION` and `COORDINATE(plan)` derivation | §10.4, §12.5, §13.7, §15 | group 5 (§4 below): the 32 S3 routing cases, the 4 identity cases as the assembled transition (RR-4), and the lifecycle replay (reading E15); group 6 |
+| **5** conformance | `derivation`: the check library of §14.3 as fixed functions of `ρ_n` with their declared forces, set-valued aggregation (§14.4), the conformance view (§14.6); `analyzers` additions of §2; runner-only templates read `CHECK_EXECUTION` observations (reading E6) | §14 | template cases per family, each with a clean and a violating candidate; set-valued classes (an undisclosed breach is `VIOLATION` and `DISCREPANCY`); removing every `HEURISTIC` template changes no discharge (§14.3); a missing required execution is `INCOMPLETE` |
+| **6** operations and queries | `interface`: `open`, `ask`, `read`; the §16.2 queries with epistemic labels and acceptance statuses; qualified presentation moved from the step 7 script; `ssds status`, `ssds ask`, `ssds read` | §16.1, §16.2, §23.4 (presentation) | determinism (identical basis, query and policy give identical answers); `UNQUALIFIED` labels with no qualified head; the moved A-B1, A-B5, A-B7 and NF5 tests; read-only checks on the shadow ledger |
+| **7** briefs and the inspector | `interface.render`: task, review, decision and gate briefs in the Manual's section order, duty compilation with the §16.3 injection events, version binding (§16.9), review-brief exclusions and carried objections (§16.5), the gate brief's evidence core first (§16.6); the inspector view's ordering and digest (§16.8); `ssds open`, `ssds inspect` | §16.3-§16.9, §29 | golden briefs over constructed ledgers, each section checked against the record it projects; a review brief never contains the author's narrative, outcome or annotations; each §29 E0 duty present exactly when its event fires and absent otherwise; inspector ordering by `(−w, c, p, id)` |
+| **8** exit | assembly of groups 5 and 6; the end-to-end read-only run on the admitted shadow ledger | §5.2 Phase E exit | `ssds status`, `ssds ask governs` and `ssds inspect` against `ssdp-shadow` at its qualified head, with the product repository's refs, objects and status unchanged |
+
+Each step closes with its tests, Core's suite, `run_models.py --seeds` (unchanged), the repository suite and `git diff --check` before the next starts. Phase E ends with an independent implementation Review (G2 workplan §5.1 item 5), which the stakeholder asks for.
+
+## 4. Acceptance groups 5 and 6: cases and discriminators carried
+
+Expected results come from the register row and the Stage S case's stated outcome, transcribed into the test as literal data with the case name cited. A group not executed is reported as unexecuted, never as passed (Manual §31.2).
+
+| Group | Stage S cases carried | Review-named discriminators carried in Phase E | Deferred, with reason |
+|---|---|---|---|
+| **5** workflow, contracts, conformance, routing | S3 (32: `budget_*`, `kept_fence_*`, `item_level_amend_elsewhere_*`, `recurrence_*`, `item_level_recurrence_*` and the RR-6 to RR-8 cases), the 4 `IDENTITY_CASES` as the assembled transition (`out(o)`, subjects and iteration count through an amendment, the acceptance wait, the budget change), the lifecycle histories (P1-P7, reading E15); S5 §8-§13 (13 of 16: run identity, tightening, ref locality, domain rule, partition and re-partition) | 051cce3 N5 (a reopened part obligation of a superseded `PARTITION`); 51070e5 N3 (the §13.7 re-partition example); 63ddf91 N5 and f03b15e N5 (a re-partition after a discharged part); b365947 N4 (an R1 tightening the content already meets still re-dispatches); 13d67be B1 (the SD-54 histories: route existence and admissibility, no re-dispatch above budget, no decision repeated without a new answer); d8ab75c B1 (each chain through the threshold and the human answer; an answer never reopens an answered decision) | S5 §8 `rejected_request_salvages_never_lost`, `unclean_result_refuses_passing_judgments`, `clean_request_admits_all` (Admission, Phase F); the admission halves of the route cases (the refusal of a candidate bound to an obligation no longer derived, §8.3 step 7) |
+| **6** escalation and the inspector | S3 no-stranded-obligation cases | 8f4e75d N4 (§10.3's second half: no non-current judgment a current obligation depends on is left with neither a ready nor a waiting route), checked over every constructed state of groups 3 and 5 | none |
+
+**Carried from Phase D** (Phase D plan §8, "Group 3 discriminators not executed"): the D1/D2 revision-run variants of 575dc78 N5, f7419d5 N4 and f22b4dc N5; 63ddf91 N5's plan half; f03b15e N5's human reassessment of an answered non-gate obligation (§10.3). They run in steps 3 and 4. 51070e5 N3's adjudication-independence refusal and f03b15e N5's supersession-authority cases stay with Phase F.
+
+**Routing residual replay (G2 workplan §5.4).** The S3 histories are replayed as constructed ledgers through the real derivation owner, not through `models/routing.py`: each history becomes a chain of `TASK_RESULT`, `REVIEW`, `COORDINATION_DECISION` and plan-unit changes, and the expected route and open decisions are the case's literal data.
+
+## 5. Readings
+
+Where the Manual and catalogue leave a choice to D4 or name a later owner, Phase E reads it as below. Each reading is a Review question in the Phase E Review; none changes a Manual or register decision.
+
+- **E1** *Operations before tasks exist.* Tasks and envelopes are the Dispatcher's (Phase F). `open` renders the brief of a derived obligation at the qualified head, labeled `NOT ISSUED` (no task identity, envelope, route or lineage; reads not recorded); `open(task)` binds to an envelope in Phase F. `read` returns content at the answer's basis and records nothing, since no task basis exists to record into (§16.4).
+- **E2** *Qualified answers.* Every answer names the qualified head it was derived at (§16.2). The Interface qualifies (declared witnesses, retirement, the high-water mark) before deriving, derives the qualified prefix through `H*`, and labels everything `UNQUALIFIED` (historical) when no head is current-qualified. A current answer raises the high-water mark to `H*`, never lowering it (Phase D A-B5, NF5).
+- **E3** *The SSDS home through the composition root.* The home's layout and its SD-59 check live in `admission.genesis.Home`, which §26.2 row 6 forbids the Interface to import. The Interface defines the small read protocol it needs (chain, witness model, high-water read and raise) and the root module wires it from `Home` and the ledger modules, as it wires the tree source (Phase D reading 13). The high-water write stays on `Home`'s checked path and `ledger.qualification.publish_private`. **No new operator tree in Phase E:** Phase D reading 11 assigned checkpoint storage to the Interface; it is deferred, derivation running from scratch, because performance before correctness is a non-goal (G2 workplan §3) and a new operator tree reopens the containment surface SD-59 bounds. It returns when a measurement shows derivation time matters.
+- **E4** *Obligation identity.* `sha256("ssds.obligation.v1" ‖ rule id ‖ JCS(target) ‖ JCS(parameters))` (catalogue §10.2), JCS by `core.api.v1.canonical_json`.
+- **E5** *Lint is derived.* Lint and the plan invariants are S3 functions (catalogue §26.1: decision and amendment classes); Admission enforces them at plan-unit admission in Phase F. In Phase E a plan failing lint has its changed items non-issuable (§11.3), shown with the lint findings.
+- **E6** *Conformance without a runner.* Derivation evaluates the templates that are pure functions of the contract, the base and candidate trees and the result record; a template that needs an execution reads the `CHECK_EXECUTION` observations recorded for the exact candidate, and a required one with none is `INCOMPLETE` (§14.4). In Phase E constructed ledgers supply those observations; the designated runner is Phase F's. `ask(verify)` evaluates the pure templates on a supplied workspace tree, labeled advisory (§14.4).
+- **E7** *`HARD` qualification.* The system library's forces are those §14.3 declares in `ssds-rules/1`. §14.7's qualification on real trajectories needs live trajectories, so it is campaign evidence for G3, reported unexecuted, never claimed.
+- **E8** *Analyzer scope.* The ruleset pins the Python analyzer only. A template whose input needs an analyzer the ruleset does not pin for a file's language is a missing required execution, `INCOMPLETE`, failing closed. The C++ analyzer comes with the first governed C++ subject (Phase G's external pilot at the earliest).
+- **E9** *Domain cores and injected text.* For a `NATIVE` subject they are read at the protocol source the ruleset pins, through Core's protocol-source resolution; a `LEGACY(p)` subject's brief is rendered through `p`'s frozen Core profile (`core.api.v1`, `render`). If Core's public API lacks a reader for a file at a resolved source, it gains one additive export, as `canonical_json` was added in Phase D; Core's behaviour is unchanged.
+- **E10** *Policy keys.* Phase D reading 2's closed per-domain table gains the keys the Manual names for workflow, each with its system default where the Manual gives one: `standing_plan` (§12.5), `budget` and `budget_cap` (3 and 10, §13.7), `recurrence` (3, SD-55), `mutation_threshold` (0.70, §14.5), `protected_surfaces`, `concern_tags` (§16.3), `provisional_kinds` (§10.5), `waive_item_level_review` (item kinds, §13.7), `floors` (raise-only, §15.4). A value weaker than its system floor is a static error. Whether an R2 amendment may take scoped review is the plan's own policy section (§11.4), not project policy.
+- **E11** *Transports.* Phase E delivers the library surface (`ssds.api.v1`) and the CLI. The MCP server and the Git-envelope transport carry `submit` and envelopes, so they come with Phase F.
+- **E12** *Search.* `search(text)` is a deterministic substring search over unit content at the basis; every hit is `CANDIDATE`. No embedding index.
+- **E13** *History.* `history(x)` is offered when the PEM predicate of §16.3's table fires for the task, or on explicit request, and its items are `HISTORICAL`.
+- **E14** *Inspector weight.* `w` counts the obligations whose readiness or discharge waits on the entry, transitively through readiness prerequisites (§16.8), over the derived state at the rendering head.
+- **E15** *Lifecycle replay at the real owner.* The G2 lifecycle property check enumerates every answer chain up to length 4 (14,508 chains, properties P1-P7 stated from the Manual). Phase E replays the full enumeration through the real derivation if one run finishes within the repository suite's budget; otherwise the suite runs a seeded, stratified sample covering every condition and chain length, and the full enumeration runs as a named slow check before the Phase E Review, its result recorded.
+
+## 6. Fail closed until a later owner
+
+Until Phase F: every obligation is derived and shown, none is dispatched; no brief is issued; independence that needs lineage attestation is `UNKNOWN` and fails closed (§12.2), so a judgment that requires independence does not answer in Phase E fixtures unless the fixture records attested lineage. Until §17's realization machinery and runners exist: required evidence with no admitted realization is `UNAVAILABLE`, never passing. Until Phase G: intake obligations are derived (Phase D) but not routed beyond `INTAKE`. Each fails toward "not supported", never toward support.
+
+## 7. Questions for the stakeholder
+
+None blocks Phase E. Acceptance of Manual amendments A7 and A8, whose text the Phase D Reviews confirmed, is the stakeholder's and is asked separately. Phase D plan §7 Q5 (`[ssds]` configuration) stays unasked: Phase E commands take the ledger explicitly (`--ledger <id>`) and read no setting.
+
+## 8. Reopen and stop
+
+G2 workplan §5.6 applies: a Manual decision failing in practice reopens G1; a register row failing at its real owner, or a needed behaviour with no row, returns to Stage S; a failure family recurring after a repair triggers simplification before another additive repair; any breach of the shadow boundary stops Stage D and goes to the stakeholder. Specific to Phase E: a need for a new operator tree, a write outside the high-water mark, or a new runtime dependency comes to the stakeholder before it is built.
