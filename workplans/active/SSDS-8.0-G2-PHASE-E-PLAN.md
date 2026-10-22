@@ -4,9 +4,9 @@ workplan_id: SSDS-8.0-G2-PHASE-E-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
 status: active
-created_date: 2026-10-22
+created_date: 2026-10-21
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase E row)
-governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 and A8 decided, SD-56 and SD-58, their text confirmed by the independent Reviews, stakeholder acceptance pending)
+governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 and A8 accepted, SD-60)
 g2_authorization: SD-55 (shadow implementation only)
 previous_phase: workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md (completed; Review PASS at 39fe39b)
 active_serious_challenge: none
@@ -108,7 +108,7 @@ Until Phase F: every obligation is derived and shown, none is dispatched; no bri
 
 ## 7. Questions for the stakeholder
 
-None blocks Phase E. Acceptance of Manual amendments A7 and A8, whose text the Phase D Reviews confirmed, is the stakeholder's and is asked separately. Phase D plan §7 Q5 (`[ssds]` configuration) stays unasked: Phase E commands take the ledger explicitly (`--ledger <id>`) and read no setting.
+None open. Manual amendments A7 and A8 were accepted by SD-60. Phase D plan §7 Q5 (`[ssds]` configuration) stays unasked: Phase E commands take the ledger explicitly (`--ledger <id>`) and read no setting.
 
 ## 8. Reopen and stop
 

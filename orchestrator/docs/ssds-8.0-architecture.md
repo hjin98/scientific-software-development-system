@@ -21,9 +21,9 @@ amendment_a2: accepted (SD-52, SD-53; stakeholder decision record items 48, 49),
 amendment_a3: accepted (SD-53, stakeholder decision record item 49); restores §32.2 and §32.3 disclosures lost in the SD-47 condensation; no decision changes
 amendments_a4_a6: accepted (SD-55, stakeholder decision record item 51) with the post-review corrections; A4 the §5.10 (e) cross-item owner (finding 913db8f N6); A5 and A6 the 2a17a83 Review's N1 and N2 (§32.2, §17.5, §32.3); no decision changes
 accepted_at_g1: SD-50 (stakeholder decision record item 46), semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5, blob b4077eb5879570b0aee56b068be8588beeaa5e9e
-amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b; SD-55 (item 51), A4-A6 reviewed at afd3be2640b6a6e33a3d744efd76d324c6e5931a and accepted with corrections at cb468ecad19ba41715527b4de42d90262e02cf87, blob 0e304061b965eea8b124c9942f5c9aff4fa9a2d6
-amendment_a7: decided (SD-56, SD-57; stakeholder decision record items 52-53); the program is `ssds` and operator data lives in an SSDS home outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4); text written by the author, independent Review pending (batched with the Phase D implementation Review)
-amendment_a8: decided (SD-58, stakeholder decision record item 54); a bounding completeness judgment is checked on the content the run it bounds ran on (§6.5); resolves SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb; text written by the author, independent Review pending
+amendments_accepted: SD-53 (stakeholder decision record item 49), semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74, blob e90c1a4db68e9410e81eefafdcfcff92b888c57b; SD-55 (item 51), A4-A6 reviewed at afd3be2640b6a6e33a3d744efd76d324c6e5931a and accepted with corrections at cb468ecad19ba41715527b4de42d90262e02cf87, blob 0e304061b965eea8b124c9942f5c9aff4fa9a2d6; SD-60 (item 56), A7 and A8 confirmed by the Phase D Reviews 517af45 to 39fe39b and accepted, blob 6226f323365966bbcf653545f3a35b1fd7d6e060
+amendment_a7: accepted (SD-56, SD-57, SD-60; stakeholder decision record items 52-53, 56); the program is `ssds` and operator data lives in an SSDS home outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4)
+amendment_a8: accepted (SD-58, SD-60; stakeholder decision record items 54, 56); a bounding completeness judgment is checked on the content the run it bounds ran on (§6.5); resolves SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb
 d4: shadow-only (G2, SD-55); no SSDS authority over any subject before G4
 active_serious_challenge: none
 ---
@@ -44,15 +44,14 @@ AMENDMENTS A4-A6: ACCEPTED (SD-55, 2026-10-19) after the independent D3 Review
           non-blocking corrections at cb468ec: A4, the owner where a reach crosses items or plans
           (§5.10 (e)); A5, waiting with qualified independent people present (§32.2); A6, runner-attribute
           costs and two reopen triggers (§17.5, §32.3). No decision changes.
-AMENDMENT A7: DECIDED by the stakeholder (SD-56, SD-57, 2026-10-19): one program named `ssds` (distribution,
-          import package and command; the `sdp` names retired, Level 0 Core as `ssds.core` with its
-          behaviour unchanged) and one SSDS home for operator data outside every repository (§0.5, §16.10,
-          §21.5, §26.2-§26.4). The text is the author's; its independent Review is pending. Two §26.4
-          rows were corrected to it after the Phase D Review 0e49deb (finding B-B1).
-AMENDMENT A8: DECIDED by the stakeholder (SD-58, 2026-10-20): a completeness judgment that bounds a
-          run's basis is checked on the content that run ran on, not on the state of evaluation (§6.5),
-          resolving SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb. The text is the author's; its
-          independent Review is pending.
+AMENDMENTS A7 and A8: ACCEPTED (SD-60, 2026-10-21) after the independent Phase D Reviews, which confirmed
+          them from 517af45 to qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-39FE39B-DIFFERENT-FAMILY-PASS.md.
+          A7 (SD-56, SD-57): one program named `ssds` (distribution, import package and command; the `sdp`
+          names retired, Level 0 Core as `ssds.core` with its behaviour unchanged) and one SSDS home for
+          operator data outside every repository (§0.5, §16.10, §21.5, §26.2-§26.4); two §26.4 rows were
+          corrected to it after the Phase D Review 0e49deb (finding B-B1). A8 (SD-58): a completeness
+          judgment that bounds a run's basis is checked on the content that run ran on, not on the state
+          of evaluation (§6.5), resolving SERIOUS CHALLENGE SC-1 of the Phase D Review 0e49deb.
 GOVERNING PROTOCOL: SSDP 7.2.1 (release identities owned by PROTOCOL-RELEASE-STATE.yaml)
 TARGET: SSDS 8.0.0
 BOUND TO: SSDS 8.0 workplan design revision 24 (revision 23's Phase B semantic candidate
