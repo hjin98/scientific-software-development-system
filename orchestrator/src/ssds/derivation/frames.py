@@ -94,6 +94,18 @@ class Frame:
 
         return frozenset(u for u in self.structure.units if self._base_view.rev(u) != self._candidate_view.rev(u))
 
+    @property
+    def base_view(self) -> TreeView:
+        """``tree(B)`` under the frame's structure."""
+
+        return self._base_view
+
+    @property
+    def candidate_view(self) -> TreeView:
+        """``tree(C)`` under the frame's structure."""
+
+        return self._candidate_view
+
     def candidate_rev(self, unit: str) -> str | None:
         """The revision ``tree(C)`` gives ``unit`` under the frame's structure."""
 

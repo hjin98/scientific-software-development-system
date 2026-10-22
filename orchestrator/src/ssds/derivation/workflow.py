@@ -11,8 +11,8 @@ This module derives the judgment obligations and plan obligations of Phase E
 step 3: ``PLAN_ACCEPT``, ``CONTRACT``, ``ACCEPT``, ``GATE``, the revising
 review ``REVIEW(s, r)``, ``ADJUDICATE``, ``ADJUDICATE_DISAGREEMENT``,
 ``REVALIDATE``, ``SPEC_REVIEW`` and ``JOINT_INVARIANT``. Item obligations and
-their routes, ``COORDINATE`` and ``HUMAN_ATTENTION`` are step 4's; ``REVIEW(X)``
-comes with conformance (step 5); ``REALIZE``, ``ASSESS``, ``RERUN`` and
+their routes, ``COORDINATE`` and ``HUMAN_ATTENTION`` are step 5's; ``REVIEW(X)``
+comes with conformance (step 4); ``REALIZE``, ``ASSESS``, ``RERUN`` and
 ``READING`` are triggered by §17's realization machinery (Phase F).
 """
 
@@ -38,9 +38,10 @@ READY, READY_PROVISIONAL, WAITING, ANSWERED = "READY", "READY_PROVISIONAL", "WAI
 DISCHARGED, DISCHARGED_PROVISIONAL, OPEN, REFUSED = "DISCHARGED", "DISCHARGED_PROVISIONAL", "OPEN", "REFUSED"
 #: The judgment kind that answers each judgment obligation kind (§10.3).
 ANSWER_KIND = {"ACCEPT": "ACCEPTANCE", "GATE": "GATE_DECISION", "PLAN_ACCEPT": "PLAN_ACCEPTANCE",
-               "ADJUDICATE": "ADJUDICATION", "SPEC_REVIEW": "REVIEW", "JOINT_INVARIANT": "REVIEW"}
+               "ADJUDICATE": "ADJUDICATION", "SPEC_REVIEW": "REVIEW", "JOINT_INVARIANT": "REVIEW", "REVIEW": "REVIEW"}
 #: Kinds whose answer carries an independence requirement (§5.10 (f)).
-INDEPENDENT = frozenset({"ACCEPT", "PLAN_ACCEPT", "SPEC_REVIEW", "JOINT_INVARIANT", REVISING_REVIEW, "ADJUDICATE"})
+INDEPENDENT = frozenset({"ACCEPT", "PLAN_ACCEPT", "SPEC_REVIEW", "JOINT_INVARIANT", REVISING_REVIEW, "ADJUDICATE",
+                         "REVIEW"})
 
 
 @dataclass(frozen=True, order=True)
@@ -149,6 +150,7 @@ class Workflow:
         found += self._challenge_obligations()
         found += self._disagreement_obligations()
         found += self._spec_and_invariant_obligations()
+        found += self._review_obligations()
         found += self._revalidations(found)
         unique = {o.id: o for o in found}
         return tuple(sorted(unique.values()))
@@ -245,6 +247,48 @@ class Workflow:
                     break
         return out
 
+    # -- conformance and REVIEW(X) (§11.5, §14) ------------------------------------------------------
+
+    @cached_property
+    def _conformance(self) -> dict[str, Any]:
+        return {}
+
+    def conformance(self, result: str) -> Any:
+        """The conformance of an admitted task result (§14.1)."""
+
+        from .conformance import Conformance
+
+        if result not in self._conformance:
+            self._conformance[result] = Conformance(self, result)
+        return self._conformance[result]
+
+    def submitting_result(self, transformation: str) -> str | None:
+        """The task result that first submitted ``X`` (§7.1)."""
+
+        for rid in self.s.of_kind("TASK_RESULT"):
+            if self.s.record(rid)["target"].get("transformation") == transformation:
+                return rid
+        return None
+
+    def _review_obligations(self) -> list[Obligation]:
+        """``REVIEW(X)``: a task result whose conformance is CLEAN, while ``X`` is unintegrated (§10.2)."""
+
+        out = []
+        for transformation, task in sorted(self.s.submissions.items()):
+            if task in self.s.integrated:
+                continue
+            result = self.submitting_result(transformation)
+            if result is not None and self.s.record(result)["outcome"] == "COMPLETE" and self.conformance(result).clean:
+                out.append(make("REVIEW", {"transformation": transformation}, holder=REVIEWER))
+        return out
+
+    def _frame_support(self, transformation: str) -> Any:
+        from .frames import frame_state
+        from .support import Support
+
+        state = frame_state(self.s.h, self.s.n, transformation, self.s)
+        return Support(state) if state is not None else None
+
     def _last_change(self, unit: str) -> str | None:
         h = self.s.h
         for k in range(self.s.n, 0, -1):
@@ -288,6 +332,8 @@ class Workflow:
             return record["target"] == target
         if o.kind == "SPEC_REVIEW":
             return record["target"] == target
+        if o.kind == "REVIEW":
+            return record["target"].get("transformation") == target["transformation"]
         if o.kind == "JOINT_INVARIANT":
             t = record["target"]
             return t.get("integrated") == "JOINT_INVARIANT" and t.get("of") == target["invariant"] and \
@@ -304,7 +350,9 @@ class Workflow:
             o.target["subject"]["subject"] if o.kind == "GATE" else None)
         out = []
         for rid in self.s.of_kind(kind):
-            if not self.s.acts(rid) or not self._on_target(o, rid):
+            # A review of X declares frame id(X) (§11.5): it answers REVIEW(X) in that frame, the obligation's state.
+            in_frame = o.kind == "REVIEW" and self.s.record(rid)["frame"] == {"transformation": o.target["transformation"]}
+            if not (self.s.acts(rid) or in_frame) or not self._on_target(o, rid):
                 continue
             if subject and self._revised_kind(subject) and self.s.runs.named(rid, subject) != self.s.runs.rid(subject):
                 continue
@@ -370,6 +418,9 @@ class Workflow:
             return OPEN
         subject = self._subject_of(o)
         value = self.d.current(answer)
+        if o.kind == "REVIEW":
+            framed = self._frame_support(o.target["transformation"])
+            value = framed.current(answer) if framed is not None else F
         if o.kind == "GATE":
             value = self.d.gterm(subject, o.target["gate"], self._value)
         elif subject is not None and o.kind == "ACCEPT":
@@ -424,6 +475,8 @@ class Workflow:
             for entry in [target["objective"], *target["items"]]:
                 out |= self.s.authors(entry["unit"], entry["rev"])
             return frozenset(out)
+        if o.kind == "REVIEW":
+            return frozenset(self.s._makers(target["transformation"])) or frozenset({UNKNOWN})
         if o.kind in ("ADJUDICATE", "ADJUDICATE_DISAGREEMENT", "REVALIDATE"):
             return self.d.j.root_authors(target["record"]) if target["record"] in self.s.records else frozenset({UNKNOWN})
         return frozenset({UNKNOWN})
