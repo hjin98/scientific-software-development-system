@@ -94,7 +94,7 @@ class ChallengeTier(unittest.TestCase):
         c = challenge({"record": self.acc["id"]})
         self.sc.admit(c)
         self.assertEqual(self.sc.derive().valid("arch"), F)
-        override = judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER, fields={"continuation": ["arch"]})
+        override = judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER, fields={"continuation": {"subjects": ["arch"], "items": [], "kinds": []}})
         self.sc.admit(override)
         self.assertEqual(self.sc.derive().valid("arch"), P)
 
@@ -144,7 +144,7 @@ class SupportCycles(unittest.TestCase):
         sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
         acc_arch = accept(sc, "arch")
         c = challenge({"record": acc_arch["id"]})
-        override = judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER, fields={"continuation": ["arch", "impl"]})
+        override = judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER, fields={"continuation": {"subjects": ["arch", "impl"], "items": [], "kinds": []}})
         acc_impl = accept(sc, "impl", actor=HUMAN_B, extra=[validity("arch", sc.rev("arch"))])
         sc.admit(acc_arch, c, override, acc_impl)
         d = sc.derive()

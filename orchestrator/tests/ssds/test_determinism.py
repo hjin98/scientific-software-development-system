@@ -69,7 +69,7 @@ def generate(seed: int, steps: int = 22) -> Scenario:
             blocking = [r for r in made if r["kind"] == "CHALLENGE" and r["fields"]["blocking"]]
             if blocking:
                 made += sc.admit(judgment("RISK_OVERRIDE", {"record": rng.choice(blocking)["id"]}, None, actor=OWNER,
-                                          fields={"continuation": list(subjects)}))
+                                          fields={"continuation": {"subjects": list(subjects), "items": [], "kinds": []}}))
         elif op == "absorb":
             sc.absorb({f"{subject}.md": f"{subject} {step}\n"})
             revisions[subject].append(sc.rev(subject))

@@ -14,6 +14,7 @@ from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
 from .s3 import Consequences, Finding, Obligation
 from .state import F, P, Policy, T, State
 from .support import Support
+from .workflow import Workflow
 
 
 def derive(chain, trees: TreeSource, position: int | None = None, checkpoint: bytes | None = None) -> Support:
@@ -30,5 +31,5 @@ def consequences(chain, trees: TreeSource, position: int | None = None, checkpoi
 
 __all__ = [
     "BaselineStructure", "CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History",
-    "Obligation", "P", "Policy", "State", "Support", "T", "TreeSource", "baseline_structure", "consequences", "derive",
+    "Obligation", "P", "Policy", "State", "Support", "T", "TreeSource", "Workflow", "baseline_structure", "consequences", "derive",
 ]

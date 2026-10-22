@@ -189,7 +189,12 @@ KINDS: dict[str, KindSpec] = {
                     ("blocking", "serious", "inquiry")),
     "ADJUDICATION": _k("challenge", "record", "UPHELD DISMISSED"),
     "WITHDRAWAL": _k("challenge", "record", None),
-    "RISK_OVERRIDE": _k("challenge", "record", None, {"continuation": list_of(is_unit)}, ("continuation",)),
+    # §10.5: the continuation scope is a closed set of subjects and items, the obligation kinds that may
+    # discharge provisionally, and whether descendants created later inherit it (default no).
+    "RISK_OVERRIDE": _k("challenge", "record", None,
+                        {"continuation": shape({"subjects": list_of(is_unit), "items": list_of(is_unit),
+                                                "kinds": list_of(is_token)}, {"inherit": is_bool})},
+                        ("continuation",)),
     "CONTINUITY_ATTESTATION": _k("challenge", "loss", None,
                                  {"scope_form": one_of("COMPLEMENT", "EXPLICIT"), "listed": list_of(is_token),
                                   "evidence": list_of(is_digest)}, ("scope_form", "listed")),

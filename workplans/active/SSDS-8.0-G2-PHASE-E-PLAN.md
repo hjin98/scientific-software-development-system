@@ -30,8 +30,9 @@ DONE SO FAR: §3 step 1 (the F8 sensor follows Python's binding and evaluation o
              `[workflow]` policy keys in `derivation.Policy`); step 3a (revision runs and
              revision-assessment records, `derivation.runs`); step 3b (lint, the plan invariants,
              control tightening and partition lint, `derivation.plans`; the check library's catalogue,
-             `derivation.library`).
-NEXT ACTION: §3 step 3c (obligations, readiness, discharge).
+             `derivation.library`); step 3c (obligations, answering, readiness, discharge and the
+             provisional scope, `derivation.workflow`).
+NEXT ACTION: §3 step 4.
 ```
 
 ## 1. Scope and authority
@@ -40,7 +41,7 @@ The G2 workplan's Phase E row builds the `interface` (`open`, `ask`, `read`; tas
 
 This file decides only D4 placement and order. Every behaviour cites the register row it realizes; a behaviour no row covers returns to Stage S (G2 workplan §5.6). G2 workplan §5.1 applies unchanged: expected values come from the register and the Stage S cases as written, never from running `qualification/ssds80/models/`, and production code never imports them (item 3); real owners (item 4); Core's suite and the frozen-profile tests pass unchanged (items 1 and 6). The Phase D threat boundary for the SSDS home (SD-59; Phase D plan §2) holds for every operator file Phase E touches.
 
-**What Phase E does not build** (each later phase's, with reason): `report`, `submit` and `decide`, which append (Admission, Phase F); task envelopes, issue keys, launches, lineage attestations, suspension and resumption (Dispatcher, Phase F); the Admission refusals of §8.3 steps 3 and 7 that some group 5 cases turn on (Phase F); intake, migration and external units (Phase G); adversarial and fault qualification (Phase H); every campaign, including Phase E's burden and doctrine measurements (Manual §31.9), which needs its own frozen plan, Review and authorization (G2 workplan §5.1 item 7).
+**What Phase E does not build** (each later phase's, with reason): `report`, `submit` and `decide`, which append (Admission, Phase F); the §10.2 obligations triggered by §17's realization machinery (`REALIZE`, `ASSESS`, `RERUN`, `READING`), with §17 in Phase F, required evidence without an admitted realization staying `UNAVAILABLE` meanwhile; task envelopes, issue keys, launches, lineage attestations, suspension and resumption (Dispatcher, Phase F); the Admission refusals of §8.3 steps 3 and 7 that some group 5 cases turn on (Phase F); intake, migration and external units (Phase G); adversarial and fault qualification (Phase H); every campaign, including Phase E's burden and doctrine measurements (Manual §31.9), which needs its own frozen plan, Review and authorization (G2 workplan §5.1 item 7).
 
 ## 2. Placement
 
@@ -111,6 +112,8 @@ Where the Manual and catalogue leave a choice to D4 or name a later owner, Phase
 - **E20** *Runner classes.* Lint checks that an evidence verifier names an existing evidence specification and a runner class; whether that class is designated (§17.5) is checked once runner designation exists (Phase F).
 - **E21** *Layer direction and required gates.* An item's layer is its authority domain for an `AUTHOR` item (D1 above D2 above D3) and D4 for implementer kinds; an item depends only on items of its own or a higher layer, and an `INVESTIGATE` item is layer-free. The gates "policy requires for the item kinds and domains" (§11.3) are the policy's gates of the item's authority domain for an `AUTHOR` item, else of every D1-D4 domain whose units its write scope meets.
 - **E22** *Slot triggers and coverage.* §13.5's triggers that turn on a judgment about the work (`null_envelope`, `variant_search`, `tension_search`, `choices`, `retention`, `delegate_returns`) are required whenever `scientific = APPLIES`, the 7.2.1 scientific-checks predicate, since a slot may hold `NONE` with an enumerated reason; `findings` under `APPLIES` and for every investigator; `o1_content` for a scientific `AUTHOR` item; `revision_assessments` for an `AUTHOR` item of D1 or D2. §13.3's "`ACCEPT` obligation at the domain's class" for an `AUTHOR` item is the §10.2 `ACCEPT(s)` derived for its subject, not a contract obligation, so lint checks the `REVIEW` obligation only.
+- **E23** *Eligible judges.* An obligation is ready only when someone could give an admissible answer there (§10.3). The candidates are the humans policy names for the domain (`humans`, human `acceptors`, `gate_holders` for a gate, `adjudicators` for an adjudication, the revalidated judgment's own human author), each counted when independent of the judged content (§5.10 (f)), and a freshly launched agent reviewer when an agent may answer the kind and the judged content's authorship is known; unknown authorship admits no agent. A D1/D2 acceptance and a gate decision need a human. With none, the obligation waits on "no eligible judge", and step 4 derives human attention for it.
+- **E24** *Risk-override scope in the record.* Phase D's ledger schema gave `RISK_OVERRIDE` a list of units, narrower than the "declared continuation scope (§10.5)" of the catalogue's record table. Step 3c corrects the schema-1 grammar to §10.5's closed set: `continuation = {subjects, items, kinds[, inherit]}`. No admitted record is affected (the shadow ledger holds none). Kinds §10.5 forbids are never provisional, whatever the record lists.
 - **E15** *Lifecycle replay at the real owner.* The G2 lifecycle property check enumerates every answer chain up to length 4 (14,508 chains, properties P1-P7 stated from the Manual). Phase E replays the full enumeration through the real derivation if one run finishes within the repository suite's budget; otherwise the suite runs a seeded, stratified sample covering every condition and chain length, and the full enumeration runs as a named slow check before the Phase E Review, its result recorded.
 
 ## 6. Fail closed until a later owner
