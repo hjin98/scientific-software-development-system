@@ -190,6 +190,7 @@ class Workflow:
                 found.extend(part.route.decisions)
             if item.route.route == "item-level-review" and not item.waived and item.item_level_target is not None:
                 found.append(make("REVIEW", item.item_level_target, holder=REVIEWER, plan=item.plan))
+        found += self.items.orphan_decisions
         found += self._revalidations(found)
         unique = {o.id: o for o in found}
         return tuple(sorted(unique.values()))
@@ -345,6 +346,11 @@ class Workflow:
                 found.extend(item.route.decisions)
                 for part in item.parts:
                     found.append(part.obligation)
+                    found.extend(part.route.decisions)
+            found += self.items.orphan_decisions
+            from .reports import Reports
+
+            found += Reports(self).identities()  # review 879fa490 N1
             self.__dict__["_binding_index"] = {o.id: o for o in found}
         return self.__dict__["_binding_index"]
 

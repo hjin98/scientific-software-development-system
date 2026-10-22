@@ -5,9 +5,12 @@ report record. This module derives, from reports and floor events, the
 ``HUMAN_ATTENTION`` and ``COORDINATE`` obligations of the routing table (§15.3)
 with the effective materiality the floors fix (§15.4), keyed on the report's
 existence and identity and closed only by a resolving record in force (§15.2);
-and the coordination decisions owed with no report behind them: detected
-recurrence (§15.7) and refused joint-invariant or specification reviews (§10.4).
-Human attention is discharged only by an authenticated human decision (A8).
+human attention for every ``ESCALATE`` decision (§15.5); and the coordination
+decisions owed with no report behind them: detected recurrence (§15.7) and
+refused joint-invariant or specification reviews (§10.4). Floor events latch:
+once one has held, its human attention stays until an authenticated human
+decides it, whatever later happens to its target (§6.8, A8). Human attention is
+discharged only by an authenticated human decision (A8).
 """
 
 from __future__ import annotations
@@ -57,7 +60,8 @@ class Reports:
     def reports(self) -> list[str]:
         return [r for r in self.s.of_kind(*REPORT_KINDS) if self.s.acts(r)]
 
-    def _target_units(self, rid: str) -> set[str]:
+    def _target_units(self, rid: str, view: Any = None) -> set[str]:
+        view = view if view is not None else self.s.view
         target = self.s.record(rid)["target"]
         units = set(target.get("units", [])) if isinstance(target, dict) else set()
         for key in (target.get("records", []) if isinstance(target, dict) else []) + \
@@ -72,10 +76,37 @@ class Reports:
                     units |= set(inner.get("units", []))
         if isinstance(target, dict) and isinstance(target.get("subject"), str):
             units.add(target["subject"])
-        return {u for u in units if u in self.s.view.structure.units}
+        return {u for u in units if u in view.structure.units}
 
     def _domains(self, rid: str) -> set[str]:
-        return {self.s.view.structure.kind(u) or "" for u in self._target_units(rid)}
+        """Its target's domains at its admission and now: a floor raised when it was raised stays raised when
+        its target later leaves the structure (§15.2, A8; review 879fa490 B7)."""
+
+        then = self.s.h.view(self.s.position_of(rid))
+        return ({then.structure.kind(u) or "" for u in self._target_units(rid, then)}
+                | {self.s.view.structure.kind(u) or "" for u in self._target_units(rid)})
+
+    def _accepted_d1_d2(self, rid: str) -> bool:
+        """A target unit is D1 or D2 authority accepted now, or when the report was admitted."""
+
+        if any(self.s.view.structure.kind(u) in ("D1", "D2") and self.d.valid(u) > F for u in self._target_units(rid)):
+            return True
+        position = self.s.position_of(rid)
+        then = self.s.h.view(position)
+        earlier = [u for u in self._target_units(rid, then) if then.structure.kind(u) in ("D1", "D2")]
+        if not earlier or position == self.s.n:
+            return False
+        support = self._support_at(position)
+        return any(u in support.s.view.structure.units and support.valid(u) > F for u in earlier)
+
+    def _support_at(self, position: int) -> Any:
+        from .state import State
+        from .support import Support
+
+        cache = self.__dict__.setdefault("_supports", {})
+        if position not in cache:
+            cache[position] = self.d if position == self.s.n else Support(State(self.s.h, position))
+        return cache[position]
 
     def materiality(self, rid: str) -> tuple[str, bool]:
         """(effective materiality, floor item) of a report: declared, raised by floors, never lowered (§15.4);
@@ -88,8 +119,8 @@ class Reports:
         level = _RANK.get(declared, 0)
         floor = False
         domains = self._domains(rid)
-        accepted_d1_d2 = any(self.s.view.structure.kind(u) in ("D1", "D2") and self.d.valid(u) > F
-                             for u in self._target_units(rid))
+        accepted_d1_d2 = bool(domains & {"D1", "D2"}) and (kind == "CHALLENGE" or "TENSION" in reasons) \
+            and self._accepted_d1_d2(rid)
         critical = (
             (kind == "CHALLENGE" and fields.get("serious"))
             or kind == "HUMAN_QUESTION"
@@ -104,8 +135,8 @@ class Reports:
             floor = True
         for entry in self.s.policy.flow("floors"):
             if entry["kind"] == kind and (not entry.get("reason") or entry["reason"] in reasons) and \
-                    (not entry.get("domain") or entry["domain"] in domains) and _RANK[entry["materiality"]] > level:
-                level, floor = _RANK[entry["materiality"]], True
+                    (not entry.get("domain") or entry["domain"] in domains) and _RANK[entry["materiality"]] >= level:
+                level, floor = _RANK[entry["materiality"]], True  # at or above the declared level: a floor (B6)
         if not floor and level == _RANK["MATERIAL"] and self._reclassified(rid):
             level = _RANK["ROUTINE"]
         return MATERIALITY[level], floor
@@ -171,9 +202,16 @@ class Reports:
 
     # -- the obligations ------------------------------------------------------------------------------
 
-    def _resolved_by_decision(self, rid: str, allowed: frozenset[str]) -> bool:
+    def _resolved_by_decision(self, rid: str, allowed: frozenset[str], holder: str | None = None) -> bool:
+        """A coordination decision in force names it with an allowed outcome; a decision owed to the human is
+        resolved only by an authenticated human's (§12.5; review 879fa490 N2)."""
+
+        from .workflow import HUMAN
+
         return any(rid in (self.s.record(c)["target"] or {}).get("records", []) and self._in_force(c)
-                   and self.s.record(c)["outcome"] in allowed for c in self.s.of_kind("COORDINATION_DECISION"))
+                   and self.s.record(c)["outcome"] in allowed
+                   and (holder != HUMAN or self.s.record(c)["actor_class"] == "HUMAN")
+                   for c in self.s.of_kind("COORDINATION_DECISION"))
 
     def _resolved_by_human(self, obligation_id: str) -> bool:
         return any(self.s.record(h)["target"].get("obligation") == obligation_id and self.s.record(h)["actor_class"] == "HUMAN"
@@ -217,11 +255,44 @@ class Reports:
             if coordinate and kind != "CHALLENGE":
                 holder, owner = self.principal(plan)
                 domain = next(iter(sorted(self._domains(rid))), None)
-                if not self._resolved_by_decision(rid, allowed_outcomes(kind, reasons, domain, floor)):
+                if not self._resolved_by_decision(rid, allowed_outcomes(kind, reasons, domain, floor), holder):
                     out.append(make("COORDINATE", {"report": rid}, holder=holder, plan=owner, detail=detail))
+        out += self._escalations()
         out += self._floor_events()
         out += self._recurrence()
         out += self._refused_reviews()
+        return out
+
+    def identities(self) -> list[Any]:
+        """The report-derived obligations a principal's result can be bound to, computed without conformance
+        (review 879fa490 N1): each report's decision and human attention, and each escalation's."""
+
+        from .workflow import make
+
+        out: list[Any] = []
+        for rid in self.reports:
+            holder, owner = self.principal(self.plan_of(rid))
+            out.append(make("COORDINATE", {"report": rid}, holder=holder, plan=owner))
+            out.append(self._attention({"report": rid}, self.materiality(rid)[0]))
+        out += self._escalations(every=True)
+        return out
+
+    def _escalations(self, every: bool = False) -> list[Any]:
+        """``ESCALATE`` means human attention (§15.5; review 879fa490 B2): one per escalating decision, at least
+        ``MATERIAL`` and at the materiality of the reports it names, until an authenticated human decides it."""
+
+        out = []
+        for rid in self.s.of_kind("COORDINATION_DECISION"):
+            record = self.s.record(rid)
+            if record["outcome"] != "ESCALATE" or not self.s.acts(rid):
+                continue
+            named = [r for r in (record["target"] or {}).get("records", []) if r in self.s.records
+                     and self.s.record(r)["kind"] in REPORT_KINDS]
+            level = max([_RANK["MATERIAL"]] + [_RANK[self.materiality(r)[0]] for r in named])
+            plan = next((self.plan_of(r) for r in named if self.plan_of(r)), None)
+            o = self._attention({"escalated": rid}, MATERIALITY[level], plan, "escalated by a coordination decision")
+            if every or not self._resolved_by_human(o.id):
+                out.append(o)
         return out
 
     def waiting_attention(self, judged: list[Any]) -> list[Any]:
@@ -254,56 +325,106 @@ class Reports:
         return out
 
     def _plan_amendments(self) -> list[Any]:
-        """An amendment changing a plan's objective, or changing or removing an acceptance criterion, computed
-        from the plan diff against the accepted revision (§15.4)."""
+        """An amendment changing a plan's objective, or changing or removing an acceptance criterion, against the
+        revision then accepted (§15.4), found over the history since the first acceptance and latched: a later
+        acceptance does not retire it; only an authenticated human decision does (A8; review 879fa490 B5)."""
 
+        out = []
+        for key, plan, detail in self._amendment_events():
+            o = self._attention({"floor": key}, "CRITICAL", plan, detail)
+            if not self._resolved_by_human(o.id):
+                out.append(o)
+        return out
+
+    def _amendment_events(self) -> list[tuple[str, str | None, str]]:
         from ssds.content import Item
 
-        out = []
-        for subject, plan in self.s.plans.plans.items():
-            accepted = [r for r in self.s.of_kind("PLAN_ACCEPTANCE") if self.s.acts(r) and self.s.record(r)["outcome"] == "ACCEPTED"
-                        and not self.s.superseded(r) and self.s.record(r)["fields"]["objective"]["unit"] == plan.objective]
-            if not accepted or plan.objective is None:
-                continue
-            latest = self.s.record(accepted[-1])["fields"]
-            if latest["objective"]["rev"] != self.s.cur(plan.objective):
-                key = f"objective:{subject}:{self.s.cur(plan.objective)}"
-                o = self._attention({"floor": key}, "CRITICAL", subject, "the plan objective changed")
-                if not self._resolved_by_human(o.id):
-                    out.append(o)
-            for named in latest["items"]:
-                if named["unit"] not in plan.items or self.s.cur(named["unit"]) == named["rev"]:
+        from .plans import plans as plans_of
+
+        acceptances = sorted((self.s.position_of(r), r) for r in self.s.of_kind("PLAN_ACCEPTANCE")
+                             if self.s.acts(r) and self.s.record(r)["outcome"] == "ACCEPTED")
+        if not acceptances:
+            return []
+        events: dict[str, tuple[str | None, str]] = {}
+        accepted_objective: dict[str, str] = {}
+        accepted_items: dict[str, str] = {}
+        criteria_at: dict[tuple[str, str], dict[str, Any] | None] = {}
+        seen: dict[str, str | None] = {}
+        index = 0
+
+        def criteria(view: Any, unit: str) -> dict[str, Any] | None:
+            for plan in plans_of(view).values():
+                if unit in plan.items and isinstance(plan.items[unit].parsed, Item):
+                    return dict(plan.items[unit].parsed.acceptance_criteria)
+            return None
+
+        for k in range(acceptances[0][0], self.s.n + 1):
+            while index < len(acceptances) and acceptances[index][0] <= k:
+                fields = self.s.record(acceptances[index][1])["fields"]
+                accepted_objective[fields["objective"]["unit"]] = fields["objective"]["rev"]
+                for named in fields["items"]:
+                    accepted_items[named["unit"]] = named["rev"]
+                index += 1
+            view = self.s.h.view(k)
+            for unit, accepted in accepted_objective.items():
+                now = view.rev(unit) if unit in view.structure.units else "ABSENT"
+                if now != accepted and seen.get(unit) != now:
+                    subject = view.structure.subj(unit) if unit in view.structure.units else unit
+                    events[f"objective:{subject}:{now}"] = (subject, "the plan objective changed")
+                seen[unit] = now
+            for unit, accepted in accepted_items.items():
+                now = view.rev(unit) if unit in view.structure.units else "ABSENT"
+                if now == accepted or seen.get(unit) == now:
+                    seen[unit] = now
                     continue
-                before = self.s.plans.item_at(named["unit"], named["rev"])
-                now = plan.items[named["unit"]].parsed
-                if before is None or not isinstance(before[1].parsed, Item) or not isinstance(now, Item):
-                    continue
-                old, new = dict(before[1].parsed.acceptance_criteria), dict(now.acceptance_criteria)
-                if any(new.get(c) != e for c, e in old.items()):
-                    key = f"criteria:{named['unit']}:{self.s.cur(named['unit'])}"
-                    o = self._attention({"floor": key}, "CRITICAL", subject, "an acceptance criterion changed or was removed")
-                    if not self._resolved_by_human(o.id):
-                        out.append(o)
-        return out
+                seen[unit] = now
+                if (unit, accepted) not in criteria_at:
+                    found = self.s.plans.item_at(unit, accepted)
+                    criteria_at[(unit, accepted)] = criteria(found[0], unit) if found is not None else None
+                old = criteria_at[(unit, accepted)]
+                new = criteria(view, unit) if now != "ABSENT" else None
+                if old and (new is None or any(new.get(c) != e for c, e in old.items())):
+                    subject = view.structure.subj(unit) if unit in view.structure.units else None
+                    events[f"criteria:{unit}:{now}"] = (subject, "an acceptance criterion changed or was removed")
+        return [(key, plan, detail) for key, (plan, detail) in sorted(events.items())]
 
     def _disagreement_floor(self) -> list[Any]:
-        """§6.8's D1/D2 floor event, derived as soon as the failing assessment counts (reading E34)."""
+        """§6.8's D1/D2 floor event: derived as soon as a failing assessment counts (reading E34) and latched
+        from the first position it held, so it is closed only by an authenticated human (review 879fa490 B8)."""
 
         out = []
-        a = self.d.a
-        for obligation, records in sorted(a.by_obligation.items()):
-            passing_claims = any(a.passing(r) for r in records)
-            for rid in records:
-                if not passing_claims or not (a.failing(rid) and a.starts(rid)) or a.stale(rid, self.d.base, self.w._value):
-                    continue
-                if a.disposition(rid, self.w._value, self.d.base, self.d.j.nonind) != F:
-                    continue
-                subjects = {u for u in a.claim_units(rid) if self.s.view.structure.kind(u) in ("D1", "D2")}
-                if subjects:
-                    o = self._attention({"floor": f"disagreement:{rid}"}, "CRITICAL", detail="a counting failure on D1/D2 authority")
-                    if not self._resolved_by_human(o.id):
-                        out.append(o)
+        for rid in self._disagreement_events():
+            o = self._attention({"floor": f"disagreement:{rid}"}, "CRITICAL", detail="a counting failure on D1/D2 authority")
+            if not self._resolved_by_human(o.id):
+                out.append(o)
         return out
+
+    def _disagreement_events(self) -> list[str]:
+        candidates = []
+        for rid in self.s.of_kind("EVIDENCE_ASSESSMENT"):
+            then = self.s.h.view(self.s.position_of(rid))
+            units = self.d.a.claim_units(rid)
+            if any(v.structure.kind(u) in ("D1", "D2") for v in (then, self.s.view) for u in units if u in v.structure.units):
+                candidates.append(rid)
+        held = []
+        for rid in sorted(candidates, key=lambda r: (self.s.position_of(r), r)):
+            for k in [self.s.n, *range(self.s.position_of(rid), self.s.n)]:
+                if self._disagreement_holds(rid, self._support_at(k)):
+                    held.append(rid)
+                    break
+        return held
+
+    @staticmethod
+    def _disagreement_holds(rid: str, d: Any) -> bool:
+        a = d.a
+        value = lambda node: d.values.get(node, F)  # noqa: E731
+        for _obligation, records in a.by_obligation.items():
+            if rid not in records or not any(a.passing(r) for r in records):
+                continue
+            if not (a.failing(rid) and a.starts(rid)) or a.stale(rid, d.base, value):
+                return False
+            return a.disposition(rid, value, d.base, d.j.nonind) == F
+        return False
 
     def _delegate_floor(self) -> list[Any]:
         """Under ``scientific = APPLIES``, every material finding in a result's slots creates human attention."""
@@ -349,12 +470,13 @@ class Reports:
                         counts[template] = counts.get(template, 0) + 1
                         by_template.setdefault(template, set()).add(item.unit)
                     discrepancies += any(h.cls == DISCREPANCY for h in hits)
-                keys = [("template", t) for t, n in sorted(counts.items()) if n >= 2]
+                keys = [("template", t, n) for t, n in sorted(counts.items()) if n >= 2]
                 if discrepancies >= 2:
-                    keys.append(("discrepancy", "*"))
-                for kind, value in keys:
-                    o = make("COORDINATE", {"recurrence": kind, "obligation": holder.obligation.id, "of": value},
-                             holder="PRINCIPAL", plan=item.plan, detail=f"recurrence: {kind} {value}")
+                    keys.append(("discrepancy", "*", discrepancies))
+                for kind, value, count in keys:
+                    # keyed on the occurrence count, so a further failure after an answer is a new recurrence (N5)
+                    o = make("COORDINATE", {"recurrence": kind, "obligation": holder.obligation.id, "of": value, "count": count},
+                             holder="PRINCIPAL", plan=item.plan, detail=f"recurrence: {kind} {value} x{count}")
                     if not self._answered(o.id):
                         out.append(o)
         for template, units in sorted(by_template.items()):

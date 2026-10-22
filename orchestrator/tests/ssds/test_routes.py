@@ -205,10 +205,12 @@ class BudgetChains(unittest.TestCase):
         self.assertEqual(f.route(), "COORDINATE:budget-spent", "budget_amend_elsewhere_integrated")
         self.assertEqual(self.decision(f).target["after"], answer["id"])
 
-    def test_partition_hands_the_route_to_the_parts(self) -> None:
+    def test_a_partition_naming_no_parts_answers_nothing(self) -> None:
+        # reading E32 (review 879fa490 B12): only a lint-valid PARTITION counts; test_partition has the valid ones
         f = self.spent()
-        answer, _ = f.decide(self.decision(f), "PARTITION")
-        self.assertEqual(f.route(), f"partitioned:{answer['id']}")
+        first = self.decision(f)
+        f.decide(first, "PARTITION")
+        self.assertEqual((f.route(), self.decision(f).id), ("COORDINATE:budget-spent", first.id))
 
     def test_an_amendment_of_the_item_keeping_the_budget_spent_starts_a_fresh_chain(self) -> None:
         # budget_answered_condition_holds: an R1 tightening (one more required slot) gives the item a new revision
@@ -251,8 +253,16 @@ class BudgetChains(unittest.TestCase):
         self.assertEqual(self.decision(f).target["after"], answer["id"], "the answered decision is never open again")
 
     def test_held_partition_challenge_and_escalate(self) -> None:
-        f, _ = self.chain_of_three()
-        answer, _ = f.decide(self.decision(f), "PARTITION", actor=HUMAN)
+        from .test_partition import PartFlow, plan
+
+        f = PartFlow()
+        f.spend(f.item().obligation)
+        for n in range(3):
+            _, (x, cand) = f.decide(self.decision(f), "AMEND", plan_change={"plans/work.md": plan(f"Adaptive solver {n}.\n")})
+            f.integrate(x, cand)
+        held = self.decision(f)
+        self.assertEqual(held.holder, "HUMAN")
+        answer = f.partition(held, [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])], actor=HUMAN)
         self.assertEqual(f.route(), f"partitioned:{answer['id']}", "recurrence_human_partition")
         g, _ = self.chain_of_three()
         held = self.decision(g)

@@ -9,16 +9,21 @@ issuable) and only a prose or fixed-field change derives a new one.
 In each state the obligation has exactly one route, in §10.4's order: the
 predicate holds (discharged); a pending candidate keeps its own routes; a
 standing out-of-scope adverse review of the latest integrated enactment, or a
-DISCREPANCY or VIOLATION of the latest result, goes to the principal; a spent
-budget goes to the principal; otherwise it is dispatched again (drift when its
-outputs moved). Every out-of-scope adverse review of any integrated enactment is
-also a routed finding with its own decision, beside the route (RR-8).
+DISCREPANCY, VIOLATION or out-of-scope NO-PASS of the latest unintegrated result,
+goes to the principal; a spent budget goes to the principal; otherwise it is
+dispatched again (drift when its outputs moved). Every out-of-scope adverse review
+of any integrated enactment is also a routed finding with its own decision keyed
+on the review, beside the route (RR-8), and it survives the obligation that
+produced it (an amendment, a partition, a superseded part). Such a decision is
+answered only by a counting ``AMEND`` or a valid ``PARTITION`` (catalogue §15.5).
 
 A decision owed on an item route follows SD-54's one post-answer rule: it is
 keyed on (condition, item revision, the answer it follows); ``ESCALATE`` answers
 nothing; an ``AMEND`` that leaves the item unchanged makes it wait until that plan
 change integrates, after which a condition that still holds derives the chain's
-next decision naming that answer; ``PARTITION`` hands the route to the parts.
+next decision naming that answer (an ``AMEND`` whose plan change is refused, or
+that carries none, is settled at once, reading E31); a lint-valid ``PARTITION``
+hands the route to the parts, and an invalid one answers nothing.
 Once a chain holds 3 counted answers (SD-55), each further decision of it is held
 for human attention and only an authenticated human's answer counts; a
 ``CHALLENGE`` counts only on a held decision and waits for its adjudication. A
@@ -40,6 +45,8 @@ from .state import F, P, T, triple_key
 RECURRENCE = 3  # SD-55
 IMPLEMENTER_KINDS = frozenset({"IMPLEMENT", "REPAIR", "MIGRATE", "AUTHOR", "DOCUMENT"})
 ITEM_ROUTE_OUTCOMES = frozenset({"AMEND", "PARTITION", "DECLINE", "CHALLENGE", "ESCALATE"})
+#: What answers a decision keyed on one record (an out-of-scope NO-PASS, a DISCREPANCY; catalogue §15.5).
+RECORD_DECISION_ANSWERS = frozenset({"AMEND", "PARTITION"})
 
 
 @dataclass(frozen=True)
@@ -61,6 +68,7 @@ class Partition:
     position: int
     parts: tuple[tuple[frozenset[str], tuple[str, ...]], ...]  # (obligation ids, write scope entries)
     order: frozenset[tuple[int, int]]
+    replaces: str | None = None  # the part obligation it re-partitions; None for the whole item
 
 
 @dataclass(frozen=True)
@@ -205,26 +213,37 @@ class ItemObligation:
                 if self.s.record(r)["outcome"] == "NO_PASS" and self.d.j.stands_adverse(r)]
 
     def out_of_scope(self, review: str) -> bool:
-        """A NO-PASS whose findings lie outside the item's write scope and obligations (reading E30)."""
+        """A NO-PASS with a finding not within the item's write scope and obligations (catalogue §13.7; reading
+        E30): a finding is in scope only when it is typed, names units or an obligation, every unit it names lies
+        within the write scope and any obligation it names is the item's. Anything else, and a NO-PASS stating
+        no findings, goes to the principal, so a finding is never lost (A8)."""
 
         findings = self.items.findings_of(review)
-        if findings is None:
-            return True  # no findings stated: the principal decides, so a finding is never lost (A8)
+        if not findings:
+            return True
         contract = self.item.contract
         entries = self.share[3] if self.share is not None else (contract.write_scope if contract else ())
         scope, _ = resolve(self.s.view, entries)
         obligations = set(self.share[2]) if self.share is not None else ({o.id for o in contract.obligations} if contract else set())
         for finding in findings:
-            if finding.get("obligation") in obligations:
+            if not isinstance(finding, dict):
+                return True
+            obligation, units = finding.get("obligation"), finding.get("units")
+            if obligation is None and not units:
+                return True
+            if obligation is not None and obligation not in obligations:
+                return True
+            if units is None:
                 continue
-            units = finding.get("units") or []
+            if not isinstance(units, list) or not units or not all(isinstance(u, str) for u in units):
+                return True
             atoms = []
             for unit in units:
                 region = self.s.view.regions.get(unit) if unit in self.s.view.structure.units else None
                 if not region:
                     return True
                 atoms.extend(("span", sp.path, sp.start, sp.end) for sp in region)
-            if not units or not contained(self.s.view, atoms, scope):
+            if not contained(self.s.view, atoms, scope):
                 return True
         return False
 
@@ -254,7 +273,7 @@ class ItemObligation:
         latest = self.latest_integrated
         if latest is None or not self.w.conformance(latest.result).clean:
             return F
-        if self.share is not None and self.whole._objections_naming(self.share[1]):
+        if self.share is not None and self.whole._objections_naming(self.share[1], self):
             return F  # an adverse item-level review naming this part is a standing adverse review of it (§13.7)
         value = max((self.d.current(r) for r in self.reviews(latest.transformation)
                      if self.s.record(r)["outcome"] == "PASS" and not self.d.j.nonind(r)
@@ -289,12 +308,35 @@ class ItemObligation:
                     continue
                 rid = route.split(":", 1)[1]
                 seen.add(rid)
-                undischarged = None if holder is self else frozenset(holder.share[2])
-                spec = self.items.partition_spec(rid, self, undischarged)
+                spec = holder._valid_partition(rid)
                 if spec is not None:
                     found.append(spec)
                     frontier.extend(self.part_obligation(spec, i) for i in range(len(spec.parts)))
+            for rid in holder._record_partitions():
+                if rid not in seen:
+                    seen.add(rid)
+                    spec = holder._valid_partition(rid)
+                    if spec is not None:
+                        found.append(spec)
+                        frontier.extend(self.part_obligation(spec, i) for i in range(len(spec.parts)))
         return tuple(sorted(found, key=lambda p: (p.position, p.decision)))
+
+    def _valid_partition(self, rid: str) -> Partition | None:
+        """The lint-valid split a ``PARTITION`` answer on this holder's decisions names: over the item's
+        obligations, or for a part over that part's (a re-partition, reading E32), recording what it replaces."""
+
+        root = self.whole if self.share is not None else self
+        spec = self.items.partition_spec(rid, root, frozenset(self.share[2]) if self.share is not None else None)
+        return replace(spec, replaces=self.obligation.id if self.share is not None else None) if spec is not None else None
+
+    def _record_partitions(self) -> list[str]:
+        """``PARTITION`` answers to this holder's record-keyed decisions (an out-of-scope NO-PASS, a DISCREPANCY)."""
+
+        out = []
+        for o in self._record_decisions(answered=True, identities=True):
+            out += [a for a in self.items.answers_to(o.id) if self.s.record(a)["outcome"] == "PARTITION"
+                    and self.items.counts_for(o, a, self)]
+        return out
 
     @property
     def partition(self) -> Partition | None:
@@ -302,52 +344,96 @@ class ItemObligation:
 
     @cached_property
     def parts(self) -> tuple["ItemObligation", ...]:
-        """The required parts: the latest partition's, and every part of a superseded partition that was
-        discharged when the superseding partition was admitted (§13.7)."""
+        """The required parts (§13.7; review 879fa490 B1): every part of every partition, except a part a later
+        re-partition replaced, and, once a later partition of the whole item is admitted, a part of an earlier
+        one that was not discharged in the state it was admitted to. A re-partition of one part never drops a
+        sibling, so the item is discharged only when every obligation is."""
 
         required: list[ItemObligation] = []
         for index, partition in enumerate(self.partitions):
-            mine = [self.part_obligation(partition, i) for i in range(len(partition.parts))]
-            later = self.partitions[index + 1] if index + 1 < len(self.partitions) else None
-            if later is None:
-                required += mine
-            else:
-                required += [p for p in mine if self.items.discharged_at(p, later.position)]
+            later = self.partitions[index + 1:]
+            whole = next((p for p in later if p.replaces is None), None)
+            for i in range(len(partition.parts)):
+                part = self.part_obligation(partition, i)
+                if any(p.replaces == part.obligation.id for p in later):
+                    continue
+                if whole is not None and not self.items.discharged_at(part, whole.position):
+                    continue
+                required.append(part)
         return tuple(required)
 
     @cached_property
     def item_level_target(self) -> dict[str, Any] | None:
         """The item revision's integrated result: the parts' latest integrations (target type 3, §3.4)."""
 
-        changes = []
+        positions = []
         for part in self.parts:
             latest = part.latest_integrated
             if latest is None:
                 return None
-            changes.append(self.s.h.chain.entries[latest.integrated].digest)
-        if not changes:
+            positions.append(latest.integrated)
+        if not positions:
             return None
-        # ``of`` is the item's work key, which the parts' integrating results carry as ``binding.item_key`` (§3.4)
-        return {"integrated": "ITEM", "of": self.key, "at": max(changes), "changes": sorted(changes)}
+        entries = self.s.h.chain.entries
+        # ``at`` is the latest integration by position, never an order of digests (review 879fa490 B4); ``of`` is
+        # the item's work key, which the parts' integrating results carry as ``binding.item_key`` (§3.4)
+        return {"integrated": "ITEM", "of": self.key, "at": entries[max(positions)].digest,
+                "changes": sorted(entries[p].digest for p in positions)}
+
+    @cached_property
+    def _item_level_records(self) -> list[str]:
+        """Every acting item-level review of this item's work, at any of its integrated results."""
+
+        return [r for r in self.s.of_kind("REVIEW") if self.s.acts(r)
+                and isinstance(self.s.record(r)["target"], dict) and self.s.record(r)["target"].get("integrated") == "ITEM"
+                and self.s.record(r)["target"].get("of") == self.key]
 
     def item_level_reviews(self) -> list[str]:
         target = self.item_level_target
         if target is None:
             return []
-        return [r for r in self.s.of_kind("REVIEW") if self.s.acts(r) and self.s.record(r)["target"] == target]
+        return [r for r in self._item_level_records if self.s.record(r)["target"] == target]
 
+    @cached_property
     def _objections(self) -> list[str]:
-        return [r for r in self.item_level_reviews() if self.s.record(r)["outcome"] == "NO_PASS" and self.d.j.stands_adverse(r)]
+        """Standing adverse item-level reviews still in force (§10.4: never retired by a later obligation whose
+        judge did not see them; review 879fa490 B9): one naming parts stands until each named part re-integrates
+        after it; one naming no part stands until a later item-level review of a newer result, whose brief
+        carries it (§16.5), is admitted."""
+
+        out = []
+        for r in self._item_level_records:
+            if self.s.record(r)["outcome"] != "NO_PASS" or not self.d.j.stands_adverse(r):
+                continue
+            position, named = self.s.position_of(r), self._named_parts(r)
+            if named:
+                redone = all(any(p.share[1] == i and p.latest_integrated is not None and p.latest_integrated.integrated > position
+                                 for p in self.parts) for i in named)
+                if redone:
+                    continue
+            elif any(self.s.position_of(q) > position and self.s.record(q)["target"] != self.s.record(r)["target"]
+                     for q in self._item_level_records):
+                continue
+            out.append(r)
+        return out
 
     def _named_parts(self, review: str) -> set[int]:
         named: set[int] = set()
         for finding in self.items.findings_of(review) or []:
-            if isinstance(finding.get("part"), int):
+            if isinstance(finding, dict) and isinstance(finding.get("part"), int):
                 named.add(finding["part"])
         return named
 
-    def _objections_naming(self, index: int) -> list[str]:
-        return [r for r in self._objections() if index in self._named_parts(r)]
+    def _objections_naming(self, index: int, part: "ItemObligation | None" = None) -> list[str]:
+        out = []
+        for r in self._objections:
+            if index not in self._named_parts(r):
+                continue
+            latest = part.latest_integrated if part is not None else None
+            if latest is not None and latest.integrated > self.s.position_of(r):
+                continue  # this part re-integrated after the objection
+            out.append(r)
+        return out
 
     @property
     def waived(self) -> bool:
@@ -356,7 +442,9 @@ class ItemObligation:
     @cached_property
     def _composite_predicate(self) -> int:
         value = min((part.predicate for part in self.parts), default=F)
-        if value == F or self.waived:
+        if value == F or any(not self._named_parts(r) for r in self._objections):
+            return F  # its predicate fails while an item-level review naming no part is adverse (RR-6)
+        if self.waived:
             return value
         reviews = [r for r in self.item_level_reviews() if self.s.record(r)["outcome"] == "PASS" and not self.d.j.nonind(r)]
         return min(value, max((self.d.current(r) for r in reviews), default=F))
@@ -381,10 +469,7 @@ class ItemObligation:
         return make("COORDINATE", target, holder=PRINCIPAL, plan=self.plan, detail=f"{condition} on {self.unit}")
 
     def _finding_decision(self, kind: str, record: str) -> Any:
-        from .workflow import PRINCIPAL, make
-
-        return make("COORDINATE", {"plan": self.plan, "item": self.unit, kind: record}, holder=PRINCIPAL, plan=self.plan,
-                    detail=f"{kind} {record[:19]} on {self.unit}")
+        return self.items.record_decision(self.plan, self.unit, kind, record)
 
     def _counts(self, answer: str, condition: str, held: bool) -> bool:
         record = self.s.record(answer)
@@ -397,6 +482,8 @@ class ItemObligation:
             return False
         if held and record["actor_class"] != "HUMAN":
             return False  # a held decision is answered only by an authenticated human (SD-55)
+        if outcome == "PARTITION" and self._valid_partition(answer) is None:
+            return False  # an invalid partition answers nothing (reading E32; review 879fa490 B12)
         return True
 
     def _settled(self, answer: str) -> bool:
@@ -404,13 +491,15 @@ class ItemObligation:
         position = self.s.position_of(answer)
         task = (record.get("binding") or {}).get("task")
         if record["outcome"] == "AMEND":
-            # The plan change follows in the same request (§15.5): settled once that change integrates.
+            # The plan change follows in the same request (§15.5): settled once that change integrates, or at
+            # once when it is refused or there is none, so a condition that still holds derives the next
+            # decision naming this answer and the item is never left waiting (§10.3; reading E31).
             for rid in self.s.of_kind("TASK_RESULT"):
                 other = self.s.record(rid)
-                if self.s.position_of(rid) == position and (other.get("binding") or {}).get("task") == task and \
-                        other["target"].get("transformation"):
-                    return self.s.enactment(other["target"]["transformation"]) in self.s.integrated
-            return False
+                x = other["target"].get("transformation")
+                if self.s.position_of(rid) == position and (other.get("binding") or {}).get("task") == task and x:
+                    return x in self.items.refused or self.s.enactment(x) in self.s.integrated
+            return True
         if record["outcome"] == "CHALLENGE":
             challenges = [c for c in self.s.of_kind("CHALLENGE")
                           if self.s.position_of(c) == position and self.s.record(c)["actor"] == record["actor"]]
@@ -466,11 +555,34 @@ class ItemObligation:
         return out
 
     @cached_property
+    def _unintegrated_last(self) -> Enactment | None:
+        """The latest iteration when it is not integrated: its own conformance and reviews route it (§10.4),
+        before or after an earlier integration (review 879fa490 B3)."""
+
+        return self.enactments[-1] if self.enactments and self.enactments[-1].integrated is None else None
+
+    def _record_decisions(self, answered: bool = False, identities: bool = False) -> list[Any]:
+        """The record-keyed decisions of this holder: every RR-8 finding decision, then the latest unintegrated
+        iteration's DISCREPANCY or VIOLATION and out-of-scope NO-PASS decisions; open ones only unless asked.
+        ``identities`` names the conformance decision without reading conformance, whose contract resolution
+        reads the parts this feeds."""
+
+        out = [o for _, o, _ in self.finding_decisions]
+        last = self._unintegrated_last
+        if last is not None:
+            if identities or {"DISCREPANCY", "VIOLATION"} & self.w.conformance(last.result).classes:
+                out.append(self._finding_decision("conformance", last.result))
+            for review in (self.adverse_reviews(last.transformation) if last.transformation else []):
+                if self.out_of_scope(review):
+                    out.append(self._finding_decision("finding", review))
+        return out if answered else [o for o in out if not self.items.answered(o, self)]
+
+    @cached_property
     def route(self) -> Route:
         if self.share is None and self.partition is not None:
             return self._composite_route()
         decisions: list[Any] = []
-        open_findings = [(r, o, latest) for r, o, latest in self.finding_decisions if not self.items.answers_to(o.id)]
+        open_findings = [(r, o, latest) for r, o, latest in self.finding_decisions if not self.items.answered(o, self)]
         decisions += [o for _, o, _ in open_findings]
         if self.integrated and self.discharge() != "OPEN":
             return Route("discharged", tuple(decisions))
@@ -479,17 +591,17 @@ class ItemObligation:
         latest_findings = [o for _, o, latest in open_findings if latest]
         if latest_findings:
             return Route(f"COORDINATE:finding:{latest_findings[0].target['finding']}", tuple(decisions))
-        if not self.integrated and self.enactments:
-            last = self.enactments[-1]
+        last = self._unintegrated_last
+        if last is not None:
             classes = self.w.conformance(last.result).classes
             if {"DISCREPANCY", "VIOLATION"} & classes:
                 o = self._finding_decision("conformance", last.result)
-                if not self.items.answers_to(o.id):
+                if not self.items.answered(o, self):
                     return Route(f"COORDINATE:conformance:{last.result}", tuple(decisions + [o]))
             for review in (self.adverse_reviews(last.transformation) if last.transformation else []):
                 if self.out_of_scope(review):
                     o = self._finding_decision("finding", review)
-                    if not self.items.answers_to(o.id):
+                    if not self.items.answered(o, self):
                         return Route(f"COORDINATE:finding:{review}", tuple(decisions + [o]))
         if self.budget_spent:
             route, opened, _ = self.chain("budget-spent")
@@ -501,15 +613,17 @@ class ItemObligation:
     def _composite_route(self) -> Route:
         """A partitioned item's own obligation: the composite of its parts and the item-level review (RR-6)."""
 
+        # the item's own earlier enactments keep their record-keyed decisions beside it (review 879fa490 B10)
+        beside = tuple(self._record_decisions())
         if self.discharge() != "OPEN":
-            return Route("discharged", ())
+            return Route("discharged", beside)
         if any(part.discharge() == "OPEN" for part in self.parts):
-            return Route(f"partitioned:{self.partition.decision}", ())
-        no_part = [r for r in self._objections() if not self._named_parts(r)]
+            return Route(f"partitioned:{self.partition.decision}", beside)
+        no_part = [r for r in self._objections if not self._named_parts(r)]
         if no_part:
             route, opened, _ = self.chain("item-level-no-part")
-            return Route(route, opened)
-        return Route("item-level-review", ())
+            return Route(route, beside + opened)
+        return Route("item-level-review", beside)
 
     def readiness(self) -> Any:
         from .workflow import READY, WAITING, Readiness
@@ -548,6 +662,76 @@ class Items:
                     if candidate.derived:
                         out.append(candidate)
         return tuple(out)
+
+    @cached_property
+    def holders(self) -> tuple[ItemObligation, ...]:
+        """Every item obligation and every required part of one."""
+
+        return tuple(h for item in self.all for h in (item, *item.parts))
+
+    def record_decision(self, plan: str | None, unit: str, kind: str, record: str) -> Any:
+        """The decision keyed on one record (an out-of-scope NO-PASS, a DISCREPANCY): its identity is the plan,
+        the item and the record, so it survives the obligation that produced it (RR-8, A8)."""
+
+        from .workflow import HUMAN, PRINCIPAL, make
+
+        if plan is None:
+            standing = self.s.policy.flow("standing_plan")
+            holder, plan = (PRINCIPAL, standing) if standing else (HUMAN, None)
+        else:
+            holder = PRINCIPAL
+        return make("COORDINATE", {"plan": plan, "item": unit, kind: record}, holder=holder, plan=plan,
+                    detail=f"{kind} {record[:19]} on {unit}")
+
+    def counts_for(self, decision: Any, answer: str, holder: ItemObligation) -> bool:
+        """Whether ``answer`` answers a record-keyed decision: a counting ``AMEND`` or a lint-valid ``PARTITION``;
+        ``ESCALATE``, ``RESOLVE_LOCAL`` and ``DECLINE`` answer nothing (catalogue §15.5; review 879fa490 B2); a
+        decision owed to the human only by a human (§12.5)."""
+
+        from .workflow import HUMAN
+
+        record = self.s.record(answer)
+        if record["outcome"] not in RECORD_DECISION_ANSWERS:
+            return False
+        if decision.holder == HUMAN and record["actor_class"] != "HUMAN":
+            return False
+        if record["outcome"] == "PARTITION":
+            return holder._valid_partition(answer) is not None
+        return True
+
+    def answered(self, decision: Any, holder: ItemObligation) -> bool:
+        return any(self.counts_for(decision, a, holder) for a in self.answers_to(decision.id))
+
+    @cached_property
+    def orphan_decisions(self) -> tuple[Any, ...]:
+        """RR-8 decisions on integrated enactments of obligations no longer derived or required (a prose
+        amendment, a superseded part): keyed on the review, read against the item revision the enactment was
+        bound to, open until answered (§10.4 findings never retired; A8; review 879fa490 B10)."""
+
+        from .plans import plans as plans_of
+
+        known = {h.obligation.id for h in self.holders}
+        out: dict[str, Any] = {}
+        for rid in self.s.of_kind("TASK_RESULT"):
+            record = self.s.record(rid)
+            binding = record.get("binding") or {}
+            bound, item = binding.get("obligation"), binding.get("item")
+            x, task = record["target"].get("transformation"), record["target"].get("task")
+            if not bound or bound in known or not isinstance(item, dict) or not x or self.s.enactment(x) != task \
+                    or task not in self.s.integrated:
+                continue
+            found = self.s.plans.item_at(item.get("unit"), item.get("rev"))
+            if found is None or not isinstance(found[1].parsed, Item):
+                continue
+            view, part = found
+            plan = next((subject for subject, p in plans_of(view).items() if item["unit"] in p.items), None)
+            holder = ItemObligation(self, item["unit"], plan, part)
+            for review in holder.adverse_reviews(x):
+                if holder.out_of_scope(review):
+                    o = self.record_decision(plan, item["unit"], "finding", review)
+                    if not self.answered(o, holder):
+                        out[o.id] = o
+        return tuple(out.values())
 
     def by_id(self, plan: str, item_id: str) -> ItemObligation | None:
         return next((o for o in self.all if o.plan == plan and o.item.id == item_id), None)
@@ -640,7 +824,8 @@ class Items:
 
     def findings_of(self, review: str) -> list[dict[str, Any]] | None:
         """The findings of an adverse review, from its reviewer's task result (reading E30): entries naming
-        ``units`` and/or an item ``obligation``. None when no result states them."""
+        ``units`` and/or an item ``obligation``, as stated (an untyped entry is the caller's to refuse). None when
+        no result states them."""
 
         record = self.s.record(review)
         task = (record.get("binding") or {}).get("task")
@@ -648,7 +833,5 @@ class Items:
             result = self.s.record(rid)
             if task is not None and result["target"].get("task") == task:
                 findings = ((result.get("fields") or {}).get("slots") or {}).get("findings")
-                if isinstance(findings, list):
-                    return [f for f in findings if isinstance(f, dict)]
-                return None
+                return list(findings) if isinstance(findings, list) else None
         return None
