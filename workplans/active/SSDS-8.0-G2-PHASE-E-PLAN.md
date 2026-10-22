@@ -25,8 +25,9 @@ START:  the Phase D Review PASS at 39fe39b lets Phase E's dependent work start (
 SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNED; no cutover. The
         document-controlled 7.2.1 baseline governs. Phase E writes nothing to any repository and
         appends nothing to any ledger: it reads, derives and renders.
-DONE SO FAR: nothing; this plan opens the phase.
-NEXT ACTION: §3 step 1.
+DONE SO FAR: §3 step 1 (the F8 sensor follows Python's binding and evaluation order: NF8 and its
+             definition-time siblings).
+NEXT ACTION: §3 step 2.
 ```
 
 ## 1. Scope and authority

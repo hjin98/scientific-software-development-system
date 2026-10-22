@@ -238,6 +238,23 @@ class DependencyRuleDiscriminatorTests(_Discriminator):
         class_local = ("class K:\n    import ssds.content as c\n    def m(self):\n        return c.read_raw\n"
                        "c = object()\n")
         self.assertViolations({path: class_local}, set())  # b341109 NF7: methods do not see the class body
+        # Reviews df911c0 and 39fe39b NF8: Python's binding and evaluation order, with the expected outcomes
+        # the Review states. A bare annotation binds nothing; a class body runs where it stands; a function
+        # may be called before a later rebinding; a name assigned in a function is local to all of it.
+        reaches = {
+            "annotation_only": "import ssds.content as c\nc: object\nx = c.read_tree\n",
+            "class_body_before_rebinding": "import ssds.content as c\nclass K:\n    r = c.read_tree\nc = None\n",
+            "called_before_rebinding": "import ssds.content as c\ndef f():\n    return c.read_tree\nf()\nc = None\n",
+            # Siblings: defaults, decorators and class bases are evaluated in the enclosing scope at definition.
+            "default_argument": "import ssds.content as c\ndef f(r=c.read_tree):\n    return r\n",
+            "decorator": "import ssds.content as c\n@c.read_tree\ndef f():\n    pass\n",
+            "class_base": "import ssds.content as c\nclass K(c.read_raw):\n    pass\n",
+        }
+        for name, text in reaches.items():
+            with self.subTest(case=name):
+                self.assertViolations({path: text}, {("F8", path)})
+        local_throughout = "import ssds.content as c\ndef f():\n    x = c.read_tree\n    c = None\n    return x\n"
+        self.assertViolations({path: local_throughout}, set())  # NF8: an unbound local, never the module's c
 
     def test_derivation_imports_no_third_party_module(self) -> None:
         path = f"{S}/derivation/view.py"

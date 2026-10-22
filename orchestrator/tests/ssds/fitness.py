@@ -197,11 +197,19 @@ def _imports(module: _Module, known: frozenset[str]) -> list[_Import]:
 def _git_readers(module: _Module) -> list[tuple[str, int]]:
     """Git readers a module reaches through the content or ``ledger.read`` facade, by import or attribute.
 
-    Scope-aware (Reviews 137b763 NF4, d8bdfd3 NF6): each module, class and function body binds its own
-    names, from imports and from plain assignment of a bound name (``reader = content``); a nested
-    scope inherits its enclosing bindings unless a parameter or a local binding shadows them. An
-    attribute is flagged when its base name denotes one of those modules in its own scope; an
-    unrelated object's attribute of the same spelling is not. A sensor, not a proof (Manual §26.2).
+    Python's binding and evaluation order (Reviews 137b763 NF4, d8bdfd3 NF6, b341109 NF7, df911c0 and
+    39fe39b NF8). A name denotes a set of modules, bound by imports and by plain assignment of a bound
+    name (``reader = content``); any other assignment unbinds it, and a bare annotation binds nothing.
+    Each scope runs in source order, a binding taking effect after the expression it evaluates:
+
+    - a class body runs where the class statement stands, with the bindings in force there;
+    - a function may run whenever it is called after its definition, so a free name denotes what it
+      denotes at the definition or after any later binding in the enclosing scope (never a class
+      body's); a name the function itself binds, or a parameter, is local throughout it;
+    - decorators, defaults, annotations and class bases are evaluated in the enclosing scope.
+
+    An attribute is flagged when its base name may denote one of those modules; an unrelated object's
+    attribute of the same spelling is not. A sensor, not a proof (Manual §26.2).
     """
 
     is_package = module.path.name == "__init__.py"
@@ -216,17 +224,31 @@ def _git_readers(module: _Module) -> list[tuple[str, int]]:
             return ".".join(base + ([node.module] if node.module else []))
         return node.module or ""
 
-    scopes = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+    functions = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+    scopes = (*functions, ast.ClassDef)
 
-    def own_nodes(body: list[ast.stmt]):
-        """The nodes of one scope; a nested function or class is yielded but not entered."""
+    def definition_time(node: ast.AST) -> list[ast.AST]:
+        """What a function, lambda or class statement evaluates in its enclosing scope."""
+
+        if isinstance(node, ast.ClassDef):
+            return [*node.decorator_list, *node.bases, *(k.value for k in node.keywords)]
+        arguments = node.args
+        every = arguments.posonlyargs + arguments.args + arguments.kwonlyargs
+        every += [a for a in (arguments.vararg, arguments.kwarg) if a]
+        found_here = [*arguments.defaults, *(d for d in arguments.kw_defaults if d is not None)]
+        found_here += [a.annotation for a in every if a.annotation is not None]
+        if not isinstance(node, ast.Lambda):
+            found_here += [*node.decorator_list, *([node.returns] if node.returns else [])]
+        return found_here
+
+    def own_nodes(body: list[ast.AST]):
+        """The nodes of one scope; a nested scope is yielded with what it evaluates here, not entered."""
 
         stack = list(body)
         while stack:
             node = stack.pop()
             yield node
-            if not isinstance(node, scopes):
-                stack.extend(ast.iter_child_nodes(node))
+            stack.extend(definition_time(node) if isinstance(node, scopes) else ast.iter_child_nodes(node))
 
     def dotted(node: ast.expr) -> tuple[str, list[str]] | None:
         parts: list[str] = []
@@ -235,55 +257,101 @@ def _git_readers(module: _Module) -> list[tuple[str, int]]:
             node = node.value
         return (node.id, parts) if isinstance(node, ast.Name) else None
 
-    def visit(body: list[ast.stmt], inherited: dict[str, str], shadowed: set[str], in_class: bool = False) -> None:
-        """One scope, in source order: a binding takes effect after the expression it evaluates."""
+    def end(node: ast.AST) -> tuple[int, int]:
+        return (node.end_lineno or node.lineno, node.end_col_offset or 0)
 
-        bound = {name: target for name, target in inherited.items() if name not in shadowed}
+    def locals_of(node: ast.AST, nodes: list[ast.AST]) -> set[str]:
+        """The names a function binds itself (imports, assignments, annotations, nested definitions)."""
+
+        arguments = node.args
+        names = {a.arg for a in arguments.posonlyargs + arguments.args + arguments.kwonlyargs}
+        names |= {a.arg for a in (arguments.vararg, arguments.kwarg) if a}
+        declared: set[str] = set()
+        for inner in nodes:
+            if isinstance(inner, ast.Import):
+                names |= {alias.asname or alias.name.split(".")[0] for alias in inner.names}
+            elif isinstance(inner, ast.ImportFrom):
+                names |= {alias.asname or alias.name for alias in inner.names}
+            elif isinstance(inner, ast.Assign):
+                names |= {t.id for t in inner.targets if isinstance(t, ast.Name)}
+            elif isinstance(inner, ast.AnnAssign) and isinstance(inner.target, ast.Name):
+                names.add(inner.target.id)
+            elif isinstance(inner, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and inner is not node:
+                names.add(inner.name)
+            elif isinstance(inner, (ast.Global, ast.Nonlocal)):
+                declared |= set(inner.names)
+        return names - declared
+
+    Env = dict[str, frozenset[str]]
+
+    def visit(body: list[ast.AST], start: Env, for_functions: Env | None = None) -> None:
+        """One scope. ``for_functions`` is given for a class body: what its methods see instead of it."""
+
+        bound: Env = dict(start)
+        history: list[tuple[tuple[tuple[int, int], int], str, frozenset[str]]] = []
         nodes = list(own_nodes(body))
-        events: list[tuple[tuple[int, int], int, ast.AST]] = []
+        events: list[tuple[tuple[tuple[int, int], int], ast.AST]] = []
         for node in nodes:
             if isinstance(node, (ast.Import, ast.ImportFrom, ast.Assign, ast.AnnAssign)):
-                events.append(((node.end_lineno or node.lineno, node.end_col_offset or 0), 1, node))
+                events.append(((end(node), 1), node))
+            elif isinstance(node, scopes):
+                events.append(((end(node), 0), node))  # its body or definition, then its name is bound
             elif isinstance(node, ast.Attribute) and node.attr in DERIVATION_IO_NAMES:
-                events.append(((node.lineno, node.col_offset), 0, node))
-        nested: list[ast.AST] = [n for n in nodes if isinstance(n, scopes)]
-        for _, _, node in sorted(events, key=lambda e: (e[0], e[1])):
+                events.append((((node.lineno, node.col_offset), 0), node))
+        nested: list[tuple[tuple[tuple[int, int], int], ast.AST, Env]] = []
+
+        def bind(at: tuple[tuple[int, int], int], name: str, modules: frozenset[str]) -> None:
+            bound[name] = modules
+            history.append((at, name, modules))
+
+        for at, node in sorted(events, key=lambda e: e[0]):
             if isinstance(node, ast.Attribute):
                 base = dotted(node.value)
-                if base and base[0] in bound and ".".join([bound[base[0]], *base[1]]) in DERIVATION_IO_MODULES:
+                if base and any(".".join([m, *base[1]]) in DERIVATION_IO_MODULES for m in bound.get(base[0], ())):
                     found.append((node.attr, node.lineno))
+            elif isinstance(node, scopes):
+                nested.append((at, node, dict(bound)))
+                if not isinstance(node, ast.Lambda):
+                    bind((at[0], 1), node.name, frozenset())
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     name = alias.asname or alias.name.split(".")[0]
-                    bound[name] = alias.name if alias.asname else alias.name.split(".")[0]
+                    bind(at, name, frozenset({alias.name if alias.asname else name}))
             elif isinstance(node, ast.ImportFrom):
                 parent = parent_of(node)
                 for alias in node.names:
                     if parent in DERIVATION_IO_MODULES and alias.name in DERIVATION_IO_NAMES:
                         found.append((alias.name, node.lineno))
-                    bound[alias.asname or alias.name] = f"{parent}.{alias.name}"
-            else:  # Assign, AnnAssign: a name now denotes what its value denotes, or nothing the rule tracks
+                    bind(at, alias.asname or alias.name, frozenset({f"{parent}.{alias.name}"}))
+            elif node.value is not None:  # Assign, valued AnnAssign: what the value denotes, or nothing tracked
                 targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                source = dotted(node.value) if node.value is not None else None
+                source = dotted(node.value)
+                modules = frozenset(".".join([m, *source[1]]) for m in bound.get(source[0], ())) if source else frozenset()
                 for target in targets:
                     if isinstance(target, ast.Name):
-                        if source and source[0] in bound:
-                            bound[target.id] = ".".join([bound[source[0]], *source[1]])
-                        else:
-                            bound.pop(target.id, None)
-        # A nested function resolves free names through enclosing function and module scopes, never a
-        # class body, and at call time, so it sees this scope's final bindings.
-        enclosing = inherited if in_class else bound
-        for node in nested:
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
-                arguments = node.args
-                params = {a.arg for a in arguments.posonlyargs + arguments.args + arguments.kwonlyargs}
-                params |= {a.arg for a in (arguments.vararg, arguments.kwarg) if a}
-                visit(node.body if isinstance(node.body, list) else [ast.Expr(node.body)], enclosing, params)
-            elif isinstance(node, ast.ClassDef):
-                visit(node.body, bound, set(), in_class=True)
+                        bind(at, target.id, modules)
 
-    visit(module.tree.body, {}, set())
+        def callable_view(at: tuple[tuple[int, int], int], snapshot: Env) -> Env:
+            """What a function defined at ``at`` may see of this scope: then, or after any later binding."""
+
+            if for_functions is not None:
+                return for_functions
+            view = {name: set(modules) for name, modules in snapshot.items()}
+            for when, name, modules in history:
+                if when > at:
+                    view.setdefault(name, set()).update(modules)
+            return {name: frozenset(modules) for name, modules in view.items()}
+
+        for at, node, snapshot in nested:
+            seen = callable_view(at, snapshot)
+            if isinstance(node, ast.ClassDef):
+                visit(node.body, snapshot if for_functions is None else for_functions, seen)
+            else:
+                inner_body = node.body if isinstance(node.body, list) else [ast.Expr(node.body)]
+                own = locals_of(node, list(own_nodes(inner_body)))
+                visit(inner_body, {name: m for name, m in seen.items() if name not in own})
+
+    visit(module.tree.body, {})
     return found
 
 
