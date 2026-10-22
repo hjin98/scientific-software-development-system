@@ -215,7 +215,7 @@ class Plan:
             span = self._single_span(uid)
             if span is None:
                 continue
-            found.extend(_named_spans(span.path, self._data(span.path), span, ref.name))
+            found.extend(named_spans(span.path, self._data(span.path), span, ref.name))
         return tuple(sorted(found))
 
 
@@ -259,7 +259,7 @@ def _slug(title: str) -> str:
     return re.sub(r" ", "-", kept)
 
 
-def _named_spans(path: str, data: bytes, within: Span, name: str) -> list[Span]:
+def named_spans(path: str, data: bytes, within: Span, name: str) -> list[Span]:
     """Spans named ``name`` inside ``within`` only: one per anchor pair or matching heading.
 
     An unbalanced or repeated anchor of that name inside ``within`` yields more than one entry, so

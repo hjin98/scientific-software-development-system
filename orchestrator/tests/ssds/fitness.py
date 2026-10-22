@@ -36,7 +36,7 @@ PUBLIC: dict[str, frozenset[str]] = {
     "derivation": frozenset({""}),
     "admission": frozenset({"request"}),
     "dispatcher": frozenset({""}),
-    "interface": frozenset({"render"}),
+    "interface": frozenset({"render", "operations", "commands"}),
 }
 
 #: Manual §26.2, per importing component: the other components it may import and which of their modules.

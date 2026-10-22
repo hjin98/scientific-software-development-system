@@ -37,6 +37,8 @@ from ssds.ledger.qualification import (
     FileWitness,
     HighWaterMark,
     HighWaterStore,
+    Home,
+    HomeRefused,
     WitnessModel,
     publish_private,
     qualify,
@@ -102,193 +104,6 @@ def genesis_approval_message(genesis: Mapping[str, Any]) -> bytes:
 
 
 # -- the SSDS home layout ------------------------------------------------------------------------------
-
-
-class Home:
-    """Where Admission keeps a project's operator data, under the SSDS home (created on first write).
-
-    One rule closes every way a path could be redirected out of the home: the
-    home lies outside every repository and holds none but its own ledgers, and the
-    operator tree a ledger uses (its ledger repository, witness, keys, genesis
-    workspace and state, and the directories that hold them) contains no
-    symbolic link at all, checked by :meth:`check` before any effect. The ledger
-    id must be a unit identity (catalogue §1.1), every resolved path must stay
-    inside the resolved home, and every write publishes a fresh file over the name
-    (``ledger.qualification.publish_private``), so no existing file object, a hard link
-    included, is ever written through.
-    The home itself may be reached through a link; nothing inside it may be one.
-    A genesis creates its ledger repository afresh, so no pre-existing Git
-    layout (internal links, alternates, configuration) is ever written through.
-    """
-
-    #: The files of a ledger's genesis workspace.
-    WORKSPACE_FILES = ("proposal.json", "objects.json", "approval-message.txt", "source.json", "report.json",
-                       "derivation.json")
-
-    def __init__(self, root: Path) -> None:
-        if not root.is_absolute():
-            raise ValueError("the SSDS home is an absolute directory")
-        self.root = root
-
-    @staticmethod
-    def check_ledger_id(ledger_id: str) -> None:
-        if not is_unit(ledger_id):
-            raise HomeRefused(f"{ledger_id!r} is not a ledger id: lowercase dot-separated segments of [a-z0-9_-]")
-
-    def _inside(self, *parts: str) -> Path:
-        path = self.root.joinpath(*parts)
-        if not path.resolve().is_relative_to(self.root.resolve()):
-            raise HomeRefused(f"{path} resolves outside the SSDS home {self.root}")
-        return path
-
-    def _file(self, *parts: str) -> Path:
-        path = self._inside(*parts)
-        if path.is_symlink():
-            raise HomeRefused(f"{path} is a symbolic link; the SSDS home writes only its own files")
-        return path
-
-    def ledger_repository(self, ledger_id: str) -> Path:
-        self.check_ledger_id(ledger_id)
-        return self._inside("ledgers", f"{ledger_id}.git")
-
-    @property
-    def witness_root(self) -> Path:
-        return self._inside("witness")
-
-    def admission_key(self, ledger_id: str) -> Path:
-        self.check_ledger_id(ledger_id)
-        return self._file("keys", "admission", f"{ledger_id}.ed25519")
-
-    def workspace(self, ledger_id: str) -> Path:
-        self.check_ledger_id(ledger_id)
-        return self._inside("genesis", ledger_id)
-
-    def workspace_file(self, ledger_id: str, name: str) -> Path:
-        self.check_ledger_id(ledger_id)
-        if name not in self.WORKSPACE_FILES:
-            raise HomeRefused(f"{name} is not a genesis workspace file")
-        return self._file("genesis", ledger_id, name)
-
-    def write_workspace(self, ledger_id: str, name: str, data: bytes) -> Path:
-        path = self.workspace_file(ledger_id, name)
-        _write_private(path, data)
-        return path
-
-    def witness_directory(self, ledger_id: str) -> Path:
-        self.check_ledger_id(ledger_id)
-        return self._inside("witness", ledger_id)
-
-    def high_water(self, ledger_id: str) -> HighWaterStore:
-        self.check_ledger_id(ledger_id)
-        return HighWaterStore(self._file("state", ledger_id, "high-water.json"))
-
-    def operator_tree(self, ledger_id: str) -> tuple[Path, ...]:
-        """Every directory tree this ledger's operator data lives in."""
-
-        self.check_ledger_id(ledger_id)
-        return (self.root / "ledgers" / f"{ledger_id}.git", self.root / "witness", self.root / "keys" / "admission",
-                self.root / "genesis" / ledger_id, self.root / "state" / ledger_id)
-
-    def outside_repositories(self) -> None:
-        """The resolved home lies outside every repository (SD-56, Manual §26.3): no ancestor, nor the home
-        itself, is a Git worktree (holds ``.git``) or a bare repository (``HEAD``, ``objects/``, ``refs/``)."""
-
-        resolved = self.root.resolve()
-        for directory in (resolved, *resolved.parents):
-            if _is_repository(directory):
-                raise HomeRefused(f"the SSDS home {self.root} lies inside the repository at {directory}; "
-                                  "set SSDS_HOME to a directory outside every repository")
-
-    def check(self, ledger_id: str) -> None:
-        """Refuse before any filesystem effect: the home outside every repository, no link anywhere in this
-        ledger's operator tree, every path inside.
-
-        A tree is certified only as far as it was read (Review df911c0 A-B12): every directory of the
-        operator tree is listed and every entry classified as a directory or a regular file; a directory
-        that cannot be listed, an entry that cannot be examined, or an entry of any other kind refuses.
-        """
-
-        self.outside_repositories()
-        ledger = self.root / "ledgers" / f"{ledger_id}.git"
-        for top in self.operator_tree(ledger_id):
-            relative = top.relative_to(self.root).parts
-            for depth in range(1, len(relative) + 1):  # the directories that hold it
-                component = self.root.joinpath(*relative[:depth])
-                mode = _mode(component)
-                if mode is None:
-                    break
-                if stat.S_ISLNK(mode):
-                    raise HomeRefused(f"{component} is a symbolic link; nothing inside the SSDS home may be one")
-                if not stat.S_ISDIR(mode):
-                    raise HomeRefused(f"{component} is not a directory; the SSDS home keeps its operator data there")
-                if component != ledger and _is_repository(component):
-                    raise HomeRefused(f"{component} is a repository; the SSDS home holds none but its ledgers")
-            else:  # the whole path is present: read the tree under it whole
-                pending = [top]
-                while pending:
-                    here = pending.pop()
-                    if here != ledger and _is_repository(here):  # Review b341109 A-B12: a nested repository
-                        raise HomeRefused(f"{here} is a repository; the SSDS home holds none but its ledgers")
-                    for path in _listing(here):
-                        mode = _mode(path)
-                        if mode is None:
-                            raise HomeRefused(f"{path} vanished while the SSDS home was read")
-                        if stat.S_ISLNK(mode):
-                            raise HomeRefused(f"{path} is a symbolic link; nothing inside the SSDS home may be one")
-                        if stat.S_ISDIR(mode):
-                            pending.append(path)
-                        elif not stat.S_ISREG(mode):
-                            raise HomeRefused(f"{path} is neither a file nor a directory; the SSDS home holds "
-                                              "only its own files")
-        self.ledger_repository(ledger_id), self.witness_root, self.witness_directory(ledger_id)
-        self.admission_key(ledger_id), self.workspace(ledger_id), self.high_water(ledger_id)
-        for name in self.WORKSPACE_FILES:
-            self.workspace_file(ledger_id, name)
-
-
-def _mode(path: Path) -> int | None:
-    """The ``lstat`` mode of ``path``, or ``None`` when nothing is there; any other failure refuses."""
-
-    try:
-        return os.lstat(path).st_mode
-    except (FileNotFoundError, NotADirectoryError):
-        return None
-    except OSError as exc:
-        raise HomeRefused(f"{path} cannot be examined ({exc.strerror}); the SSDS home certifies only what it reads"
-                          ) from None
-
-
-def _listing(directory: Path) -> list[Path]:
-    """Every entry of ``directory``; a directory that cannot be listed whole refuses."""
-
-    try:
-        with os.scandir(directory) as entries:
-            return sorted(directory / entry.name for entry in entries)
-    except OSError as exc:
-        raise HomeRefused(f"{directory} cannot be listed ({exc.strerror}); the SSDS home certifies only what it "
-                          "reads") from None
-
-
-def _is_repository(directory: Path) -> bool:
-    """A Git worktree or a bare repository at ``directory``.
-
-    A worktree has a ``.git`` file (a ``gitdir:`` pointer) or a ``.git`` directory that is a Git directory
-    (``HEAD`` inside); a bare repository has ``HEAD``, ``objects/`` and ``refs/``. An empty ``.git``
-    directory is not a repository. A marker that cannot be examined refuses rather than counting as absent.
-    """
-
-    marker = _mode(directory / ".git")
-    if marker is not None and not stat.S_ISDIR(marker):
-        return True
-    if marker is not None and _mode(directory / ".git" / "HEAD") is not None:
-        return True
-    head, objects, refs = (_mode(directory / name) for name in ("HEAD", "objects", "refs"))
-    return (head is not None and not stat.S_ISDIR(head)
-            and all(m is not None and (stat.S_ISDIR(m) or stat.S_ISLNK(m)) for m in (objects, refs)))
-
-
-class HomeRefused(ValueError):
-    """An input that would place operator data outside the SSDS home."""
 
 
 def _write_private(path: Path, data: bytes) -> None:
@@ -561,5 +376,5 @@ def admit_genesis(home: Home, ledger_id: str, signature: str) -> Admitted:
     return Admitted(ledger_id, repository, appended.commit, appended.digest, genesis_digest(record), qualification.state)
 
 
-__all__ = ["Admitted", "GenesisRefused", "GenesisSpec", "Home", "HomeRefused", "Prepared", "admit_genesis", "genesis_approval_message",
+__all__ = ["Admitted", "GenesisRefused", "GenesisSpec", "Prepared", "admit_genesis", "genesis_approval_message",
            "genesis_digest", "genesis_proposal", "genesis_violations", "prepare_genesis"]

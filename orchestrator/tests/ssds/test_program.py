@@ -33,7 +33,7 @@ def _probe(body: str) -> dict:
 
 
 class CompositionRootTests(unittest.TestCase):
-    def test_the_root_mounts_cores_command_set_flat_and_nothing_else_yet(self) -> None:
+    def test_the_root_mounts_cores_command_set_flat_then_the_interfaces(self) -> None:
         report = _probe(
             """
             from ssds import cli
@@ -45,11 +45,11 @@ class CompositionRootTests(unittest.TestCase):
             }))
             """
         )
-        self.assertEqual(report["root"], report["core"])
+        self.assertEqual(report["root"], report["core"] + ["status", "ask", "read"], "Core's commands, then the Interface's (Phase E)")
         self.assertEqual(len(report["root"]), len(set(report["root"])))
         self.assertLessEqual(CORE_COMMANDS, set(report["root"]))
         self.assertIn("implementation", report["root"], "profile stage commands are mounted")
-        self.assertEqual(report["ssds"], 0, "SSDS operations join only when their owner exists (Phase E)")
+        self.assertEqual(report["ssds"], 3, "the Interface's status, ask and read (Phase E step 6)")
 
     def test_a_name_claimed_twice_fails_composition(self) -> None:
         report = _probe(

@@ -17,10 +17,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ssds.admission.genesis import GenesisRefused, GenesisSpec, Home, HomeRefused, admit_genesis, prepare_genesis
+from ssds.admission.genesis import GenesisRefused, GenesisSpec, admit_genesis, prepare_genesis
 from ssds.content import read_tree
 from ssds.derivation import consequences
-from ssds.ledger.qualification import FileWitness
+from ssds.ledger.qualification import FileWitness, Home, HomeRefused
 from ssds.ledger.read import read_chain
 
 from ._fixtures import commit, git, human_key, init_repo, sshsig

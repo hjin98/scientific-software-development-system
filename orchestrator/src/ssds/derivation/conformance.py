@@ -172,6 +172,18 @@ class Conformance:
         return bool(found and isinstance(found[1].parsed, Item) and found[1].parsed.contract is not None
                     and found[1].parsed.contract.scientific == "APPLIES")
 
+    @property
+    def has_candidate(self) -> bool:
+        return self.frame is not None
+
+    @property
+    def base_tree(self) -> Any:
+        return self.base_view.tree if self.base_view is not None else None
+
+    @property
+    def candidate_tree(self) -> Any:
+        return self.candidate_view.tree if self.candidate_view is not None else None
+
     @cached_property
     def base_view(self) -> TreeView | None:
         if self.frame is None:
@@ -216,7 +228,7 @@ class Conformance:
             hits.append(Hit(WHOLE, "BOUNDARY.write_scope", INCOMPLETE, "the candidate's frame does not exist"))
             hits.extend(self._evaluate(WHOLE, Check(RESULT_LEVEL[0]), contract, item))
             return tuple(sorted(set(hits)))
-        if self.frame is not None:
+        if self.has_candidate:
             for template in CANDIDATE_LEVEL:
                 hits.extend(self._evaluate(WHOLE, Check(template), contract, item))
             if self._writes_tests(contract):
@@ -239,7 +251,7 @@ class Conformance:
         for template in RESULT_LEVEL[:1]:
             hits.extend(self._evaluate(WHOLE, Check(template), contract, item))
         hits.extend(self._faithfulness(hits, contract, item))
-        if self.frame is not None:
+        if self.has_candidate:
             for template in SIGNALS:
                 hits.extend(self._evaluate(WHOLE, Check(template), contract, item))
         return tuple(sorted(set(hits)))
@@ -511,9 +523,9 @@ class Conformance:
     def changed_files(self) -> dict[str, tuple[bytes | None, bytes | None]]:
         """Path -> (base bytes, candidate bytes) for every file that differs between ``B`` and ``C``."""
 
-        if self.frame is None:
+        if not self.has_candidate:
             return {}
-        base, cand = self.frame.base_tree, self.frame.candidate_tree
+        base, cand = self.base_tree, self.candidate_tree
         out = {}
         for path in sorted(set(base) | set(cand)):
             before = base[path].data if path in base else None
@@ -631,9 +643,9 @@ class Conformance:
         """Present in the candidate and linked by a derived ``TESTS`` relation: a test module imports it."""
 
         artifact = params.get("artifact")
-        if self.frame is None:
+        if not self.has_candidate:
             return ["a required artifact needs a candidate"]
-        cand = self.frame.candidate_tree
+        cand = self.candidate_tree
         if artifact not in cand:
             return [f"required artifact {artifact} is absent"]
         if not str(artifact).endswith(".py"):
@@ -648,9 +660,9 @@ class Conformance:
         return sorted(set(contract.frozen) | set(params.get("symbols") or ()))
 
     def _t_boundary_frozen_interface(self, params: dict, contract: Contract, item: Item | None) -> list[str]:
-        if self.frame is None:
+        if not self.has_candidate:
             return []
-        base, cand = self.frame.base_tree, self.frame.candidate_tree
+        base, cand = self.base_tree, self.candidate_tree
         findings = []
         for symbol in self._frozen_symbols(params, contract):
             homes = []

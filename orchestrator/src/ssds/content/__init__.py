@@ -29,6 +29,7 @@ from .plan import (
     ItemPart,
     Plan,
     Ref,
+    named_spans,
     parse_item,
     plans,
 )
@@ -54,7 +55,7 @@ from .writeset import write_set
 
 __all__ = [
     "ABSENT", "Check", "Contract", "ContractObligation", "DEFAULT_MANIFEST_PATH", "Entry", "EvidenceVerifier",
-    "ITEM_KINDS", "Item", "ItemFailure", "ItemPart", "Plan", "REVIEW", "Ref", "SLOTS", "parse_item", "plans", "GOVERNED_KEY", "GitReadError", "ID_RE", "IntegrityFinding",
+    "ITEM_KINDS", "Item", "ItemFailure", "ItemPart", "Plan", "REVIEW", "Ref", "SLOTS", "named_spans", "parse_item", "plans", "GOVERNED_KEY", "GitReadError", "ID_RE", "IntegrityFinding",
     "KINDS", "MODES", "Manifest", "ManifestFailure", "RESIDUAL_SUFFIX", "Region", "SYSTEM_UNITS", "Segment",
     "Span", "StaticError", "Structure", "Term", "Tree", "TreeView", "UNCLASSIFIED", "UNCOVERED", "Unit",
     "decl_from_json", "decl_to_json", "ignored", "jcs", "merge3", "merge_text", "parse_manifest", "parse_term", "read_tree", "recorded_identity", "scope_identity", "static_errors",

@@ -22,7 +22,6 @@ only read: every subject is ``LEGACY(p)`` (the accepted protocol, from
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import json
 import re
 import subprocess
@@ -35,16 +34,15 @@ sys.path.insert(0, str(REPOSITORY / "orchestrator" / "src"))
 from ssds.admission.genesis import (  # noqa: E402
     GenesisRefused,
     GenesisSpec,
-    Home,
-    HomeRefused,
     admit_genesis,
     prepare_genesis,
 )
+from ssds.cli import HomeAccess  # noqa: E402
 from ssds.content import read_tree  # noqa: E402
 from ssds.core.config import ssds_home  # noqa: E402
-from ssds.derivation import consequences  # noqa: E402
-from ssds.ledger.qualification import FileWitness, HighWaterMark, WitnessModel, qualify  # noqa: E402
-from ssds.ledger.read import read_chain  # noqa: E402
+from ssds.derivation import Consequences  # noqa: E402
+from ssds.interface.operations import present  # noqa: E402
+from ssds.ledger.qualification import Home, HomeRefused  # noqa: E402
 
 LEDGER_ID = "ssdp-shadow"
 PROJECT = "hjin98/scientific-software-development-protocol"
@@ -93,64 +91,35 @@ def prepare(args: argparse.Namespace) -> int:
     return 0
 
 
-def qualified_chain(home: Home, ledger_id: str):
-    """The verified chain, its qualification against the declared witnesses and high-water mark (§23.4),
-    and the prefix a current answer may be derived from: through the qualified head ``H*``, or None.
-
-    Witness and high-water reads happen here, outside derivation (Manual §5.1). Phase D reads file
-    witnesses only; a declared witness of another kind counts as not responding.
-    """
-
-    chain = read_chain(home.ledger_repository(ledger_id), ledger_id)
-    if not chain.entries or chain.genesis is None:
-        return chain, None, None
-    fields = chain.genesis["fields"]
-    model = WitnessModel.from_json(fields["witnesses"])
-    reports = {w.id: FileWitness(Path(w.location)).read(ledger_id) if w.kind == "FILE" else None
-               for w in model.witnesses}
-    host_keys = {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
-    retired = any(FileWitness(Path(w.location)).retired(ledger_id) for w in model.witnesses if w.kind == "FILE")
-    store = home.high_water(ledger_id)
-    mark = store.get()
-    qualification = qualify(chain, reports, model, host_keys, mark, retired=retired)
-    prefix = None
-    if qualification.current and qualification.head is not None:
-        # §23.4: whoever presents current state keeps the last head it qualified; the mark only rises.
-        if mark is None or qualification.head > mark.position:
-            store.set(HighWaterMark(qualification.head, qualification.head_digest))
-        prefix = dataclasses.replace(chain, entries=chain.entries[: qualification.head + 1])
-    return chain, qualification, prefix
-
-
 def derivation_report(home: Home, ledger_id: str, repository: Path) -> dict:
-    chain, qualification, prefix = qualified_chain(home, ledger_id)
-    trees = lambda commit: read_tree(repository, commit)  # noqa: E731
+    """The end-to-end derivation report. Qualification and the current assertion are the Interface's, the one
+    owner of presenting anything as current (Phase E plan §2): it qualifies the chain against the declared
+    witnesses, a witness's retirement and the high-water mark, derives the qualified prefix through ``H*`` and
+    keeps ``H*`` as the high-water mark (Manual §23.4); with no current-qualified head, historical views only."""
+
+    presented = present(HomeAccess(home, ledger_id), lambda commit: read_tree(repository, commit))
+    q = presented.qualification
     report: dict = {
         "ledger_id": ledger_id,
-        "entries": len(chain.entries),
-        "qualification": qualification.state if qualification else "UNQUALIFIED",
-        "qualified_head": None, "qualified_head_digest": None, "provisional": None,
-        "critical": list(qualification.critical) if qualification else [],
+        "entries": presented.entries,
+        "qualification": presented.state,
+        "qualified_head": q.head if q is not None and q.current else None,
+        "qualified_head_digest": q.head_digest if q is not None and q.current else None,
+        "provisional": q.provisional if q is not None and q.current else None,
+        "critical": list(q.critical) if q is not None else [],
     }
-    if prefix is not None:
-        view = consequences(prefix, trees)
-        report.update(qualified_head=qualification.head, qualified_head_digest=qualification.head_digest,
-                      provisional=qualification.provisional)
-        withheld = list(view.assertion_withheld)
-    elif chain.genesis is not None and chain.readable_through >= 0:
-        view = consequences(chain, trees)  # historical views only: no head is current-qualified
-        withheld = [f"qualification {report['qualification']}: historical views only", *view.assertion_withheld]
-    else:
-        report.update(current_assertion=False, assertion_withheld=["no readable genesis"], subjects={},
+    if presented.workflow is None:
+        report.update(current_assertion=False, assertion_withheld=list(presented.withheld), subjects={},
                       findings=[], obligations=[])
         return report
+    view = Consequences(presented.workflow.d)
     structure = view.s.view.structure
     subjects = sorted(u for u, unit in structure.units.items() if unit.subject)
     report.update(
         position=view.s.n,
         head=view.s.h.chain.entries[view.s.n].digest,
-        current_assertion=not withheld,
-        assertion_withheld=withheld,
+        current_assertion=presented.current,
+        assertion_withheld=list(presented.withheld),
         subjects={s: {"mode": view.s.mode(s), "rev": view.s.cur(s), "valid": view.support.valid(s),
                       "parts": sorted(u for u in structure.units if structure.subj(u) == s and u != s)}
                   for s in subjects},

@@ -15,6 +15,7 @@ from typing import Protocol, runtime_checkable
 
 from ..application import CORE_CAPABILITIES, create_application
 from ..errors import ERROR_CODES, OrchestratorError, Problem
+from ..config import ssds_home
 from ..jcs import CanonicalJSONError, canonical_json
 from ..events import PROMPT_RENDERED_EVENT, PROMPT_RENDERED_SCHEMA_VERSION, logical_event_id
 from ..profile import RESULT_SCHEMA_ID, RESULT_SCHEMA_VERSION
@@ -132,6 +133,7 @@ __all__ = [
     "CapabilityStatus",
     "CoreAPI",
     "canonical_json",
+    "ssds_home",
     "DigestRef",
     "ERROR_CODES",
     "EventEnvelope",
