@@ -33,8 +33,8 @@ GOVERNS: the settlement of the mechanism catalogue against executable design mod
          the plan for shadow implementation, Phases D-H (Stage D, authorized by G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
                  over any subject before G4), cutover, the frozen Level 0 Core or SSDP protocol source.
-NEXT ACTION: Stage D Phase D (§5.2): the read-only kernel, beginning with the §26.2 fitness checks and the
-             package layout (§5.1 item 1); the shadow genesis waits for the stakeholder's human gate.
+NEXT ACTION: Stage D Phase E (§5.2): the read-only interface and workflow layer, under a Phase E plan
+             companion to this file. Phase D is complete (Review PASS at 39fe39b, §8).
 ```
 
 ## 0. Purpose and authority
@@ -364,7 +364,7 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 | G1 | accepted (SD-50, 2026-10-18) |
 | this workplan | revision 1 NO-PASS (13d67be); revision 2 NO-PASS (d8ab75c); revision 3 PASS (afd3be2), post-review corrections §4.14 |
 | Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 done: Stage D made concrete (§5), register closure (§4.11), revision 1 frozen |
-| Stage D | authorized, shadow only (SD-55); Phase D under `workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md`: steps 1-7 done (the program renamed `ssds` by SD-56/SD-57, Manual A7; the shadow genesis of this repository admitted by the stakeholder's gate, `qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`); the Phase D Review of 0e49deb NO-PASS, its blockers repaired and its SERIOUS CHALLENGE SC-1 resolved by SD-58 (Manual A8); next, the Review of the repaired candidate, with A7 and A8 |
+| Stage D | authorized, shadow only (SD-55); Phase D under `workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md`: steps 1-7 done (the program renamed `ssds` by SD-56/SD-57, Manual A7; the shadow genesis of this repository admitted by the stakeholder's gate, `qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`); the Phase D Review of 0e49deb NO-PASS, its blockers repaired and its SERIOUS CHALLENGE SC-1 resolved by SD-58 (Manual A8); five further Reviews found implementation blockers, repaired under the SD-59 threat boundary; the Review of 39fe39b PASS on Phase D's implementation and exit, A7 and A8 confirmed (`qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-39FE39B-DIFFERENT-FAMILY-PASS.md`); Phase D complete. Acceptance of the A7 and A8 text is the stakeholder's. Next, Phase E |
 | G2 | authorized (SD-55, 2026-10-19): criterion 13 Review PASS (afd3be2), criterion 14 met |
 
 **Revision 1 (2026-10-18, S6).** Revision 0 opened the workplan under SD-50 and recorded Stage S as it ran (§4.4-§4.10). Revision 1 adds the register closure (§4.11) and the concrete Stage D plan (§5, replacing revision 0's outline), brings the Stage S results current with SD-53, and freezes the file for independent Review. Nothing in it authorizes Stage D.

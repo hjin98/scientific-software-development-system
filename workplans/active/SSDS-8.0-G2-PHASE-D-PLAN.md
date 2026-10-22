@@ -3,10 +3,10 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-D-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active
+status: completed
 created_date: 2026-10-19
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase D row)
-governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 decided, SD-56, its text's independent Review pending)
+governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 and A8 decided, SD-56 and SD-58, their text confirmed by the independent Reviews, stakeholder acceptance pending)
 g2_authorization: SD-55 (shadow implementation only)
 stakeholder_amendment: SD-56 (one program `ssds`; operator data in the SSDS home; §6-§7 answered); SD-57 (a first release with no predecessor installation; the genesis approval key)
 active_serious_challenge: none (SC-D1 resolved by SD-56; SC-1 of the 0e49deb Phase D Review resolved by SD-58, Manual A8)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase D plan: the read-only kernel
 
 ```text
-STATUS: ACTIVE. Companion to the G2 shadow workplan, Stage D (§5.2 Phase D row). It concretizes
+STATUS: COMPLETED. Phase D Review PASS at 39fe39b (§9). Companion to the G2 shadow workplan, Stage D (§5.2 Phase D row). It concretizes
         that row into files, modules and test groups; it adds no mechanism beyond the settled
         register (G2 workplan §4.2) and changes no Manual decision.
 SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNED; no cutover. The
@@ -42,9 +42,11 @@ DONE SO FAR: §3 step 1 (package skeleton, §26.2 fitness checks), the SD-56 ren
              confirmed them again and found three (A-B11 to A-B13); the Review of df911c0
              confirmed them again and retained one (A-B12: a directory the check could not
              list). All are repaired, the containment family structurally, under the threat
-             boundary of SD-59 (§2, §9).
-NEXT ACTION: a Review of the repaired candidate, when the stakeholder asks for it. §7 Q5 is
-             needed only when a setting is first read.
+             boundary of SD-59 (§2, §9). The Review of 39fe39b passed Phase D's implementation
+             and exit, confirmed A7 and A8 and found no blocker (§9).
+NEXT ACTION: none in this plan. Stage D continues with Phase E (G2 workplan §5.2); acceptance of
+             the A7 and A8 text is the stakeholder's. §7 Q5 is needed only when a setting is
+             first read.
 ```
 
 ## 1. Scope and authority
@@ -224,3 +226,9 @@ The admitted shadow ledger is unaffected: its baseline passes the stricter genes
 
 - **A-B12 (retained).** `Home.check` certifies an operator tree only as far as it has read it. It lists every directory of each used tree (`os.scandir`) and examines every entry (`os.lstat`); a directory that cannot be listed, an entry that cannot be examined, an entry that vanishes, or one that is neither a regular file nor a directory refuses before any effect. The directories holding each tree must be directories, and the repository-marker predicate fails closed the same way: a marker that cannot be examined refuses rather than counting as absent. The check no longer uses `os.walk`, which silently skipped an unlistable directory, nor the `pathlib` predicates, which turned an entry it could list but not examine into an uncaught `PermissionError` rather than a refusal. Tests: the Review's `witness/demo` repository under a `witness` at mode 0300, before preparation and between the gate and admission, and its in-home-link sibling, each refused before workspace, key, state or ledger creation (as far as the stage allows) with the nested product's refs, objects and status unchanged; a hidden link under an unlistable (0300) and an unsearchable (0600) directory in each of the five used trees; injected listing and `lstat` failures in each used tree, so the property is exercised when the suite runs as root, which reads every directory; readable collision refusals; a FIFO in the operator tree; the clean admitting control. The permission tests run when the suite does not run as root (as in CI). Without the repair the new tests fail; treating a listing failure as empty, or an `lstat` failure as absent, each fails them.
 - **NF8** (non-blocking: the fitness rule's annotation-only and class-body binding order) is not repaired in this round.
+
+**The 39fe39b Review: PASS** (`qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-39FE39B-DIFFERENT-FAMILY-PASS.md`: judged within SD-59; Phase D implementation PASS and exit PASS, A7 and A8 PASS confirmed, no SERIOUS CHALLENGE, no blocker; A-B12 closed at `Home.check` and `_is_repository`). This is the independent Review of G2 workplan §5.1 item 5: it lets Phase E's dependent work start, in shadow, and accepts nothing; acceptance is G3. It does not accept A7 or A8 on the stakeholder's behalf.
+
+- **Carried, not repaired:** NF8 (four binding-order cases the fitness sensor's Git-reader rule misjudges; the Review found no corresponding reader route in production derivation, and Manual §26.2 makes fitness checks sensors). Its owner is `orchestrator/tests/ssds/fitness.py`, to be repaired at Python's binding and evaluation rules with the pure-code controls kept.
+- **Phase H items** (outside SD-59): hostile writers with home or account access, replacement between inspection and use, mount and bind aliases, hostile global Git configuration, filesystems defeating the publication and durability primitives, coherent private-cache rewriting, crash and concurrent-reader high-water monotonicity, and resource and scaling qualification. `LOCAL_TRUST` currentness rests on its declared no-common-rollback premise, which a witness in the same home does not establish.
+- **Later phases' obligations, unexecuted, not passed:** Phase E: the D1/D2 revision-run variants of 575dc78 N5, f7419d5 N4 and f22b4dc N5, 63ddf91 N5's plan half, f03b15e N5's reassessment of an answered non-gate obligation, and the readiness, discharge, drift, impact, conformance, brief, routing and re-application views (§8). Phase F: the Admission-refusal discriminators (§8.3 steps 3 and 7), cited-premise cycle enforcement, the RR-11 resolver and Dispatcher half, designated-runner materialization and custody, recovery authorization and authenticated witness retirement.
