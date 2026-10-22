@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property, lru_cache
 from typing import Any
 
@@ -48,26 +48,106 @@ def target_key(target: Any) -> str | None:
 
 @dataclass(frozen=True)
 class Policy:
-    """Project policy parameters the Phase D templates read (catalogue §25.3; closed schema 1)."""
+    """Project policy parameters (catalogue §25.3; closed schema 1).
+
+    ``[domains.<D>]`` holds the per-domain table of Phase D reading 2. ``[workflow]`` holds the keys the
+    Manual leaves to project policy for the workflow layer (Phase E reading E10); an absent key takes the
+    system default, and a value weaker than its system floor is a static error.
+    """
 
     domains: dict[str, dict[str, Any]]
+    workflow: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def parse(cls, data: bytes | None) -> Policy:
         if not data:
             return cls({})
         raw = tomllib.loads(data.decode("utf-8"))
-        if raw.get("schema") != 1 or not set(raw) <= {"schema", "domains"}:
-            raise ValueError("policy schema 1 has only schema and [domains.<D>]")
+        if raw.get("schema") != 1 or not set(raw) <= {"schema", "domains", "workflow"}:
+            raise ValueError("policy schema 1 has only schema, [domains.<D>] and [workflow]")
         allowed = {"owner", "adjudicators", "acceptors", "required_judgments", "gates", "gate_holders", "evidence",
                    "claim_owner", "humans", "unattested_agents"}
         for name, table in raw.get("domains", {}).items():
             if not set(table) <= allowed:
                 raise ValueError(f"unknown policy key in domain {name}")
-        return cls(dict(raw.get("domains", {})))
+        return cls(dict(raw.get("domains", {})), _workflow(raw.get("workflow", {})))
 
     def get(self, domain: str | None, key: str, default: Any = ()) -> Any:
         return self.domains.get(domain or "", {}).get(key, default)
+
+    def flow(self, key: str) -> Any:
+        """A ``[workflow]`` value, or its system default."""
+
+        return self.workflow.get(key, WORKFLOW_DEFAULTS[key])
+
+
+#: System budget cap and the default a policy may lower (catalogue §13.7).
+BUDGET_CAP = 10
+#: Obligation kinds no risk override or policy lets discharge provisionally (§10.5).
+NEVER_PROVISIONAL = frozenset({"GATE", "HUMAN_ATTENTION", "ADJUDICATE", "INTEGRITY"})
+CONCERNS = frozenset({"security", "storage", "concurrency", "performance", "configuration", "release"})
+MATERIALITY = ("ROUTINE", "MATERIAL", "CRITICAL")
+ITEM_KINDS = frozenset({"IMPLEMENT", "REPAIR", "MIGRATE", "INVESTIGATE", "AUTHOR", "DOCUMENT"})
+WORKFLOW_DEFAULTS: dict[str, Any] = {
+    "standing_plan": None,  # §12.5: with none, decisions outside every plan go to the human
+    "budget": 3,  # §13.7 [proposed default]
+    "provisional_kinds": (),  # §10.3, §10.4: kinds policy lets continue provisionally
+    "protected_surfaces": (),  # §25.3: units and paths no agent write scope may hold
+    "concern_tags": {},  # §16.3: concern -> units whose write-scope intersection injects that owner
+    "waive_item_level_review": (),  # §13.7: item kinds whose item-level review policy waives
+    "floors": (),  # §15.4: raise-only entries {kind, reason, domain, materiality}
+}
+
+
+def _workflow(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict) or not set(raw) <= set(WORKFLOW_DEFAULTS):
+        raise ValueError(f"unknown [workflow] key {sorted(set(raw) - set(WORKFLOW_DEFAULTS)) if isinstance(raw, dict) else raw}")
+
+    def strings(key: str, allowed: frozenset[str] | None = None) -> tuple[str, ...]:
+        value = raw[key]
+        if not isinstance(value, list) or not all(isinstance(v, str) and v for v in value):
+            raise ValueError(f"[workflow] {key} is a list of strings")
+        if allowed is not None and not set(value) <= allowed:
+            raise ValueError(f"[workflow] {key} outside {sorted(allowed)}")
+        return tuple(value)
+
+    out: dict[str, Any] = {}
+    if "standing_plan" in raw:
+        if not isinstance(raw["standing_plan"], str) or not raw["standing_plan"]:
+            raise ValueError("[workflow] standing_plan names a plan subject")
+        out["standing_plan"] = raw["standing_plan"]
+    if "budget" in raw:
+        budget = raw["budget"]
+        if not isinstance(budget, int) or isinstance(budget, bool) or not 1 <= budget <= BUDGET_CAP:
+            raise ValueError(f"[workflow] budget is an integer from 1 to the system cap {BUDGET_CAP}")
+        out["budget"] = budget
+    if "provisional_kinds" in raw:
+        kinds = strings("provisional_kinds")
+        if set(kinds) & NEVER_PROVISIONAL:
+            raise ValueError(f"[workflow] provisional_kinds may not name {sorted(NEVER_PROVISIONAL)}")
+        out["provisional_kinds"] = kinds
+    if "protected_surfaces" in raw:
+        out["protected_surfaces"] = strings("protected_surfaces")
+    if "waive_item_level_review" in raw:
+        out["waive_item_level_review"] = strings("waive_item_level_review", ITEM_KINDS)
+    if "concern_tags" in raw:
+        tags = raw["concern_tags"]
+        if not isinstance(tags, dict) or not set(tags) <= CONCERNS:
+            raise ValueError(f"[workflow] concern_tags keys are {sorted(CONCERNS)}")
+        out["concern_tags"] = {name: tuple(units) for name, units in sorted(tags.items())
+                               if isinstance(units, list) and all(isinstance(u, str) for u in units)}
+        if len(out["concern_tags"]) != len(tags):
+            raise ValueError("[workflow] concern_tags values are lists of units")
+    if "floors" in raw:
+        floors = []
+        for entry in raw["floors"] if isinstance(raw["floors"], list) else [None]:
+            if (not isinstance(entry, dict) or not {"kind", "materiality"} <= set(entry)
+                    or not set(entry) <= {"kind", "reason", "domain", "materiality"}
+                    or entry["materiality"] not in MATERIALITY or not all(isinstance(v, str) for v in entry.values())):
+                raise ValueError("[[workflow.floors]] is {kind, materiality[, reason, domain]}, raising only")
+            floors.append(dict(sorted(entry.items())))
+        out["floors"] = tuple(floors)
+    return out
 
 
 class State:

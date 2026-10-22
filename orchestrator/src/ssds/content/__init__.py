@@ -16,6 +16,22 @@ from .manifest import (
     parse_term,
 )
 from .merge import merge3, merge_text
+from .plan import (
+    ITEM_KINDS,
+    REVIEW,
+    SLOTS,
+    Check,
+    Contract,
+    ContractObligation,
+    EvidenceVerifier,
+    Item,
+    ItemFailure,
+    ItemPart,
+    Plan,
+    Ref,
+    parse_item,
+    plans,
+)
 from .resolve import Region, Span
 from .structure import (
     RESIDUAL_SUFFIX,
@@ -37,7 +53,8 @@ from .view import ABSENT, IntegrityFinding, Segment, TreeView, recorded_identity
 from .writeset import write_set
 
 __all__ = [
-    "ABSENT", "DEFAULT_MANIFEST_PATH", "Entry", "GOVERNED_KEY", "GitReadError", "ID_RE", "IntegrityFinding",
+    "ABSENT", "Check", "Contract", "ContractObligation", "DEFAULT_MANIFEST_PATH", "Entry", "EvidenceVerifier",
+    "ITEM_KINDS", "Item", "ItemFailure", "ItemPart", "Plan", "REVIEW", "Ref", "SLOTS", "parse_item", "plans", "GOVERNED_KEY", "GitReadError", "ID_RE", "IntegrityFinding",
     "KINDS", "MODES", "Manifest", "ManifestFailure", "RESIDUAL_SUFFIX", "Region", "SYSTEM_UNITS", "Segment",
     "Span", "StaticError", "Structure", "Term", "Tree", "TreeView", "UNCLASSIFIED", "UNCOVERED", "Unit",
     "decl_from_json", "decl_to_json", "ignored", "merge3", "merge_text", "parse_manifest", "parse_term", "read_tree", "recorded_identity", "scope_identity", "static_errors",
