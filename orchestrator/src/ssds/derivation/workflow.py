@@ -658,6 +658,14 @@ class Workflow:
 
     # -- what the renderers read (Phase E step 7) --------------------------------------------------------
 
+    @cached_property
+    def briefing(self) -> Any:
+        """What a brief of an obligation projects (``derivation.briefing``)."""
+
+        from .briefing import Briefing
+
+        return Briefing(self)
+
     def item_of(self, o: Obligation) -> Any:
         """The item or part obligation ``o`` is, or None."""
 

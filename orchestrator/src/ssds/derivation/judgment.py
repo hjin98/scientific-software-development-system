@@ -14,6 +14,8 @@ are added with frames.
 
 from __future__ import annotations
 
+import json
+
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import Any
@@ -108,6 +110,26 @@ class Judgments:
         if kind == "PLAN_ACCEPTANCE":
             named = {i["unit"] for i in a["fields"]["items"]}
             return bool(named & {i["unit"] for i in z["fields"]["items"]})
+        return False
+
+    def reaches_target(self, adverse_id: str, kind: str, target: Any) -> bool:
+        """Whether an adverse judgment's reach includes ``target`` asked of a judgment of ``kind`` (§5.10 (c)),
+        before any answer to it exists: the reach a brief's carried objections follow (§16.5)."""
+
+        a = self.s.record(adverse_id)
+        if a["kind"] != kind or not isinstance(target, dict):
+            return False
+        if is_work(a) or (kind in ("REVIEW", "CONFORMANCE") and ("transformation" in target or "integrated" in target)):
+            judged = self.judged_content(adverse_id)
+            if not judged or not is_work(a) or not ("transformation" in target or "integrated" in target):
+                return a["target"] == target
+            return judged <= self._target_work(json.dumps(target, sort_keys=True))[0]
+        if kind in ("ACCEPTANCE", "REVIEW", "PRODUCT_SCOPE_ACCEPTANCE", "INTAKE_DISPOSITION"):
+            return a["target"] == target
+        if kind == "GATE_DECISION":
+            return (a["target"]["gate"], a["target"]["subject"]) == (target.get("gate"), target.get("subject"))
+        if kind == "PLAN_ACCEPTANCE":
+            return bool({i["unit"] for i in a["fields"]["items"]} & {i["unit"] for i in target.get("items", [])})
         return False
 
     def same_work(self, adverse_id: str, rid: str) -> bool:
@@ -284,12 +306,17 @@ class Judgments:
 
     # -- judged content of work (§5.10 (b)) ----------------------------------------------------------
 
-    @lru_cache(maxsize=None)  # noqa: B019
     def _work(self, rid: str) -> tuple[frozenset[tuple[str, str]], dict[tuple[str, str], frozenset[str]]]:
         """``W(j)`` for a judgment about work, and the producers of each piece of it."""
 
+        return self._target_work(json.dumps(self.s.record(rid)["target"], sort_keys=True))
+
+    @lru_cache(maxsize=None)  # noqa: B019
+    def _target_work(self, target_json: str) -> tuple[frozenset[tuple[str, str]], dict[tuple[str, str], frozenset[str]]]:
+        """``W`` of a work target (a transformation or an integrated result), whether or not it is judged yet."""
+
         s = self.s
-        target = s.record(rid)["target"]
+        target = json.loads(target_json)
         if "transformation" in target:
             return self._transformation_work(target["transformation"], None)
         position = self._position_of_state(target["at"])

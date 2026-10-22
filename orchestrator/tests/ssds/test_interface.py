@@ -322,8 +322,9 @@ class Commands(unittest.TestCase):
 
         before = snapshot()
         for args in (("status",), ("ask", "governs", "ssds8.manual"), ("ask", "search", "Manual"), ("ask", "changed"),
-                     ("ask", "impact", self.baseline), ("read", "manual.md")):
-            self.assertIn(self.ssds(*args)[0], (0, 1), args)
+                     ("ask", "impact", self.baseline), ("read", "manual.md"), ("inspect",),
+                     ("open", "sha256:" + "0" * 64)):
+            self.assertIn(self.ssds(*args)[0], (0, 1, 2), args)
         self.assertEqual(snapshot(), before)
 
     def test_refusals_present_nothing(self) -> None:

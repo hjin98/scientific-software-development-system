@@ -96,6 +96,27 @@ class Hit:
     units: tuple[str, ...] = ()  # the units a boundary or test-integrity breach touched
 
 
+def system_slots(w: Any, bound: Any) -> tuple[str, ...]:
+    """The slots a system contract owes (§13.6): by the bound obligation's kind, and ``bidirectional`` for a
+    review of work under a contract with ``scientific = APPLIES``. The one owner, for conformance and briefs."""
+
+    slots = list(SYSTEM_SLOTS.get(bound.kind, JUDGMENT_SLOTS))
+    if bound.kind == "REVIEW" and _scientific_review(w, bound):
+        slots.append("bidirectional")
+    return tuple(slots)
+
+
+def _scientific_review(w: Any, bound: Any) -> bool:
+    x = bound.target.get("transformation") if isinstance(bound.target, dict) else None
+    result = w.submitting_result(x) if x else None
+    if result is None:
+        return False
+    named = (w.s.record(result).get("binding") or {}).get("item")
+    found = w.s.plans.item_at(named["unit"], named["rev"]) if isinstance(named, dict) else None
+    return bool(found and isinstance(found[1].parsed, Item) and found[1].parsed.contract is not None
+                and found[1].parsed.contract.scientific == "APPLIES")
+
+
 def _filled(value: Any) -> bool:
     """A typed value, ``{"none": <reason>}`` or ``{"ref": <content reference>}`` (§13.5; reading E27)."""
 
@@ -154,23 +175,8 @@ class Conformance:
         bound = self.w.binding_index().get(binding.get("obligation", ""))
         if bound is None:
             return None, None, "the result names no contract and no derived obligation"
-        slots = list(SYSTEM_SLOTS.get(bound.kind, JUDGMENT_SLOTS))
-        if bound.kind == "REVIEW" and self._scientific_review(bound):
-            slots.append("bidirectional")  # §13.6: a review of a scientific subject
         budget = self.s.policy.flow("budget")
-        return Contract("NOT_APPLIES", budget, (), (), (), (), (), (), (), (), tuple(slots), ()), None, ""
-
-    def _scientific_review(self, bound: Any) -> bool:
-        """Whether a REVIEW(X) judges work under a contract with ``scientific = APPLIES``."""
-
-        x = bound.target.get("transformation") if isinstance(bound.target, dict) else None
-        result = self.w.submitting_result(x) if x else None
-        if result is None:
-            return False
-        named = (self.s.record(result).get("binding") or {}).get("item")
-        found = self.s.plans.item_at(named["unit"], named["rev"]) if isinstance(named, dict) else None
-        return bool(found and isinstance(found[1].parsed, Item) and found[1].parsed.contract is not None
-                    and found[1].parsed.contract.scientific == "APPLIES")
+        return Contract("NOT_APPLIES", budget, (), (), (), (), (), (), (), (), system_slots(self.w, bound), ()), None, ""
 
     @property
     def has_candidate(self) -> bool:

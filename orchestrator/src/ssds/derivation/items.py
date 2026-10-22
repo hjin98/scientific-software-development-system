@@ -210,6 +210,33 @@ class ItemObligation:
     def moved(self) -> bool:
         return any(u not in self.s.view.structure.units or self.s.cur(u) != r for u, r in self.outputs.items())
 
+    def drift_changes(self) -> list[dict[str, Any]]:
+        """What moved ``out(o)`` since its latest integration (§10.4, §16.3): per moved output, each admitted
+        change of it, its entry and whether an integration (and of which item) or an absorption made it."""
+
+        latest = self.latest_integrated
+        if latest is None:
+            return []
+        h, out = self.s.h, []
+        for unit, rev in sorted(self.outputs.items()):
+            for k in range(latest.integrated + 1, self.s.n + 1):
+                before, after = h.view(k - 1), h.view(k)
+                was = before.rev(unit) if unit in before.structure.units else None
+                now = after.rev(unit) if unit in after.structure.units else None
+                if was == now:
+                    continue
+                change: dict[str, Any] = {"unit": unit, "position": k, "entry": h.chain.entries[k].digest, "rev": now}
+                integration = h.integrations.get(k)
+                if integration is not None and integration.transformation:
+                    result = self.w.submitting_result(integration.transformation)
+                    named = (self.s.record(result).get("binding") or {}).get("item") if result else None
+                    change.update(made_by="integration", transformation=integration.transformation,
+                                  item=named.get("unit") if isinstance(named, dict) else None)
+                else:
+                    change["made_by"] = "absorption"
+                out.append(change)
+        return out
+
     @property
     def subjects(self) -> frozenset[str]:
         structure = self.s.view.structure

@@ -60,6 +60,14 @@ class Reports:
     def reports(self) -> list[str]:
         return [r for r in self.s.of_kind(*REPORT_KINDS) if self.s.acts(r)]
 
+    def report_outcomes(self, rid: str) -> frozenset[str]:
+        """The outcomes a coordination decision on this report may take (§15.5): of its kind, reasons, target
+        domain and floor. The one owner, for resolution and the decision brief."""
+
+        record = self.s.record(rid)
+        domain = next(iter(sorted(self._domains(rid))), None)
+        return allowed_outcomes(record["kind"], tuple(record.get("reason") or ()), domain, self.materiality(rid)[1])
+
     def _target_units(self, rid: str, view: Any = None) -> set[str]:
         view = view if view is not None else self.s.view
         target = self.s.record(rid)["target"]
@@ -254,8 +262,7 @@ class Reports:
                 coordinate = bool(self._target_units(rid) & open_units)
             if coordinate and kind != "CHALLENGE":
                 holder, owner = self.principal(plan)
-                domain = next(iter(sorted(self._domains(rid))), None)
-                if not self._resolved_by_decision(rid, allowed_outcomes(kind, reasons, domain, floor), holder):
+                if not self._resolved_by_decision(rid, self.report_outcomes(rid), holder):
                     out.append(make("COORDINATE", {"report": rid}, holder=holder, plan=owner, detail=detail))
         out += self._escalations()
         out += self._floor_events()

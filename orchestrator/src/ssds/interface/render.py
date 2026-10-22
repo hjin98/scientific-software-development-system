@@ -168,11 +168,31 @@ class Renderer:
             out["doctrine"] = dict(ruleset["doctrine"])
         return out
 
-    def _doctrine_text(self, governs: dict[str, Any], path: str) -> str | None:
+    def doctrine_problem(self, governs: dict[str, Any]) -> str | None:
+        """Why no doctrine text can be rendered for this binding, or None: no pin, a source that cannot be read,
+        or a source whose ``source/PROTOCOL_VERSION`` is not the pinned version (§16.9, §29.2: never apply a
+        non-matching package)."""
+
         pin = governs.get("doctrine")
         if pin is None:
+            return "the ruleset pins no doctrine"
+        cache = self.__dict__.setdefault("_doctrine_checked", {})
+        key = (pin["source"], pin["version"])
+        if key not in cache:
+            declared = self.read_doctrine(pin["source"], "source/PROTOCOL_VERSION")
+            if declared is None:
+                cache[key] = "the pinned doctrine source cannot be read"
+            elif declared.decode("utf-8", "replace").strip() != pin["version"]:
+                cache[key] = (f"the pinned source declares SSDP {declared.decode('utf-8', 'replace').strip()}, "
+                              f"not the pinned {pin['version']}")
+            else:
+                cache[key] = None
+        return cache[key]
+
+    def _doctrine_text(self, governs: dict[str, Any], path: str) -> str | None:
+        if self.doctrine_problem(governs) is not None:
             return None
-        data = self.read_doctrine(pin["source"], path)
+        data = self.read_doctrine(governs["doctrine"]["source"], path)
         return data.decode("utf-8", "replace") if data is not None else None
 
     def _version_section(self, governs: dict[str, Any]) -> str:
@@ -182,7 +202,10 @@ class Renderer:
         if governs["mode"] == "UNGOVERNED":
             return "UNGOVERNED: no protocol governs this subject; SSDS renders its derived facts only"
         pin = governs.get("doctrine")
-        doctrine = f"SSDP {pin['version']} at {pin['source']}" if pin else "no doctrine pinned (no doctrine text rendered)"
+        problem = self.doctrine_problem(governs)
+        doctrine = f"SSDP {pin['version']} at {pin['source']}" if pin else "no doctrine pinned"
+        if problem is not None:
+            doctrine += f" (no doctrine text rendered: {problem})"
         return f"NATIVE: ruleset {governs['ruleset']}; doctrine {doctrine}"
 
     def _header(self, o: Any, form: str, governs: dict[str, Any]) -> str:
@@ -198,72 +221,68 @@ class Renderer:
 
     # -- duty compilation (§16.3) ------------------------------------------------------------------------
 
-    def events(self, o: Any) -> list[tuple[str, str]]:
-        """The injection events that fire for ``o``: (event, owner reference path)."""
+    def events(self, o: Any, governs: dict[str, Any] | None = None) -> list[tuple[str, str]]:
+        """The injection events that fire for ``o``, over the work it is about: (event, owner reference path)."""
 
         kind, s = o.kind, self.s
-        item = self.w.item_of(o)
-        subject = self.w.subject_of(o)
-        domain = self.w.domain_of(o) if item is None else (item.item.authority or "D4")
+        work = self.w.briefing.work(o)
+        item = work.item
         out: list[tuple[str, str]] = []
-        judged = kind in ("ACCEPT", "REVIEW") or (item is not None and item.item.kind == "AUTHOR")
-        if judged and domain in DOMAIN_OWNER:
-            out.append((f"domain:{domain}", REFERENCES + DOMAIN_OWNER[domain]))
+        judged = kind in ("ACCEPT", "REVIEW", "REVIEW_REVISION") or (item is not None and item.kind == "AUTHOR")
+        if judged and work.domain in DOMAIN_OWNER:
+            out.append((f"domain:{work.domain}", REFERENCES + DOMAIN_OWNER[work.domain]))
         if kind in ("ASSESS", "READING", "ADJUDICATE_DISAGREEMENT", "SPEC_REVIEW"):
             out.append(("evidence", REFERENCES + OWNER["evidence"]))
-        if subject is not None and self._declares_definitions(subject):
+        if self._declares_definitions(work):
             out.append(("definition", REFERENCES + OWNER["definition"]))
         recurrence = kind == "COORDINATE" and "recurrence" in o.target
-        budget = (item is not None and item.budget_spent) or o.target.get("condition") == "budget-spent"
+        budget = (work.holder is not None and work.holder.budget_spent and kind not in REVIEW_KINDS) \
+            or o.target.get("condition") == "budget-spent"
         if recurrence or budget:
             out.append(("convergence", REFERENCES + OWNER["convergence"]))
-        if recurrence or (item is not None and item.item.kind == "MIGRATE"):
+        if recurrence or (item is not None and item.kind == "MIGRATE"):
             out.append(("pem", REFERENCES + OWNER["pem"]))
-        scientific = self._scientific(o, item)
-        if kind == "GATE" or (kind in REVIEW_KINDS and scientific):
+        if kind == "GATE" or (kind in REVIEW_KINDS and work.scientific):
             out.append(("channel-c", REFERENCES + OWNER["channel-c"]))
             out.append(("inspectability", REFERENCES + OWNER["inspectability"]))
-        revising = kind == "REVIEW_REVISION" or (item is not None and item.item.kind == "AUTHOR"
-                                                 and item.item.authority in ("D1", "D2"))
-        if revising:
+        if kind == "REVIEW_REVISION" or (item is not None and item.kind == "AUTHOR" and work.domain in ("D1", "D2")):
             out.append(("revising", REFERENCES + OWNER["revising"]))
-        if self._serious_challenge(o, subject):
+        if self._serious_challenge(o, work):
             out.append(("kernel-challenge", REFERENCES + OWNER["kernel-challenge"]))
-        if subject is not None and s.mode(subject) == "LEGACY":
+        mismatch = governs is not None and governs.get("doctrine") is not None and \
+            (self.doctrine_problem(governs) or "").startswith("the pinned source declares")
+        if any(s.mode(x) == "LEGACY" for x in work.subjects if x in s.view.structure.units) or mismatch:
             out.append(("versioning", REFERENCES + OWNER["versioning"]))
-        if item is not None and item.item.contract is not None:
-            written = item.write_units
-            for concern, units in sorted(s.policy.flow("concern_tags").items()):
-                if written & set(units):
-                    out.append((f"concern:{concern}", REFERENCES + CONCERN_OWNER[concern]))
+        written = work.written
+        for concern, units in sorted(s.policy.flow("concern_tags").items()):
+            if written & set(units):
+                out.append((f"concern:{concern}", REFERENCES + CONCERN_OWNER[concern]))
         return out
 
-    def _declares_definitions(self, subject: str) -> bool:
-        """The subject or its governing closure declares a definition, a parameter family or an external import:
-        a ``USES_DEFINITION`` relation from it, or an ``EXTERNAL`` unit among what governs it."""
+    def _declares_definitions(self, work: Any) -> bool:
+        """A subject the work touches, or its governing closure, declares ``defines``, a definition relation
+        (``USES_DEFINITION``) or an external import (an ``EXTERNAL`` unit governing it)."""
 
         structure = self.s.view.structure
-        units = {u for u in structure.units if structure.subj(u) == subject}
-        governing = {g["unit"] for g in derivation.queries.governs(self.w, subject)}
-        for r in self.s.s0.relations:
-            if r.type == "USES_DEFINITION" and r.subject in units | governing:
-                return True
+        units = {u for u in structure.units if structure.subj(u) in work.subjects}
+        governing = set()
+        for subject in work.subjects:
+            governing |= {g["unit"] for g in derivation.queries.governs(self.w, subject)}
+        if work.item is not None:
+            governing |= {u for u, _ in work.item.governing}
+        scope = units | governing | {u for u in structure.units if structure.subj(u) in governing}
+        if any(d.get("decl") == "defines" and d.get("unit") in scope for d in self.s.view.semantic_declarations):
+            return True
+        if any(r.type == "USES_DEFINITION" and r.subject in scope for r in self.s.s0.relations):
+            return True
         return any(structure.kind(u) == "EXTERNAL" for u in governing if u in structure.units)
 
-    def _scientific(self, o: Any, item: Any) -> bool:
-        if item is not None:
-            return item.item.contract is not None and item.item.contract.scientific == "APPLIES"
-        x = o.target.get("transformation") if isinstance(o.target, dict) else None
-        result = self.w.submitting_result(x) if x else None
-        contract = self.w.conformance(result).contract[0] if result else None
-        return contract is not None and contract.scientific == "APPLIES"
-
-    def _serious_challenge(self, o: Any, subject: str | None) -> bool:
+    def _serious_challenge(self, o: Any, work: Any) -> bool:
         if o.kind == "ADJUDICATE" and o.target.get("record") in self.s.records:
-            return bool(self.s.record(o.target["record"])["fields"].get("serious"))
-        if subject is None:
-            return False
-        return any(self.s.record(c)["fields"].get("serious") for c in self.w.challenges_on(subject))
+            if self.s.record(o.target["record"])["fields"].get("serious"):
+                return True
+        return any(self.s.record(c)["fields"].get("serious") for subject in work.subjects
+                   for c in self.w.challenges_on(subject))
 
     def duties(self, o: Any, governs: dict[str, Any], slots: list[str]) -> tuple[list[str], list[tuple[str, str]], list[str]]:
         """(compiled duty identifiers, their rendered texts, incompleteness notices) for ``o`` (§16.3)."""
@@ -271,44 +290,48 @@ class Renderer:
         ids: list[str] = []
         texts: list[tuple[str, str]] = []
         notices: list[str] = []
-        item = self.w.item_of(o)
+        work = self.w.briefing.work(o)
+        item = work.item
         role = o.holder if o.holder in ROLE_CORE else "REVIEWER"
         ids.append(f"role:{role}")
         texts.append((f"Role core ({role}, §12.3)", ROLE_CORE[role]))
-        domain = self.w.domain_of(o) if item is None else (item.item.authority or "D4")
         entry = None
-        if item is not None and item.item.kind == "DOCUMENT":
+        if item is not None and item.kind == "DOCUMENT":
             entry = ("specialist:DOCUMENT", SPECIALIST_ENTRYPOINT["DOCUMENT"])
-        elif item is not None and item.item.specialist:
-            entry = (f"specialist:{item.item.specialist}", SPECIALIST_ENTRYPOINT[item.item.specialist])
-        elif domain in DOMAIN_ENTRYPOINT:
-            entry = (f"domain:{domain}", DOMAIN_ENTRYPOINT[domain])
+        elif item is not None and item.specialist:
+            entry = (f"specialist:{item.specialist}", SPECIALIST_ENTRYPOINT[item.specialist])
+        elif work.domain in DOMAIN_ENTRYPOINT:
+            entry = (f"domain:{work.domain}", DOMAIN_ENTRYPOINT[work.domain])
         if entry is not None:
             ids.append(f"core:{entry[0]}")
             text = self._doctrine_text(governs, entry[1])
             if text is None:
-                notices.append(f"domain core {entry[1]} not rendered: {self._why_no_doctrine(governs)}")
+                notices.append(f"domain core {entry[1]} not rendered: {self._why_no_text(governs)}")
                 text = f"(not rendered: {entry[1]})"
             texts.append((f"Domain core ({entry[0]}: {entry[1]})", text))
         if o.kind in REVIEW_KINDS:
             ids.append("kind:review")
             texts.append(("Kind duty: Challenge Pass", KIND_DUTIES["review"]))
-            if o.kind in ("ACCEPT", "REVIEW_REVISION") and domain in ("D1", "D2", "D3"):
+            if work.authority:
                 ids.append("kind:out-of-matrix")
                 texts.append(("Kind duty: out-of-matrix pass", KIND_DUTIES["out-of-matrix"]))
         for slot in slots:
             ids.append(f"slot:{slot}")
-        for event, path in self.events(o):
+        injected: set[str] = set()
+        for event, path in self.events(o, governs):
             ids.append(f"inject:{event}")
+            if path in injected:
+                continue  # one owner's text once, whichever events name it
+            injected.add(path)
             text = self._doctrine_text(governs, path)
             if text is None:
-                notices.append(f"injected owner {path} not rendered: {self._why_no_doctrine(governs)}")
+                notices.append(f"injected owner {path} not rendered: {self._why_no_text(governs)}")
                 text = f"(not rendered: {path})"
             texts.append((f"Injected owner ({event}: {path})", text))
         return ids, texts, notices
 
-    def _why_no_doctrine(self, governs: dict[str, Any]) -> str:
-        return "the ruleset pins no doctrine" if "doctrine" not in governs else "the pinned doctrine source cannot be read"
+    def _why_no_text(self, governs: dict[str, Any]) -> str:
+        return self.doctrine_problem(governs) or "the pinned doctrine source does not hold this file"
 
     # -- shared projections --------------------------------------------------------------------------------
 
@@ -329,9 +352,11 @@ class Renderer:
             out.append(f"### {unit} @ {current}{note}\n\n{self._unit_text(unit)}")
         return "\n\n".join(out)
 
-    def _incompleteness(self, subject: str | None, extra: list[str]) -> str:
+    def _incompleteness(self, work: Any, extra: list[str]) -> str:
         notices = list(extra)
-        if subject is not None and subject in self.s.view.structure.units:
+        for subject in work.subjects:
+            if subject not in self.s.view.structure.units:
+                continue
             if subject in self.s.s0.affected_subjects:
                 notices.append(f"{subject} carries quarantined structure")
             for r in self.d.acceptances(subject):
@@ -345,12 +370,31 @@ class Renderer:
         notices.append(f"qualified head: {self.head.get('label')} at position {self.head.get('position')}")
         return "\n".join(f"- {n}" for n in notices)
 
-    def _open_states(self, subject: str | None) -> str:
-        if subject is None or subject not in self.s.view.structure.units:
-            return "none"
-        blocked = derivation.queries.blocked(self.w, subject)
-        lines = [f"status: {blocked['status']}"] + [f"- {r}" for r in blocked["reasons"]]
-        return "\n".join(lines)
+    def _open_states(self, work: Any) -> str:
+        """Open challenges, findings and provisional states touching every subject the work touches (§16.3 (6))."""
+
+        lines = []
+        for subject in work.subjects:
+            if subject not in self.s.view.structure.units:
+                continue
+            blocked = derivation.queries.blocked(self.w, subject)
+            lines.append(f"{subject}: {blocked['status']}")
+            lines += [f"- {r}" for r in blocked["reasons"]]
+        return "\n".join(lines) or "none"
+
+    def _item_text(self, work: Any) -> str:
+        """The item's prose at the revision the work is bound to: its objective reference and every obligation
+        statement (§13.1); contract, never the author's narrative."""
+
+        if work.part is None:
+            return "no item"
+        found = self.s.plans.item_at(work.part.unit, self.s.cur(work.part.unit)) if work.part.unit in self.s.view.structure.units else None
+        view = found[0] if found is not None and found[1] == work.part else None
+        try:
+            prose = self.s.plans.prose(work.part, view).decode("utf-8", "replace")
+        except KeyError:
+            prose = "(the item's revision is not at this head)"
+        return f"Item {work.item.id} ({work.item.kind}):\n\n{prose.strip()}"
 
     # -- task brief (§16.3) ------------------------------------------------------------------------------------
 
@@ -358,12 +402,13 @@ class Renderer:
         governs = self.governs(o)
         if governs["mode"] == "LEGACY":
             return self._legacy(o, governs)
-        item = self.w.item_of(o)
+        work = self.w.briefing.work(o)
+        item = work.holder
         if item is None:
             return self._generic(o, governs)
         it = item.item
         contract = it.contract
-        slots = item.required_slots
+        slots = self.w.briefing.owed_slots(o)
         ids, duty_texts, notices = self.duties(o, governs, slots)
         plan = self.s.plans.plans.get(item.plan)
         objective = self._unit_text(plan.objective) if plan is not None and plan.objective else "(no objective)"
@@ -372,7 +417,8 @@ class Renderer:
                                     f"Item {it.id} ({it.kind}), workflow role {o.holder}:\n\n{prose.strip()}"]
                                    + [f"### {t}\n\n{b.strip()}" for t, b in duty_texts])
         boundaries = "\n".join([
-            f"write_scope: {_json(list(contract.write_scope))}", f"frozen interface: {_json(list(contract.frozen))}",
+            f"write_scope: {_json(list(item.share[3] if item.share else contract.write_scope))}",
+            f"frozen interface: {_json(list(contract.frozen))}",
             f"dependencies: {_json([[k, list(v)] for k, v in contract.dependencies])}",
             f"evidence specifications: {_json(list(contract.evidence_specs))}", f"homes: {_json(list(contract.homes))}",
             f"artifacts: {_json(list(contract.artifacts))}", f"scientific: {contract.scientific}",
@@ -385,12 +431,18 @@ class Renderer:
         obligations += [f"- required evidence: {e}" for e in (contract.evidence if contract else ())]
         obligations += ["", "Required slots (each owed question, as its typed slot):"]
         obligations += [f"- {SLOT_DUTIES.get(slot, slot)}" for slot in slots]
+        open_states = self._open_states(work)
         previous = self._previous_iteration(item)
-        open_states = self._open_states(self.w.subject_of(o))
         if previous:
             open_states += "\n\nPrevious iteration (data, never its narrative):\n" + previous
-        if item.route.route.startswith(("re-dispatch",)) and item.moved:
-            open_states += "\n\nDrift: outputs moved since the latest integration: " + _json(item.outputs)
+        drift = item.drift_changes() if item.moved else []
+        if drift:
+            open_states += "\n\nDrift (§10.4): the changes that moved this item's outputs since its latest integration:\n"
+            open_states += "\n".join(f"- {c['unit']} at position {c['position']} ({c['entry']}): "
+                                     + (f"integration of {c['transformation']} for item {c['item']}" if c["made_by"] == "integration"
+                                        else "an absorption") for c in drift)
+            open_states += ("\nThose later accepted changes are preserved: the next iteration starts from the current "
+                            "content, never from the item's last integration.")
         escalation = "\n".join([
             f"budget: {item.iterations} of {item.budget} iterations used",
             "escalation triggers: a BLOCKER, AMENDMENT_REQUEST, FINDING or CHALLENGE report; budget exhaustion, "
@@ -404,7 +456,7 @@ class Renderer:
             ("4. Contract boundaries, constraints, non-goals and delegated space", boundaries),
             ("5. Obligations, criteria, required evidence and slots", "\n".join(obligations)),
             ("6. Open challenges, findings and provisional states", open_states),
-            ("7. Incompleteness notices", self._incompleteness(self.w.subject_of(o), notices)),
+            ("7. Incompleteness notices", self._incompleteness(work, notices)),
             ("8. Governing version", self._version_section(governs)),
             ("9. Escalation triggers, budget, workspace and submission", escalation),
         )
@@ -414,25 +466,24 @@ class Renderer:
         if not item.enactments:
             return ""
         last = item.enactments[-1]
-        view = self.w.conformance(last.result).view()
-        lines = [f"iteration {item.iterations}: conformance {_json(sorted(self.w.conformance(last.result).classes))}"]
-        lines += [f"- {ob}: {h['template']} {h['class']} {h['finding']}" for ob, hits in sorted(view.items()) for h in hits
-                  if h["class"] != "CLEAN"]
+        conformance = self.w.conformance(last.result)
+        lines = [f"iteration {item.iterations}: conformance {_json(sorted(conformance.classes))}"]
+        lines += [f"- {ob}: {h['template']} {h['class']} {h['finding']}" for ob, hits in sorted(conformance.view().items())
+                  for h in hits if h["class"] != "CLEAN"]
         for review in (item.reviews(last.transformation) if last.transformation else []):
-            findings = item.items.findings_of(review)
-            lines.append(f"- review {review}: {self.s.record(review)['outcome']}; findings {_json(findings)}")
+            lines.append(f"- review {review}: {self.s.record(review)['outcome']}; findings {_json(item.items.findings_of(review))}")
         return "\n".join(lines)
 
     def _generic(self, o: Any, governs: dict[str, Any]) -> Brief:
-        ids, duty_texts, notices = self.duties(o, governs, [])
-        subject = self.w.subject_of(o)
+        work = self.w.briefing.work(o)
+        ids, duty_texts, notices = self.duties(o, governs, self.w.briefing.owed_slots(o))
         sections = (
             ("Header", self._header(o, "TASK", governs)),
             ("1. Objective, obligation kind and workflow role",
              "\n\n".join([f"{o.kind} {o.detail or o.target_json}"] + [f"### {t}\n\n{b.strip()}" for t, b in duty_texts])),
             ("2. Allowed outcomes", JUDGMENT_OUTCOMES.get(o.kind, TASK_OUTCOMES)),
-            ("6. Open challenges, findings and provisional states", self._open_states(subject)),
-            ("7. Incompleteness notices", self._incompleteness(subject, notices)),
+            ("6. Open challenges, findings and provisional states", self._open_states(work)),
+            ("7. Incompleteness notices", self._incompleteness(work, notices)),
             ("8. Governing version", self._version_section(governs)),
         )
         return Brief("TASK", o.id, governs, tuple(ids), sections)
@@ -452,31 +503,25 @@ class Renderer:
         governs = self.governs(o)
         if governs["mode"] == "LEGACY":
             return self._legacy(o, governs)
-        subject = self.w.subject_of(o)
-        target = o.target
-        x = target.get("transformation") if isinstance(target, dict) else None
+        work = self.w.briefing.work(o)
+        slots = self.w.briefing.owed_slots(o)
+        ids, duty_texts, notices = self.duties(o, governs, slots)
+        x = o.target.get("transformation") if isinstance(o.target, dict) else None
         result = self.w.submitting_result(x) if x else None
         conformance = self.w.conformance(result) if result else None
-        contract = conformance.contract[0] if conformance is not None else None
-        slots = ["claims", "findings"] + (["bidirectional"] if self._scientific(o, None) or (
-            subject is not None and self.s.view.structure.kind(subject) in ("D1", "D2")) else [])
-        if o.kind == "REVIEW_REVISION":
-            slots.append("revision_assessments")
-        ids, duty_texts, notices = self.duties(o, governs, slots)
-        governing: list[tuple[str, str | None]] = []
-        if subject is not None:
-            governing = [(g["unit"], g["rev"]) for g in derivation.queries.governs(self.w, subject)]
-            if subject in self.s.view.structure.units:
-                governing.insert(0, (subject, self.s.cur(subject)))
+        contract = conformance.contract[0] if conformance is not None else (work.item.contract if work.item else None)
+        governing: set[tuple[str, str | None]] = set()
+        for subject in work.subjects:
+            governing |= {(g["unit"], g["rev"]) for g in derivation.queries.governs(self.w, subject)}
+        asked = self.w.subject_of(o)
+        if asked is not None and asked in self.s.view.structure.units and asked != work.plan:
+            governing.add((asked, self.s.cur(asked)))
+        if work.item is not None:
+            governing |= {(u, r) for u, r in work.item.governing}
         candidate = "none (a judgment of standing content)"
         disclosure = "none"
         if result is not None:
             record = self.s.record(result)
-            named = (record.get("binding") or {}).get("item")
-            if isinstance(named, dict):
-                found = self.s.plans.item_at(named["unit"], named["rev"])
-                if found is not None:
-                    governing += [(u, r) for u, r in getattr(found[1].parsed, "governing", ())]
             files = conformance.changed_files
             candidate = "\n".join(f"- {path}: {'added' if old is None else 'removed' if new is None else 'changed'}"
                                   for path, (old, new) in sorted(files.items())) or "no file changed"
@@ -489,40 +534,26 @@ class Renderer:
         conf = "\n".join(f"- {ob}: {h['template']} {h['class']}" + (" (SIGNAL: a pointer to look, not a finding)"
                                                                      if h["class"] == "SIGNAL" else "")
                          for ob, hits in sorted(view.items()) for h in hits) or "none"
-        evidence = "none"
-        if subject is not None and subject in self.s.view.structure.units:
-            evidence = "\n".join(f"- {_json(e)}" for e in derivation.queries.evidence(self.w, subject)) or "none"
-        carried = self._carried_objections(o, subject)
+        evidence = []
+        for subject in work.subjects:
+            evidence += [f"- {subject}: {_json(e)}" for e in self.w.briefing.required_evidence(subject)]
+        carried = self.w.briefing.carried(o)
         sections = (
             ("Header", self._header(o, "REVIEW", governs)),
             ("Duties", "\n\n".join(f"### {t}\n\n{b.strip()}" for t, b in duty_texts)
              + "\n\nRequired slots:\n" + "\n".join(f"- {SLOT_DUTIES.get(s_, s_)}" for s_ in slots)),
             ("Allowed outcomes", JUDGMENT_OUTCOMES.get(o.kind, "PASS, NO_PASS")),
-            ("Governing content", self._governing_inline(sorted(set(governing)))),
-            ("Contract", _json(_contract_json(contract)) if contract is not None else "none"),
+            ("Governing content", self._governing_inline(sorted(governing, key=lambda g: (g[0], g[1] or "")))),
+            ("Contract and item", (_json(_contract_json(contract)) if contract is not None else "no contract")
+             + "\n\n" + self._item_text(work)),
             ("Candidate diff and machine-produced facts", candidate),
             ("Conformance view", conf),
-            ("Evidence", evidence),
+            ("Evidence", "\n".join(evidence) or "no evidence obligation required"),
             ("Disclosure slots (the author's claims to test)", disclosure),
-            ("Carried objections (another judge's)", carried),
-            ("Incompleteness notices", self._incompleteness(subject, notices)),
+            ("Carried objections (another judge's)", _carried_text(carried)),
+            ("Incompleteness notices", self._incompleteness(work, notices)),
         )
         return Brief("REVIEW", o.id, governs, tuple(ids), sections)
-
-    def _carried_objections(self, o: Any, subject: str | None) -> str:
-        """Every standing adverse judgment whose reach includes the target asked (§16.5; SD-30 to SD-34)."""
-
-        lines = []
-        names = set(derivation.queries.lineage(self.w, subject)) if subject is not None else set()
-        for rid in self.w.standing_adverse():
-            record = self.s.record(rid)
-            target = record["target"] if isinstance(record["target"], dict) else {}
-            about = target.get("subject") if isinstance(target.get("subject"), str) else (target.get("subject") or {}).get("subject")
-            if target == o.target or (about is not None and about in names) or \
-                    (target.get("transformation") is not None and target.get("transformation") == o.target.get("transformation")):
-                label = "on the target asked" if about == subject or target == o.target else "history: a linked predecessor"
-                lines.append(f"- {record['kind']} {rid} by {record['actor']} ({label}): {record['outcome']}")
-        return "\n".join(lines) or "none"
 
     # -- gate brief (§16.6) ---------------------------------------------------------------------------------------
 
@@ -530,38 +561,48 @@ class Renderer:
         governs = self.governs(o)
         if governs["mode"] == "LEGACY":
             return self._legacy(o, governs)
+        work = self.w.briefing.work(o)
         subject = self.w.subject_of(o)
         ids, duty_texts, notices = self.duties(o, governs, [])
-        evidence = derivation.queries.evidence(self.w, subject) if subject is not None else []
-        required = [e for e in evidence if e["status"] in ("unavailable", "stale", "disputed") or e.get("outcome") == "PASS"]
+        required = self.w.briefing.required_evidence(subject) if subject else []
         core = "\n".join([
             f"gate: {o.target.get('gate')}; decision asked: GATE_DECISION on {_json(o.target.get('subject'))}",
             f"qualified head: {self.head.get('label')} position {self.head.get('position')} {self.head.get('digest')}",
-            "required evidence (supporting premises, or why not holding):",
-            *[f"- {e.get('obligation')}: {e['status']}" + (f" via {e['assessment']}" if "assessment" in e else "") for e in required],
-            "findings as data (standing adverse judgments, open challenges, quarantine and loss states):",
-            self._carried_objections(o, subject), self._open_states(subject),
+            "required evidence (the decision's supporting premises, or why each does not hold):",
+            *[f"- {e['obligation']}: {e['status']}" + (f" via {', '.join(e['via'])}" if e["via"] else "")
+              + "".join(f"\n  - {_json(r)}" for r in e["records"]) for e in required],
+            "findings as data (standing adverse judgments whose reach includes the decision asked):",
+            _carried_text(self.w.briefing.carried(o)),
+            "open challenges, quarantine, loss and provisional states:", self._open_states(work),
             "tensions found by the relying search:",
             *[f"- {_json(t)}" for t in (derivation.queries.tensions(self.w, subject) if subject else [])],
-            "known missing realized records: none recorded in Phase E (Admission's classification is Phase F's)"])
-        earlier = [r for r in self.s.of_kind("GATE_DECISION") if self.s.record(r)["target"].get("gate") == o.target.get("gate")
-                   and (self.s.record(r)["target"].get("subject") or {}).get("subject") == subject]
-        disclosure = "\n".join(f"- earlier decision {r}: {self.s.record(r)['outcome']} by {self.s.record(r)['actor']}"
-                               for r in earlier) or "none recorded"
+            "known missing realized records: Admission classifies them (Phase F); none recorded"])
+        rev = self.s.cur(subject) if subject in self.s.view.structure.units else None
+        earlier = []
+        for kind in ("GATE_DECISION", "ACCEPTANCE"):
+            for r in self.s.of_kind(kind):
+                target = self.s.record(r)["target"]
+                about = target.get("subject") if isinstance(target, dict) else None
+                triple = about if isinstance(about, dict) else target
+                if isinstance(triple, dict) and triple.get("subject") == subject and triple.get("rev") == rev:
+                    fields = self.s.record(r).get("fields") or {}
+                    earlier.append(f"- {kind} {r}: {self.s.record(r)['outcome']} by {self.s.record(r)['actor']}"
+                                   + (f"; qualification {fields['qualification']}" if "qualification" in fields else ""))
         revision = "not a D1/D2 revision"
         if subject is not None and self.s.view.structure.kind(subject) in ("D1", "D2"):
             counting = self.w.counting(subject)
-            revision = "\n".join(f"- revision-assessment record {r} (proposed until accepted)" for r in counting) \
+            revision = "\n".join(f"- revision-assessment record {r} by {self.s.record(r)['actor']} (proposed until "
+                                 f"accepted): {_json(self.s.record(r).get('fields') or {})}" for r in counting) \
                 or "no counting revision-assessment record: the gate is not ready (§10.2)"
         sections = (
             ("Header", self._header(o, "GATE", governs)),
             ("1. Evidence core", core),
-            ("2. Consequential-decision disclosure", disclosure),
+            ("2. Consequential-decision disclosure", "\n".join(earlier) or "no earlier decision on this content"),
             ("3. D1/D2 revision assessments", revision),
             ("4. Interpretation (Channel A)", "none recorded (labeled interpretation, never evidence)"),
             ("5. Allowed outcomes and required fields", "ACCEPT, REJECT; GATE_DECISION requires adequacy and qualification"),
             ("Duties", "\n\n".join(f"### {t}\n\n{b.strip()}" for t, b in duty_texts)),
-            ("Incompleteness notices", self._incompleteness(subject, notices)),
+            ("Incompleteness notices", self._incompleteness(work, notices)),
         )
         return Brief("GATE", o.id, governs, tuple(ids), sections)
 
@@ -569,41 +610,47 @@ class Renderer:
 
     def decision(self, o: Any) -> Brief:
         governs = self.governs(o)
-        ids, duty_texts, notices = self.duties(o, governs, ["claims"])
+        work = self.w.briefing.work(o)
+        ids, duty_texts, notices = self.duties(o, governs, self.w.briefing.owed_slots(o))
         plan = self.s.plans.plans.get(o.plan) if o.plan else None
         objective = self._unit_text(plan.objective).strip() if plan is not None and plan.objective else "(no plan)"
         items = [f"- {i.unit} ({i.item.kind}): route {i.route.route}; discharge {i.discharge()}; "
                  f"{i.iterations}/{i.budget} iterations" for i in self.w.items.all if i.plan == o.plan]
-        owed = [x for x in self.w.of_kind("COORDINATE") if x.plan == o.plan or x.id == o.id]
+        owed = {x.id: x for x in self.w.of_kind("COORDINATE", "CONTRACT") if o.plan is not None and x.plan == o.plan}
+        owed[o.id] = o
         decisions = []
-        for x in owed:
+        for x in sorted(owed.values(), key=lambda x: x.id):
             core = x.target
+            outcomes = ", ".join(self.w.briefing.decision_outcomes(x))
             report = core.get("report") if isinstance(core, dict) else None
             if report in self.s.records:
                 record = self.s.record(report)
                 decisions.append(f"- {x.id}: report {record['kind']} {report} on {_json(record['target'])} reasons "
-                                 f"{_json(record.get('reason') or [])}; allowed "
-                                 f"{_json(sorted(derivation.allowed_outcomes(record['kind'], tuple(record.get('reason') or ()))))}")
+                                 f"{_json(record.get('reason') or [])}; allowed {outcomes}")
+            elif x.kind == "CONTRACT":
+                lint = [f.detail if hasattr(f, "detail") else str(f) for f in self.s.plans.item_lint(core["item"])]
+                decisions.append(f"- {x.id}: the contract of {core['item']} @ {core['rev']} (the principal's plan change); "
+                                 f"lint {_json(lint)}; outcomes {outcomes}")
             else:
-                decisions.append(f"- {x.id}: {x.detail or x.target_json}; allowed AMEND, PARTITION, ESCALATE"
-                                 + ("; DECLINE" if "recurrence" in core or "refused" in core else ""))
+                decisions.append(f"- {x.id}: {x.detail or x.target_json}; allowed {outcomes}")
         attention = [f"- {h.id}: {h.target_json} ({h.params.get('materiality')})"
                      for h in self.w.of_kind("HUMAN_ATTENTION") if h.plan == o.plan]
         since = max((self.s.position_of(r) for r in self.s.of_kind("COORDINATION_DECISION")
-                     if (self.s.record(r).get("binding") or {}).get("obligation") in {x.id for x in owed}
-                     or set((self.s.record(r)["target"] or {}).get("records", [])) & {x.id for x in owed}), default=0)
+                     if (self.s.record(r).get("binding") or {}).get("obligation") in owed
+                     or set((self.s.record(r)["target"] or {}).get("records", [])) & set(owed)), default=0)
         changed = derivation.queries.changed(self.w, since)
         sections = (
             ("Header", self._header(o, "DECISION", governs)),
             ("Plan objective and items", objective + "\n\n" + ("\n".join(items) or "no item obligations")),
-            ("Decisions owed", "\n".join(decisions) or "none"),
+            ("Decisions owed", "\n".join(decisions)),
             ("Budgets, recurrences and discrepancies",
-             "\n".join(f"- {x.detail}" for x in owed if "recurrence" in x.target or "conformance" in x.target) or "none"),
+             "\n".join(f"- {x.detail}" for x in owed.values() if "recurrence" in x.target or "conformance" in x.target
+                       or x.target.get("condition") == "budget-spent") or "none"),
             ("Open human-attention items of the plan", "\n".join(attention) or "none"),
             ("What changed since the previous coordination",
              "\n".join(f"- position {c['position']}: {_json(c['units'])}" for c in changed) or "nothing"),
             ("Duties", "\n\n".join(f"### {t}\n\n{b.strip()}" for t, b in duty_texts)),
-            ("Incompleteness notices", self._incompleteness(None, notices)),
+            ("Incompleteness notices", self._incompleteness(work, notices)),
         )
         return Brief("DECISION", o.id, governs, tuple(ids), sections)
 
@@ -622,7 +669,7 @@ class Renderer:
 
     # -- the inspector view and digest (§16.8) --------------------------------------------------------------------
 
-    def _waits(self) -> dict[str, set[str]]:
+    def waits(self) -> dict[str, set[str]]:
         """Obligation -> the obligations its readiness or discharge waits on (reading E14)."""
 
         obligations = list(self.w.obligations)
@@ -669,30 +716,54 @@ class Renderer:
             position = k
         return position
 
+    def consequence(self, h: Any) -> str:
+        """``c``: human attention's materiality; every other decision R3 owns is ``CRITICAL`` (§15.4)."""
+
+        return h.params.get("materiality", "CRITICAL") if h.kind == "HUMAN_ATTENTION" else "CRITICAL"
+
     def inspector(self) -> dict[str, Any]:
+        """Everything R3 owns, open, by ``(-w, c, p, id)`` (§16.8): human attention, gates and every decision a
+        human holds; then the digest."""
+
         rank = {"CRITICAL": 0, "MATERIAL": 1, "ROUTINE": 2}
-        waits = self._waits()
+        waits = self.waits()
         entries = []
-        for h in self.w.of_kind("HUMAN_ATTENTION"):
-            w_, c, p = self.weight(h, waits), rank.get(h.params.get("materiality"), 3), self.opened_at(h)
-            entries.append(((-w_, c, p, h.id), h))
+        for h in self.w.obligations:
+            if not self.w.briefing.r3(h) or self.w.discharge(h) in ("DISCHARGED", "DISCHARGED_PROVISIONAL"):
+                continue
+            c = self.consequence(h)
+            entries.append(((-self.weight(h, waits), rank.get(c, 3), self.opened_at(h), h.id), h, c))
         out = []
-        for key, h in sorted(entries, key=lambda e: e[0]):
-            out.append({"obligation": h.id, "key": {"w": -key[0], "c": h.params.get("materiality"), "p": key[2]},
+        for key, h, c in sorted(entries, key=lambda e: e[0]):
+            out.append({"obligation": h.id, "kind": h.kind, "key": {"w": -key[0], "c": c, "p": key[2]},
                         "evidence_core": self._attention_core(h), "framing": "none recorded (interpretation)",
-                        "allowed_outcomes": "HUMAN_DECISION (authenticated human); GATE_DECISION for a gate"})
+                        "allowed_outcomes": self._r3_outcomes(h)})
         return {"head": self.head, "entries": out, "digest": self.digest_items()}
+
+    def _r3_outcomes(self, h: Any) -> str:
+        if h.kind == "GATE":
+            return "GATE_DECISION: ACCEPT or REJECT, with adequacy and qualification"
+        if h.kind == "HUMAN_ATTENTION":
+            return "HUMAN_DECISION by an authenticated human (A8)"
+        if h.kind in ("COORDINATE", "CONTRACT"):
+            return ", ".join(self.w.briefing.decision_outcomes(h)) + " (an authenticated human's decision)"
+        return JUDGMENT_OUTCOMES.get(h.kind, "an authenticated human's judgment")
 
     def _attention_core(self, h: Any) -> dict[str, Any]:
         target = h.target
-        core: dict[str, Any] = {"target": target, "materiality": h.params.get("materiality"), "detail": h.detail}
-        rid = target.get("report") or target.get("escalated")
+        core: dict[str, Any] = {"kind": h.kind, "target": target, "detail": h.detail}
+        if h.kind == "HUMAN_ATTENTION":
+            core["materiality"] = h.params.get("materiality")
+        rid = target.get("report") or target.get("escalated") if isinstance(target, dict) else None
         if rid in self.s.records:
             record = self.s.record(rid)
             core["record"] = {"id": rid, "kind": record["kind"], "outcome": record["outcome"], "target": record["target"],
                               "reason": record.get("reason") or [], "actor": record["actor"]}
-        if "waiting" in target:
+        if isinstance(target, dict) and "waiting" in target:
             core["waiting"] = target["waiting"]
+        subject = self.w.subject_of(h)
+        if h.kind in ("GATE", "ACCEPT") and subject is not None:
+            core["required_evidence"] = self.w.briefing.required_evidence(subject)
         return core
 
     def digest_items(self) -> list[dict[str, Any]]:
@@ -711,19 +782,27 @@ class Renderer:
             if "recurrence" in x.target or "conformance" in x.target:
                 out.append({"obligation": x.id, "item": "recurrence" if "recurrence" in x.target else "discrepancy",
                             "detail": x.detail, "challengeable": True})
+        for obligation, rid in self.w.briefing.unfloored_failures():
+            out.append({"record": rid, "position": self.s.position_of(rid), "item": "failure counted, no floor event",
+                        "obligation": obligation, "challengeable": True})
         return sorted(out, key=lambda e: (e.get("position", self.s.n + 1), e.get("record") or e.get("obligation")))
 
     def attention_brief(self, h: Any) -> Brief:
         governs = self.governs(h)
-        waits = self._waits()
+        waits = self.waits()
         sections = (
             ("Header", self._header(h, "ATTENTION", governs)),
             ("Evidence core", _json(self._attention_core(h))),
             ("Framing (interpretation)", "none recorded"),
-            ("Allowed outcomes", "HUMAN_DECISION by an authenticated human (A8)"),
-            ("Ordering key", _json({"w": self.weight(h, waits), "c": h.params.get("materiality"), "p": self.opened_at(h)})),
+            ("Allowed outcomes", self._r3_outcomes(h)),
+            ("Ordering key", _json({"w": self.weight(h, waits), "c": self.consequence(h), "p": self.opened_at(h)})),
         )
         return Brief("ATTENTION", h.id, governs, ("role:HUMAN",), sections)
+
+
+def _carried_text(carried: list[dict[str, Any]]) -> str:
+    return "\n".join(f"- {c['kind']} {c['record']} by {c['actor']}: {c['outcome']} ({c['why']})"
+                     + (f"; findings {_json(c['findings'])}" if "findings" in c else "") for c in carried) or "none"
 
 
 def _contract_json(contract: Any) -> dict[str, Any]:
