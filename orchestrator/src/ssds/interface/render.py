@@ -621,7 +621,10 @@ class Renderer:
         plan = self.s.plans.plans.get(o.plan) if o.plan else None
         objective = self._unit_text(plan.objective).strip() if plan is not None and plan.objective else "(no plan)"
         items = [f"- {i.unit} ({i.item.kind}): route {i.route.route}; discharge {i.discharge()}; "
-                 f"{i.iterations}/{i.budget} iterations" for i in self.w.items.all if i.plan == o.plan]
+                 f"{i.iterations}/{i.budget} iterations"
+                 + (f"; failing retained work no part covers: {_json(list(i.uncovered_failing))}"
+                    if i.partition is not None and i.uncovered_failing else "")
+                 for i in self.w.items.all if i.plan == o.plan]
         owed = {x.id: x for x in self.w.of_kind("COORDINATE", "CONTRACT") if o.plan is not None and x.plan == o.plan}
         owed[o.id] = o
         decisions = []

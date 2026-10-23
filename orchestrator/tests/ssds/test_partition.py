@@ -102,8 +102,9 @@ class PartFlow(Flow):
         self.sc.admit(rec)
         return rec
 
-    def work_part(self, part, files: dict[str, str]) -> tuple[str, str]:
-        """A part's task: a clean candidate, an independent passing review, integration."""
+    def work_part(self, part, files: dict[str, str], keyed: bool = True) -> tuple[str, str]:
+        """A part's task: a clean candidate, an independent passing review, integration (``keyed``: its binding
+        carries the item's work key)."""
 
         self.counter += 1
         task = f"part-{self.counter}"
@@ -111,8 +112,8 @@ class PartFlow(Flow):
         result = record("TASK_RESULT", target={"task": task, "candidate": cand, "transformation": x, "base": base},
                         outcome="COMPLETE", actor=agent("maker"), actor_class="AGENT", frame={"transformation": x},
                         fields={"slots": SLOTS})
-        result["binding"] = dict(fresh(agent("maker"), task), obligation=part.obligation.id, item_key=part.key,
-                                 write_scope=list(part.share[3]),
+        result["binding"] = dict(fresh(agent("maker"), task), obligation=part.obligation.id,
+                                 **({"item_key": part.key} if keyed else {}), write_scope=list(part.share[3]),
                                  item={"unit": "plan.work.item", "rev": self.sc.rev("plan.work.item")})
         self.sc.admit(with_id(result))
         self.review(x, cand, "PASS")

@@ -396,8 +396,8 @@ ALPHABET = [(o, st, a) for o, st in KINDS for a in ("principal", "human")]
 RECURRENCE = 3
 
 
-def chains(k: int):
-    for seq in itertools.product(ALPHABET, repeat=k):
+def chains(k: int, alphabet=ALPHABET):
+    for seq in itertools.product(alphabet, repeat=k):
         if any((not st) or o in ("PARTITION", "DECLINE") for o, st, _ in seq[:-1]):
             continue  # an earlier ending or unsettled answer derives no later decision to answer
         yield seq
@@ -426,17 +426,18 @@ class Lifecycle(unittest.TestCase):
         for outcome, settled, who in seq:
             (d,) = open_() or [None]
             if d is None:
-                return ["P1: no open decision to answer"]
+                return self.suspended(f)
             actor = HUMAN if who == "human" else PRINCIPAL
             held = len(counted) >= RECURRENCE
             n += 1
             if outcome == "AMEND":
-                change = {"plans/work.md": plan(f"Adaptive solver, round {n}.\n")}
-                rec, (x, cand) = f.decide(d, "AMEND", actor=actor, plan_change=change)
+                rec, (x, cand) = f.decide(d, "AMEND", actor=actor, plan_change=self.amendment(f, n))
                 if settled:
                     f.integrate(x, cand)
             elif outcome == "PARTITION":
                 rec = f.partition(d, [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])], actor=actor)
+            elif outcome == "PARTITION-ELSEWHERE":
+                rec = self.partition_elsewhere(f, d, actor, n, held and who != "human")
             elif outcome == "CHALLENGE":
                 f.counter += 1
                 cls = "HUMAN" if actor.startswith("human:") else "AGENT"
@@ -473,6 +474,15 @@ class Lifecycle(unittest.TestCase):
         if counted and counted[-1][1] == "PARTITION" and not route.startswith("partitioned:") and condition == "budget-spent":
             problems.append("partition")
         return problems
+
+    def suspended(self, f) -> list[str]:
+        return ["P1: no open decision to answer"]
+
+    def amendment(self, f, n: int) -> dict[str, str]:
+        return {"plans/work.md": plan(f"Adaptive solver, round {n}.\n")}
+
+    def partition_elsewhere(self, f, d, actor: str, n: int, uncounted: bool):
+        raise NotImplementedError  # only a condition a part cannot inherit has a partition that leaves it holding
 
     def test_every_chain_up_to_length_two_and_a_sample_of_length_four(self) -> None:
         rng = random.Random(20261022)

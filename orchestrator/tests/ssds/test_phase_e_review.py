@@ -7,12 +7,14 @@ derivation and renderer; expected values are the Review's discriminators, writte
 
 from __future__ import annotations
 
+import os
 import unittest
 
 from ssds.derivation import Workflow, queries
 from ssds.ledger.read import with_id
 
 from . import test_assessment as ta
+from . import test_step5_review
 from ._fixtures import record
 from ._scenario import HUMAN, Scenario, challenge, content, judgment, on_record
 from .test_briefs import renderer, section
@@ -445,6 +447,167 @@ class RetainedWork(unittest.TestCase):
         self.assertEqual(item.discharge(), "OPEN")
         self.assertEqual(item.route.route, "COORDINATE:item-level-no-part", "the principal decides, on SD-54's chain")
         self.assertTrue(item.route.decisions)
+
+
+def _tighten(f) -> None:
+    """An R1 tightening (SD-52): one more required slot gives the item a new revision and keeps its obligation."""
+
+    text = f.sc.files["plans/work.md"]
+    old = 'slots = ["claims", "unverified_assumptions", "deviations"]'
+    assert old in text
+    f.sc.absorb({"plans/work.md": text.replace(old, old[:-1] + ', "findings"]', 1)})
+
+
+class RetainedAcrossRevisions(unittest.TestCase):
+    """Same-family check of 100c8ae8: retained work survives an R1 tightening that leaves its partition (R1), and a
+    PARTITION that does not cover a no-part condition derives the chain's next decision once its parts are done,
+    never leaving the item waiting on a finished partition (R2)."""
+
+    def history_c(self, scope=None, keyed=True):
+        from unittest import mock
+
+        from . import test_partition
+
+        f = _retained_flow()
+        f.spend(f.item().obligation)
+        split = [(["o1"], ["records", "notes.a"]), (["o2", "o3"], ["notes.b"])]
+        f.partition(f.budget_decision(f.item()), split)
+        f.work_part(f.item().parts[0], {"records.md": "# Part result under the first revision\n"}, keyed)
+        real = _realization(f)
+        EvidenceFlow.assessment(f, real, "PASS")
+        f.work_part(f.item().parts[1], {"notes/b.md": "b done\n"})
+        f.item_level("PASS")
+        assert f.item().discharge() == "DISCHARGED"
+        EvidenceFlow.assessment(f, real, "FAIL")
+        rev = f.sc.rev("plan.work.item")
+        _tighten(f)
+        assert f.sc.rev("plan.work.item") != rev and f.item() is not None and f.item().partition is None
+        self.assertIn("records", f.item().subjects, "the partition left, its part's work is still the item's")
+        with mock.patch.object(test_partition, "SLOTS", dict(test_partition.SLOTS, findings={"none": "NONE_FOUND"})):
+            f.partition(f.budget_decision(f.item()), split)
+            f.work_part(f.item().parts[0], {"notes/a.md": "a at the new revision\n"})
+            f.work_part(f.item().parts[1], {"notes/b.md": "b at the new revision\n"})
+            f.item_level("PASS")
+        if scope is not None:
+            ReReview().override(f, scope)
+        return f
+
+    def test_r1_tightening_keeps_retained_work(self) -> None:
+        for scope, want, keyed in ((None, "OPEN", True), (["records", "notes.a", "notes.b"], "DISCHARGED_PROVISIONAL", True),
+                                   (None, "OPEN", False)):
+            with self.subTest(permission=scope, keyed=keyed):  # unkeyed: found by the part obligation it was bound to
+                w = self.history_c(scope, keyed).w()
+                item, followup = w.items.by_id("plan.work", "work"), w.items.by_id("plan.work", "followup")
+                self.assertIn("records", item.retained_subjects)
+                self.assertEqual(item.discharge(), want)
+                if want == "OPEN":
+                    self.assertEqual(followup.readiness().state, "WAITING")
+                    holding = next(p for p in item.parts if "records" in p.subjects)
+                    self.assertEqual((holding.discharge(), holding.route.route), ("OPEN", "re-dispatch"))
+
+    def stranded(self):
+        f = _retained_flow()
+        x, cand = _submit(f, {"records.md": "# Retained whole result\n"})
+        f.review(x, cand, "PASS")
+        f.integrate(x, cand)
+        real = _realization(f)
+        EvidenceFlow.assessment(f, real, "PASS")
+        EvidenceFlow.assessment(f, real, "FAIL")
+        f.attempt(f.item().obligation, "notes/a.md")
+        f.partition(f.budget_decision(f.item()), [(["o1", "o2", "o3"], ["notes.a"])])
+        f.work_part(f.item().parts[0], {"notes/a.md": "a final\n"})
+        f.item_level("PASS")
+        (decision,) = [o for o in f.item().route.decisions if o.target.get("condition") == "item-level-no-part"]
+        answer = f.partition(decision, [(["o1", "o2", "o3"], ["notes.b"])])  # lint-valid, does not cover records
+        f.work_part(next(p for p in f.item().parts if p.discharge() == "OPEN"), {"notes/b.md": "b final\n"})
+        f.item_level("PASS")
+        return f, answer
+
+    def test_r2_a_partition_not_covering_the_condition_asks_again(self) -> None:
+        f, answer = self.stranded()
+        item = f.item()
+        self.assertEqual(item.uncovered_subjects, frozenset({"records"}))
+        self.assertTrue(all(p.discharge() != "OPEN" for p in item.parts))
+        self.assertEqual(item.route.route, "COORDINATE:item-level-no-part")
+        (decision,) = item.route.decisions
+        self.assertEqual(decision.target["after"], answer["id"], "the next decision names the partition it follows")
+        self.assertIn(decision.id, {o.id for o in f.w().obligations}, "and it is a derived obligation")
+        listed = section(renderer(f.w()).decision(decision), "Plan objective and items")
+        self.assertIn('failing retained work no part covers: ["records"]', listed, "the brief names what to cover")
+        # a covering answer to it is found and hands the retained work to a part
+        f.partition(decision, [(["o1", "o2", "o3"], ["records"])])
+        item = f.item()
+        holding = next(p for p in item.parts if "records" in p.subjects)
+        self.assertEqual(holding.share[0], item.partition.decision)
+        self.assertEqual(item.uncovered_subjects, frozenset())
+        self.assertEqual(item.route.route, f"partitioned:{item.partition.decision}")
+
+
+class LifecycleRetained(test_step5_review.Lifecycle):
+    """Reading E15 for the no-part condition retained work raises (R2): SD-54's chain when the condition is a failing
+    term of retained work no part covers, with one more answer, a lint-valid ``PARTITION`` that does not cover it,
+    whose parts are then done; P1-P6 over every such chain, and a covering ``PARTITION`` hands the route to its parts."""
+
+    ALPHABET = test_step5_review.ALPHABET + [("PARTITION-ELSEWHERE", True, a) for a in ("principal", "human")]
+
+    def start(self, condition: str):
+        f = _retained_flow()
+        x, cand = _submit(f, {"records.md": "# Retained whole result\n"})
+        f.review(x, cand, "PASS")
+        f.integrate(x, cand)
+        real = _realization(f)
+        EvidenceFlow.assessment(f, real, "PASS")
+        EvidenceFlow.assessment(f, real, "FAIL")
+        f.attempt(f.item().obligation, "notes/a.md")
+        f.partition(f.budget_decision(f.item()), [(["o1", "o2", "o3"], ["notes.a"])])
+        f.work_part(f.item().parts[0], {"notes/a.md": "a final\n"})
+        f.item_level("PASS")
+        assert f.item().route.route == "COORDINATE:item-level-no-part"
+        return f
+
+    def amendment(self, f, n: int) -> dict[str, str]:
+        import re
+
+        return {"plans/work.md": re.sub(r"Adaptive solver[^\n]*", f"Adaptive solver, round {n}.",
+                                        f.sc.files["plans/work.md"], count=1)}
+
+    def suspended(self, f) -> list[str]:
+        """No decision of the chain is open while the item waits on live part work: overlapping parts of successive
+        partitions reopen each other by drift until a budget sends one to the principal (a disclosed, live path)."""
+
+        item = f.item()
+        live = [p for p in item.parts if p.discharge() == "OPEN"
+                and (p.readiness().state == "READY" or p.route.decisions)]
+        return [] if item.route.route.startswith("partitioned:") and live else ["P1: no open decision to answer"]
+
+    def partition_elsewhere(self, f, d, actor: str, n: int, uncounted: bool):
+        rec = f.partition(d, [(["o1", "o2", "o3"], ["notes.b"])], actor=actor)
+        if not uncounted:  # its part is done and the item-level review passes; retained records stays uncovered
+            f.work_part(next(p for p in f.item().parts if p.discharge() == "OPEN"), {"notes/b.md": f"b, round {n}\n"})
+            f.item_level("PASS")
+        return rec
+
+    def test_every_chain_up_to_length_two_and_a_sample_of_length_four(self) -> None:
+        import random
+
+        rng = random.Random(20261023)
+        sample = [s for k in range(2) for s in test_step5_review.chains(k, self.ALPHABET)]
+        for k, size in ((2, 24), (3, 12), (4, 12)):  # the full enumeration is LifecycleRetainedFull
+            sample += rng.sample(list(test_step5_review.chains(k, self.ALPHABET)), size)
+        for seq in sample:
+            with self.subTest(chain=seq):
+                self.assertEqual(self.replay("item-level-no-part", seq), [])
+
+
+@unittest.skipUnless(os.environ.get("SSDS_SLOW"), "the named slow check of reading E15: set SSDS_SLOW=1")
+class LifecycleRetainedFull(LifecycleRetained):
+    def test_every_chain_up_to_length_two_and_a_sample_of_length_four(self) -> None:
+        pass
+
+    def test_every_chain_up_to_length_four(self) -> None:
+        bad = [(seq, problems) for k in range(5) for seq in test_step5_review.chains(k, self.ALPHABET)
+               if (problems := self.replay("item-level-no-part", seq))]
+        self.assertEqual(bad, [])
 
 if __name__ == "__main__":
     unittest.main()

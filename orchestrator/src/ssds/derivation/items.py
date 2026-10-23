@@ -23,7 +23,10 @@ nothing; an ``AMEND`` that leaves the item unchanged makes it wait until that pl
 change integrates, after which a condition that still holds derives the chain's
 next decision naming that answer (an ``AMEND`` whose plan change is refused, or
 that carries none, is settled at once, reading E31); a lint-valid ``PARTITION``
-hands the route to the parts, and an invalid one answers nothing.
+hands the route to the parts, and an invalid one answers nothing. On the
+item-level-no-part chain, a ``PARTITION`` whose parts are done while the condition
+still holds did not cover it, and like a settled ``AMEND`` it derives the chain's
+next decision naming it (reading E32).
 Once a chain holds 3 counted answers (SD-55), each further decision of it is held
 for human attention and only an authenticated human's answer counts; a
 ``CHALLENGE`` counts only on a held decision and waits for its adjudication. A
@@ -239,27 +242,51 @@ class ItemObligation:
 
     @property
     def subjects(self) -> frozenset[str]:
-        """The subjects its integrated enactments changed (§10.4); for a partitioned item, also every required
-        part's, since the parts' work is the item's (§13.7; re-Review of b791215, E-B1)."""
+        """The subjects its integrated enactments changed (§10.4): for a part, its own and the item's retained
+        subjects inside its write scope; for the item itself, every retained subject (re-Reviews of b791215,
+        E-B1, and of 89684fb, E-R1)."""
 
-        structure = self.s.view.structure
-        own = frozenset(s for s in (structure.subj(u) for u in self.outputs) if s)
         if self.share is not None:
+            structure = self.s.view.structure
+            own = frozenset(s for s in (structure.subj(u) for u in self.outputs) if s)
             return own | self.whole._retained_in(self.share[3])
-        if self.partition is not None:
-            return self.retained_subjects
-        return own
+        return self.retained_subjects
 
     @cached_property
     def retained_subjects(self) -> frozenset[str]:
-        """Every subject the item's integrated work changed, by whom ever it was done: the whole item's own
-        enactments and every part's of every partition, a replaced part's included (§10.4: a re-dispatch never
-        narrows the terms discharge reads; §13.7: a partition splits the execution, never the item; re-Review of
-        89684fb, E-R1)."""
+        """Every subject the item's integrated work changed, by whomever done and under whichever obligation it
+        was bound to: the whole item's and every part's of every ``PARTITION`` naming parts of it, a replaced
+        part's and a part of a partition an R1 tightening left included, and any result carrying the item's work
+        key (§10.4: a re-dispatch never narrows the terms discharge reads; §13.7: a partition splits the
+        execution, never the item; SD-52: a tightening keeps the obligation; same-family check of 100c8ae8, R1)."""
 
+        h, ids, changed = self.s.h, self._work_obligations, set()
+        for rid in self.s.of_kind("TASK_RESULT"):
+            record = self.s.record(rid)
+            binding = record.get("binding") or {}
+            if binding.get("obligation") not in ids and binding.get("item_key") != self.key:
+                continue
+            x, task = record["target"].get("transformation"), record["target"].get("task")
+            position = self.s.integrated.get(task) if x and self.s.enactment(x) == task else None
+            if position is None:
+                continue
+            before, after = h.view(position - 1), h.view(position)
+            changed |= {u for u in after.structure.units if u not in before.structure.units or before.rev(u) != after.rev(u)}
         structure = self.s.view.structure
-        holders = [self] + [self.part_obligation(p, i) for p in self.partitions for i in range(len(p.parts))]
-        return frozenset(s for h in holders for s in (structure.subj(u) for u in h.outputs) if s)
+        return frozenset(s for s in (structure.subj(u) for u in changed if u in structure.units) if s)
+
+    @cached_property
+    def _work_obligations(self) -> frozenset[str]:
+        """The whole item's obligation and the part obligation of every index of every ``PARTITION`` decision
+        naming parts, whether or not it is lint-valid or on a chain now: what the item's work may be bound to."""
+
+        ids = {self.obligation.id}
+        for rid, size in self.items.partition_sizes.items():
+            for index in range(size):
+                part = ItemObligation(self.items, self.unit, self.plan, self.part)
+                part.share = (rid, index, frozenset(), ())
+                ids.add(part.obligation.id)
+        return frozenset(ids)
 
     def _retained_in(self, scope: tuple[str, ...]) -> frozenset[str]:
         """The retained subjects whose units lie in a write scope: the work a part answers for."""
@@ -277,6 +304,13 @@ class ItemObligation:
 
         covered = frozenset().union(*(self._retained_in(p.share[3]) for p in self.parts)) if self.parts else frozenset()
         return self.retained_subjects - covered
+
+    @cached_property
+    def uncovered_failing(self) -> tuple[str, ...]:
+        """The uncovered retained subjects whose terms fail: an adverse condition of the item no part can answer,
+        which its decision brief names so a ``PARTITION`` can cover it (reading E32)."""
+
+        return tuple(s for s in sorted(self.uncovered_subjects) if self._subject_terms(frozenset({s})) < T)
 
     # -- reviews of an enactment and the pending candidate ------------------------------------------
 
@@ -398,15 +432,21 @@ class ItemObligation:
         while frontier:
             holder = frontier.pop(0)
             for condition in ("budget-spent", "item-level-no-part"):
-                route, _, _ = holder.chain(condition)
-                if not route.startswith("partitioned:") or route.split(":", 1)[1] in seen:
-                    continue
-                rid = route.split(":", 1)[1]
-                seen.add(rid)
-                spec = holder._valid_partition(rid)
-                if spec is not None:
-                    found.append(spec)
-                    frontier.extend(self.part_obligation(spec, i) for i in range(len(spec.parts)))
+                past: set[str] = set()
+                while True:
+                    route, _, _ = holder.chain(condition, frozenset(past))
+                    if not route.startswith("partitioned:"):
+                        break
+                    rid = route.split(":", 1)[1]
+                    if rid not in seen:
+                        seen.add(rid)
+                        spec = holder._valid_partition(rid)
+                        if spec is not None:
+                            found.append(spec)
+                            frontier.extend(self.part_obligation(spec, i) for i in range(len(spec.parts)))
+                    if condition != "item-level-no-part":
+                        break
+                    past.add(rid)  # a later answer on this chain, after its parts were done (R2)
             for rid in holder._record_partitions():
                 if rid not in seen:
                     seen.add(rid)
@@ -605,8 +645,11 @@ class ItemObligation:
             return bool(challenges) and not any(self.s.open(c) for c in challenges)
         return True
 
-    def chain(self, condition: str) -> tuple[str, tuple[Any, ...], int]:
-        """(route, open decisions, counted answers) of one condition's chain at the current item revision."""
+    def chain(self, condition: str, past: frozenset[str] = frozenset()) -> tuple[str, tuple[Any, ...], int]:
+        """(route, open decisions, counted answers) of one condition's chain at the current item revision.
+        ``past`` names ``PARTITION`` answers whose parts are done while the condition still holds: like a settled
+        ``AMEND``, each derives the chain's next decision naming it, so the item is never left waiting on a
+        partition that did not cover the condition (reading E32; same-family check of 100c8ae8, R2)."""
 
         counted: list[str] = []
         after: str | None = None
@@ -625,9 +668,9 @@ class ItemObligation:
             outcome = self.s.record(answer)["outcome"]
             if outcome == "DECLINE":
                 return "resume", (), len(counted)
-            if outcome == "PARTITION":
+            if outcome == "PARTITION" and answer not in past:
                 return f"partitioned:{answer}", (), len(counted)
-            if not self._settled(answer):
+            if outcome != "PARTITION" and not self._settled(answer):
                 kind = "challenge" if outcome == "CHALLENGE" else "amendment"
                 return f"awaiting-{kind}:{answer}", (), len(counted)
             after = answer
@@ -721,8 +764,9 @@ class ItemObligation:
         no_part = [r for r in self._objections if not self._named_parts(r)]
         # an adverse condition of the integrated item naming no part: an objection, or retained work outside
         # every part's scope whose terms fail; the principal answers it on SD-54's chain (reading E32)
-        if no_part or self._subject_terms(self.uncovered_subjects) < T:
-            route, opened, _ = self.chain("item-level-no-part")
+        if no_part or self.uncovered_failing:
+            # every required part is done, so a partition answered on this chain did not cover the condition
+            route, opened, _ = self.chain("item-level-no-part", frozenset(p.decision for p in self.partitions))
             return Route(route, beside + opened)
         return Route("item-level-review", beside)
 
@@ -876,6 +920,28 @@ class Items:
         """Coordination decisions naming the decision obligation, in position order (§15.5)."""
 
         return self._answers.get(obligation_id, [])
+
+    @cached_property
+    def partition_sizes(self) -> dict[str, int]:
+        """The number of parts each acting ``PARTITION`` decision names in its refs, linted or not."""
+
+        out = {}
+        for rid in self.s.of_kind("COORDINATION_DECISION"):
+            record = self.s.record(rid)
+            if record["outcome"] != "PARTITION" or not self.s.acts(rid):
+                continue
+            for ref in record.get("refs") or []:
+                data = self.s.h.objects.get(ref.get("digest"))
+                if ref.get("store") != "LEDGER" or data is None:
+                    continue
+                try:
+                    parts = json.loads(data)["parts"]
+                except (ValueError, KeyError, TypeError):
+                    break
+                if isinstance(parts, list):
+                    out[rid] = len(parts)
+                break
+        return out
 
     def partition_spec(self, rid: str, item: ItemObligation, undischarged: frozenset[str] | None = None) -> Partition | None:
         """The parts a ``PARTITION`` decision names: a JSON object in the entry it was admitted in, named by its
