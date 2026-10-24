@@ -614,6 +614,23 @@ class Renderer:
 
     # -- decision brief (§16.7) -----------------------------------------------------------------------------------
 
+    def _no_part_triggers(self, x: Any) -> list[str]:
+        """What makes an item-level-no-part decision owed (§16.7: the relevant review outcomes): each standing
+        item-level review naming no part, with its outcome, target and findings, and failing retained work no part
+        covers (re-Review of 9c7d77d, E-R4)."""
+
+        item = next((i for i in self.w.items.all if i.unit == x.target.get("item") and i.plan == x.plan), None)
+        if item is None:
+            return []
+        lines = []
+        for r in item.no_part_objections:
+            record = self.s.record(r)
+            lines.append(f"  - standing review {r} by {record['actor']}: {record['outcome']} on {_json(record['target'])}; "
+                         f"findings {_json(self.w.items.findings_of(r))}")
+        if item.uncovered_failing:
+            lines.append(f"  - failing retained work no part covers: {_json(list(item.uncovered_failing))}")
+        return lines
+
     def decision(self, o: Any) -> Brief:
         governs = self.governs(o)
         work = self.w.briefing.work(o)
@@ -642,6 +659,8 @@ class Renderer:
                                  f"lint {_json(lint)}; outcomes {outcomes}")
             else:
                 decisions.append(f"- {x.id}: {x.detail or x.target_json}; allowed {outcomes}")
+                if isinstance(core, dict) and core.get("condition") == "item-level-no-part":
+                    decisions += self._no_part_triggers(x)
         attention = [f"- {h.id}: {h.target_json} ({h.params.get('materiality')})"
                      for h in self.w.of_kind("HUMAN_ATTENTION") if h.plan == o.plan]
         since = max((self.s.position_of(r) for r in self.s.of_kind("COORDINATION_DECISION")

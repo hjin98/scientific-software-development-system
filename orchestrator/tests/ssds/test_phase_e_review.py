@@ -7,6 +7,7 @@ derivation and renderer; expected values are the Review's discriminators, writte
 
 from __future__ import annotations
 
+import json
 import os
 import unittest
 
@@ -809,6 +810,80 @@ class SettledPartition(unittest.TestCase):
                 self.assertEqual(item.route.route, f"partitioned:{answer['id']}", "its work continues in the re-partition")
                 self.assertFalse([o for o in item.route.decisions if o.target.get("condition") == "item-level-no-part"])
                 self.assertTrue(any(p.share[0] == again["id"] and p.discharge() == "OPEN" for p in item.parts))
+
+
+class NoPartTriggers(unittest.TestCase):
+    """Re-Review of 9c7d77d: the no-part decision brief shows the adverse review that makes it owed (E-R4), and a
+    finding's part selector counts only when it names exactly one judged part, else the principal decides (E-R5)."""
+
+    FINDING = {"id": "JOINT-FAILURE-777", "units": ["records", "notes.a"], "status": "OPEN"}
+
+    def brief(self, f, decision) -> str:
+        return section(renderer(f.w()).decision(decision), "Decisions owed")
+
+    def test_e_r4_the_brief_shows_the_standing_review(self) -> None:
+        from .test_partition import partitioned_and_worked
+
+        f = partitioned_and_worked()
+        review = f.item_level("NO_PASS", findings=[self.FINDING])
+        (decision,) = f.item().route.decisions
+        record = f.w().s.record(review["id"])
+        for stage in ("first", "after an answer", "held"):
+            with self.subTest(stage=stage):
+                if stage != "first":
+                    for _ in range(1 if stage == "after an answer" else 2):
+                        (decision,) = f.item().route.decisions
+                        f.decide(decision, "AMEND")
+                (decision,) = f.item().route.decisions
+                if stage == "held":
+                    self.assertEqual(f.item().route.route, "human-attention:item-level-no-part")
+                text = self.brief(f, decision)
+                self.assertIn(f"standing review {review['id']}", text)
+                self.assertIn("NO_PASS on " + json.dumps(record["target"], sort_keys=True), text)
+                self.assertIn("JOINT-FAILURE-777", text)
+
+    def test_e_r4_no_objection_no_invented_review(self) -> None:
+        f, _ = RetainedAcrossRevisions().stranded()
+        (decision,) = f.item().route.decisions
+        text = self.brief(f, decision)
+        self.assertNotIn("standing review", text)
+        self.assertIn('failing retained work no part covers: ["records"]', text)
+
+    def test_e_r5_selectors(self) -> None:
+        from .test_partition import partitioned_and_worked
+
+        for selector, principal in ((99, True), (True, True), (None, True), (0, False)):
+            with self.subTest(part=selector):
+                f = partitioned_and_worked()
+                finding = {"units": ["records"], "id": "PART-SELECTOR-FINDING"}
+                if selector is not None:
+                    finding["part"] = selector
+                f.item_level("NO_PASS", findings=[finding])
+                item = f.item()
+                if principal:
+                    self.assertEqual(item.route.route, "COORDINATE:item-level-no-part")
+                    self.assertTrue(all(p.discharge() != "OPEN" for p in item.parts))
+                else:
+                    self.assertTrue(item.route.route.startswith("partitioned:"))
+                    self.assertEqual([p.share[1] for p in item.parts if p.discharge() == "OPEN"], [0])
+                self.assertNotEqual(item.route.route, "item-level-review", "never back to the answered review")
+
+    def test_e_r5_an_index_two_judged_parts_share_is_ambiguous(self) -> None:
+        from .test_partition import PartFlow
+
+        f = PartFlow()
+        f.spend(f.item().obligation)
+        first = f.partition(f.budget_decision(f.item()), [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])])
+        f.work_part(f.item().parts[0], {"records.md": "# Records done\n"})
+        second = next(p for p in f.item().parts if p.share[0] == first["id"] and p.share[1] == 1)
+        f.spend(second.obligation, "notes/a.md")
+        second = next(p for p in f.item().parts if p.share[0] == first["id"] and p.share[1] == 1)
+        again = f.partition(f.budget_decision(second), [(["o2"], ["notes.a"]), (["o3"], ["notes.b"])])
+        for index, change in ((0, {"notes/a.md": "a done\n"}), (1, {"notes/b.md": "b done\n"})):
+            f.work_part(next(p for p in f.item().parts if p.share[0] == again["id"] and p.share[1] == index), change)
+        self.assertEqual(f.item().route.route, "item-level-review")
+        f.item_level("NO_PASS", findings=[{"part": 0, "units": ["records"]}])  # part 0 of both partitions
+        self.assertEqual(f.item().route.route, "COORDINATE:item-level-no-part")
 
 if __name__ == "__main__":
     unittest.main()

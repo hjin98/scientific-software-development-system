@@ -392,7 +392,7 @@ class ItemObligation:
         latest = self.latest_integrated
         if latest is None or not self.w.conformance(latest.result).clean:
             return F
-        if self.share is not None and self.whole._objections_naming(self.share[1], self):
+        if self.share is not None and self.whole._objections_naming(self):
             return F  # an adverse item-level review naming this part is a standing adverse review of it (§13.7)
         value = max((self.d.current(r) for r in self.reviews(latest.transformation)
                      if self.s.record(r)["outcome"] == "PASS" and not self.d.j.nonind(r)
@@ -543,8 +543,8 @@ class ItemObligation:
                 continue
             position, named = self.s.position_of(r), self._named_parts(r)
             if named:
-                redone = all(any(p.share[1] == i and p.latest_integrated is not None and p.latest_integrated.integrated > position
-                                 for p in self.parts) for i in named)
+                redone = all(any(p.obligation.id in self._branch(o) and p.latest_integrated is not None
+                                 and p.latest_integrated.integrated > position for p in self.parts) for o in named)
                 if redone:
                     continue
             elif any(self.s.position_of(q) > position and self.s.record(q)["target"] != self.s.record(r)["target"]
@@ -553,19 +553,56 @@ class ItemObligation:
             out.append(r)
         return out
 
-    def _named_parts(self, review: str) -> set[int]:
-        named: set[int] = set()
-        for finding in self.items.findings_of(review) or []:
-            if isinstance(finding, dict) and isinstance(finding.get("part"), int):
-                named.add(finding["part"])
-        return named
+    @cached_property
+    def _all_parts(self) -> tuple["ItemObligation", ...]:
+        """Every part of every partition of the item, required or not."""
 
-    def _objections_naming(self, index: int, part: "ItemObligation | None" = None) -> list[str]:
+        return tuple(self.part_obligation(p, i) for p in self.partitions for i in range(len(p.parts)))
+
+    def _named_parts(self, review: str) -> frozenset[str]:
+        """The part obligations an item-level review's findings name. Each finding's ``part`` index is resolved
+        against the parts whose integrations the review's target judged (its ``changes``, §3.4): a strict integer
+        naming exactly one of them. A selector naming none or several of them, or not an integer, fails safe: the
+        review counts as naming no part, so the principal decides (E32; re-Review of 9c7d77d, E-R5)."""
+
+        target = self.s.record(review)["target"]
+        changes = set(target.get("changes") or []) if isinstance(target, dict) else set()
+        entries = self.s.h.chain.entries
+        judged = [p for p in self._all_parts if any(entries[e.integrated].digest in changes for e in p.integrated)]
+        named = set()
+        for finding in self.items.findings_of(review) or []:
+            if not isinstance(finding, dict) or "part" not in finding:
+                continue
+            selector = finding["part"]
+            matches = [p for p in judged if type(selector) is int and p.share[1] == selector]
+            if len(matches) != 1:
+                return frozenset()
+            named.add(matches[0].obligation.id)
+        return frozenset(named)
+
+    def _branch(self, obligation_id: str) -> frozenset[str]:
+        """A part obligation and every part of the re-partitions descending from it."""
+
+        ids, frontier = {obligation_id}, [obligation_id]
+        while frontier:
+            replaced = frontier.pop()
+            for later in self.partitions:
+                if later.replaces == replaced:
+                    for i in range(len(later.parts)):
+                        child = self.part_obligation(later, i).obligation.id
+                        if child not in ids:
+                            ids.add(child)
+                            frontier.append(child)
+        return frozenset(ids)
+
+    def _objections_naming(self, part: "ItemObligation") -> list[str]:
+        """Standing objections naming this part, or a part it descends from, that it has not re-integrated since."""
+
         out = []
         for r in self._objections:
-            if index not in self._named_parts(r):
+            if not any(part.obligation.id in self._branch(o) for o in self._named_parts(r)):
                 continue
-            latest = part.latest_integrated if part is not None else None
+            latest = part.latest_integrated
             if latest is not None and latest.integrated > self.s.position_of(r):
                 continue  # this part re-integrated after the objection
             out.append(r)
@@ -593,7 +630,13 @@ class ItemObligation:
         no part, or failing retained work no part covers (reading E32). Its decision stays owed while it holds,
         whatever part integrates meanwhile (review 879fa490 B9)."""
 
-        return bool(self.uncovered_failing) or any(not self._named_parts(r) for r in self._objections)
+        return bool(self.uncovered_failing) or bool(self.no_part_objections)
+
+    @property
+    def no_part_objections(self) -> list[str]:
+        """The standing item-level objections naming no part, or naming one that does not resolve (E-R5)."""
+
+        return [r for r in self._objections if not self._named_parts(r)]
 
     def _partition_settled(self, partition: Partition) -> bool:
         """SD-54's one post-answer rule for a ``PARTITION`` answering the item-level-no-part chain, as for an
