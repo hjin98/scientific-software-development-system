@@ -9,7 +9,8 @@ Each action has a closed key shape (Review e6ac009 B6). Every key object is ``{r
 rotation adds ``retires``, the in-force key it replaces; ``id`` is the key's own identity (``ed25519:`` of an issue
 key's raw public key, the OpenSSH fingerprint of a human's), so no id is ever bound to another key. A
 registration or rotation introduces a key never known before; a retirement names a key in force with its public
-key; a compromise names a known key. Only an issue key's retirement or rotation lists outstanding envelopes, and
+key; a compromise names a known key, and declaring it again only moves its position earlier, so no admitted
+compromise is ever relaxed (re-check a71cca2 N1). Only an issue key's retirement or rotation lists outstanding envelopes, and
 only a compromise names a position. Admission host keys and designated runner keys are not rotated through this
 path yet (the engine's own key switch and runner keys are later Phase F steps): those roles are refused.
 """
@@ -54,11 +55,12 @@ def key_identity(role: Any, public_key: Any) -> str | None:
 def lifecycle_problems(fields: Any, roots: TrustRoots, position: int) -> list[str]:
     """Why a ``KEY_LIFECYCLE`` record's fields cannot be admitted at ``position`` under ``roots``; none if it can."""
 
-    if not isinstance(fields, Mapping) or fields.get("action") not in ACTIONS or not isinstance(fields.get("key"), Mapping):
+    if not isinstance(fields, Mapping) or not isinstance(fields.get("action"), str) or fields["action"] not in ACTIONS \
+            or not isinstance(fields.get("key"), Mapping):
         return ["a lifecycle record names an action and a key object"]
     action, key = fields["action"], fields["key"]
     role = key.get("role")
-    if role not in ROLES:
+    if not isinstance(role, str) or role not in ROLES:
         return [f"keys of role {role!r} do not change through this path yet"]
     problems = []
     shape = {"role", "id", "public_key"} | ({"retires"} if action == "ROTATE" else set())
@@ -92,6 +94,8 @@ def lifecycle_problems(fields: Any, roots: TrustRoots, position: int) -> list[st
         start = fields.get("from_position", position)
         if not isinstance(start, int) or isinstance(start, bool) or not 0 <= start <= position:
             problems.append("a compromise's position is one the ledger has reached")
+        elif role == "ISSUE" and kid in roots.compromised and start >= roots.compromised[kid]:
+            problems.append("a key is never un-compromised: a new declaration only moves its position earlier")
     return problems
 
 

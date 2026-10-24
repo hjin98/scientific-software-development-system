@@ -148,7 +148,8 @@ def _keys_in_force(chain_so_far: Sequence[LedgerEntry]) -> tuple[dict[str, str],
             keys.pop(old, None)
         if action == "COMPROMISED":
             start = fields.get("from_position", item.position)
-            compromised[key["id"]] = start if isinstance(start, int) and not isinstance(start, bool) else 0
+            start = start if isinstance(start, int) and not isinstance(start, bool) else 0
+            compromised[key["id"]] = min(start, compromised.get(key["id"], start))  # never relaxed
     return keys, compromised
 
 

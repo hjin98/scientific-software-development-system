@@ -288,6 +288,28 @@ Tests: `test_admission_requests.StepThreeReview`, which also covers the survivin
 - "`UNKNOWN` lineage credits no independence", untested until step 4;
 - the surviving non-blocking mutants M3c, M3d, M6b, M6c, M7c, M10, M13 and M13c.
 
+**Step 3a repair re-check and step 3b review (a71cca2f).** All seven repairs are in place, and their probed behaviour is correct (8 concurrent first uses give one key; a hard-linked journal is refused). NO-PASS on three blockers, with no SERIOUS CHALLENGE. The repair:
+- **N1, a second compromise relaxed the first.** It was new in a71cca2f. A later `COMPROMISED` of the same key overwrote its position, so an envelope refused under the first was admitted again, and §25.2 has no path to un-compromise a key. A re-declaration is now admitted only with an earlier position, and both readers keep the minimum. B5's note above was incomplete: a non-identical re-declaration also passed.
+- **N2, a torn journal tail (step 3b).** A crash part-way through an append left an unterminated line, and the journal could no longer be read; the next append was glued onto it, losing that envelope from a retirement's listing (catalogue §8.1, §22.4, §25.2). An append now drops an unterminated last line first, under an exclusive lock. That line was never acknowledged. Reading ignores it and refuses any other unreadable line (`JournalCorrupt`).
+- **N3, repaired claims without discriminators.** `StepThreeRecheck` adds one for each surviving mutant of the re-check's 45: m1-m8, m14-m16, m18, m21-m24, m26, m28, m29, m31, m32, m35-m38, m46 and m47, plus N1 and N2. Four are equivalent and are not tested:
+  - m25, a redundant line, now removed;
+  - m40, `_check_paths` for names every operation checks again;
+  - m43, the retired key's public key, which the identity check already pins.
+
+  - m48, B5's already-admitted rule: after N1, the state rules refuse every action's identical replay. The rule is kept as the review asked.
+
+  One of the new tests found a defect: `read_private` read a directory before checking its kind. It now checks first. All 45 of the re-check's mutants, the 21 earlier reversions and 7 reversions of this repair are run again. Every one fails a test except the 4 equivalents.
+
+Its non-blocking notes:
+- A list-valued `action` or `role` is now refused, not a `TypeError`.
+- Kept for later steps:
+  - a `COMPROMISED` of the last human key leaves no human gate, and fails closed until a `TRUST_MECHANISM_CHANGE`;
+  - the issue key's single-name rule (the journal's applies already);
+  - a never-lost record under an unlisted envelope should be refused by identity with its bytes retained and a re-issue obligation raised (catalogue §8.3 step 3, §10.2), which no step places yet; step 4 takes it;
+  - `Issuer.issue` does not journal its envelope (write-ahead order is step 8's);
+  - the brief-digest formula duplicates `interface.render.Brief.digest`;
+  - the journal keeps request bytes indefinitely.
+
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
 - **B1, the wrong observed ref.** `main` is behind and does not contain the genesis baseline. F1 and Q-F2 (i) now put the observed ref to the stakeholder as a deployment setting, and step 10's absorption test reads observed heads.
 - **B2, a boundary resting on one CLI check, and records-only fencing.** The real-shadow Admission is observe-only. Records-only admissions are never fenced. The boundary check sits at Admission's entry for every route. Step 10 tests a restart after a records-only admission and library and Dispatcher routes.

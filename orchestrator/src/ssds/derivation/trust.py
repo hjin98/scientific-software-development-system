@@ -76,7 +76,8 @@ def trust_roots(entries) -> TrustRoots:
                 retired[old] = (issue.pop(old), listed)
             if action == "COMPROMISED":
                 start = fields.get("from_position", item.position)
-                compromised[kid] = start if isinstance(start, int) and not isinstance(start, bool) else 0
+                start = start if isinstance(start, int) and not isinstance(start, bool) else 0
+                compromised[kid] = min(start, compromised.get(kid, start))  # never relaxed (re-check a71cca2 N1)
         elif key.get("role") == "HUMAN":
             if action in ("REGISTER", "ROTATE") and _human(public) == kid:
                 humans[kid] = public
@@ -84,8 +85,6 @@ def trust_roots(entries) -> TrustRoots:
             if isinstance(old, str) and old in humans:
                 humans.pop(old)
                 former.add(old)
-            if action == "COMPROMISED":
-                former.add(kid)
     return TrustRoots(issue, retired, compromised, humans, frozenset(former))
 
 

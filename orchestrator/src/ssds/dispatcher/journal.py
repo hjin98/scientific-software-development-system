@@ -18,6 +18,10 @@ from ssds.ledger.qualification import Home
 from .home import DispatcherHome
 
 
+class JournalCorrupt(ValueError):
+    """A journal line other than an unterminated last one is unreadable: the journal is not trusted."""
+
+
 class Journal:
     def __init__(self, home: Home, ledger_id: str) -> None:
         self.home = DispatcherHome(home.root)
@@ -26,14 +30,26 @@ class Journal:
         self.path = self.home.path(self.parts)
 
     def _append(self, item: Mapping[str, Any]) -> None:
-        self.home.append_private(self.parts, (json.dumps(dict(item), sort_keys=True, separators=(",", ":")) + "\n")
-                                 .encode("utf-8"))
+        self.home.append_line(self.parts, (json.dumps(dict(item), sort_keys=True, separators=(",", ":")) + "\n")
+                              .encode("utf-8"))
 
     def entries(self) -> list[dict[str, Any]]:
+        """Every acknowledged entry. An unterminated last line was cut short by a crash and never acknowledged, so
+        it is not an entry; any other unreadable line is corruption, refused (re-check a71cca2 N2)."""
+
         data = self.home.read_private(self.parts)
         if data is None:
             return []
-        return [json.loads(line) for line in data.decode("utf-8").splitlines() if line.strip()]
+        out = []
+        for number, line in enumerate(data.split(b"\n")[:-1], 1):
+            try:
+                item = json.loads(line)
+            except ValueError:
+                raise JournalCorrupt(f"{self.path} line {number} is not a journal entry") from None
+            if not isinstance(item, dict) or not isinstance(item.get("kind"), str):
+                raise JournalCorrupt(f"{self.path} line {number} is not a journal entry")
+            out.append(item)
+        return out
 
     # -- what is recorded ---------------------------------------------------------------------------------------
 
@@ -65,4 +81,4 @@ class Journal:
                        and e["issue_key_id"] == issue_key_id and e["task_id"] not in finished})
 
 
-__all__ = ["Journal"]
+__all__ = ["Journal", "JournalCorrupt"]

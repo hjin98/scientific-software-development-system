@@ -964,5 +964,274 @@ class StepThreeReview(RequestFixture):
         self.assertEqual(list(decoy.iterdir()), [])
 
 
+
+class StepThreeRecheck(RequestFixture):
+    """The same-family re-check of a71cca2f: N1 (a compromise never relaxed), N2 (a torn journal tail) and N3 (the
+    repaired claims' discriminators, named by the re-check's mutants m1-m47)."""
+
+    assert_unauthenticated = StepThreeReview.assert_unauthenticated
+
+    def resigned(self, issued, req, envelope=None, attestation=None) -> dict:
+        """``req`` with its binding's envelope or attestation replaced and re-signed by the real issue key, and the
+        request signed again by the task's credential: only the replaced content can be what is refused."""
+
+        from ssds.admission.request import attestation_message, envelope_message
+
+        binding = dict(req["binding"])
+        if envelope is not None:
+            binding.update(envelope=envelope, signature=self.issuer._key.sign(envelope_message(envelope)).hex())
+        if attestation is not None:
+            binding.update(attestation=attestation,
+                           attestation_signature=self.issuer._key.sign(attestation_message(attestation)).hex())
+        out = {**req, "binding": binding}
+        out["binding"]["credential_signature"] = issued.credential.sign(out) if issued.credential else None
+        return out
+
+    # -- N1 ----------------------------------------------------------------------------------------------------
+
+    def test_n1_a_later_compromise_never_relaxes_an_earlier_one(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+        from ssds.derivation import trust_roots
+
+        early = self.issue()
+        self.lifecycle("COMPROMISED", self.issuer.trust_root(), from_position=early.envelope["issued_at_position"])
+        with self.assertRaises(EntryInvalid):
+            self.lifecycle("COMPROMISED", self.issuer.trust_root(), from_position=len(self.entries()))
+        self.assert_unauthenticated(self.admit(self.signed(early, [self.bind(finding(), early)])))
+        self.lifecycle("COMPROMISED", self.issuer.trust_root(), from_position=0)  # earlier: admitted
+        self.assertEqual(trust_roots(self.entries()).compromised[self.issuer.key_id], 0)
+
+    def test_n1_both_readers_keep_the_earliest_compromise(self) -> None:
+        from ssds.derivation import trust_roots
+        from ssds.ledger.read import _keys_in_force
+
+        key = {**self.issuer.trust_root()}
+        items = [_Item(1, {"kind": "KEY_LIFECYCLE", "fields": {"action": "COMPROMISED", "key": key, "from_position": 1}}),
+                 _Item(5, {"kind": "KEY_LIFECYCLE", "fields": {"action": "COMPROMISED", "key": key, "from_position": 4}})]
+        self.assertEqual(trust_roots(items).compromised[key["id"]], 1)
+        host = [_Host(i.position, {**i.entry["lifecycle"], "fields": {**i.entry["lifecycle"]["fields"],
+                                                                     "key": {**key, "role": "ADMISSION"}}})
+                for i in items]
+        self.assertEqual(_keys_in_force(host)[1][key["id"]], 1)
+
+    # -- N2 ----------------------------------------------------------------------------------------------------
+
+    def test_n2_a_torn_tail_is_dropped_and_the_next_entry_is_kept(self) -> None:
+        from ssds.dispatcher.journal import Journal
+
+        journal = Journal(self.home, "demo")
+        done, open_ = self.issue(), self.issue("MANUAL")
+        journal.issued(done.envelope["task_id"], done.binding())
+        with open(journal.path, "ab") as handle:  # a crash part-way through the next append
+            handle.write(b'{"kind":"ISSUED","task_id":"tor')
+        self.assertEqual(len(journal.entries()), 1, "an unterminated last line was never acknowledged")
+        journal.issued(open_.envelope["task_id"], open_.binding())
+        self.assertEqual(len(journal.outstanding(self.issuer.key_id, finished_tasks=[])), 2)
+        self.assertTrue(journal.path.read_bytes().endswith(b"\n"))
+
+    def test_n2_corruption_before_the_last_line_is_refused(self) -> None:
+        from ssds.dispatcher.journal import Journal, JournalCorrupt
+
+        journal = Journal(self.home, "demo")
+        journal.decided("sha256:" + "0" * 64)
+        with open(journal.path, "ab") as handle:
+            handle.write(b"not json\n")
+        journal.decided("sha256:" + "1" * 64)
+        with self.assertRaises(JournalCorrupt):
+            journal.entries()
+
+    # -- N3: authentication --------------------------------------------------------------------------------
+
+    def test_m1_m2_the_agent_actor_needs_its_class_and_an_attempt_number(self) -> None:
+        from ssds.ledger.read import with_id
+
+        issued = self.issue()
+        task = issued.envelope["task_id"]
+        no_attempt = self.bind(with_id({**finding(), "actor": f"agent:{task}/x", "actor_class": "AGENT"}), issued,
+                               keep_actor=True)
+        human_class = self.bind(with_id({**finding(materiality="MATERIAL"), "actor": f"agent:{task}/1",
+                                         "actor_class": "HUMAN"}), issued, keep_actor=True)
+        refused = dict(self.admit(self.signed(issued, [no_attempt, human_class])).refused)
+        self.assertEqual((refused[no_attempt["id"]], refused[human_class["id"]]), (("AUTH_ACTOR",),) * 2)
+
+    def test_m3_m4_an_envelope_beyond_the_head_or_on_no_route_authenticates_nothing(self) -> None:
+        for change in ({"issued_at_position": 10 ** 6}, {"route": "TELEPATHY"}):
+            with self.subTest(change=change):
+                issued = self.issue("MANUAL")
+                req = self.signed(issued, [self.bind(finding(note=str(change)), issued)])
+                self.assert_unauthenticated(self.admit(self.resigned(issued, req, envelope={**issued.envelope, **change})))
+
+    def test_m5_to_m8_an_issue_signed_attestation_must_still_be_this_tasks(self) -> None:
+        issued = self.issue()
+        changes = [{"task_id": "another-task"}, {"input_sessions": ["session:other"]}, {"extra": "field"},
+                   {"session": "not a token"}]
+        for change in changes:
+            with self.subTest(change=change):
+                req = self.signed(issued, [self.bind(finding(note=str(change)), issued)])
+                self.assert_unauthenticated(self.admit(self.resigned(issued, req,
+                                                                     attestation={**issued.attestation, **change})))
+
+    def test_m14_m15_a_human_binding_covers_only_unbound_human_class_records(self) -> None:
+        from ssds.admission.request import request_message
+        from ssds.ledger.read import with_id
+
+        issued = self.issue()
+        bound = self.bind(with_id({**finding(), "actor": self.human()}), issued, keep_actor=True)
+        agent_class = with_id({**finding(materiality="MATERIAL"), "actor": self.human(), "actor_class": "AGENT"})
+        req = self.request([bound, agent_class], base_position=len(self.entries()) - 1)
+        req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+        refused = dict(self.admit(req).refused)
+        self.assertEqual((refused[bound["id"]], refused[agent_class["id"]]), (("AUTH_ACTOR",),) * 2)
+
+    def test_m16_a_binding_is_stored_only_with_admitted_records(self) -> None:
+        from ssds.ledger.read import with_id
+
+        issued = self.issue()
+        other = self.bind(with_id({**finding(), "governs": {"mode": "LEGACY", "protocol": "7.1.0"}}), issued)
+        decision = self.admit(self.signed(issued, [other]))
+        self.assertEqual((decision.admitted, dict(self.entries()[-1].objects)), ((), {}))
+
+    def test_m47_a_secret_in_a_human_binding_is_a_secret_not_a_bad_signature(self) -> None:
+        req = self.request([finding()], base_position=len(self.entries()) - 1)
+        req["binding"] = {"human": {"actor": self.human(), "signature": "ghp_" + "a1B2" * 9}}
+        self.assertEqual(self.admit(req).reasons, ("SECRET_DETECTED",))
+
+    # -- N3: lifecycle -----------------------------------------------------------------------------------------
+
+    def test_m18_m21_m22_m36_m38_lifecycle_shapes_and_the_gate(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+        from ssds.ledger.read import with_id
+
+        other = self.issuer_at("shapes").trust_root()
+        cases = [("COMPROMISED", self.issuer_at("never-registered").trust_root(), {}),  # m18
+                 ("REGISTER", {**other, "note": "x"}, {}),  # m21
+                 ("REGISTER", other, {"outstanding": []}),  # m22
+                 ("REGISTER", {**other, "id": "ed25519:" + "1" * 64}, {}),  # m38
+                 ("REGISTER", {**other, "role": ["ISSUE"]}, {}),  # a list-valued role
+                 ("COMPROMISED", self.issuer.trust_root(), {"outstanding": []})]
+        for action, key_object, extra in cases:
+            with self.subTest(action=action, key=key_object, extra=extra), self.assertRaises(EntryInvalid):
+                self.lifecycle(action, key_object, **extra)
+        rec = with_id({**record("KEY_LIFECYCLE", target=None, actor=self.human(),
+                                fields={"action": "REGISTER", "key": other}), "actor_class": "AGENT"})
+        with self.assertRaises(EntryInvalid):  # m36
+            self.admission.admit_lifecycle(rec, sshsig(self.private, self.admission.lifecycle_message(rec)), self.baseline)
+        listed = record("KEY_LIFECYCLE", target=None, actor=self.human(), fields={"action": ["REGISTER"], "key": other})
+        with self.assertRaises(EntryInvalid):  # a list-valued action
+            self.admission.admit_lifecycle(listed, sshsig(self.private, self.admission.lifecycle_message(listed)),
+                                           self.baseline)
+
+    def test_m23_a_compromise_without_a_position_starts_at_its_own_entry(self) -> None:
+        before = self.issue()
+        self.lifecycle("COMPROMISED", self.issuer.trust_root())
+        self.assertEqual(len(self.admit(self.signed(before, [self.bind(finding(), before)])).admitted), 1)
+
+    def test_m24_m37_the_readers_check_ids_and_retire_by_id(self) -> None:
+        from ssds.derivation import trust_roots
+        from ssds.ledger.read import _keys_in_force
+
+        forged = _Item(1, {"kind": "KEY_LIFECYCLE", "fields": {"action": "REGISTER", "key": {
+            "role": "HUMAN", "id": "human:SHA256:" + "A" * 43, "public_key": self.public}}})
+        self.assertNotIn("human:SHA256:" + "A" * 43, trust_roots([forged]).humans)
+        key = {"role": "ADMISSION", "id": "ed25519:" + "2" * 64, "public_key": "3" * 64}
+        host = [_Host(0, {"kind": "KEY_LIFECYCLE", "fields": {"action": "REGISTER", "key": key}}),
+                _Host(1, {"kind": "KEY_LIFECYCLE", "fields": {"action": "RETIRE", "key": key}})]
+        self.assertEqual(_keys_in_force(host)[0], {})
+
+    # -- N3: the home ----------------------------------------------------------------------------------------
+
+    def test_m26_m28_the_journal_writes_through_no_other_name_and_reads_only_a_regular_file(self) -> None:
+        import os
+
+        from ssds.dispatcher.journal import Journal
+        from ssds.ledger.qualification import Home, HomeRefused
+
+        journal = Journal(self.home, "demo")
+        journal.decided("sha256:" + "0" * 64)
+        os.link(journal.path, self.root / "alias")
+        with self.assertRaises(HomeRefused):  # m26
+            journal.decided("sha256:" + "1" * 64)
+        other = Journal(Home(self.root / "dir-home"), "demo")
+        other.path.mkdir(parents=True, mode=0o700)
+        os.chmod(other.path, 0o700)  # private: only its kind refuses it
+        with self.assertRaises(HomeRefused):  # m28
+            other.entries()
+
+    def test_m29_m46_a_link_after_the_name_check_is_never_followed(self) -> None:
+        import os
+        from unittest import mock
+
+        from ssds.dispatcher.home import DispatcherHome
+        from ssds.dispatcher.journal import Journal
+        from ssds.ledger.qualification import Home, HomeRefused
+
+        journal = Journal(Home(self.root / "race-home"), "demo")
+        decoy = self.root / "race-home" / "state" / "decoy"
+        decoy.mkdir(parents=True)
+        os.symlink(decoy, journal.path.parent)
+        with self.assertRaises(HomeRefused):  # m46: the read walk refuses the directory link
+            journal.entries()
+        os.unlink(journal.path.parent)
+        journal.path.parent.mkdir()
+        (decoy / "target").write_bytes(b"")
+        os.chmod(decoy / "target", 0o600)  # private and single-named: only the no-follow open refuses it
+        os.symlink(decoy / "target", journal.path)
+        with mock.patch.object(DispatcherHome, "path", lambda self, parts: None):  # the link lands after the check
+            with self.assertRaises(HomeRefused):  # m29: the final open refuses it
+                journal.decided("sha256:" + "3" * 64)
+        self.assertEqual((decoy / "target").read_bytes(), b"")
+
+    def test_m31_concurrent_first_use_reads_the_winning_key(self) -> None:
+        from unittest import mock
+
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+
+        from ssds.dispatcher.home import DispatcherHome
+        from ssds.dispatcher.issue import Issuer
+        from ssds.ledger.qualification import Home
+
+        winner = Ed25519PrivateKey.generate().private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+        original = DispatcherHome.create_private
+
+        def raced(home, parts, data):
+            original(home, parts, winner)  # another process creates the key first
+            return original(home, parts, data)
+
+        with mock.patch.object(DispatcherHome, "create_private", raced):
+            issuer = Issuer(Home(self.root / "race-key"), "demo")
+        self.assertEqual(issuer.public_hex, Ed25519PrivateKey.from_private_bytes(winner).public_key().public_bytes(
+            Encoding.Raw, __import__("cryptography.hazmat.primitives.serialization", fromlist=["PublicFormat"])
+            .PublicFormat.Raw).hex())
+
+    def test_m32_outstanding_lists_only_that_keys_envelopes(self) -> None:
+        from ssds.dispatcher.journal import Journal
+
+        journal = Journal(self.home, "demo")
+        mine, theirs = self.issue(), self.issue(issuer=self.issuer_at("someone-else"))
+        journal.issued(mine.envelope["task_id"], mine.binding())
+        journal.issued(theirs.envelope["task_id"], theirs.binding())
+        self.assertEqual(len(journal.outstanding(self.issuer.key_id, finished_tasks=[])), 1)
+
+    def test_m35_keys_dispatcher_is_in_the_checked_operator_tree(self) -> None:
+        import os
+
+        from ssds.dispatcher.issue import Issuer
+        from ssds.ledger.qualification import Home, HomeRefused
+
+        home = self.root / "stray-home"
+        (home / "keys" / "dispatcher").mkdir(parents=True)
+        os.symlink(self.root, home / "keys" / "dispatcher" / "stray")
+        with self.assertRaises(HomeRefused):
+            Issuer(Home(home), "demo")
+
+
+class _Host:
+    """A stored entry as the host-key reader of ``ledger.read`` reads it."""
+
+    def __init__(self, position: int, lifecycle) -> None:
+        self.position, self.lifecycle = position, lifecycle
+
+
 if __name__ == "__main__":
     unittest.main()

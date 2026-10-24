@@ -5,11 +5,13 @@ inside the resolved home, the home outside every repository, and no symbolic lin
 checked before any effect (Review e6ac009 B7). Every later file effect walks from the home root one directory at a
 time, each opened without following a link, so a link put in place after the check is refused rather than
 followed. A file is used only when it is a regular file owned by this user and readable by no one else; the
-journal is appended to only through a file with a single name, so no other file is ever written through.
+journal is appended to only through a file with a single name, so no other file is ever written through, one whole
+line at a time.
 """
 
 from __future__ import annotations
 
+import fcntl
 import os
 import secrets
 import stat
@@ -100,8 +102,12 @@ class DispatcherHome(Home):
                 descriptor = self._open(directory, parts[-1], os.O_RDONLY)
             except FileNotFoundError:
                 return None
+            try:
+                self._private(descriptor, parts[-1], single=False)  # before any read, whatever it is
+            except BaseException:
+                os.close(descriptor)
+                raise
             with os.fdopen(descriptor, "rb") as handle:
-                self._private(handle.fileno(), parts[-1], single=False)
                 return handle.read()
         finally:
             os.close(directory)
@@ -134,21 +140,46 @@ class DispatcherHome(Home):
         finally:
             os.close(directory)
 
-    def append_private(self, parts: tuple[str, ...], data: bytes) -> None:
-        """Append ``data`` to the file, created private if absent, and make it durable."""
+    def append_line(self, parts: tuple[str, ...], line: bytes) -> None:
+        """Append one newline-terminated line to the file, created private if absent, durable on return.
 
+        An unterminated last line is a write a crash cut short, never acknowledged: it is dropped first, so no new
+        line is glued onto it (re-check a71cca2 N2). Appends hold an exclusive lock on the file.
+        """
+
+        if not line.endswith(b"\n") or b"\n" in line[:-1]:
+            raise ValueError("a journal line is one newline-terminated line")
         self.path(parts)
         directory = self._directory(parts[:-1], create=True)
         try:
-            descriptor = self._open(directory, parts[-1], os.O_WRONLY | os.O_CREAT | os.O_APPEND)
+            descriptor = self._open(directory, parts[-1], os.O_RDWR | os.O_CREAT)
             try:
                 self._private(descriptor, parts[-1], single=True)
-                write_all(descriptor, data)
+                fcntl.flock(descriptor, fcntl.LOCK_EX)
+                size = os.fstat(descriptor).st_size
+                if size and os.pread(descriptor, 1, size - 1) != b"\n":
+                    size = _after_last_newline(descriptor, size)
+                    os.ftruncate(descriptor, size)
+                os.lseek(descriptor, size, os.SEEK_SET)
+                write_all(descriptor, line)
                 os.fsync(descriptor)
             finally:
                 os.close(descriptor)
         finally:
             os.close(directory)
+
+
+def _after_last_newline(descriptor: int, size: int) -> int:
+    """The offset just after the file's last newline, or 0."""
+
+    end = size
+    while end > 0:
+        begin = max(0, end - 65536)
+        at = os.pread(descriptor, end - begin, begin).rfind(b"\n")
+        if at >= 0:
+            return begin + at + 1
+        end = begin
+    return 0
 
 
 __all__ = ["DispatcherHome"]
