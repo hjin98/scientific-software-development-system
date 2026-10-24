@@ -762,6 +762,34 @@ class SettledPartition(unittest.TestCase):
         self.assertNotEqual(item.route.route, f"partitioned:{answer['id']}", "a branch with no part left never waits")
         self.following(f, answer)
 
+    def test_c1_every_part_of_a_repartition_integrates_before_the_answer_settles(self) -> None:
+        for depth in (1, 2):
+            with self.subTest(depth=depth):
+                f = NoPartObjection().flow(1)
+                (decision,) = f.item().route.decisions
+                answer = f.partition(decision, [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])])
+                part = next(p for p in f.item().parts if p.share[0] == answer["id"])
+                f.spend(part.obligation)
+                part = next(p for p in f.item().parts if p.share[0] == answer["id"])
+                again = f.partition(f.budget_decision(part), [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])])
+                files = [{"records.md": "# r2\n"}, {"notes/a.md": "a2\n", "notes/b.md": "b2\n"}]
+                leaves = [(again["id"], 0, files[0])]
+                if depth == 1:
+                    leaves.append((again["id"], 1, files[1]))
+                else:  # the second part is re-partitioned in turn
+                    second = next(p for p in f.item().parts if p.share[0] == again["id"] and p.share[1] == 1)
+                    f.spend(second.obligation, "notes/a.md")
+                    second = next(p for p in f.item().parts if p.share[0] == again["id"] and p.share[1] == 1)
+                    deeper = f.partition(f.budget_decision(second), [(["o2"], ["notes.a"]), (["o3"], ["notes.b"])])
+                    leaves += [(deeper["id"], 0, {"notes/a.md": "a2\n"}), (deeper["id"], 1, {"notes/b.md": "b2\n"})]
+                for k, (rid, index, change) in enumerate(leaves):
+                    f.work_part(next(p for p in f.item().parts if p.share[0] == rid and p.share[1] == index), change)
+                    if k < len(leaves) - 1:
+                        item = f.item()
+                        self.assertEqual(item.route.route, f"partitioned:{answer['id']}", "a sibling's work is pending")
+                        self.assertFalse([o for o in item.route.decisions if o.target.get("condition") == "item-level-no-part"])
+                self.following(f, answer)
+
     def test_b2_a_repartition_of_the_answers_part_keeps_the_route(self) -> None:
         for shape in ("one part", "two parts"):
             with self.subTest(answer=shape):

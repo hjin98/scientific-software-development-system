@@ -598,29 +598,24 @@ class ItemObligation:
     def _partition_settled(self, partition: Partition) -> bool:
         """SD-54's one post-answer rule for a ``PARTITION`` answering the item-level-no-part chain, as for an
         ``AMEND``: it is settled once its work has integrated, and a condition that still holds then derives the
-        chain's next decision naming it. Its work has integrated when each of its parts, or a re-partition descending
-        from that part, has an integration after the partition was admitted, or when that branch has no required
-        part left (a later partition of the whole item dropped it). Integrations only accumulate, so a settled
-        partition stays settled: a part an objection's veto reopens, or redone work, never takes back a decision
-        owed after it (same-family checks of af327075 and 98c4d9a4: B-1, B-2, S-1)."""
+        chain's next decision naming it. Its work has integrated when each of its parts is done: the part has
+        integrated, or every part of each re-partition that replaced it is done, or it is no longer required (a
+        later partition of the whole item dropped it). A part's integrations are all after its partition, which
+        keys it. Integrations and replacements only accumulate, so a settled partition stays settled: a part an
+        objection's veto reopened, redone work or a later re-partition never takes back a decision owed after it
+        (same-family checks of af327075, 98c4d9a4 and 9a00fb78: B-1, B-2, S-1, C-1)."""
 
         required = {part.obligation.id for part in self.parts}
-        for index in range(len(partition.parts)):
-            branch = [self.part_obligation(partition, index)]
-            frontier = list(branch)
-            while frontier:
-                replaced = frontier.pop().obligation.id
-                for later in self.partitions:
-                    if later.replaces == replaced:
-                        children = [self.part_obligation(later, i) for i in range(len(later.parts))]
-                        branch += children
-                        frontier += children
-            if any(e.integrated > partition.position for part in branch for e in part.integrated):
-                continue
-            if not any(part.obligation.id in required for part in branch):
-                continue
-            return False
-        return True
+
+        def done(part: "ItemObligation") -> bool:
+            if part.integrated:
+                return True
+            later = [p for p in self.partitions if p.replaces == part.obligation.id]
+            if later:
+                return all(done(self.part_obligation(p, i)) for p in later for i in range(len(p.parts)))
+            return part.obligation.id not in required
+
+        return all(done(self.part_obligation(partition, i)) for i in range(len(partition.parts)))
 
     @property
     def carried_review_owed(self) -> bool:
