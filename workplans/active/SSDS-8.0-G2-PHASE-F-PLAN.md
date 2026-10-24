@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: proposed (revision 2, after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 2, after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: PROPOSED, revision 2. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 2; questions settled by SD-64. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -27,10 +27,8 @@ SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNE
         the integration ref the stakeholder designates (Q-F2) and publishes nothing; publication and
         fencing run only against integration refs in fixtures and scratch repositories (reading F1).
 DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history).
-DEPENDS:     steps 2-9 on nothing open: they create operator trees only in scratch SSDS homes (§2).
-             Real-runner execution (step 9) on Q-F3. Shadow operation (step 10), and creating the
-             operator trees in the real home, on Q-F2 and Q-F3. The difference study (step 11) on
-             Q-F1 and Q-F2.
+DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
+             `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
 NEXT ACTION: step 2 (requests, the early validation steps and a minimal commit path).
 ```
 
@@ -202,6 +200,8 @@ A dry run of `prepare` (baseline `1e34abef`, throwaway key, scratch SSDS home) v
 - runner processes are confined by `bwrap`, which is installed here (bubblewrap 0.6.1). It denies reads of the operator trees and the network, a runtime dependency for the runner path.
 
 Both the trees in the real home and the dependency are the stakeholder's to approve (§8). Without the sandbox, real-runner execution stays limited to secret-free fixtures (§6).
+
+**Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
 ## 8. Reopen and stop
 
