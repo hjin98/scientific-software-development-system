@@ -424,6 +424,9 @@ class Lifecycle(unittest.TestCase):
 
         counted, answered, n = [], set(), 0
         for outcome, settled, who in seq:
+            if outcome == "REDO":  # not an answer: redo the parts an objection reopened after their work integrated
+                self.redo(f)
+                continue
             (d,) = open_() or [None]
             if d is None:
                 return self.suspended(f, counted)
@@ -484,7 +487,7 @@ class Lifecycle(unittest.TestCase):
         chain whose parts the replay has not worked; a ready part never stands in for it, nor a partition whose work
         is done (§10.4; re-Review of 49bebf3, E-R3; same-family check of af327075, B-1 and B-2). The condition is read
         from the standing objections and the uncovered failing subjects, and the work done from the replay's own
-        history, never from the route owner, so this oracle does not reuse the code it checks."""
+        history, never from the route the owner derives (it does read the owner's objection and subject sets)."""
 
         item = f.item()
         condition = any(not item._named_parts(r) for r in item._objections) or bool(item.uncovered_failing)
@@ -502,6 +505,9 @@ class Lifecycle(unittest.TestCase):
 
     def amendment(self, f, n: int) -> dict[str, str]:
         return {"plans/work.md": plan(f"Adaptive solver, round {n}.\n")}
+
+    def redo(self, f) -> None:
+        raise NotImplementedError  # only the one-part seed redoes reopened work between answers
 
     def partition_redone(self, f, d, actor: str, n: int, uncounted: bool):
         raise NotImplementedError  # only the one-part seed redoes a partition's work and objects to it again
@@ -531,7 +537,20 @@ class LifecycleOnePart(Lifecycle):
         assert f.item().route.route == "COORDINATE:item-level-no-part"
         return f
 
-    ALPHABET = ALPHABET + [("PARTITION-REDONE", True, a) for a in ("principal", "human")]
+    ALPHABET = ALPHABET + [("PARTITION-REDONE", True, a) for a in ("principal", "human")] + [("REDO", True, "agent")]
+    PATHS = {"records": "records.md", "notes.a": "notes/a.md", "notes.b": "notes/b.md"}
+
+    def redo(self, f) -> None:
+        """Redo every part the standing objection's veto reopened after its work integrated, between answers: the
+        state in which a decision owed must not be taken back (S-1)."""
+
+        item = f.item()
+        admitted = {p.decision: p.position for p in item.partitions}
+        for part in [p for p in item.parts if p.discharge() == "OPEN"]:
+            latest = part.latest_integrated
+            if latest is not None and latest.integrated > admitted[part.share[0]]:
+                f.counter += 1
+                f.work_part(part, {self.PATHS[u]: f"{u}, redo {f.counter}\n" for u in part.share[3]})
 
     def partition_redone(self, f, d, actor: str, n: int, uncounted: bool):
         """A ``PARTITION`` into one part, that part's work done and its item-level review a NO-PASS naming no part

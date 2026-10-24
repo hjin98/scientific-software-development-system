@@ -594,7 +594,7 @@ class LifecycleRetained(test_step5_review.Lifecycle):
     def partition_elsewhere(self, f, d, actor: str, n: int, uncounted: bool):
         rec = f.partition(d, [(["o1", "o2", "o3"], ["notes.b"])], actor=actor)
         if not uncounted:  # its part is done and the item-level review passes; retained records stays uncovered
-            f.work_part(next(p for p in f.item().parts if p.discharge() == "OPEN"), {"notes/b.md": f"b, round {n}\n"})
+            f.work_part(next(p for p in f.item().parts if p.share[0] == rec["id"]), {"notes/b.md": f"b, round {n}\n"})
             f.item_level("PASS")
         return rec
 
@@ -689,26 +689,78 @@ class NoPartObjection(unittest.TestCase):
         self.assertEqual(f.item().discharge(), "DISCHARGED")
 
 
-class SpentPartition(unittest.TestCase):
-    """Same-family check of af327075: a partition answering the no-part chain holds the route until its work is done
-    and the condition is raised again on that work, decided by integrations, not by a part's current discharge."""
+class SettledPartition(unittest.TestCase):
+    """Same-family checks of af327075 and 98c4d9a4: a partition answering the no-part chain follows SD-54's one
+    post-answer rule, as an ``AMEND`` does. It holds the route until its work has integrated, and a decision owed
+    after it is never taken back by a part an objection reopened, redone work or a re-partition."""
 
-    def test_b1_a_second_objection_after_a_one_part_answer_derives_the_next_decision(self) -> None:
+    def answered(self):
         f = NoPartObjection().flow(1)
         (decision,) = f.item().route.decisions
         answer = f.partition(decision, [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])])
         part = next(p for p in f.item().parts if p.share[0] == answer["id"])
         f.work_part(part, {"records.md": "# r2\n", "notes/a.md": "a2\n", "notes/b.md": "b2\n"})
+        return f, answer
+
+    def following(self, f, answer):
         item = f.item()
-        self.assertEqual(item.route.route, f"partitioned:{answer['id']}", "its work awaits the carried review")
-        self.assertTrue(item.carried_review_owed)
-        f.item_level("NO_PASS")  # the carried review objects again, naming no part, and reopens the part
-        item = f.item()
-        self.assertEqual(next(p for p in item.parts if p.share[0] == answer["id"]).discharge(), "OPEN")
         self.assertEqual(item.route.route, "COORDINATE:item-level-no-part")
         (following,) = item.route.decisions
-        self.assertEqual(following.target["after"], answer["id"])
+        self.assertEqual(following.target["after"], answer["id"], "SD-54: the next decision names the answer")
         self.assertIn(following.id, {o.id for o in f.w().obligations})
+        return following
+
+    def test_b1_its_work_integrated_the_next_decision_is_owed_beside_the_carried_review(self) -> None:
+        f, answer = self.answered()
+        following = self.following(f, answer)
+        self.assertTrue(f.item().carried_review_owed, "the review that alone retires the objection runs beside it")
+        f.item_level("NO_PASS")  # the carried review objects again, naming no part, and reopens the part
+        self.assertEqual(next(p for p in f.item().parts if p.share[0] == answer["id"]).discharge(), "OPEN")
+        self.assertEqual(self.following(f, answer).id, following.id)
+
+    def test_s1_redone_work_never_takes_back_the_decision(self) -> None:
+        f, answer = self.answered()
+        f.item_level("NO_PASS")
+        following = self.following(f, answer)
+        part = next(p for p in f.item().parts if p.share[0] == answer["id"])
+        f.work_part(part, {"records.md": "# r3\n", "notes/a.md": "a3\n", "notes/b.md": "b3\n"})
+        self.assertEqual(self.following(f, answer).id, following.id, "the objection stands; so does its decision")
+
+    def test_s1_an_answered_decision_stays_on_the_chain(self) -> None:
+        f, answer = self.answered()
+        f.item_level("NO_PASS")
+        following = self.following(f, answer)
+        amend, _ = f.decide(following, "AMEND")  # settled at once
+        part = next(p for p in f.item().parts if p.share[0] == answer["id"])
+        f.work_part(part, {"records.md": "# r3\n", "notes/a.md": "a3\n", "notes/b.md": "b3\n"})
+        (next_,) = f.item().route.decisions
+        self.assertEqual(next_.target["after"], amend["id"], "the counted answer is still on the chain")
+
+    def test_s1_two_parts_one_redone(self) -> None:
+        f = NoPartObjection().flow(2)
+        (decision,) = f.item().route.decisions
+        answer = f.partition(decision, [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])])
+        for i, files in ((0, {"records.md": "# r2\n"}), (1, {"notes/a.md": "a2\n", "notes/b.md": "b2\n"})):
+            f.work_part([p for p in f.item().parts if p.share[0] == answer["id"]][i], files)
+        f.item_level("NO_PASS")
+        following = self.following(f, answer)
+        f.work_part([p for p in f.item().parts if p.share[0] == answer["id"]][0], {"records.md": "# r3\n"})
+        self.assertEqual(self.following(f, answer).id, following.id)
+
+    def test_a_partition_whose_parts_a_later_whole_partition_dropped_does_not_hold_the_chain(self) -> None:
+        f = NoPartObjection().flow(1)
+        (decision,) = f.item().route.decisions
+        two = [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])]
+        answer = f.partition(decision, two)
+        latest = f.item().enactments[-1]  # an out-of-scope NO-PASS of the item's own earlier enactment: a decision
+        f.review(latest.transformation, f.item().s.record(latest.result)["target"]["candidate"], "NO_PASS", findings=[])
+        (finding,) = [o for o in f.item().route.decisions if o.target.get("condition") is None]
+        whole = f.partition(finding, two)  # a partition of the whole item, answering another decision
+        item = f.item()
+        self.assertTrue(any(p.decision == whole["id"] for p in item.partitions))
+        self.assertFalse([p for p in item.parts if p.share[0] == answer["id"]], "it dropped the answer's parts")
+        self.assertNotEqual(item.route.route, f"partitioned:{answer['id']}", "a branch with no part left never waits")
+        self.following(f, answer)
 
     def test_b2_a_repartition_of_the_answers_part_keeps_the_route(self) -> None:
         for shape in ("one part", "two parts"):
