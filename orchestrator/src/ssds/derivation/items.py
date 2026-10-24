@@ -548,9 +548,9 @@ class ItemObligation:
                                  for p in self.parts if p.obligation.id in self._branch(o)) for o in named)
                 if redone:
                     continue
-            elif any(self.s.position_of(q) > position and self.s.record(q)["target"] != self.s.record(r)["target"]
+            elif any(self.s.position_of(q) > position and self._result_at(q) > self._result_at(r)
                      for q in self._item_level_records):
-                continue
+                continue  # a later review of a newer result, whose brief carries it (same-family check of eccd24bd, B-S8)
             out.append(r)
         return out
 
@@ -560,11 +560,17 @@ class ItemObligation:
 
         return tuple(self.part_obligation(p, i) for p in self.partitions for i in range(len(p.parts)))
 
+    def _result_at(self, review: str) -> int:
+        """The position of the integrated result an item-level review judged (its target's ``at`` entry)."""
+
+        target = self.s.record(review)["target"]
+        return self.items.entry_positions.get(target.get("at"), -1) if isinstance(target, dict) else -1
+
     def _named_parts(self, review: str) -> frozenset[str]:
         """The part obligations an item-level review's findings name, when every adverse finding names one. Each
         finding's ``part`` index is resolved against the parts whose integrations the review's target judged (its
-        ``changes``, §3.4): a strict integer naming exactly one of them, which is still required or has a required
-        part descending from it. Any adverse finding without such a selector (missing, nonexistent, non-integer,
+        ``changes``, §3.4): a strict integer naming exactly one of them, every part of whose branch that no
+        re-partition replaced is still required (same-family check of eccd24bd, N-a). Any adverse finding without such a selector (missing, nonexistent, non-integer,
         ambiguous, naming a part a later partition dropped, or not an object) fails safe: the whole review counts
         as naming no part, so the principal decides and no finding is stranded (E32; re-Review of 9c7d77d, E-R5;
         same-family check of 17b22d71, N-1 and N-2). An entry resolving an earlier finding is not adverse."""
@@ -574,13 +580,14 @@ class ItemObligation:
         entries = self.s.h.chain.entries
         judged = [p for p in self._all_parts if any(entries[e.integrated].digest in changes for e in p.integrated)]
         required = {p.obligation.id for p in self.parts}
+        replaced = {p.replaces for p in self.partitions if p.replaces is not None}
         named = set()
         for finding in self.items.findings_of(review) or []:
             if isinstance(finding, dict) and finding.get("status") == "RESOLVED" and "of" in finding:
                 continue
             selector = finding.get("part") if isinstance(finding, dict) else None
             matches = [p for p in judged if type(selector) is int and p.share[1] == selector]
-            if len(matches) != 1 or not self._branch(matches[0].obligation.id) & required:
+            if len(matches) != 1 or not self._branch(matches[0].obligation.id) - replaced <= required:
                 return frozenset()
             named.add(matches[0].obligation.id)
         return frozenset(named)
@@ -1012,6 +1019,12 @@ class Items:
         """Coordination decisions naming the decision obligation, in position order (§15.5)."""
 
         return self._answers.get(obligation_id, [])
+
+    @cached_property
+    def entry_positions(self) -> dict[str, int]:
+        """Each admitted entry's digest and position."""
+
+        return {entry.digest: k for k, entry in enumerate(self.s.h.chain.entries[: self.s.n + 1])}
 
     @cached_property
     def partition_sizes(self) -> dict[str, int]:

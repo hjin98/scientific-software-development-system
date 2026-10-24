@@ -892,12 +892,12 @@ class SelectorNaming(unittest.TestCase):
     decides (N-1, N-2). A named part counts as redone only when every required part descending from it has (P2)."""
 
     @staticmethod
-    def review_on(f, target, findings, actor):
+    def review_on(f, target, findings, actor, outcome="NO_PASS"):
         from ._scenario import agent, fresh
 
         f.counter += 1
         task = f"late-{f.counter}"
-        verdict = judgment("REVIEW", target, "NO_PASS", actor=agent(actor), actor_class="AGENT",
+        verdict = judgment("REVIEW", target, outcome, actor=agent(actor), actor_class="AGENT",
                            basis=[content("records", f.sc.rev("records"))], binding=fresh(agent(actor), task))
         result = record("TASK_RESULT", target={"task": task}, outcome="COMPLETE", actor=agent(actor), actor_class="AGENT",
                         fields={"slots": {"claims": [], "findings": findings}})
@@ -954,6 +954,76 @@ class SelectorNaming(unittest.TestCase):
         f.work_part(children()[0], {"notes/a.md": "a v3\n"})
         self.assertIn(late["id"], f.item()._objections, "one redone descendant does not retire it")
         self.assertEqual(children()[1].discharge(), "OPEN")
+
+
+class ObjectionRetirement(unittest.TestCase):
+    """Same-family check of eccd24bd: an objection naming no part retires only on a later review of a newer result
+    (B-S8); a named part counts only while every unreplaced part of its branch is required (N-a); and the selector
+    rule's edges (a RESOLVED entry, depth-2 re-partitions)."""
+
+    def test_b_s8_a_late_review_of_an_older_result_never_retires_the_objection(self) -> None:
+        from .test_partition import partitioned_and_worked
+
+        for late in ("PASS", "NO_PASS"):
+            with self.subTest(late=late):
+                f = partitioned_and_worked()
+                older = f.item().item_level_target
+                f.work_part(f.item().parts[0], {"records.md": "# Records v2\n"})
+                objection = f.item_level("NO_PASS", findings=[{"units": ["records"], "id": "R-CURRENT"}])
+                (decision,) = f.item().route.decisions
+                SelectorNaming.review_on(f, older, [{"units": ["notes.a"]}] if late == "NO_PASS" else [], "integrator2", late)
+                item = f.item()
+                self.assertIn(objection["id"], item._objections)
+                self.assertEqual(item.route.route, "COORDINATE:item-level-no-part")
+                self.assertIn(decision.id, {o.id for o in f.w().obligations})
+
+    def test_n_a_a_named_branch_partly_dropped_names_no_part(self) -> None:
+        from .test_partition import partitioned_and_worked
+
+        f = partitioned_and_worked()
+        older = f.item().item_level_target
+        named = f.item_level("NO_PASS", findings=[{"part": 1, "units": ["notes.b"], "id": "R-NOTES-B"}])
+        first = next(p for p in f.item().parts if p.discharge() == "OPEN")
+        f.spend(first.obligation, "notes/a.md")
+        first = next(p for p in f.item().parts if p.share[1] == 1 and p.share[0] == first.share[0])
+        again = f.partition(f.budget_decision(first), [(["o2"], ["notes.a"]), (["o3"], ["notes.b"])])
+        f.work_part(next(p for p in f.item().parts if p.share[0] == again["id"] and p.share[1] == 0), {"notes/a.md": "a v2\n"})
+        SelectorNaming.review_on(f, older, [{"units": ["records"]}], "integrator2")
+        (decision,) = [o for o in f.item().route.decisions if o.target.get("condition") == "item-level-no-part"]
+        f.partition(decision, [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])])  # drops the unfinished B1
+        item = f.item()
+        self.assertIn(named["id"], item.no_part_objections, "its subject's part was dropped: the principal decides")
+
+    def test_a_resolved_entry_beside_a_valid_selector_still_names_the_part(self) -> None:
+        from .test_partition import partitioned_and_worked
+
+        for entry, named in (({"of": "sha256:" + "a" * 64, "status": "RESOLVED"}, True), ({"status": "RESOLVED"}, False)):
+            with self.subTest(entry=entry):
+                f = partitioned_and_worked()
+                f.item_level("NO_PASS", findings=[{"part": 0, "units": ["records"]}, entry])
+                route = f.item().route.route
+                self.assertEqual(route.startswith("partitioned:"), named)
+                self.assertEqual(route == "COORDINATE:item-level-no-part", not named)
+
+    def test_a_late_review_naming_a_replaced_part_vetoes_its_depth_two_descendants(self) -> None:
+        from .test_partition import partitioned_and_worked
+
+        f = partitioned_and_worked()
+        older = f.item().item_level_target
+        f.item_level("NO_PASS", findings=[{"part": 1, "units": ["notes.a"]}])
+        first = next(p for p in f.item().parts if p.discharge() == "OPEN")
+        f.spend(first.obligation, "notes/a.md")
+        first = next(p for p in f.item().parts if p.share[1] == 1 and p.share[0] == first.share[0])
+        b = f.partition(f.budget_decision(first), [(["o2"], ["notes.a"]), (["o3"], ["notes.b"])])
+        b1 = next(p for p in f.item().parts if p.share[0] == b["id"] and p.share[1] == 1)
+        f.spend(b1.obligation, "notes/b.md")
+        b1 = next(p for p in f.item().parts if p.share[0] == b["id"] and p.share[1] == 1)
+        c = f.partition(f.budget_decision(b1), [(["o3"], ["notes.b"])])
+        f.work_part(next(p for p in f.item().parts if p.share[0] == b["id"]), {"notes/a.md": "a v2\n"})
+        f.work_part(next(p for p in f.item().parts if p.share[0] == c["id"]), {"notes/b.md": "b v2\n"})
+        SelectorNaming.review_on(f, older, [{"part": 1, "units": ["notes.b"]}], "integrator2")
+        leaves = [p for p in f.item().parts if p.share[0] in (b["id"], c["id"])]
+        self.assertEqual([p.discharge() for p in leaves], ["OPEN", "OPEN"])
 
 if __name__ == "__main__":
     unittest.main()
