@@ -253,6 +253,12 @@ The added tests are `StepTwoRereview`. Non-blocking notes kept:
 - two refused records differing only in their claimed `id` share an identity;
 - later-step reachability of the position-sensitive base check and of admitted producing contexts (steps 4 and 6).
 
+**Step 2 third check (36497a1c).** S1, S2, S4 and S5 are closed (S2 fuzzed over 9,600 substitutions with no exception). NO-PASS on two:
+- **T2, the byte bound failed open.** It read as not exceeded whenever canonical JSON could not encode the request (a float), so an 8.8 MB record could be salvaged. Size is now measured by walking the value, independent of encodability.
+- **T1, five repaired behaviours lacked discriminating tests.** These are now added (`StepTwoThirdCheck`): a two-level dangling chain; a salvaged record naming an admitted one, which is kept; requeue order; empty refusals beyond depth; each schema type guard through the queue.
+
+A non-blocking point is taken too: the pre-append guard raises its own `EntryInvalid`, so such a request is not requeued forever.
+
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
 - **B1, the wrong observed ref.** `main` is behind and does not contain the genesis baseline. F1 and Q-F2 (i) now put the observed ref to the stakeholder as a deployment setting, and step 10's absorption test reads observed heads.
 - **B2, a boundary resting on one CLI check, and records-only fencing.** The real-shadow Admission is observe-only. Records-only admissions are never fenced. The boundary check sits at Admission's entry for every route. Step 10 tests a restart after a records-only admission and library and Dispatcher routes.

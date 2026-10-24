@@ -363,5 +363,63 @@ class StepTwoRereview(RequestFixture):
         self.assertIn((kept["id"], ("REF_DUPLICATE",)), again.refused, "a record already in the ledger is a duplicate")
         self.assertNotEqual(content_identity(["a"]), content_identity(["b"]))
 
+
+class StepTwoThirdCheck(RequestFixture):
+    """The third same-family check of 36497a1c: the byte bound measured without encoding (T2) and the repaired
+    behaviours' discriminators (T1)."""
+
+    def test_t2_an_unencodable_request_cannot_slip_past_the_byte_bound(self) -> None:
+        from ssds.ledger.read import with_id
+
+        self.admission.authenticated = lambda request: True
+        big = with_id({**finding(), "provenance": {"note": ["y" * 4000] * 2200}})
+        decision = self.admit(self.request([big], binding={"f": 1.5}))
+        self.assertIn("SCHEMA_BOUND", decision.reasons)
+        self.assertEqual((decision.admitted, decision.refused), ((), ()))
+
+    def test_t1_salvage_drops_dangling_chains_to_a_fixed_point_and_keeps_admitted_names(self) -> None:
+        self.admission.authenticated = lambda request: True
+        earlier = finding(materiality="CRITICAL")
+        self.admit(self.request([earlier]))
+        x = task_result("sha256:" + "b" * 64)
+        b = record("FINDING", target={"records": [x["id"]]}, fields={"materiality": "ROUTINE"})
+        a = record("FINDING", target={"records": [b["id"]]}, fields={"materiality": "ROUTINE"})
+        names_earlier = record("FINDING", target={"records": [earlier["id"]]}, fields={"materiality": "MATERIAL"})
+        decision = self.admit(self.request([x, b, a, names_earlier], base_position=1))
+        self.assertEqual(decision.admitted, (names_earlier["id"],))
+        refused = dict(decision.refused)
+        self.assertEqual((refused[a["id"]], refused[b["id"]]), (("REF_RECORD",), ("REF_RECORD",)))
+
+    def test_t1_a_halted_request_returns_to_the_front(self) -> None:
+        first, second = self.request([finding()]), self.request([finding(materiality="MATERIAL")])
+        self.admission.submit(first)
+        self.admission.submit(second)
+        with self.assertRaises(AdmissionHalted):
+            self.admission.process("0" * 40)
+        self.assertEqual(self.admission.queue, [first, second])
+
+    def test_t1_beyond_depth_nothing_is_refused_or_salvaged(self) -> None:
+        self.admission.authenticated = lambda request: True
+        deep: object = "x"
+        for _ in range(100):
+            deep = [deep]
+        decision = self.admit(self.request([finding()], adopted_deltas=[{"d": deep}]))
+        self.assertEqual((decision.reasons, decision.admitted, decision.refused), (("SCHEMA_BOUND",), (), ()))
+
+    def test_t1_each_schema_type_guard_holds_through_the_queue(self) -> None:
+        from ssds.ledger.read import with_id
+
+        base = finding()
+        broken = [with_id({**base, "actor_class": ["HUMAN"]}),
+                  with_id({**base, "basis": [{"mode": ["content"], "target": {}, "class": "EXACT"}]}),
+                  with_id({**base, "basis": [{"mode": "content", "target": {"unit": "guide", "rev": "sha256:" + "0" * 64},
+                                              "class": ["EXACT"]}]})]
+        for record_ in broken:
+            self.admission.submit(self.request([record_]))
+        self.admission.submit(self.request([finding(materiality="CRITICAL")]))
+        decisions = self.admission.process(self.baseline)
+        self.assertEqual(len(decisions), 4)
+        self.assertTrue(all(d.refused and d.refused[0][1] == ("SCHEMA_RECORD",) for d in decisions[:3]))
+
 if __name__ == "__main__":
     unittest.main()

@@ -36,6 +36,10 @@ class AdmissionHalted(RuntimeError):
     """Admission does not append: the observed head is not the expected head (absorption is step 6's)."""
 
 
+class EntryInvalid(RuntimeError):
+    """Admission does not append an entry that would not verify; the request is set aside, not requeued."""
+
+
 @dataclass(frozen=True)
 class Decision:
     request_id: str
@@ -159,7 +163,7 @@ class Admission:
                                "refused": [{"record_id": r, "reasons": list(why)} for r, why in refused]}}
         problems = entry_violations(entry) + [p for r in admitted for p in record_violations(r)]
         if problems:  # nothing that would break the chain is ever appended
-            raise AdmissionHalted(f"the entry for {rid} would not verify: {problems}")
+            raise EntryInvalid(f"the entry for {rid} would not verify: {problems}")
         appended = append_entry(self.repository, entry, self.key, head.commit, objects=objects)
         write_checkpoint(FileWitness(self.home.witness_root), appended.checkpoint)
         return Decision(rid, decision, tuple(sorted(reasons)), tuple(r["id"] for r in admitted), tuple(refused),
@@ -223,4 +227,4 @@ class Admission:
         return reasons, refused, passing
 
 
-__all__ = ["Admission", "AdmissionHalted", "Decision", "UNREALIZED_STEPS"]
+__all__ = ["Admission", "AdmissionHalted", "Decision", "EntryInvalid", "UNREALIZED_STEPS"]

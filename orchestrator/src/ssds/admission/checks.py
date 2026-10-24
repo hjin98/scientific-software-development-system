@@ -141,7 +141,7 @@ def too_deep(value: Any, limit: int = MAX_DEPTH) -> bool:
     stack = [(value, 1)]
     while stack:
         item, depth = stack.pop()
-        if isinstance(item, (Mapping, list)):
+        if isinstance(item, (Mapping, list, tuple)):
             if depth > limit:
                 return True
             children = item.values() if isinstance(item, Mapping) else item
@@ -149,20 +149,38 @@ def too_deep(value: Any, limit: int = MAX_DEPTH) -> bool:
     return False
 
 
+def measured_size(value: Any, limit: int = MAX_REQUEST_BYTES) -> int:
+    """An upper estimate of a value's serialized size, measured without encoding it (so an unencodable value
+    cannot slip past the byte bound) and without recursion; it stops counting once past ``limit``."""
+
+    total, stack = 0, [value]
+    while stack and total <= limit:
+        item = stack.pop()
+        if isinstance(item, str):
+            total += len(item.encode("utf-8", "surrogatepass")) + 2
+        elif isinstance(item, Mapping):
+            total += 2
+            for k, v in item.items():
+                stack.append(k)
+                stack.append(v)
+        elif isinstance(item, (list, tuple)):
+            total += 2 + len(item)
+            stack.extend(item)
+        else:
+            total += len(repr(item))
+    return total
+
+
 def over_bounds(request: Any) -> bool:
     """A request beyond a count, depth or byte bound gets no per-record work and salvages nothing (§25.4)."""
 
     if too_deep(request):
         return True
-    if not isinstance(request, Mapping):
-        return False
-    records = request.get("records")
-    if isinstance(records, list) and len(records) > MAX_RECORDS:
-        return True
-    try:
-        return len(canonical_json(dict(request))) > MAX_REQUEST_BYTES
-    except (ValueError, TypeError):
-        return False
+    if isinstance(request, Mapping):
+        records = request.get("records")
+        if isinstance(records, list) and len(records) > MAX_RECORDS:
+            return True
+    return measured_size(request) > MAX_REQUEST_BYTES
 
 
 def request_problems(request: Any) -> list[str]:
@@ -181,13 +199,13 @@ def request_problems(request: Any) -> list[str]:
             or not isinstance(position, int) or isinstance(position, bool) or not is_commit(request["base_commit"]) \
             or not (request["binding"] is None or isinstance(request["binding"], Mapping)):
         return ["SCHEMA_REQUEST"]
-    try:
-        size = len(canonical_json(dict(request)))
-    except (ValueError, TypeError):
-        return ["SCHEMA_REQUEST"]
     problems = []
-    if len(request["records"]) > MAX_RECORDS or size > MAX_REQUEST_BYTES:
+    if over_bounds(request):
         problems.append("SCHEMA_BOUND")
+    try:
+        canonical_json(dict(request))
+    except (ValueError, TypeError):
+        problems.append("SCHEMA_REQUEST")
     problems += verified_objects(request["objects"])[1]
     if secret_detected({k: request[k] for k in ("binding", "claims", "adopted_deltas")}):
         problems.append("SECRET_DETECTED")
