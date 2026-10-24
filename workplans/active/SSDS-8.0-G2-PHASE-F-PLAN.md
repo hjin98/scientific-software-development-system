@@ -221,6 +221,24 @@ Specific to Phase F, these come to the stakeholder before they are built:
 - a new runtime dependency;
 - any live model call.
 
+## 9. Plan and step review record
+
+**Step 2 same-family review (0933e5db).** NO-PASS with eight blockers and no SERIOUS CHALLENGE:
+- **B1, the chain could halt.** A refused record was identified by its claimed `id`, so a malformed one halted the chain. Refused records are now identified by content, and the entry is validated before any append.
+- **B2, salvage admitted unchecked material.** Salvage admitted records that were never checked, and objects that were never verified. Every record is now checked whatever the request's faults, references resolve only to records that passed, and only verified objects that admitted records reference are written.
+- **B3, objects were not verified.** Each object is now checked against its key: digest grammar, digest of the canonical JSON. Records' `LEDGER` refs must resolve (`REF_OBJECT`).
+- **B4, never-lost classes.** They now come from the derivation owner (`derivation.adverse`).
+- **B5, secrets under identity key names.** The entropy exemption now goes by the value's grammar, not its key name.
+- **B6, untrusted input.** Request fields have their grammar checked, unencodable input gets a deterministic identity, and each request leaves the queue as it is taken.
+- **B7, `base_commit`.** It must match the head after `base_position`.
+- **B8, test gaps.** The missing tests are added, including the S2 binding cases and the remaining credential forms.
+
+Tests: `test_admission_requests.StepTwoReview` fails on 0933e5db for every behavioural blocker. Non-blocking notes kept for later steps:
+- the entropy threshold's weak detection below about 30 characters (a policy calibration);
+- paths flagged by the tokenizer;
+- whether "challenges" in §8.3 step 6 include adjudications (to settle before step 4);
+- the `machinery:` actor prefix standing in for runner authentication until steps 3 and 9.
+
 ## 9. Plan review record
 
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:

@@ -34,6 +34,9 @@ from .schema import (
     SYSTEM_RULESET,
     SchemaViolation,
     entry_violations,
+    is_commit,
+    is_digest,
+    is_token,
     record_id,
     record_violations,
     is_unit,
@@ -302,7 +305,7 @@ def index_records(chain: Chain, through: int | None = None) -> RecordIndex:
 __all__ = [
     "CHALLENGE_TIER", "Chain", "ChainRejected", "KINDS", "LEDGER_REF_PREFIX", "LIFECYCLE_TIER", "LedgerEntry",
     "OBSERVATION_TIER", "RECOVERY_LIFECYCLE", "RawEntry", "RecordIndex", "SCHEMA_VERSION", "SUPPORT_TIER",
-    "SYSTEM_RULESET", "SchemaViolation", "entry_digest", "entry_violations", "human_key_id", "index_records",
+    "SYSTEM_RULESET", "SchemaViolation", "entry_digest", "entry_violations", "human_key_id", "is_commit", "is_digest", "is_token", "index_records",
     "is_unit", "ledger_head", "ledger_ref", "read_chain", "read_raw", "record_id", "record_violations", "tier",
     "verify_chain", "verify_sshsig", "with_id",
 ]

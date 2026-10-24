@@ -2,11 +2,14 @@
 
 Each check returns reason codes from the closed list of schema version 1 (catalogue §8.4: the members of each ``*``
 family are delegated and closed per schema version). Request-level reasons reject the request; record-level
-reasons refuse a record, and a never-lost record that passes its own checks is still admitted (step 6).
+reasons refuse a record, and a never-lost record that passes its own checks is still admitted (step 6). Every
+record is checked on its own, whatever the request's other faults, so salvage never admits an unchecked record.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import re
 from collections import Counter
@@ -14,6 +17,7 @@ from collections.abc import Iterator, Mapping
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
+from ssds.ledger.read import is_commit, is_digest, is_token, record_id
 
 from .request import REQUEST_FIELDS
 
@@ -23,7 +27,8 @@ REASONS = frozenset({
     # step 1
     "SCHEMA_REQUEST", "SCHEMA_RECORD", "SCHEMA_BOUND", "SCHEMA_OBJECT", "SCHEMA_UNSUPPORTED", "SECRET_DETECTED",
     # step 2
-    "REF_BASE", "REF_RECORD", "REF_REVISION", "REF_OBLIGATION", "REF_DUPLICATE", "REF_PRODUCING_CONTEXT",
+    "REF_BASE", "REF_RECORD", "REF_REVISION", "REF_OBJECT", "REF_OBLIGATION", "REF_DUPLICATE",
+    "REF_PRODUCING_CONTEXT",
 })
 
 #: Input bounds at the Admission boundary (Manual §25.4; the values are delegated, proposed defaults).
@@ -44,25 +49,26 @@ CREDENTIAL_PATTERNS = (
     re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
     re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s@/]+@[^\s/]+"),
 )
-ENTROPY_BITS = 4.5  # §24.1: [proposed default] Shannon entropy per character
-ENTROPY_MIN_LENGTH = 20
+#: §24.1 [proposed default]: Shannon entropy of at least 4.5 bits per character over any token of at least 20
+#: characters. A token of n characters cannot exceed log2(n) bits per character, so the threshold detects little
+#: below about 30 characters; recalibrating it is policy's (the step 2 review's note).
+ENTROPY_BITS = 4.5
 _TOKEN = re.compile(r"[A-Za-z0-9+/=_.-]{20,}")
-_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
-_HEX = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
-#: Fields whose grammar is a digest or an identity, which the entropy check skips (§24.1).
-IDENTITY_KEYS = frozenset({"id", "digest", "key_id", "public_key", "signature", "record_id", "request_id"})
+#: The digest and identity grammars the entropy check exempts (§24.1 "outside fields whose grammar is a digest or
+#: identity"): by the value's grammar, never by the key it sits under.
+_EXEMPT = (re.compile(r"sha256:[0-9a-f]{64}"), re.compile(r"[0-9a-f]{40}"), re.compile(r"[0-9a-f]{64}"))
 
 
-def _strings(value: Any, key: str | None = None) -> Iterator[tuple[str | None, str]]:
+def _strings(value: Any) -> Iterator[str]:
     if isinstance(value, str):
-        yield key, value
+        yield value
     elif isinstance(value, Mapping):
         for k, v in value.items():
-            yield from _strings(k, None)
-            yield from _strings(v, k if isinstance(k, str) else None)
+            yield from _strings(k)
+            yield from _strings(v)
     elif isinstance(value, list):
         for v in value:
-            yield from _strings(v, key)
+            yield from _strings(v)
 
 
 def _entropy(token: str) -> float:
@@ -71,15 +77,13 @@ def _entropy(token: str) -> float:
 
 
 def secret_detected(value: Any) -> bool:
-    """A known credential form anywhere, or a high-entropy token outside a digest or identity field (§24.1)."""
+    """A known credential form anywhere, or a high-entropy token whose grammar is not a digest or identity."""
 
-    for key, text in _strings(value):
+    for text in _strings(value):
         if any(p.search(text) for p in CREDENTIAL_PATTERNS):
             return True
-        if key in IDENTITY_KEYS:
-            continue
         for token in _TOKEN.findall(text):
-            if _DIGEST.fullmatch(token) or _HEX.fullmatch(token) or token.startswith("sha256:"):
+            if any(p.fullmatch(token) for p in _EXEMPT):
                 continue
             if _entropy(token) >= ENTROPY_BITS:
                 return True
@@ -87,35 +91,81 @@ def secret_detected(value: Any) -> bool:
 
 
 def oversize(value: Any) -> bool:
-    return any(len(text) > MAX_STRING for _, text in _strings(value))
+    return any(len(text) > MAX_STRING for text in _strings(value))
+
+
+def content_identity(record: Any) -> str:
+    """A refused record's identity: its content digest, never its claimed ``id`` (catalogue §8.3 step 6: refused "by
+    identity and reason"), so a refusal is always recordable."""
+
+    try:
+        if isinstance(record, Mapping):
+            return record_id(record)
+        return "sha256:" + hashlib.sha256(b"ssds.element.v1" + canonical_json(record)).hexdigest()
+    except (ValueError, TypeError):
+        return "sha256:" + hashlib.sha256(b"ssds.element.unencodable" + repr(record).encode("utf-8")).hexdigest()
+
+
+def verified_objects(objects: Any) -> tuple[dict[str, bytes], list[str]]:
+    """The request's ``LEDGER``-store objects that are what their key says (a digest of their canonical JSON text),
+    and the step 1 reasons for those that are not."""
+
+    good: dict[str, bytes] = {}
+    problems: list[str] = []
+    if not isinstance(objects, Mapping):
+        return good, ["SCHEMA_REQUEST"]
+    for digest, text in objects.items():
+        if not is_digest(digest) or not isinstance(text, str) or len(text.encode("utf-8")) > MAX_OBJECT_BYTES:
+            problems.append("SCHEMA_OBJECT")
+            continue
+        data = text.encode("utf-8")
+        try:
+            parsed = json.loads(text)
+            canonical = canonical_json(parsed) == data
+        except (ValueError, TypeError):
+            canonical = False
+        if not canonical or "sha256:" + hashlib.sha256(data).hexdigest() != digest:
+            problems.append("SCHEMA_OBJECT")
+            continue
+        if secret_detected(parsed):
+            problems.append("SECRET_DETECTED")
+            continue
+        good[digest] = data
+    return good, problems
 
 
 def request_problems(request: Any) -> list[str]:
-    """Step 1 at the request level: its shape and bounds."""
+    """Step 1 at the request level: its shape, the grammar of each field, bounds, objects and secrets."""
 
     if not isinstance(request, Mapping) or set(request) - {"request_id"} != REQUEST_FIELDS:
         return ["SCHEMA_REQUEST"]
-    problems = []
+    position = request["base_position"]
     if not isinstance(request["records"], list) or not isinstance(request["claims"], list) \
-            or not isinstance(request["candidates"], list) or not isinstance(request["adopted_deltas"], list) \
-            or not isinstance(request["objects"], Mapping) or not isinstance(request["base_position"], int) \
-            or isinstance(request["base_position"], bool) or not isinstance(request["base_commit"], str):
+            or not all(is_token(c) for c in request["claims"]) \
+            or not isinstance(request["candidates"], list) or not all(is_commit(c) for c in request["candidates"]) \
+            or not isinstance(request["adopted_deltas"], list) \
+            or not all(isinstance(d, Mapping) for d in request["adopted_deltas"]) \
+            or not isinstance(position, int) or isinstance(position, bool) or not is_commit(request["base_commit"]) \
+            or not (request["binding"] is None or isinstance(request["binding"], Mapping)):
         return ["SCHEMA_REQUEST"]
-    if len(request["records"]) > MAX_RECORDS or len(canonical_json(dict(request))) > MAX_REQUEST_BYTES:
+    try:
+        size = len(canonical_json(dict(request)))
+    except (ValueError, TypeError):
+        return ["SCHEMA_REQUEST"]
+    problems = []
+    if len(request["records"]) > MAX_RECORDS or size > MAX_REQUEST_BYTES:
         problems.append("SCHEMA_BOUND")
-    for digest, text in request["objects"].items():
-        if not isinstance(text, str) or len(text.encode("utf-8")) > MAX_OBJECT_BYTES:
-            problems.append("SCHEMA_OBJECT")
-        elif secret_detected(text):
-            problems.append("SECRET_DETECTED")
+    problems += verified_objects(request["objects"])[1]
     if secret_detected({k: request[k] for k in ("binding", "claims", "adopted_deltas")}):
         problems.append("SECRET_DETECTED")
     return sorted(set(problems))
 
 
 def record_problems(record: Any, schema_violations) -> list[str]:
-    """Step 1 at the record level: the closed schema, bounds and the secret scan."""
+    """Step 1 at the record level: the closed schema, bounds and the secret scan, each reported."""
 
+    if not isinstance(record, Mapping):
+        return ["SCHEMA_RECORD"]
     problems = ["SCHEMA_RECORD"] if schema_violations(record) else []
     if oversize(record):
         problems.append("SCHEMA_BOUND")
@@ -157,5 +207,23 @@ def referenced_revisions(record: Mapping[str, Any]) -> set[tuple[str, str]]:
     return out
 
 
-__all__ = ["REASONS", "record_problems", "referenced_records", "referenced_revisions", "request_problems",
-           "secret_detected"]
+def referenced_objects(record: Mapping[str, Any]) -> set[str]:
+    """The ``LEDGER``-store object digests a record's refs name."""
+
+    return {r["digest"] for r in record.get("refs") or [] if isinstance(r, Mapping) and r.get("store") == "LEDGER"}
+
+
+def producing_context(record: Mapping[str, Any]) -> tuple[str, tuple[str, ...], Any] | None:
+    """A task result's transformation and producing context (write scope, work key), §7.1; None otherwise."""
+
+    if record.get("kind") != "TASK_RESULT":
+        return None
+    x = (record.get("target") or {}).get("transformation")
+    if not x:
+        return None
+    binding = record.get("binding") or {}
+    return x, tuple(sorted(binding.get("write_scope") or ())), binding.get("item_key")
+
+
+__all__ = ["REASONS", "content_identity", "producing_context", "record_problems", "referenced_objects",
+           "referenced_records", "referenced_revisions", "request_problems", "secret_detected", "verified_objects"]

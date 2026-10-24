@@ -12,6 +12,7 @@ and equals derivation from scratch; storing it is its caller's.
 from . import queries
 from .baseline import BaselineStructure, baseline_structure, genesis_structure_problems
 from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
+from .outcomes import adverse
 from .reports import allowed_outcomes
 from .s3 import Consequences, Finding, Obligation
 from .state import F, P, Policy, T, State
@@ -33,6 +34,6 @@ def consequences(chain, trees: TreeSource, position: int | None = None, checkpoi
 
 __all__ = [
     "BaselineStructure", "CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History",
-    "Obligation", "P", "Policy", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "Workflow", "allowed_outcomes", "queries", "baseline_structure", "consequences",
+    "Obligation", "P", "Policy", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "Workflow", "adverse", "allowed_outcomes", "queries", "baseline_structure", "consequences",
     "derive",
 ]

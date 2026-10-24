@@ -22,24 +22,25 @@ from collections.abc import Mapping
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
+from ssds.derivation import adverse
 
 REQUEST_FIELDS = frozenset({"binding", "claims", "base_position", "base_commit", "candidates", "adopted_deltas",
                             "records", "objects"})
 REPORT_KINDS = frozenset({"FINDING", "AMENDMENT_REQUEST", "BLOCKER", "HUMAN_QUESTION"})
-#: Judgment outcomes that are adverse (§5.10): they veto while they stand, whatever their context's currency.
-ADVERSE_OUTCOMES = {
-    "ACCEPTANCE": "FAIL", "REVIEW": "NO_PASS", "CONFORMANCE": "NONCONFORMANT", "EQUIVALENCE": "NOT_EQUIVALENT",
-    "COMPLETENESS": "INCOMPLETE", "PLAN_ACCEPTANCE": "REJECTED", "GATE_DECISION": "REJECT",
-}
 #: Observations a designated runner's execution produces (§17.5).
 RUNNER_OBSERVATIONS = frozenset({"REALIZATION", "CHECK_EXECUTION"})
 
 
-def request_id(request: Mapping[str, Any]) -> str:
-    """The request's content identity (catalogue §8.1)."""
+def request_id(request: Any) -> str:
+    """The request's content identity (catalogue §8.1). A request that is not an object, or that canonical JSON
+    cannot encode (a float, a non-string key), still gets a deterministic identity, so its rejection is recorded
+    once and repeats return it (Manual §25.4: untrusted input is data)."""
 
-    body = {k: v for k, v in request.items() if k != "request_id"}
-    return "sha256:" + hashlib.sha256(b"ssds.request.v1" + canonical_json(body)).hexdigest()
+    body = {k: v for k, v in request.items() if k != "request_id"} if isinstance(request, Mapping) else request
+    try:
+        return "sha256:" + hashlib.sha256(b"ssds.request.v1" + canonical_json(body)).hexdigest()
+    except (ValueError, TypeError):
+        return "sha256:" + hashlib.sha256(b"ssds.request.v1.unencodable" + repr(body).encode("utf-8")).hexdigest()
 
 
 def never_lost(record: Mapping[str, Any]) -> bool:
@@ -51,9 +52,9 @@ def never_lost(record: Mapping[str, Any]) -> bool:
         return True
     if kind == "EVIDENCE_ASSESSMENT" and record.get("outcome") == "FAIL":
         return True
-    if ADVERSE_OUTCOMES.get(str(kind)) == record.get("outcome"):
+    if "kind" in record and "outcome" in record and adverse(dict(record)):  # the derivation owner (§5.10 (a))
         return True
     return kind in RUNNER_OBSERVATIONS and str(record.get("actor", "")).startswith("machinery:")
 
 
-__all__ = ["ADVERSE_OUTCOMES", "REPORT_KINDS", "REQUEST_FIELDS", "RUNNER_OBSERVATIONS", "never_lost", "request_id"]
+__all__ = ["REPORT_KINDS", "REQUEST_FIELDS", "RUNNER_OBSERVATIONS", "never_lost", "request_id"]

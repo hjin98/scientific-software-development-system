@@ -166,5 +166,138 @@ class SalvageAndQueue(RequestFixture):
         self.assertEqual(self.admission.order(), [report, stale])
 
 
+
+def task_result(x: str, scope=("guide",), key: str | None = "sha256:" + "a" * 64, task="t-1") -> dict:
+    from ssds.ledger.read import with_id
+
+    rec = record("TASK_RESULT", target={"task": task, "transformation": x}, outcome="COMPLETE", actor="agent:t/1",
+                 actor_class="AGENT", fields={"slots": {}})
+    binding = {"task": task, "obligation": "obl", "role": "IMPLEMENTER", "lineage": ["agent:t/1"],
+               "lineage_class": "ATTESTED_FRESH", "write_scope": list(scope)}
+    if key is not None:
+        binding["item_key"] = key
+    return with_id({**rec, "binding": binding})
+
+
+def ledger_object(value) -> tuple[str, str]:
+    import hashlib
+
+    from ssds.core.api.v1 import canonical_json
+
+    text = canonical_json(value).decode("utf-8")
+    return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest(), text
+
+
+class StepTwoReview(RequestFixture):
+    """The same-family review of 0933e5db: each blocker as a discriminating case."""
+
+    def test_b1_a_record_with_a_malformed_id_never_halts_the_ledger(self) -> None:
+        bad = {**finding(), "id": "x"}
+        decision = self.admit(self.request([bad, {"no": "id"}]))
+        self.assertEqual(decision.decision, "REJECT")
+        self.assertTrue(all(r.startswith("sha256:") and len(r) == 71 for r, _ in decision.refused))
+        self.assertEqual(len({r for r, _ in decision.refused}), 2, "each refused element by its own content identity")
+        self.assertEqual(len(self.entries()), 2, "the chain still verifies")
+        self.assertTrue(self.admit(self.request([finding()])).appended, "and the next request appends")
+
+    def test_b2_salvage_admits_only_records_that_passed_their_own_checks(self) -> None:
+        self.admission.authenticated = lambda request: True
+        good, broken, secret = finding(), {**finding(materiality="MATERIAL"), "id": "sha256:" + "f" * 64}, finding(note="ghp_" + "a1B2" * 9)
+        dangling = record("FINDING", target={"records": [secret["id"]]}, fields={"materiality": "ROUTINE"})
+        digest, text = ledger_object({"token": "Zq8vR2xK9mW4pT7nL3sY6cB1Hk5Jd0Fg"})
+        req = {**self.request([good, broken, secret, dangling], objects={digest: text}), "extra": True}
+        decision = self.admit(req)
+        self.assertEqual(decision.reasons, ("SCHEMA_REQUEST",))
+        self.assertEqual(decision.admitted, (good["id"],))
+        refused = dict(decision.refused)
+        self.assertEqual(refused[secret["id"]], ("SECRET_DETECTED",))
+        self.assertEqual(refused[dangling["id"]], ("REF_RECORD",), "a reference resolves only to an admitted record")
+        self.assertIn("SCHEMA_RECORD", refused[next(r for r in refused if r not in (secret["id"], dangling["id"]))])
+        self.assertEqual(self.entries()[-1].objects, {}, "no object is written that no admitted record references")
+
+    def test_b2_only_verified_referenced_objects_are_written(self) -> None:
+        from ssds.ledger.read import with_id
+
+        self.admission.authenticated = lambda request: True
+        digest, text = ledger_object({"parts": []})
+        report = with_id({**finding(), "refs": [{"store": "LEDGER", "digest": digest, "media_type": "application/json"}]})
+        self.admit(self.request([report], objects={digest: text}))
+        self.assertEqual(set(self.entries()[-1].objects), {digest})
+
+    def test_b3_objects_are_what_their_key_says(self) -> None:
+        digest, text = ledger_object({"a": 1})
+        for objects in ({"../evil": text}, {digest: '{"a": 1}'}, {"sha256:" + "0" * 64: text}, {digest: 7}):
+            with self.subTest(objects=list(objects)):
+                self.assertEqual(self.admit(self.request([finding()], objects=objects)).reasons, ("SCHEMA_OBJECT",))
+        secret_digest, secret_text = ledger_object({"k": "ghp_" + "a1B2" * 9})
+        self.assertIn("SECRET_DETECTED", self.admit(self.request([finding()], objects={secret_digest: secret_text})).reasons)
+
+    def test_b3_a_ledger_ref_must_resolve(self) -> None:
+        from ssds.ledger.read import with_id
+
+        report = with_id({**finding(), "refs": [{"store": "LEDGER", "digest": "sha256:" + "6" * 64, "media_type": "application/json"}]})
+        self.assertEqual(self.admit(self.request([report])).refused, ((report["id"], ("REF_OBJECT",)),))
+
+    def test_b4_never_lost_follows_the_derivation_owner(self) -> None:
+        from ssds.admission.request import never_lost
+
+        cases = [("REVIEW", {"triple": None}, "NO_PASS", True), ("REVIEW", {}, "PASS", False),
+                 ("PRODUCT_SCOPE_ACCEPTANCE", {}, "REJECTED", True), ("INTAKE_DISPOSITION", {}, "REJECT", True),
+                 ("INTAKE_DISPOSITION", {}, "ABSORB", False), ("EVIDENCE_ASSESSMENT", {}, "FAIL", True)]
+        for kind, _, outcome, expected in cases:
+            with self.subTest(kind=kind, outcome=outcome):
+                self.assertEqual(never_lost({"kind": kind, "outcome": outcome, "actor": "human:x"}), expected)
+
+    def test_b5_a_secret_never_hides_under_an_identity_key_name(self) -> None:
+        from ssds.ledger.read import with_id
+
+        hidden = with_id({**finding(), "provenance": {"signature": "Zq8vR2xK9mW4pT7nL3sY6cB1Hk5Jd0Fg"}})
+        self.assertEqual(self.admit(self.request([hidden])).refused, ((hidden["id"], ("SECRET_DETECTED",)),))
+
+    def test_b6_untrusted_input_is_rejected_and_never_blocks_the_queue(self) -> None:
+        for bad in (self.request([finding()], base_position=0.5), self.request([finding()], claims=[{"x": 1}]),
+                    self.request([finding()], base_position=True), self.request([finding()], base_commit="not-a-commit")):
+            with self.subTest(field=[k for k in bad if bad[k] != self.request([finding()])[k]]):
+                self.assertEqual(self.admit(bad).reasons, ("SCHEMA_REQUEST",))
+        self.admission.submit(self.request([finding()], base_position=0.25))
+        self.admission.submit(self.request([finding(materiality="CRITICAL")]))
+        decisions = self.admission.process(self.baseline)
+        self.assertEqual(len(decisions), 2)
+        self.assertEqual(self.admission.queue, [])
+
+    def test_b7_the_base_commit_must_match_the_base_position(self) -> None:
+        self.assertEqual(self.admit(self.request([finding()], base_commit="1" * 40)).reasons, ("REF_BASE",))
+        self.assertEqual(self.admit(self.request([finding()], base_position=-1)).reasons, ("REF_BASE",))
+
+    def test_b8_the_s2_binding_cases_and_duplicates(self) -> None:
+        x = "sha256:" + "b" * 64
+        joins = self.admit(self.request([task_result(x), task_result(x, task="t-2")]))
+        self.assertEqual(joins.refused, (), "S2 same_context_joins")
+        for name, other in (("different_scope_refused", task_result(x, scope=("code",), task="t-2")),
+                            ("different_key_refused", task_result(x, key="sha256:" + "c" * 64, task="t-2"))):
+            with self.subTest(case=name):
+                self.assertEqual(self.admit(self.request([task_result(x), other])).refused,
+                                 ((other["id"], ("REF_PRODUCING_CONTEXT",)),))
+        twice = finding(materiality="CRITICAL")
+        self.assertEqual(self.admit(self.request([twice, twice])).refused, ((twice["id"], ("REF_DUPLICATE",)),))
+
+    def test_b8_the_remaining_credential_forms_and_request_fields(self) -> None:
+        for value in ("github_pat_" + "A1b2" * 11, "sk-" + "A1b2C3d4" * 3, "AIza" + "B" * 35):
+            with self.subTest(value=value[:12]):
+                self.assertEqual(self.admit(self.request([finding(note=value)])).refused[0][1], ("SECRET_DETECTED",))
+        self.assertIn("SECRET_DETECTED", self.admit(self.request([finding()], binding={"note": "ghp_" + "a1B2" * 9})).reasons)
+
+    def test_b8_the_identity_is_the_catalogue_formula(self) -> None:
+        import hashlib
+
+        from ssds.core.api.v1 import canonical_json
+
+        req = self.request([finding()])
+        self.assertEqual(request_id(req), "sha256:" + hashlib.sha256(b"ssds.request.v1" + canonical_json(req)).hexdigest())
+
+    def test_b8_bounds_trigger_exactly_their_code(self) -> None:
+        long = finding(note="x" * 5000)
+        self.assertEqual(self.admit(self.request([long])).refused, ((long["id"], ("SCHEMA_BOUND",)),))
+
 if __name__ == "__main__":
     unittest.main()

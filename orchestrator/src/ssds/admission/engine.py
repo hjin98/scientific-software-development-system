@@ -21,9 +21,10 @@ from typing import Any
 from ssds.derivation import TreeSource, Workflow, derive
 from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
-from ssds.ledger.read import LedgerEntry, read_chain, record_violations
+from ssds.ledger.read import LedgerEntry, entry_violations, read_chain, record_violations
 
-from .checks import record_problems, referenced_records, referenced_revisions, request_problems
+from .checks import (content_identity, producing_context, record_problems, referenced_objects, referenced_records,
+                     referenced_revisions, request_problems, verified_objects)
 from .genesis import AdmissionHome, host_key
 from .request import never_lost, request_id
 
@@ -77,8 +78,13 @@ class Admission:
         return sorted(self.queue, key=lambda r: 0 if only_never_lost(r) else 1)
 
     def process(self, obs: str) -> list[Decision]:
-        decisions = [self.admit(request, obs) for request in self.order()]
-        self.queue.clear()
+        """Decide every queued request in order; each leaves the queue as it is taken, so one request's fault
+        never blocks the next (§8.2: FIFO bounds starvation)."""
+
+        decisions = []
+        for request in self.order():
+            self.queue.remove(request)
+            decisions.append(self.admit(request, obs))
         return decisions
 
     # -- the held head ------------------------------------------------------------------------------------------
@@ -106,10 +112,10 @@ class Admission:
 
     # -- one request --------------------------------------------------------------------------------------------
 
-    def admit(self, request: Mapping[str, Any], obs: str) -> Decision:
+    def admit(self, request: Any, obs: str) -> Decision:
         chain = self.chain()
         entries = chain.entries[: chain.readable_through + 1]
-        rid = request_id(request) if isinstance(request, Mapping) else request_id({"malformed": repr(request)})
+        rid = request_id(request)
         found = self.recorded(entries, rid)
         if found is not None:
             section = found.entry["admission"]
@@ -121,19 +127,16 @@ class Admission:
         if obs != expected:
             raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
 
-        reasons, refused = self.validate(request, chain)
+        reasons, refused, passing = self.validate(request, chain, entries)
         decision = "REJECT" if reasons or refused else "ACCEPT"
-        records = list(request["records"]) if isinstance(request, Mapping) and isinstance(request.get("records"), list) else []
-        refused_ids = {rid_ for rid_, _ in refused}
         if decision == "ACCEPT":
-            admitted = records
+            admitted = passing
         elif isinstance(request, Mapping) and self.authenticated(request):  # never-lost salvage (§8.3 step 6)
-            admitted = [r for r in records if isinstance(r, Mapping) and never_lost(r) and r.get("id") not in refused_ids]
+            admitted = [r for r in passing if never_lost(r)]
         else:
             admitted = []
-        objects = {}
-        if isinstance(request, Mapping) and isinstance(request.get("objects"), Mapping):
-            objects = {d: t.encode("utf-8") for d, t in request["objects"].items() if isinstance(t, str)}
+        good = verified_objects(request.get("objects") if isinstance(request, Mapping) else None)[0]
+        objects = {d: good[d] for r in admitted for d in referenced_objects(r) if d in good}
         head = entries[-1]
         entry = {"ledger_id": self.ledger_id, "position": head.entry["position"] + 1, "schema": 1, "prev": head.digest,
                  "entry_kind": "ADMISSION", "host_key_id": self.key.key_id, "incarnation_id": self.incarnation_id,
@@ -142,66 +145,68 @@ class Admission:
                                "base_commit": expected, "admitted_commit": expected, "adopted_deltas": [],
                                "integrates": None,
                                "refused": [{"record_id": r, "reasons": list(why)} for r, why in refused]}}
-        appended = append_entry(self.repository, entry, self.key, head.commit, objects=objects if admitted else {})
+        problems = entry_violations(entry) + [p for r in admitted for p in record_violations(r)]
+        if problems:  # nothing that would break the chain is ever appended
+            raise AdmissionHalted(f"the entry for {rid} would not verify: {problems}")
+        appended = append_entry(self.repository, entry, self.key, head.commit, objects=objects)
         write_checkpoint(FileWitness(self.home.witness_root), appended.checkpoint)
         return Decision(rid, decision, tuple(sorted(reasons)), tuple(r["id"] for r in admitted), tuple(refused),
                         appended.position, appended=True)
 
-    def validate(self, request: Any, chain) -> tuple[set[str], list[tuple[str, tuple[str, ...]]]]:
-        """Steps 1 and 2: request-level reasons, and refused records with theirs."""
+    def validate(self, request: Any, chain, entries) -> tuple[set[str], list[tuple[str, tuple[str, ...]]], list[dict]]:
+        """Steps 1 and 2: the request-level reasons, the refused records with theirs, and the records that passed
+        their own checks, in order. Every record is checked whatever the request's own faults."""
 
-        problems = request_problems(request)
-        if problems:
-            return set(problems), []
-        reasons: set[str] = set()
+        reasons = set(request_problems(request))
+        records = request.get("records") if isinstance(request, Mapping) else None
+        records = records if isinstance(records, list) else []
         refused: list[tuple[str, tuple[str, ...]]] = []
-        support = derive(chain, self.trees)
-        s = support.s
-        if request["base_position"] > s.n or request["base_position"] < 0:
-            reasons.add("REF_BASE")
-        known = set(s.records)
-        revisions = {(u, s.h.view(k).rev(u)) for k in range(s.n + 1) for u in s.h.view(k).structure.units}
-        obligations = {o.id for o in Workflow(support).obligations} if request["claims"] else set()
-        reasons.update("REF_OBLIGATION" for c in request["claims"] if c not in obligations)
-        submitted: set[str] = set()
-        for record in request["records"]:
-            rid = record.get("id") if isinstance(record, Mapping) else None
-            own = record_problems(record, record_violations)
-            if not own:
-                if rid in known or rid in submitted:
-                    own.append("REF_DUPLICATE")
-                if referenced_records(record) - known - submitted:
-                    own.append("REF_RECORD")
-                if not request["candidates"] and referenced_revisions(record) - revisions:
-                    own.append("REF_REVISION")
-                if self._second_context(record, s):
-                    own.append("REF_PRODUCING_CONTEXT")
-            if own:
-                refused.append((rid if isinstance(rid, str) else "sha256:" + "0" * 64, tuple(sorted(set(own)))))
-            if isinstance(rid, str):
-                submitted.add(rid)
+        passing: list[dict] = []
+        support = derive(chain, self.trees) if records or not reasons else None
+        s = support.s if support is not None else None
+        if s is not None:
+            known = set(s.records)
+            revisions = {(u, s.h.view(k).rev(u)) for k in range(s.n + 1) for u in s.h.view(k).structure.units}
+            stored = {d for e in entries for d in e.objects}
+            good = verified_objects(request.get("objects") if isinstance(request, Mapping) else None)[0]
+            admitted_contexts = {}
+            for rid_ in s.of_kind("TASK_RESULT"):
+                context = producing_context(s.record(rid_))
+                if context is not None:
+                    admitted_contexts.setdefault(context[0], set()).add(context[1:])
+            candidates = isinstance(request, Mapping) and bool(request.get("candidates"))
+            for record in records:
+                own = record_problems(record, record_violations)
+                if not own:
+                    rid = record["id"]
+                    if rid in known or any(p["id"] == rid for p in passing):
+                        own.append("REF_DUPLICATE")
+                    if referenced_records(record) - known - {p["id"] for p in passing}:
+                        own.append("REF_RECORD")
+                    if not candidates and referenced_revisions(record) - revisions:
+                        own.append("REF_REVISION")
+                    if referenced_objects(record) - stored - set(good):
+                        own.append("REF_OBJECT")
+                    context = producing_context(record)
+                    if context is not None:
+                        earlier = admitted_contexts.get(context[0], set()) | {
+                            producing_context(p)[1:] for p in passing if (producing_context(p) or (None,))[0] == context[0]}
+                        if earlier - {context[1:]}:
+                            own.append("REF_PRODUCING_CONTEXT")  # a second producing context for one transformation (§7.1)
+                if own:
+                    refused.append((content_identity(record), tuple(sorted(set(own)))))
+                else:
+                    passing.append(dict(record))
+        if not reasons and s is not None:
+            position = request["base_position"]
+            if not 0 <= position <= s.n or request["base_commit"] != self.expected_head(entries[: position + 1]):
+                reasons.add("REF_BASE")
+            if request["claims"]:
+                obligations = {o.id for o in Workflow(support).obligations}
+                reasons.update("REF_OBLIGATION" for c in request["claims"] if c not in obligations)
         if not reasons and not refused:
             reasons.add("SCHEMA_UNSUPPORTED")  # steps 3-8 are not realized yet: fail closed (§8.3 step 1)
-        return reasons, refused
-
-    @staticmethod
-    def _second_context(record: Mapping[str, Any], s) -> bool:
-        """A second producing context for one transformation: a result under another write scope or work key
-        (§7.1; the S2 binding cases)."""
-
-        if record.get("kind") != "TASK_RESULT":
-            return False
-        x = (record.get("target") or {}).get("transformation")
-        if not x:
-            return False
-        mine = (tuple(sorted((record.get("binding") or {}).get("write_scope") or ())), (record.get("binding") or {}).get("item_key"))
-        for rid in s.of_kind("TASK_RESULT"):
-            other = s.record(rid)
-            if other["target"].get("transformation") == x:
-                binding = other.get("binding") or {}
-                if (tuple(sorted(binding.get("write_scope") or ())), binding.get("item_key")) != mine:
-                    return True
-        return False
+        return reasons, refused, passing
 
 
 __all__ = ["Admission", "AdmissionHalted", "Decision", "UNREALIZED_STEPS"]
