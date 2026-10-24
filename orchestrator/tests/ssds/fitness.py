@@ -112,6 +112,13 @@ PROCESS_OS_CALLS = frozenset(
     | {f"spawn{s}" for s in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")}
 )
 LEDGER_APPEND = f"{SSDS}.ledger.append"
+#: Phase F's named exceptions to B1 (Phase F plan §2): modules beyond content and ledger that may start a process,
+#: each confining its target at run time (the governed product repository is never one).
+PROCESS_EXCEPTIONS = frozenset({f"{SSDS}.admission.publish", f"{SSDS}.interface.envelope",
+                                f"{SSDS}.dispatcher.runner", f"{SSDS}.dispatcher.harness"})
+#: The modules that may run a writing Git subcommand: the ledger append, the integration ref's compare-and-swap and
+#: fence commits, and the Git-envelope transport's run refs in scratch repositories.
+GIT_WRITERS = frozenset({LEDGER_APPEND, f"{SSDS}.admission.publish", f"{SSDS}.interface.envelope"})
 #: Git subcommands that write objects, refs, the index or files.
 WRITING_GIT = frozenset(
     {
@@ -551,7 +558,7 @@ def check(repo_root: Path, repo_files: list[str], model_stems: frozenset[str]) -
             elif root in stdlib:
                 if owner == "derivation" and root not in DERIVATION_STDLIB:
                     violations.append(Violation("F8", where, f"{line}: {imp.target} is not on derivation's allowlist"))
-                if root in PROCESS_MODULES and owner not in PROCESS_OWNERS:
+                if root in PROCESS_MODULES and owner not in PROCESS_OWNERS and module.name not in PROCESS_EXCEPTIONS:
                     violations.append(Violation("B1", where, f"{line}: only content and ledger start processes ({imp.target})"))
             elif root in declared:
                 if owner == "derivation":
@@ -567,14 +574,14 @@ def check(repo_root: Path, repo_files: list[str], model_stems: frozenset[str]) -
                 violations.append(Violation("F11", where, f"line {lineno}: dynamic code ({name})"))
             elif owner == "derivation" and name in DERIVATION_IO_BUILTINS:
                 violations.append(Violation("F8", where, f"line {lineno}: derivation performs no I/O ({name})"))
-        if owner not in PROCESS_OWNERS:
+        if owner not in PROCESS_OWNERS and module.name not in PROCESS_EXCEPTIONS:
             for name, lineno in _os_process_calls(module.tree):
                 violations.append(Violation("B1", where, f"line {lineno}: only content and ledger start processes (os.{name})"))
         if module.name == f"{SSDS}.ledger":
             for imp in _imports(module, known):
                 if imp.target == LEDGER_APPEND:
                     violations.append(Violation("F3", where, f"line {imp.line}: the ledger package re-exports append"))
-        if owner in PROCESS_OWNERS and module.name != LEDGER_APPEND:
+        if (owner in PROCESS_OWNERS or module.name in PROCESS_EXCEPTIONS) and module.name not in GIT_WRITERS:
             for value, lineno in _git_subcommands(module.tree):
                 if value in WRITING_GIT:
                     violations.append(Violation("B1", where, f"line {lineno}: writing Git subcommand {value!r}"))

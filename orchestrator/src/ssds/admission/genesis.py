@@ -149,7 +149,7 @@ class AdmissionHome(Home):
             self.workspace_file(ledger_id, name)
 
 
-def _host_key(home: "AdmissionHome", ledger_id: str) -> HostKey:
+def host_key(home: "AdmissionHome", ledger_id: str) -> HostKey:
     """The project's Admission host key, held only in private operator state (catalogue §23.2)."""
 
     path = home.admission_key(ledger_id)
@@ -277,7 +277,7 @@ def prepare_genesis(spec: GenesisSpec, home: "AdmissionHome", trees: TreeSource)
 
     genesis = digest = message = None
     if not problems:
-        key = _host_key(home, spec.ledger_id)
+        key = host_key(home, spec.ledger_id)
         analyzers = canonical_json(list(SYSTEM_ANALYZERS))
         ruleset = {"system": SYSTEM_RULESET, "policy": _digest(policy), "analyzers": _digest(analyzers)}
         fields = {
@@ -385,7 +385,7 @@ def admit_genesis(home: "AdmissionHome", ledger_id: str, signature: str) -> Admi
     signed = dict(genesis)
     signed["fields"] = {**genesis["fields"], "approval": {"key_id": human_key_id(signer), "signature": signature}}
     record = with_id(signed)
-    key = _host_key(home, ledger_id)
+    key = host_key(home, ledger_id)
     entry = {"ledger_id": ledger_id, "position": 0, "schema": 1, "prev": None, "entry_kind": "LIFECYCLE",
              "host_key_id": key.key_id, "incarnation_id": secrets.token_hex(16), "obs": None, "admission": None,
              "absorption": None, "lifecycle": record, "records": []}
@@ -415,5 +415,5 @@ def admit_genesis(home: "AdmissionHome", ledger_id: str, signature: str) -> Admi
     return Admitted(ledger_id, repository, appended.commit, appended.digest, genesis_digest(record), qualification.state)
 
 
-__all__ = ["AdmissionHome", "Admitted", "GenesisRefused", "GenesisSpec", "Prepared", "admit_genesis", "genesis_approval_message",
+__all__ = ["AdmissionHome", "Admitted", "GenesisRefused", "GenesisSpec", "Prepared", "admit_genesis", "host_key", "genesis_approval_message",
            "genesis_digest", "genesis_proposal", "genesis_violations", "prepare_genesis"]

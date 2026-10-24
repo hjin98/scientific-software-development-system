@@ -348,5 +348,20 @@ class ShadowBoundarySensorTests(_Discriminator):
         self.assertViolations({path: "import os\nos.system('git push')\n"}, {("B1", path)})
 
 
+    def test_phase_f_named_exceptions_and_nothing_else(self) -> None:
+        """Phase F plan §2: four named modules may start a process; only two of them, beside the ledger append,
+        may run a writing Git subcommand; a near-miss name or another module of the same owner may not."""
+
+        for module in ("admission/publish.py", "interface/envelope.py", "dispatcher/runner.py", "dispatcher/harness.py"):
+            self.assertViolations({f"{S}/{module}": "import subprocess\n"}, set())
+        for module in ("admission/publish.py", "interface/envelope.py"):
+            self.assertViolations({f"{S}/{module}": "import subprocess\nARGS = ['git', 'update-ref']\n"}, set())
+        for module in ("dispatcher/runner.py", "dispatcher/harness.py"):
+            path = f"{S}/{module}"
+            self.assertViolations({path: "import subprocess\nARGS = ['git', 'push']\n"}, {("B1", path)})
+        for module in ("admission/publisher.py", "admission/request.py", "interface/commands.py", "dispatcher/issue.py"):
+            path = f"{S}/{module}"
+            self.assertViolations({path: "import subprocess\n"}, {("B1", path)})
+
 if __name__ == "__main__":
     unittest.main()

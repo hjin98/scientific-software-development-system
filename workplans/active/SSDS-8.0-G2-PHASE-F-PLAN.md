@@ -26,10 +26,13 @@ SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNE
         document-controlled 7.2.1 baseline governs. On the real shadow ledger Admission only observes
         the integration ref the stakeholder designates (Q-F2) and publishes nothing; publication and
         fencing run only against integration refs in fixtures and scratch repositories (reading F1).
-DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history).
+DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history); step 2
+             (requests, steps 1-2, closed reason codes, input bounds, the secret scan, idempotency, the
+             never-lost queue order, a minimal commit path; the fitness revision). Steps 3-8 fail
+             closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
              `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
-NEXT ACTION: step 2 (requests, the early validation steps and a minimal commit path).
+NEXT ACTION: step 3 (envelopes and keys).
 ```
 
 ## 1. Scope and authority
