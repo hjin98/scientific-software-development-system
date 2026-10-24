@@ -299,5 +299,69 @@ class StepTwoReview(RequestFixture):
         long = finding(note="x" * 5000)
         self.assertEqual(self.admit(self.request([long])).refused, ((long["id"], ("SCHEMA_BOUND",)),))
 
+
+class StepTwoRereview(RequestFixture):
+    """The same-family re-review of e95e770c: each remaining blocker as a discriminating case."""
+
+    def test_s1_salvage_never_admits_a_record_naming_one_it_dropped(self) -> None:
+        self.admission.authenticated = lambda request: True
+        x = task_result("sha256:" + "b" * 64)
+        naming = record("FINDING", target={"records": [x["id"]]}, fields={"materiality": "ROUTINE"})
+        decision = self.admit(self.request([x, naming]))
+        self.assertEqual(decision.admitted, ())
+        self.assertIn((naming["id"], ("REF_RECORD",)), decision.refused)
+
+    def test_s2_a_malformed_record_never_poisons_the_queue(self) -> None:
+        self.admission.submit(self.request([{"kind": ["x"], "outcome": "y"}]))
+        self.admission.submit(self.request([finding(materiality="CRITICAL")]))
+        self.assertEqual(len(self.admission.process(self.baseline)), 2)
+        self.assertEqual(self.admission.queue, [])
+
+    def test_s3_a_request_beyond_its_bounds_gets_no_per_record_work_and_salvages_nothing(self) -> None:
+        self.admission.authenticated = lambda request: True
+        decision = self.admit(self.request([finding(materiality="MATERIAL", note=str(i)) for i in range(261)]))
+        self.assertEqual((decision.reasons, decision.admitted, decision.refused), (("SCHEMA_BOUND",), (), ()))
+        deep: object = "x"
+        for _ in range(100):
+            deep = [deep]
+        self.assertEqual(self.admit(self.request([finding()], adopted_deltas=[{"d": deep}])).reasons, ("SCHEMA_BOUND",))
+        self.assertEqual(self.admit(self.request([finding()], binding={"a": deep})).reasons, ("SCHEMA_BOUND",))
+
+    def test_s4_a_halted_request_keeps_its_place(self) -> None:
+        req = self.request([finding()])
+        self.admission.submit(req)
+        with self.assertRaises(AdmissionHalted):
+            self.admission.process("0" * 40)
+        self.assertEqual(self.admission.queue, [req])
+
+    def test_s5_an_unreferenced_clean_object_is_not_written(self) -> None:
+        from ssds.ledger.read import with_id
+
+        self.admission.authenticated = lambda request: True
+        used, used_text = ledger_object({"parts": []})
+        spare, spare_text = ledger_object({"other": True})
+        report = with_id({**finding(), "refs": [{"store": "LEDGER", "digest": used, "media_type": "application/json"}]})
+        self.admit(self.request([report], objects={used: used_text, spare: spare_text}))
+        self.assertEqual(set(self.entries()[-1].objects), {used})
+
+    def test_n6_remaining_discriminators(self) -> None:
+        import hashlib
+
+        from ssds.admission.checks import content_identity
+
+        text = '{"a": 1}'
+        digest = "sha256:" + hashlib.sha256(text.encode()).hexdigest()
+        self.assertEqual(self.admit(self.request([finding()], objects={digest: text})).reasons, ("SCHEMA_OBJECT",),
+                         "a non-canonical text whose digest matches is still refused")
+        for field, value in (("candidates", ["not-a-commit"]), ("adopted_deltas", ["x"]), ("binding", "x")):
+            with self.subTest(field=field):
+                self.assertEqual(self.admit(self.request([finding()], **{field: value})).reasons, ("SCHEMA_REQUEST",))
+        self.admission.authenticated = lambda request: True
+        kept = finding(materiality="CRITICAL")
+        self.admit(self.request([kept]))
+        again = self.admit(self.request([kept], claims=[]) | {"base_position": 1, "base_commit": self.baseline})
+        self.assertIn((kept["id"], ("REF_DUPLICATE",)), again.refused, "a record already in the ledger is a duplicate")
+        self.assertNotEqual(content_identity(["a"]), content_identity(["b"]))
+
 if __name__ == "__main__":
     unittest.main()

@@ -239,7 +239,19 @@ Tests: `test_admission_requests.StepTwoReview` fails on 0933e5db for every behav
 - whether "challenges" in §8.3 step 6 include adjudications (to settle before step 4);
 - the `machinery:` actor prefix standing in for runner authentication until steps 3 and 9.
 
-## 9. Plan review record
+**Step 2 re-review (e95e770c).** B1, B3, B4, B5 and B7 are closed. NO-PASS on five blockers:
+- **S1, B2's dangling reference.** A salvaged record could name a record salvage dropped. Salvage now rechecks references against the records actually admitted, to a fixed point.
+- **S2, B6's poisoned queue.** `never_lost` and the ledger schema's membership checks were not total over untrusted values. A list-valued `kind` crashed `record_violations`, a Phase D schema defect the probe reached. Both are now total.
+- **S3, bounds.** A request beyond its bounds still got per-record work and salvage. Beyond a count, depth (64, a proposed default) or byte bound, there is now no per-record work and no salvage.
+- **S4, a halted request.** A head mismatch dropped the request in hand. It now goes back to the front of the queue.
+- **S5, undiscriminated repairs.** Two repaired claims had no discriminating test.
+
+The added tests are `StepTwoRereview`. Non-blocking notes kept:
+- the entropy grammar exemption never triggers (hex stays below the threshold);
+- the pre-append guard is defence in depth;
+- `REPORT_KINDS` duplicates derivation's list;
+- two refused records differing only in their claimed `id` share an identity;
+- later-step reachability of the position-sensitive base check and of admitted producing contexts (steps 4 and 6).
 
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
 - **B1, the wrong observed ref.** `main` is behind and does not contain the genesis baseline. F1 and Q-F2 (i) now put the observed ref to the stakeholder as a deployment setting, and step 10's absorption test reads observed heads.

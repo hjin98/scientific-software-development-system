@@ -252,11 +252,11 @@ RECOVERY_LIFECYCLE = frozenset({"LEDGER_LOSS", "FORK_RESOLUTION", "WITNESS_SET_R
 
 _ENVELOPE_REQUIRED: dict[str, Check] = {
     "id": is_digest,
-    "kind": lambda v: v in KINDS,
+    "kind": lambda v: isinstance(v, str) and v in KINDS,
     "schema": lambda v: v == SCHEMA_VERSION,
     "ruleset": shape({"system": is_token, "policy": is_digest, "analyzers": is_digest}),
     "actor": lambda v: isinstance(v, str) and bool(ACTOR_RE.match(v)),
-    "actor_class": lambda v: v in ACTOR_CLASSES,
+    "actor_class": lambda v: isinstance(v, str) and v in ACTOR_CLASSES,
     "frame": lambda v: v == "ADMITTED" or shape({"transformation": is_digest})(v),
     "target": lambda v: True,  # checked per kind
     "basis": lambda v: isinstance(v, list),
@@ -291,10 +291,10 @@ def _basis_entry_ok(entry: Any) -> bool:
     if not isinstance(entry, dict) or not {"mode", "target", "class"} <= set(entry) <= {"mode", "target", "class", "role"}:
         return False
     mode = entry["mode"]
-    if mode not in BASIS_MODES or not _BASIS_TARGET[mode](entry["target"]):
+    if not isinstance(mode, str) or mode not in BASIS_MODES or not _BASIS_TARGET[mode](entry["target"]):
         return False
     cls = entry["class"]
-    if not (cls in CONSUMPTION_CLASSES or (isinstance(cls, str) and cls.startswith("CONSUMER:") and is_token(cls))):
+    if not (isinstance(cls, str) and (cls in CONSUMPTION_CLASSES or (cls.startswith("CONSUMER:") and is_token(cls)))):
         return False
     return entry.get("role") in (None, "BEFORE", "OUTPUT", "CONTEXT")
 

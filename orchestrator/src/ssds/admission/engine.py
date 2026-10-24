@@ -23,8 +23,8 @@ from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
 from ssds.ledger.read import LedgerEntry, entry_violations, read_chain, record_violations
 
-from .checks import (content_identity, producing_context, record_problems, referenced_objects, referenced_records,
-                     referenced_revisions, request_problems, verified_objects)
+from .checks import (content_identity, over_bounds, producing_context, record_problems, referenced_objects,
+                     referenced_records, referenced_revisions, request_problems, verified_objects)
 from .genesis import AdmissionHome, host_key
 from .request import never_lost, request_id
 
@@ -84,7 +84,11 @@ class Admission:
         decisions = []
         for request in self.order():
             self.queue.remove(request)
-            decisions.append(self.admit(request, obs))
+            try:
+                decisions.append(self.admit(request, obs))
+            except AdmissionHalted:
+                self.queue.insert(0, request)  # nothing was appended: it is revalidated at the next head (§8.3 step 9)
+                raise
         return decisions
 
     # -- the held head ------------------------------------------------------------------------------------------
@@ -133,6 +137,14 @@ class Admission:
             admitted = passing
         elif isinstance(request, Mapping) and self.authenticated(request):  # never-lost salvage (§8.3 step 6)
             admitted = [r for r in passing if never_lost(r)]
+            known = set(derive(chain, self.trees).s.records)
+            while True:  # a salvaged record names only records that exist: admitted before, or admitted with it
+                ids = {r["id"] for r in admitted}
+                dangling = [r for r in admitted if referenced_records(r) - known - ids]
+                if not dangling:
+                    break
+                admitted = [r for r in admitted if r not in dangling]
+                refused += [(r["id"], ("REF_RECORD",)) for r in dangling]
         else:
             admitted = []
         good = verified_objects(request.get("objects") if isinstance(request, Mapping) else None)[0]
@@ -158,6 +170,8 @@ class Admission:
         their own checks, in order. Every record is checked whatever the request's own faults."""
 
         reasons = set(request_problems(request))
+        if over_bounds(request):
+            return reasons | {"SCHEMA_BOUND"}, [], []  # no per-record work beyond the bounds (§25.4)
         records = request.get("records") if isinstance(request, Mapping) else None
         records = records if isinstance(records, list) else []
         refused: list[tuple[str, tuple[str, ...]]] = []

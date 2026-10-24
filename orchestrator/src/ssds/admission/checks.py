@@ -36,6 +36,7 @@ MAX_RECORDS = 256
 MAX_STRING = 4096
 MAX_OBJECT_BYTES = 1 << 20
 MAX_REQUEST_BYTES = 8 << 20
+MAX_DEPTH = 64
 
 #: Known credential forms (§24.1 item 2): provider token formats, private-key headers, connection strings. Policy may
 #: extend this list and never shrink it.
@@ -134,9 +135,41 @@ def verified_objects(objects: Any) -> tuple[dict[str, bytes], list[str]]:
     return good, problems
 
 
+def too_deep(value: Any, limit: int = MAX_DEPTH) -> bool:
+    """Nesting deeper than the bound, measured without recursion, so no input can exhaust the stack."""
+
+    stack = [(value, 1)]
+    while stack:
+        item, depth = stack.pop()
+        if isinstance(item, (Mapping, list)):
+            if depth > limit:
+                return True
+            children = item.values() if isinstance(item, Mapping) else item
+            stack.extend((child, depth + 1) for child in children)
+    return False
+
+
+def over_bounds(request: Any) -> bool:
+    """A request beyond a count, depth or byte bound gets no per-record work and salvages nothing (§25.4)."""
+
+    if too_deep(request):
+        return True
+    if not isinstance(request, Mapping):
+        return False
+    records = request.get("records")
+    if isinstance(records, list) and len(records) > MAX_RECORDS:
+        return True
+    try:
+        return len(canonical_json(dict(request))) > MAX_REQUEST_BYTES
+    except (ValueError, TypeError):
+        return False
+
+
 def request_problems(request: Any) -> list[str]:
     """Step 1 at the request level: its shape, the grammar of each field, bounds, objects and secrets."""
 
+    if too_deep(request):
+        return ["SCHEMA_BOUND"]
     if not isinstance(request, Mapping) or set(request) - {"request_id"} != REQUEST_FIELDS:
         return ["SCHEMA_REQUEST"]
     position = request["base_position"]

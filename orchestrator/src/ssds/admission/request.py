@@ -47,12 +47,14 @@ def never_lost(record: Mapping[str, Any]) -> bool:
     """Reports, challenges, failing assessments, adverse judgments and designated-runner observations: admitted
     whatever the request's fate when they pass their own checks (catalogue §8.3 step 6)."""
 
-    kind = record.get("kind")
+    kind, outcome = record.get("kind"), record.get("outcome")
+    if not isinstance(kind, str) or not (outcome is None or isinstance(outcome, str)):
+        return False  # total over untrusted input: a malformed record is never-lost to no one (Manual §25.4)
     if kind in REPORT_KINDS or kind == "CHALLENGE":
         return True
-    if kind == "EVIDENCE_ASSESSMENT" and record.get("outcome") == "FAIL":
+    if kind == "EVIDENCE_ASSESSMENT" and outcome == "FAIL":
         return True
-    if "kind" in record and "outcome" in record and adverse(dict(record)):  # the derivation owner (§5.10 (a))
+    if "outcome" in record and adverse({"kind": kind, "outcome": outcome}):  # the derivation owner (§5.10 (a))
         return True
     return kind in RUNNER_OBSERVATIONS and str(record.get("actor", "")).startswith("machinery:")
 
