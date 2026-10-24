@@ -43,6 +43,44 @@ def request_id(request: Any) -> str:
         return "sha256:" + hashlib.sha256(b"ssds.request.v1.unencodable" + repr(body).encode("utf-8")).hexdigest()
 
 
+#: The task envelope's fields (catalogue §12.2; the ``retained`` field is dropped, G2 register RR-2).
+ENVELOPE_FIELDS = frozenset({"task_id", "obligation_id", "role", "contract_revision", "governs", "route", "lineage_class",
+                             "input_sessions", "issued_at_position", "issue_key_id", "predecessors"})
+ROUTES = frozenset({"HARNESS", "MANUAL", "GIT_ENVELOPE"})
+
+
+def _digest(value: Any) -> str:
+    return "sha256:" + hashlib.sha256(canonical_json(value)).hexdigest()
+
+
+def binding_object(binding: Mapping[str, Any]) -> dict[str, Any]:
+    """What a task binding stores in the ledger, so derivation and replay read it from the ledger alone (§12.2): the
+    envelope, its issue-key signature and the launch attestation; never the per-task credential's request
+    signature, which is about one request."""
+
+    return {k: binding.get(k) for k in ("envelope", "signature", "attestation", "attestation_signature")}
+
+
+def binding_digest(binding: Mapping[str, Any]) -> str:
+    """The digest a bound record's ``binding.envelope`` names: that of the stored binding object."""
+
+    return _digest(binding_object(binding))
+
+
+def envelope_message(envelope: Mapping[str, Any]) -> bytes:
+    return b"ssds envelope " + _digest(dict(envelope)).encode("ascii") + b"\n"
+
+
+def attestation_message(attestation: Mapping[str, Any]) -> bytes:
+    return b"ssds launch " + _digest(dict(attestation)).encode("ascii") + b"\n"
+
+
+def request_message(request: Mapping[str, Any]) -> bytes:
+    """What a per-task credential or an authenticated human signs: the request's identity without its binding."""
+
+    return b"ssds request " + request_id({**request, "binding": None}).encode("ascii") + b"\n"
+
+
 def never_lost(record: Mapping[str, Any]) -> bool:
     """Reports, challenges, failing assessments, adverse judgments and designated-runner observations: admitted
     whatever the request's fate when they pass their own checks (catalogue §8.3 step 6)."""
@@ -59,4 +97,5 @@ def never_lost(record: Mapping[str, Any]) -> bool:
     return kind in RUNNER_OBSERVATIONS and str(record.get("actor", "")).startswith("machinery:")
 
 
-__all__ = ["REPORT_KINDS", "REQUEST_FIELDS", "RUNNER_OBSERVATIONS", "never_lost", "request_id"]
+__all__ = ["ENVELOPE_FIELDS", "REPORT_KINDS", "REQUEST_FIELDS", "ROUTES", "RUNNER_OBSERVATIONS", "attestation_message",
+           "binding_digest", "binding_object", "envelope_message", "never_lost", "request_id", "request_message"]

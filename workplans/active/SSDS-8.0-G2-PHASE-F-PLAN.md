@@ -28,11 +28,13 @@ SHADOW: no SSDS authority over any subject; every subject LEGACY(p) or UNGOVERNE
         fencing run only against integration refs in fixtures and scratch repositories (reading F1).
 DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history); step 2
              (requests, steps 1-2, closed reason codes, input bounds, the secret scan, idempotency, the
-             never-lost queue order, a minimal commit path; the fitness revision). Steps 3-8 fail
-             closed (SCHEMA_UNSUPPORTED) until built.
+             never-lost queue order, a minimal commit path; the fitness revision); step 3a (issue keys,
+             signed envelopes, launch attestations with per-task credentials, the binding's
+             authentication and lineage, AUTH_ENVELOPE, AUTH_VERSION, AUTH_ACTOR for human bindings,
+             human-gated KEY_LIFECYCLE). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
              `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
-NEXT ACTION: step 3 (envelopes and keys).
+NEXT ACTION: step 3b (the operator journal; the Interface's task-bound open, read recording and brief digest).
 ```
 
 ## 1. Scope and authority
@@ -158,6 +160,13 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F5** *Human gates.* A human-gated record is signed with a registered human key in the SSH signature format, namespace `ssds` (§25.1), as the genesis approval was. Tests use fixture keys and never the stakeholder's key.
 - **F6** *Reason codes.* The closed list is catalogue §8.4. A needed refusal with no code returns to Stage S (G2 workplan §5.6).
 - **F7** *PERF-E1.* A workflow at a position is a function of the history's prefix (§5), built once per history and shared, never computed from current state. The selector, settlement and lifecycle discriminators stay unchanged, as the re-Review of c2b1ec2 asks.
+- **F9** *Bindings and credentials (step 3a).*
+  - **Envelope.** It has the catalogue §12.2 fields, without `retained` (dropped, RR-2), and is signed by an issue key under `keys/dispatcher/<ledger id>.ed25519`.
+  - **What a bound record names.** Its `binding.envelope` is the digest of the stored binding object: the envelope, its signature and the launch attestation. Admission stores that object with the admitted records, so replay reads the binding from the ledger alone.
+  - **The per-task credential.** It is an Ed25519 key whose public half the launch attestation names; it signs the request without its binding. `ATTESTED_FRESH` is proven only by that signature, and no secret enters the ledger.
+  - **Human bindings.** A human binding is an SSH signature (namespace `ssds`) over the same message.
+  - **Lifecycle approvals.** A human-gated lifecycle record's approval is kept in its provenance and signed over the record without it.
+  - **The secret scan.** It exempts whole values whose grammar is an identity or a signature: a human key fingerprint, a key id, an armoured SSH signature.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner

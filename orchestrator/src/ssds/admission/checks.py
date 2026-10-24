@@ -58,6 +58,13 @@ _TOKEN = re.compile(r"[A-Za-z0-9+/=_.-]{20,}")
 #: The digest and identity grammars the entropy check exempts (§24.1 "outside fields whose grammar is a digest or
 #: identity"): by the value's grammar, never by the key it sits under.
 _EXEMPT = (re.compile(r"sha256:[0-9a-f]{64}"), re.compile(r"[0-9a-f]{40}"), re.compile(r"[0-9a-f]{64}"))
+#: Whole values whose grammar is an identity or a signature, never a secret: a human actor's key fingerprint
+#: (§25.1), a key id, and an armoured SSH signature (the human authentication of §25.1).
+_IDENTITY_VALUES = (
+    re.compile(r"human:SHA256:[A-Za-z0-9+/]{43}"),
+    re.compile(r"ed25519:[0-9a-f]{64}"),
+    re.compile(r"-----BEGIN SSH SIGNATURE-----\n[A-Za-z0-9+/=\n]+-----END SSH SIGNATURE-----\n?"),
+)
 
 
 def _strings(value: Any) -> Iterator[str]:
@@ -83,6 +90,8 @@ def secret_detected(value: Any) -> bool:
     for text in _strings(value):
         if any(p.search(text) for p in CREDENTIAL_PATTERNS):
             return True
+        if any(p.fullmatch(text) for p in _IDENTITY_VALUES):
+            continue
         for token in _TOKEN.findall(text):
             if any(p.fullmatch(token) for p in _EXEMPT):
                 continue

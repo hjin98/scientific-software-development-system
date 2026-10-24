@@ -14,15 +14,16 @@ head, or nothing is appended.
 from __future__ import annotations
 
 import secrets
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from ssds.derivation import TreeSource, Workflow, derive
+from ssds.derivation import TreeSource, Workflow, derive, trust_roots
 from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
 from ssds.ledger.read import LedgerEntry, entry_violations, read_chain, record_violations
 
+from .authenticate import authenticate
 from .checks import (content_identity, over_bounds, producing_context, record_problems, referenced_objects,
                      referenced_records, referenced_revisions, request_problems, verified_objects)
 from .genesis import AdmissionHome, host_key
@@ -57,7 +58,6 @@ class Admission:
     ledger_id: str
     trees: TreeSource
     incarnation_id: str = field(default_factory=lambda: secrets.token_hex(16))
-    authenticated: Callable[[Mapping[str, Any]], bool] = field(default=lambda request: False)
 
     def __post_init__(self) -> None:
         self.home.check(self.ledger_id)
@@ -135,11 +135,11 @@ class Admission:
         if obs != expected:
             raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
 
-        reasons, refused, passing = self.validate(request, chain, entries)
+        reasons, refused, passing, auth = self.validate(request, chain, entries)
         decision = "REJECT" if reasons or refused else "ACCEPT"
         if decision == "ACCEPT":
             admitted = passing
-        elif isinstance(request, Mapping) and self.authenticated(request):  # never-lost salvage (§8.3 step 6)
+        elif auth is not None and auth.ok:  # never-lost salvage after the binding authenticated (§8.3 step 6)
             admitted = [r for r in passing if never_lost(r)]
             known = set(derive(chain, self.trees).s.records)
             while True:  # a salvaged record names only records that exist: admitted before, or admitted with it
@@ -153,6 +153,8 @@ class Admission:
             admitted = []
         good = verified_objects(request.get("objects") if isinstance(request, Mapping) else None)[0]
         objects = {d: good[d] for r in admitted for d in referenced_objects(r) if d in good}
+        if admitted and auth is not None:
+            objects.update(auth.objects)  # the binding, so derivation reads it from the ledger alone (§12.2)
         head = entries[-1]
         entry = {"ledger_id": self.ledger_id, "position": head.entry["position"] + 1, "schema": 1, "prev": head.digest,
                  "entry_kind": "ADMISSION", "host_key_id": self.key.key_id, "incarnation_id": self.incarnation_id,
@@ -169,13 +171,41 @@ class Admission:
         return Decision(rid, decision, tuple(sorted(reasons)), tuple(r["id"] for r in admitted), tuple(refused),
                         appended.position, appended=True)
 
-    def validate(self, request: Any, chain, entries) -> tuple[set[str], list[tuple[str, tuple[str, ...]]], list[dict]]:
+    def admit_lifecycle(self, record: Mapping[str, Any], signature: str, obs: str) -> int:
+        """Admit a human-gated ``KEY_LIFECYCLE`` record (§25.2): its actor is a registered human whose signature over
+        the record verifies; the approval is kept in the record's provenance. Returns the entry's position."""
+
+        from ssds.ledger.read import verify_sshsig, with_id
+
+        chain = self.chain()
+        entries = chain.entries[: chain.readable_through + 1]
+        expected = self.expected_head(entries)
+        if obs != expected:
+            raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
+        roots = trust_roots(entries)
+        actor = record.get("actor")
+        if record.get("kind") != "KEY_LIFECYCLE" or record.get("actor_class") != "HUMAN" or actor not in roots.humans \
+                or not verify_sshsig(roots.humans[actor], lifecycle_message(record), signature):
+            raise EntryInvalid("a lifecycle record needs a registered human's verifying approval")
+        signed = with_id({**record, "provenance": {"approval": {"actor": actor, "signature": signature}}})
+        head = entries[-1]
+        entry = {"ledger_id": self.ledger_id, "position": head.entry["position"] + 1, "schema": 1, "prev": head.digest,
+                 "entry_kind": "LIFECYCLE", "host_key_id": self.key.key_id, "incarnation_id": self.incarnation_id,
+                 "obs": obs, "admission": None, "absorption": None, "lifecycle": signed, "records": []}
+        problems = entry_violations(entry) + record_violations(signed)
+        if problems:
+            raise EntryInvalid(f"the lifecycle entry would not verify: {problems}")
+        appended = append_entry(self.repository, entry, self.key, head.commit)
+        write_checkpoint(FileWitness(self.home.witness_root), appended.checkpoint)
+        return appended.position
+
+    def validate(self, request: Any, chain, entries):
         """Steps 1 and 2: the request-level reasons, the refused records with theirs, and the records that passed
         their own checks, in order. Every record is checked whatever the request's own faults."""
 
         reasons = set(request_problems(request))
         if over_bounds(request):
-            return reasons | {"SCHEMA_BOUND"}, [], []  # no per-record work beyond the bounds (§25.4)
+            return reasons | {"SCHEMA_BOUND"}, [], [], None  # no per-record work beyond the bounds (§25.4)
         records = request.get("records") if isinstance(request, Mapping) else None
         records = records if isinstance(records, list) else []
         refused: list[tuple[str, tuple[str, ...]]] = []
@@ -215,16 +245,32 @@ class Admission:
                     refused.append((content_identity(record), tuple(sorted(set(own)))))
                 else:
                     passing.append(dict(record))
-        if not reasons and s is not None:
+        if not reasons and s is not None:  # step 2 at the request level, after step 1 passed
             position = request["base_position"]
             if not 0 <= position <= s.n or request["base_commit"] != self.expected_head(entries[: position + 1]):
                 reasons.add("REF_BASE")
             if request["claims"]:
                 obligations = {o.id for o in Workflow(support).obligations}
                 reasons.update("REF_OBLIGATION" for c in request["claims"] if c not in obligations)
+        auth = None
+        if isinstance(request, Mapping) and s is not None:  # step 3's authentication of the binding
+            auth = authenticate(request, passing, trust_roots(entries), s.n)
+            reasons |= auth.reasons
+            covered = {rid for rid, _ in auth.refused}
+            refused += list(auth.refused)
+            passing = [r for r in passing if r["id"] not in covered]
         if not reasons and not refused:
-            reasons.add("SCHEMA_UNSUPPORTED")  # steps 3-8 are not realized yet: fail closed (§8.3 step 1)
-        return reasons, refused, passing
+            reasons.add("SCHEMA_UNSUPPORTED")  # steps 4-8 are not realized yet: fail closed (§8.3 step 1)
+        return reasons, refused, passing, auth
+
+
+def lifecycle_message(record: Mapping[str, Any]) -> bytes:
+    """What the human gate signs for a lifecycle record: its identity without the provenance that carries the
+    approval (Phase F reading F5)."""
+
+    from ssds.ledger.read import record_id
+
+    return b"ssds lifecycle " + record_id({**record, "provenance": None}).encode("ascii") + b"\n"
 
 
 __all__ = ["Admission", "AdmissionHalted", "Decision", "EntryInvalid", "UNREALIZED_STEPS"]
