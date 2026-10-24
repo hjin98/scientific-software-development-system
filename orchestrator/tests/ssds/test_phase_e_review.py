@@ -573,12 +573,21 @@ class LifecycleRetained(test_step5_review.Lifecycle):
 
     def suspended(self, f) -> list[str]:
         """No decision of the chain is open while the item waits on live part work: overlapping parts of successive
-        partitions reopen each other by drift until a budget sends one to the principal (a disclosed, live path)."""
+        partitions reopen each other by drift until a budget sends one to the principal (a disclosed, live path), and
+        after an amendment the reopened part waits on the plan's re-acceptance, whose obligation is open."""
 
-        item = f.item()
-        live = [p for p in item.parts if p.discharge() == "OPEN"
-                and (p.readiness().state == "READY" or p.route.decisions)]
-        return [] if item.route.route.startswith("partitioned:") and live else ["P1: no open decision to answer"]
+        item, w = f.item(), f.w()
+        accepting = any(o.kind == "PLAN_ACCEPT" and o.plan == item.plan for o in w.obligations)
+
+        def live(part) -> bool:
+            readiness = part.readiness()
+            if readiness.state == "READY" or part.route.decisions:
+                return True
+            return accepting and all(r.startswith("not issuable") for r in readiness.waiting_on)
+
+        if item.route.route.startswith("partitioned:") and any(live(p) for p in item.parts if p.discharge() == "OPEN"):
+            return []
+        return ["P1: no open decision to answer"]
 
     def partition_elsewhere(self, f, d, actor: str, n: int, uncounted: bool):
         rec = f.partition(d, [(["o1", "o2", "o3"], ["notes.b"])], actor=actor)
