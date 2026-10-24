@@ -426,7 +426,7 @@ class Lifecycle(unittest.TestCase):
         for outcome, settled, who in seq:
             (d,) = open_() or [None]
             if d is None:
-                return self.suspended(f)
+                return self.suspended(f, counted)
             actor = HUMAN if who == "human" else PRINCIPAL
             held = len(counted) >= RECURRENCE
             n += 1
@@ -473,9 +473,30 @@ class Lifecycle(unittest.TestCase):
                 problems.append("P6")
         if counted and counted[-1][1] == "PARTITION" and not route.startswith("partitioned:") and condition == "budget-spent":
             problems.append("partition")
+        problems += self.route4(f, counted)
         return problems
 
-    def suspended(self, f) -> list[str]:
+    @staticmethod
+    def route4(f, counted) -> list[str]:
+        """While a no-part condition holds its decision is the route, or the unfinished parts of a partition answering
+        that chain; a ready part of another partition never stands in for it (§10.4; re-Review of 49bebf3, E-R3)."""
+
+        item = f.item()
+        # the condition is read here from the standing objections and the uncovered failing subjects, not from the
+        # route owner's own predicate, so this oracle does not reuse the code it checks
+        condition = any(not item._named_parts(r) for r in item._objections) or bool(item.uncovered_failing)
+        if item.partition is None or not condition or item.discharge() != "OPEN":
+            return []
+        route = item.route.route
+        if route.startswith(("COORDINATE:item-level-no-part", "human-attention:item-level-no-part", "awaiting-")):
+            return []
+        answering = {rid for rid, outcome, _ in counted if outcome.startswith("PARTITION")}
+        rid = route.split(":", 1)[1] if route.startswith("partitioned:") else None
+        if rid in answering and any(p.share[0] == rid and p.discharge() == "OPEN" for p in item.parts):
+            return []  # a partition answering this chain holds the route until its parts are done
+        return ["route4: the no-part condition holds without its decision"]
+
+    def suspended(self, f, counted) -> list[str]:
         return ["P1: no open decision to answer"]
 
     def amendment(self, f, n: int) -> dict[str, str]:
@@ -491,6 +512,37 @@ class Lifecycle(unittest.TestCase):
             for seq in sample:
                 with self.subTest(condition=condition, chain=seq):
                     self.assertEqual(self.replay(condition, seq), [])
+
+
+class LifecycleOnePart(Lifecycle):
+    """Reading E15 for the item-level-no-part condition on a one-part partition, where the objection itself reopens the
+    part whose work it judged (re-Review of 49bebf3, E-R3)."""
+
+    def start(self, condition: str):
+        f = PartFlow()
+        f.spend(f.item().obligation)
+        f.partition(f.budget_decision(f.item()), [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])])
+        f.work_part(f.item().parts[0], {"records.md": "# Records done\n", "notes/a.md": "a done\n", "notes/b.md": "b done\n"})
+        f.item_level("NO_PASS")
+        assert f.item().route.route == "COORDINATE:item-level-no-part"
+        return f
+
+    def test_every_chain_up_to_length_two_and_a_sample_of_length_four(self) -> None:
+        rng = random.Random(20261024)
+        for seq in [s for k in range(3) for s in chains(k)] + rng.sample(list(chains(4)), 12):
+            with self.subTest(chain=seq):
+                self.assertEqual(self.replay("item-level-no-part", seq), [])
+
+
+@unittest.skipUnless(os.environ.get("SSDS_SLOW"), "the named slow check of reading E15: set SSDS_SLOW=1")
+class LifecycleOnePartFull(LifecycleOnePart):
+    def test_every_chain_up_to_length_two_and_a_sample_of_length_four(self) -> None:
+        pass
+
+    def test_every_chain_up_to_length_four(self) -> None:
+        bad = [(seq, problems) for k in range(5) for seq in chains(k)
+               if (problems := self.replay("item-level-no-part", seq))]
+        self.assertEqual(bad, [])
 
 
 @unittest.skipUnless(os.environ.get("SSDS_SLOW"), "the named slow check of reading E15: set SSDS_SLOW=1")

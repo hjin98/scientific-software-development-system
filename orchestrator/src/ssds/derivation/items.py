@@ -586,6 +586,27 @@ class ItemObligation:
         reviews = [r for r in self.item_level_reviews() if self.s.record(r)["outcome"] == "PASS" and not self.d.j.nonind(r)]
         return min(value, max((self.d.current(r) for r in reviews), default=F))
 
+    @cached_property
+    def no_part_condition(self) -> bool:
+        """An adverse condition of the integrated item that no part answers: a standing item-level objection naming
+        no part, or failing retained work no part covers (reading E32). Its decision stays owed while it holds,
+        whatever part integrates meanwhile (review 879fa490 B9)."""
+
+        return bool(self.uncovered_failing) or any(not self._named_parts(r) for r in self._objections)
+
+    @property
+    def carried_review_owed(self) -> bool:
+        """An item-level review of a newer integrated result is owed beside the route: an objection naming no part
+        stands on an earlier result, every part is done and the newer one has no review yet. Only that review,
+        whose brief carries the objection (§16.5), retires it, so it is derived though the decision stays open."""
+
+        target = self.item_level_target
+        if self.share is not None or self.partition is None or self.waived or target is None or self.item_level_reviews():
+            return False
+        if any(part.discharge() == "OPEN" for part in self.parts):
+            return False
+        return any(not self._named_parts(r) and self.s.record(r)["target"] != target for r in self._objections)
+
     def discharge(self) -> str:
         from .workflow import DISCHARGED, DISCHARGED_PROVISIONAL, OPEN
 
@@ -759,15 +780,17 @@ class ItemObligation:
         beside = tuple(self._record_decisions())
         if self.discharge() != "OPEN":
             return Route("discharged", beside)
+        if self.no_part_condition:
+            # read before the parts: an objection naming no part may itself reopen a part whose work it judged (one
+            # part), and the principal's decision is owed all the same (§10.4 route 4; re-Review of 49bebf3,
+            # E-R3). A partition answering this chain hands the route to its parts until they are done; once they
+            # are, it did not cover the condition and the chain continues past it (R2)
+            finished = frozenset(p.decision for p in self.partitions
+                                 if all(q.discharge() != "OPEN" for q in self.parts if q.share[0] == p.decision))
+            route, opened, _ = self.chain("item-level-no-part", finished)
+            return Route(route, beside + opened)
         if any(part.discharge() == "OPEN" for part in self.parts):
             return Route(f"partitioned:{self.partition.decision}", beside)
-        no_part = [r for r in self._objections if not self._named_parts(r)]
-        # an adverse condition of the integrated item naming no part: an objection, or retained work outside
-        # every part's scope whose terms fail; the principal answers it on SD-54's chain (reading E32)
-        if no_part or self.uncovered_failing:
-            # every required part is done, so a partition answered on this chain did not cover the condition
-            route, opened, _ = self.chain("item-level-no-part", frozenset(p.decision for p in self.partitions))
-            return Route(route, beside + opened)
         return Route("item-level-review", beside)
 
     def readiness(self) -> Any:

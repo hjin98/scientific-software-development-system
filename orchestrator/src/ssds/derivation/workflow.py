@@ -188,7 +188,8 @@ class Workflow:
             for part in item.parts:
                 found.append(part.obligation)
                 found.extend(part.route.decisions)
-            if item.route.route == "item-level-review" and not item.waived and item.item_level_target is not None:
+            if (item.route.route == "item-level-review" or item.carried_review_owed) and not item.waived \
+                    and item.item_level_target is not None:
                 found.append(make("REVIEW", item.item_level_target, holder=REVIEWER, plan=item.plan))
         found += self.items.orphan_decisions
         found += self._revalidations(found)

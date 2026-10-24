@@ -571,7 +571,7 @@ class LifecycleRetained(test_step5_review.Lifecycle):
         return {"plans/work.md": re.sub(r"Adaptive solver[^\n]*", f"Adaptive solver, round {n}.",
                                         f.sc.files["plans/work.md"], count=1)}
 
-    def suspended(self, f) -> list[str]:
+    def suspended(self, f, counted) -> list[str]:
         """No decision of the chain is open while the item waits on live part work: overlapping parts of successive
         partitions reopen each other by drift until a budget sends one to the principal (a disclosed, live path), and
         after an amendment the reopened part waits on the plan's re-acceptance, whose obligation is open."""
@@ -585,6 +585,8 @@ class LifecycleRetained(test_step5_review.Lifecycle):
                 return True
             return accepting and all(r.startswith("not issuable") for r in readiness.waiting_on)
 
+        if self.route4(f, counted):
+            return self.route4(f, counted)  # a ready part never stands in for the no-part decision (E-R3)
         if item.route.route.startswith("partitioned:") and any(live(p) for p in item.parts if p.discharge() == "OPEN"):
             return []
         return ["P1: no open decision to answer"]
@@ -617,6 +619,74 @@ class LifecycleRetainedFull(LifecycleRetained):
         bad = [(seq, problems) for k in range(5) for seq in test_step5_review.chains(k, self.ALPHABET)
                if (problems := self.replay("item-level-no-part", seq))]
         self.assertEqual(bad, [])
+
+
+class NoPartObjection(unittest.TestCase):
+    """Re-Review of 49bebf3, E-R3: an item-level NO-PASS naming no part goes to the principal whatever the partition's
+    shape, even when it reopens the one part whose work it judged; the item-level review of a newer result, which
+    alone retires the objection, is derived beside the open decision."""
+
+    def flow(self, size: int, named: bool = False):
+        from .test_partition import PartFlow
+
+        f = PartFlow()
+        f.spend(f.item().obligation)
+        if size == 1:
+            f.partition(f.budget_decision(f.item()), [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])])
+            f.work_part(f.item().parts[0], {"records.md": "# Records done\n", "notes/a.md": "a done\n", "notes/b.md": "b done\n"})
+        else:
+            f.partition(f.budget_decision(f.item()), [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])])
+            f.work_part(f.item().parts[0], {"records.md": "# Records done\n"})
+            f.work_part(f.item().parts[1], {"notes/a.md": "a done\n", "notes/b.md": "b done\n"})
+        assert f.item().route.route == "item-level-review"
+        f.item_level("NO_PASS", findings=[{"part": 0, "units": ["records"]}] if named else None)
+        return f
+
+    def test_every_shape_derives_the_principal_decision(self) -> None:
+        for size, named in ((1, False), (2, False), (1, True)):
+            with self.subTest(parts=size, named_part=named):
+                f = self.flow(size, named)
+                item = f.item()
+                self.assertEqual(item.discharge(), "OPEN")
+                expected = item._decision("item-level-no-part", None)
+                if named:
+                    self.assertTrue(item.route.route.startswith("partitioned:"), "a named part takes its own route")
+                    self.assertEqual(item.parts[0].route.route, "re-dispatch")
+                else:
+                    self.assertEqual(item.route.route, "COORDINATE:item-level-no-part")
+                    self.assertIn(expected.id, {o.id for o in f.w().obligations})
+
+    def carried_review(self, f):
+        item = f.item()
+        return [o for o in f.w().of_kind("REVIEW") if o.target == item.item_level_target]
+
+    def test_one_part_continuation_ends_in_the_carried_review(self) -> None:
+        f = self.flow(1)
+        (decision,) = f.item().route.decisions
+        answer, _ = f.decide(decision, "AMEND")  # carries no plan change: settled at once
+        (following,) = f.item().route.decisions
+        self.assertEqual(following.target["after"], answer["id"], "SD-54: the next decision names the answer")
+        f.work_part(f.item().parts[0], {"records.md": "# Records redone\n", "notes/a.md": "a redone\n", "notes/b.md": "b redone\n"})
+        item = f.item()
+        self.assertEqual(item.route.route, "COORDINATE:item-level-no-part", "the open decision stays (review 879fa490 B9)")
+        self.assertIn(following.id, {o.id for o in f.w().obligations})
+        self.assertTrue(self.carried_review(f), "the review of the newer result, which carries the objection, is owed")
+        f.item_level("PASS")
+        item = f.item()
+        self.assertEqual(item.discharge(), "DISCHARGED")
+        self.assertNotIn(following.id, {o.id for o in f.w().obligations}, "a retired objection owes no decision")
+
+    def test_a_partition_answer_hands_over_then_the_carried_review(self) -> None:
+        f = self.flow(1)  # the objection reopened the sole part, so the new partition keeps no part (E32)
+        (decision,) = f.item().route.decisions
+        answer = f.partition(decision, [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])])
+        self.assertEqual(f.item().route.route, f"partitioned:{answer['id']}")
+        self.assertFalse(self.carried_review(f))
+        part = next(p for p in f.item().parts if p.share[0] == answer["id"])
+        f.work_part(part, {"records.md": "# Records again\n", "notes/a.md": "a again\n", "notes/b.md": "b again\n"})
+        self.assertTrue(self.carried_review(f))
+        f.item_level("PASS")
+        self.assertEqual(f.item().discharge(), "DISCHARGED")
 
 if __name__ == "__main__":
     unittest.main()
