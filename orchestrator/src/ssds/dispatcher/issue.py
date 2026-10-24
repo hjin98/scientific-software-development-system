@@ -109,7 +109,10 @@ class Issuer:
 
     def issue(self, *, task_id: str, obligation_id: str, role: str, contract_revision: Any, governs: Mapping[str, Any],
               route: str, issued_at_position: int, input_sessions: Sequence[str] = (),
-              predecessors: Mapping[str, Any] | None = None) -> Issued:
+              predecessors: Mapping[str, Any] | None = None, brief: bytes | None = None) -> Issued:
+        """Sign the task's envelope. ``brief`` is the rendered brief the task is given: its content identity is
+        recorded in the envelope, so the doctrine text the agent received is recoverable exactly (§16.4)."""
+
         if route not in ROUTES:
             raise ValueError(f"route {route!r} is not one of {sorted(ROUTES)}")
         harness = route == "HARNESS"
@@ -117,7 +120,8 @@ class Issuer:
                     "contract_revision": contract_revision, "governs": dict(governs), "route": route,
                     "lineage_class": "ATTESTED_FRESH" if harness else "UNKNOWN", "input_sessions": list(input_sessions),
                     "issued_at_position": issued_at_position, "issue_key_id": self.key_id,
-                    "predecessors": dict(predecessors) if predecessors else None}
+                    "predecessors": dict(predecessors) if predecessors else None,
+                    "brief": "sha256:" + hashlib.sha256(brief).hexdigest() if brief is not None else None}
         signature = self._key.sign(envelope_message(envelope)).hex()
         if not harness:
             return Issued(envelope, signature, None, None, None)

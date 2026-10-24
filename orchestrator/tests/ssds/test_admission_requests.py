@@ -51,6 +51,12 @@ class RequestFixture(GenesisFixture):
 
         return human_key_id(self.public)
 
+    def lifecycle(self, action: str, key: dict, **fields) -> None:
+        from ssds.admission.engine import lifecycle_message
+
+        rec = record("KEY_LIFECYCLE", target=None, actor=self.human(), fields={"action": action, "key": key, **fields})
+        self.admission.admit_lifecycle(rec, sshsig(self.private, lifecycle_message(rec)), self.baseline)
+
     def register_issue_key(self, home_root=None):
         """A Dispatcher issue key registered by the human gate's real ``KEY_LIFECYCLE`` path (§25.2)."""
 
@@ -493,12 +499,6 @@ def acceptance() -> dict:
 class Envelopes(RequestFixture):
     """Phase F step 3: the task binding's authentication (Manual §8.3 step 3, §12.2, §25.1-§25.2)."""
 
-    def lifecycle(self, action: str, key: dict, **fields) -> None:
-        from ssds.admission.engine import lifecycle_message
-
-        rec = record("KEY_LIFECYCLE", target=None, actor=self.human(), fields={"action": action, "key": key, **fields})
-        self.admission.admit_lifecycle(rec, sshsig(self.private, lifecycle_message(rec)), self.baseline)
-
     def test_a_harness_binding_proves_attested_fresh_lineage(self) -> None:
         req, (report,) = self.bound([finding()])
         decision = self.admit(req)
@@ -611,6 +611,69 @@ class Envelopes(RequestFixture):
         os.symlink(self.issuer.path.parent, linked / "keys" / "dispatcher")
         with self.assertRaises(IssueKeyRefused):
             Issuer(linked, "demo")
+
+
+class JournalAndBrief(RequestFixture):
+    """Phase F step 3b: the operator journal (§8.1, §22.4, §25.2) and the brief's identity in the envelope (§16.4)."""
+
+    def test_a_retirement_lists_the_outstanding_envelopes_the_journal_compiles(self) -> None:
+        from ssds.dispatcher.journal import Journal
+
+        journal = Journal(self.home.root, "demo")
+        done, open_ = self.issue(), self.issue("MANUAL")
+        journal.issued(done.envelope["task_id"], done.binding())
+        journal.issued(open_.envelope["task_id"], open_.binding())
+        outstanding = journal.outstanding(self.issuer.key_id, finished_tasks=[done.envelope["task_id"]])
+        self.assertEqual(len(outstanding), 1)
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=outstanding)
+        still = self.admit(self.signed(open_, [self.bind(finding(), open_)]))
+        self.assertEqual(len(still.admitted), 1, "an outstanding envelope still covers its never-lost records")
+        gone = self.admit(self.signed(done, [self.bind(finding(materiality="MATERIAL"), done)]))
+        self.assertEqual((gone.admitted, "AUTH_ENVELOPE" in gone.reasons), ((), True))
+
+    def test_undecided_requests_are_kept_for_resubmission_by_identity(self) -> None:
+        from ssds.dispatcher.journal import Journal
+
+        journal = Journal(self.home.root, "demo")
+        req, _ = self.bound([finding()])
+        rid = journal.submitted(req)
+        self.assertEqual(journal.undecided(), [req])
+        journal.decided(self.admit(req).request_id)
+        self.assertEqual((rid, journal.undecided()), (request_id(req), []))
+
+    def test_the_journal_is_private_operator_state(self) -> None:
+        import os
+
+        from ssds.dispatcher.journal import Journal, JournalRefused
+
+        journal = Journal(self.home.root, "demo")
+        journal.decided("sha256:" + "0" * 64)
+        os.chmod(journal.path, 0o644)
+        with self.assertRaises(JournalRefused):
+            journal.entries()
+        os.chmod(journal.path, 0o600)
+        linked = self.root / "elsewhere"
+        linked.mkdir()
+        target = Journal(self.root / "linked-home", "demo")
+        target.path.parent.parent.mkdir(parents=True)
+        os.symlink(linked, target.path.parent)
+        with self.assertRaises(JournalRefused):
+            target.decided("sha256:" + "1" * 64)
+
+    def test_the_rendered_brief_is_recorded_in_the_envelope_and_signed(self) -> None:
+        import hashlib
+
+        head = len(self.entries()) - 1
+        brief = b"# Task brief\n\nDo the thing.\n"
+        issued = self.issuer.issue(task_id="t-brief", obligation_id="obl", role="IMPLEMENTER", contract_revision=None,
+                                   governs={"mode": "LEGACY", "protocol": "7.2.1"}, route="HARNESS",
+                                   issued_at_position=head, brief=brief)
+        self.assertEqual(issued.envelope["brief"], "sha256:" + hashlib.sha256(brief).hexdigest())
+        report = self.bind(finding(), issued)
+        self.assertEqual(len(self.admit(self.signed(issued, [report])).admitted), 1)
+        tampered = self.signed(issued, [self.bind(finding(materiality="MATERIAL"), issued)])
+        tampered["binding"]["envelope"] = {**tampered["binding"]["envelope"], "brief": "sha256:" + "9" * 64}
+        self.assertIn("AUTH_ENVELOPE", self.admit(tampered).reasons, "the brief's identity is under the signature")
 
 if __name__ == "__main__":
     unittest.main()

@@ -43,9 +43,10 @@ def request_id(request: Any) -> str:
         return "sha256:" + hashlib.sha256(b"ssds.request.v1.unencodable" + repr(body).encode("utf-8")).hexdigest()
 
 
-#: The task envelope's fields (catalogue §12.2; the ``retained`` field is dropped, G2 register RR-2).
+#: The task envelope's fields (catalogue §12.2; the ``retained`` field is dropped, G2 register RR-2), with the
+#: rendered brief's content identity, which Manual §16.4 records in the envelope.
 ENVELOPE_FIELDS = frozenset({"task_id", "obligation_id", "role", "contract_revision", "governs", "route", "lineage_class",
-                             "input_sessions", "issued_at_position", "issue_key_id", "predecessors"})
+                             "input_sessions", "issued_at_position", "issue_key_id", "predecessors", "brief"})
 ROUTES = frozenset({"HARNESS", "MANUAL", "GIT_ENVELOPE"})
 
 
