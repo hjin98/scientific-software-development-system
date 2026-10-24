@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-E-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active
+status: completed (Review PASS at c2b1ec2)
 created_date: 2026-10-21
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase E row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A6 accepted, SD-53 and SD-55; A7 and A8 accepted, SD-60; A9 accepted, SD-62)
@@ -17,7 +17,8 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase E plan: the read-only interface and workflow layer
 
 ```text
-STATUS: ACTIVE. Companion to the G2 shadow workplan, Stage D (§5.2 Phase E row). It concretizes
+STATUS: COMPLETED: the Phase E Review of c2b1ec2 (different family) PASS on the implementation and
+        the exit. Companion to the G2 shadow workplan, Stage D (§5.2 Phase E row). It concretizes
         that row into files, modules and test groups; it adds no mechanism beyond the settled
         register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase D Review PASS at 39fe39b lets Phase E's dependent work start (G2 workplan §5.1
@@ -46,11 +47,11 @@ DONE SO FAR: §3 step 1 (the F8 sensor follows Python's binding and evaluation o
              `ssds inspect`; the doctrine pin of reading E37); the step 7 review's repairs; step 8
              (groups 5 and 6 assembled, the full lifecycle enumeration, the end-to-end read-only run on
              `ssdp-shadow`; §5 below). Phase E's implementation is complete.
-NEXT ACTION: the re-Review of 9c7d77d closed E-R3 and the consolidated rule, and found two
-             blockers, E-R4 (the no-part decision brief omitted the standing review) and E-R5 (an
-             unresolved part selector counted as naming a part), both repaired below; the
-             stakeholder decides on a further re-Review. A9 is accepted (SD-62);
-             the new shadow genesis under A9 is a separate human gate (§7). Steps 4
+NEXT ACTION: none in this plan. The re-Review of c2b1ec2 passed Phase E's implementation and exit
+             (`qualification/ssds80/PHASE-E-IMPLEMENTATION-REVIEW-SSDS-8.0-C2B1EC2-DIFFERENT-FAMILY-PASS.md`),
+             so Phase F's dependent shadow work may start (G2 §5.1 item 5); nothing is accepted at G3.
+             The new shadow genesis under A9 is a separate human gate (§7); SD-63's amendment work
+             follows separately. Steps 4
              and 5 are swapped from the opening order: an item obligation's discharge predicate and
              the REVIEW(X) trigger read conformance (§11.5), so conformance comes before the routes.
 ```
@@ -212,6 +213,8 @@ Both are repaired by one rule (E32): a review names parts only when every advers
 
 Its non-blocking N-a is repaired too. When a later whole partition dropped part of a named part's branch, the objection retired without its subject being redone. Now a named part counts only while every unreplaced part of its branch is required, so the review fails safe to the principal. Tests fail on eccd24bd (`test_phase_e_review.ObjectionRetirement`: B-S8 for both outcomes, N-a). They also close the reviewer's test gaps: a RESOLVED entry beside a valid selector, a RESOLVED entry without `of`, and a depth-2 veto. Non-blocking and recorded in §6: N-b, a retired objection returning when a later whole partition drops its part. The scratch venv the reviewer was given had gone; it built its own (uv CPython 3.11.15, current dependencies), and the author's checks use a recreated venv.
 
+**The re-Review of c2b1ec2 (different family): PASS.** `qualification/ssds80/PHASE-E-IMPLEMENTATION-REVIEW-SSDS-8.0-C2B1EC2-DIFFERENT-FAMILY-PASS.md`: no SERIOUS CHALLENGE, no Phase E blocker. PASS on the implementation and the exit within the shadow scope. E-R4, E-R5, N-1, N-2, P2, B-S8 and N-a are closed, no earlier closure regressed, and the enumerations' applicability is confirmed. (A first launch stopped silently when its terminal tab closed, before any check; the review was rerun detached from the tab.) It records one new later-phase finding, PERF-E1, kept in §6. It does not repair, waive or accept the other §6 items, and authorizes nothing beyond shadow.
+
 ## 6. Fail closed until a later owner
 
 Until Phase F: every obligation is derived and shown, none is dispatched; no brief is issued; independence that needs lineage attestation is `UNKNOWN` and fails closed (§12.2), so a judgment that requires independence does not answer in Phase E fixtures unless the fixture records attested lineage. Until §17's realization machinery and runners exist: required evidence with no admitted realization is `UNAVAILABLE`, never passing. Until Phase G: intake obligations are derived (Phase D) but not routed beyond `INTAKE`. Not realized in Phase E (step 5 review N4): merging and upgrading human-attention items (§15.6; no record kind exists), so each report keeps its own obligation; the CRITICAL floor for any decision R3 owns, so such a decision is held only by the floors that do apply; and the qualification of an item's review beyond independence (`REVIEW` carries no qualification predicate in Phase E's policy). Not realized in Phase E's briefs and inspector (step 7; the Phase E Review of 09f3505 found this list incomplete in E38 and it is kept here whole): merged entries and annotations (§15.6); the trust-boundary aggregate for confidential content (§16.8, §25.4); the incompleteness notices for incomplete analyzers, proposed-only relations and parts whose validity comes from a coarser subject (§16.3 (7)); §16.5's required review item for a specification change (the counted failures it would make stale); briefs of the S3 kernel's `INTAKE`, `INTEGRITY` and `REQUALIFY` obligations, which `open` refuses (an integrity finding reaches the human through its floor event); the doctrine pin's public-source resolution beyond the version check (E37); the digest's acknowledgment boundary (E38). Each fails toward "not supported", never toward support. Open findings of the same-family check of 100c8ae8, for their owners, are live and fail toward `OPEN`, never toward discharge:
@@ -221,6 +224,7 @@ Until Phase F: every obligation is derived and shown, none is dispatched; no bri
 - **Late objection.** A no-part objection on an older result, arriving after the current result already has an item-level review, owes its decision, and the item stays live through it. But no review carrying it is derived: a review of the current result is keyed on its target and is already discharged by the earlier review. So only an answer that produces new work retires it, and a whole partition does so through the overlap path above. A real fix needs a review identity that carries the objection. Owner: the carried-review rule (E32); later phase.
 - **Reviving a dropped part.** Answering the decision of a part a later whole partition dropped, a decision no longer derived, makes that work required again and can unsettle a settled partition. Owner: Admission's refusal of answers to non-derived obligations, Phase F.
 - **A retired objection returning.** An objection naming a part retires when that part re-integrates. If a later whole partition then drops the part, the review counts as naming no part and stands again, adding a decision and a carried review. It errs toward the principal, and nothing is stranded or taken back. Owner: the selector rule (E32).
+- **PERF-E1, history re-evaluation cost.** `Items.discharged_at` rebuilds a historical workflow each time a whole partition's required parts are evaluated. On a seven-round one-part history the derivation time roughly doubled each round, to about 13 s at 44 entries; the cost predates the E-R3 line. Owner: D4 derivation. Before G3 claims practical scale, remove the repeated historical evaluation and qualify the real consumer, preserving prefix semantics and the selector and settlement discriminators (re-Review of c2b1ec2).
 - **Early no-part decision.** The no-part condition takes the route while a partition answering another chain has parts mid-work. Those parts keep their own routes, but a whole partition the principal answers early drops that work. It is wasteful, and live.
 - **Answers to undecided decisions.** As with every SD-54 continuation, an answer to a decision the derivation would not have derived is counted structurally. Refusing it is Phase F Admission's job.
 
