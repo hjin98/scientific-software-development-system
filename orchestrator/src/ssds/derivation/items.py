@@ -543,8 +543,9 @@ class ItemObligation:
                 continue
             position, named = self.s.position_of(r), self._named_parts(r)
             if named:
-                redone = all(any(p.obligation.id in self._branch(o) and p.latest_integrated is not None
-                                 and p.latest_integrated.integrated > position for p in self.parts) for o in named)
+                # every required part descending from each named part has re-integrated since (as C-1)
+                redone = all(all(p.latest_integrated is not None and p.latest_integrated.integrated > position
+                                 for p in self.parts if p.obligation.id in self._branch(o)) for o in named)
                 if redone:
                     continue
             elif any(self.s.position_of(q) > position and self.s.record(q)["target"] != self.s.record(r)["target"]
@@ -560,22 +561,26 @@ class ItemObligation:
         return tuple(self.part_obligation(p, i) for p in self.partitions for i in range(len(p.parts)))
 
     def _named_parts(self, review: str) -> frozenset[str]:
-        """The part obligations an item-level review's findings name. Each finding's ``part`` index is resolved
-        against the parts whose integrations the review's target judged (its ``changes``, §3.4): a strict integer
-        naming exactly one of them. A selector naming none or several of them, or not an integer, fails safe: the
-        review counts as naming no part, so the principal decides (E32; re-Review of 9c7d77d, E-R5)."""
+        """The part obligations an item-level review's findings name, when every adverse finding names one. Each
+        finding's ``part`` index is resolved against the parts whose integrations the review's target judged (its
+        ``changes``, §3.4): a strict integer naming exactly one of them, which is still required or has a required
+        part descending from it. Any adverse finding without such a selector (missing, nonexistent, non-integer,
+        ambiguous, naming a part a later partition dropped, or not an object) fails safe: the whole review counts
+        as naming no part, so the principal decides and no finding is stranded (E32; re-Review of 9c7d77d, E-R5;
+        same-family check of 17b22d71, N-1 and N-2). An entry resolving an earlier finding is not adverse."""
 
         target = self.s.record(review)["target"]
         changes = set(target.get("changes") or []) if isinstance(target, dict) else set()
         entries = self.s.h.chain.entries
         judged = [p for p in self._all_parts if any(entries[e.integrated].digest in changes for e in p.integrated)]
+        required = {p.obligation.id for p in self.parts}
         named = set()
         for finding in self.items.findings_of(review) or []:
-            if not isinstance(finding, dict) or "part" not in finding:
+            if isinstance(finding, dict) and finding.get("status") == "RESOLVED" and "of" in finding:
                 continue
-            selector = finding["part"]
+            selector = finding.get("part") if isinstance(finding, dict) else None
             matches = [p for p in judged if type(selector) is int and p.share[1] == selector]
-            if len(matches) != 1:
+            if len(matches) != 1 or not self._branch(matches[0].obligation.id) & required:
                 return frozenset()
             named.add(matches[0].obligation.id)
         return frozenset(named)

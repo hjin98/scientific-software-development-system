@@ -885,5 +885,75 @@ class NoPartTriggers(unittest.TestCase):
         f.item_level("NO_PASS", findings=[{"part": 0, "units": ["records"]}])  # part 0 of both partitions
         self.assertEqual(f.item().route.route, "COORDINATE:item-level-no-part")
 
+
+class SelectorNaming(unittest.TestCase):
+    """Same-family check of 17b22d71: a review names parts only when every adverse finding carries a selector naming
+    exactly one judged part that is still required, itself or through its re-partitions; otherwise the principal
+    decides (N-1, N-2). A named part counts as redone only when every required part descending from it has (P2)."""
+
+    @staticmethod
+    def review_on(f, target, findings, actor):
+        from ._scenario import agent, fresh
+
+        f.counter += 1
+        task = f"late-{f.counter}"
+        verdict = judgment("REVIEW", target, "NO_PASS", actor=agent(actor), actor_class="AGENT",
+                           basis=[content("records", f.sc.rev("records"))], binding=fresh(agent(actor), task))
+        result = record("TASK_RESULT", target={"task": task}, outcome="COMPLETE", actor=agent(actor), actor_class="AGENT",
+                        fields={"slots": {"claims": [], "findings": findings}})
+        result["binding"] = fresh(agent(actor), task)
+        f.sc.admit(verdict, with_id(result))
+        return verdict
+
+    def test_n1_a_late_selector_naming_a_dropped_part_goes_to_the_principal(self) -> None:
+        from ._scenario import agent
+        from .test_partition import partitioned_and_worked
+
+        for finding in ({"part": 0, "units": ["records"], "id": "LATE-DROPPED"}, {"units": ["records"], "id": "LATE-NOPART"}):
+            with self.subTest(finding=finding):
+                f = partitioned_and_worked()
+                old = f.item().item_level_target
+                f.item_level("NO_PASS", findings=[{"part": 0, "units": ["records"]}])
+                self.review_on(f, old, [{"units": ["notes.a"]}], "integrator2")
+                (decision,) = [o for o in f.item().route.decisions if o.target.get("condition") == "item-level-no-part"]
+                whole = f.partition(decision, [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])])
+                f.work_part(next(p for p in f.item().parts if p.share[0] == whole["id"]), {"records.md": "# by C\n"})
+                f.item_level("PASS", actor=agent("integrator3"))
+                self.assertEqual(f.item().discharge(), "DISCHARGED")
+                self.review_on(f, old, [finding], "integrator4")
+                item = f.item()
+                self.assertEqual(item.discharge(), "OPEN", "a standing adverse review never leaves the item discharged")
+                self.assertEqual(item.route.route, "COORDINATE:item-level-no-part")
+
+    def test_n2_any_finding_without_a_valid_selector_fails_safe(self) -> None:
+        from .test_partition import partitioned_and_worked
+
+        for findings in ([{"part": 0, "units": ["records"]}, {"units": ["notes.a"], "id": "F-NOPART"}],
+                         ["free text about the notes", {"part": 0, "units": ["records"]}],
+                         [{"part": None, "units": ["notes.a"]}, {"part": 0, "units": ["records"]}]):
+            with self.subTest(findings=findings):
+                f = partitioned_and_worked()
+                f.item_level("NO_PASS", findings=findings)
+                self.assertEqual(f.item().route.route, "COORDINATE:item-level-no-part")
+
+    def test_p2_a_named_replaced_part_stands_until_every_descendant_is_redone(self) -> None:
+        from .test_partition import partitioned_and_worked
+
+        f = partitioned_and_worked()
+        old = f.item().item_level_target
+        f.item_level("NO_PASS", findings=[{"part": 1, "units": ["notes.a"]}])
+        first = next(p for p in f.item().parts if p.discharge() == "OPEN")
+        f.spend(first.obligation, "notes/a.md")
+        first = next(p for p in f.item().parts if p.share[1] == 1 and p.share[0] == first.share[0])
+        again = f.partition(f.budget_decision(first), [(["o2"], ["notes.a"]), (["o3"], ["notes.b"])])
+        for index, change in ((0, {"notes/a.md": "a v2\n"}), (1, {"notes/b.md": "b v2\n"})):
+            f.work_part(next(p for p in f.item().parts if p.share[0] == again["id"] and p.share[1] == index), change)
+        late = self.review_on(f, old, [{"part": 1, "units": ["notes.b"]}], "integrator2")  # names the replaced part
+        children = lambda: [p for p in f.item().parts if p.share[0] == again["id"]]  # noqa: E731
+        self.assertEqual([p.discharge() for p in children()], ["OPEN", "OPEN"], "it vetoes every descendant")
+        f.work_part(children()[0], {"notes/a.md": "a v3\n"})
+        self.assertIn(late["id"], f.item()._objections, "one redone descendant does not retire it")
+        self.assertEqual(children()[1].discharge(), "OPEN")
+
 if __name__ == "__main__":
     unittest.main()
