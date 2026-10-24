@@ -1025,5 +1025,41 @@ class ObjectionRetirement(unittest.TestCase):
         leaves = [p for p in f.item().parts if p.share[0] in (b["id"], c["id"])]
         self.assertEqual([p.discharge() for p in leaves], ["OPEN", "OPEN"])
 
+
+class HistoricalDerivationCost(unittest.TestCase):
+    """PERF-E1 (re-Review of c2b1ec2; Phase F step 1): a whole partition's required parts read their discharge in the
+    state the partition was admitted to; each historical position is derived once per history, never once per
+    reader, so repeated whole partitions cost no doubling."""
+
+    def test_each_historical_position_is_derived_once(self) -> None:
+        from unittest import mock
+
+        from ssds.derivation import workflow as workflow_module
+
+        from .test_routes import PRINCIPAL
+
+        f = NoPartObjection().flow(1)
+        for n in range(1, 6):
+            (decision,) = [o for o in f.item().route.decisions if o.target.get("condition") == "item-level-no-part"]
+            actor = PRINCIPAL if n < 3 else HUMAN
+            answer = f.partition(decision, [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])], actor=actor)
+            part = next(p for p in f.item().parts if p.share[0] == answer["id"])
+            f.work_part(part, {"records.md": f"# r{n}\n", "notes/a.md": f"a{n}\n", "notes/b.md": f"b{n}\n"})
+            f.item_level("NO_PASS")
+        built: list[int] = []
+        original = workflow_module.Workflow.__init__
+
+        def counting(self, support, *args, **kwargs):
+            built.append(support.s.n)
+            original(self, support, *args, **kwargs)
+
+        w = f.w()
+        with mock.patch.object(workflow_module.Workflow, "__init__", counting):
+            item = w.items.by_id("plan.work", "work")
+            routes = (item.route.route, [p.discharge() for p in item.parts])
+        self.assertTrue(routes[0])
+        self.assertEqual(len(built), len(set(built)), "no historical position is derived twice")
+        self.assertLessEqual(len(built), w.s.n)
+
 if __name__ == "__main__":
     unittest.main()

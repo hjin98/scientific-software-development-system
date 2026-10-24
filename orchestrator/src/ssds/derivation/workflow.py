@@ -675,10 +675,22 @@ class Workflow:
     def at(self, position: int) -> "Workflow":
         """The workflow of the same ledger at an earlier position (a historical view)."""
 
+        return Workflow.historical(self.s.h, position)
+
+    @staticmethod
+    def historical(history: Any, position: int) -> "Workflow":
+        """The workflow of a ledger at a position, built once per history and shared by every consumer: a
+        derivation is a function of its prefix (§5), so each position is derived once (PERF-E1; Phase F
+        reading F7)."""
+
         from .state import State
         from .support import Support
 
-        return Workflow(Support(State(self.s.h, position)))
+        cache = history.__dict__.setdefault("_workflows_at", {})
+        found = cache.get(position)
+        if found is None:
+            found = cache[position] = Workflow(Support(State(history, position)))
+        return found
 
     def challenges_on(self, subject: str) -> list[str]:
         """The challenge records on the subject's current triple."""

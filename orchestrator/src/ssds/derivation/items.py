@@ -1082,11 +1082,9 @@ class Items:
     def discharged_at(self, part: ItemObligation, position: int) -> bool:
         """Whether a part obligation was discharged in the state where a later partition was admitted."""
 
-        from .state import State
-        from .support import Support
         from .workflow import Workflow
 
-        earlier = Workflow(Support(State(self.s.h, position - 1)))  # the state the later partition was admitted to
+        earlier = Workflow.historical(self.s.h, position - 1)  # the state the later partition was admitted to
         for item in earlier.items.all:
             if item.unit == part.unit and item.partition is not None:
                 for candidate in item.parts:
