@@ -24,9 +24,10 @@ change integrates, after which a condition that still holds derives the chain's
 next decision naming that answer (an ``AMEND`` whose plan change is refused, or
 that carries none, is settled at once, reading E31); a lint-valid ``PARTITION``
 hands the route to the parts, and an invalid one answers nothing. On the
-item-level-no-part chain, a ``PARTITION`` whose parts are done while the condition
-still holds did not cover it, and like a settled ``AMEND`` it derives the chain's
-next decision naming it (reading E32).
+item-level-no-part chain, which the whole item reads before its parts, a
+``PARTITION`` holds the route until it is spent: its work integrated and the
+condition raised again on that work. Like a settled ``AMEND``, a spent partition
+derives the chain's next decision naming it (reading E32).
 Once a chain holds 3 counted answers (SD-55), each further decision of it is held
 for human attention and only an authenticated human's answer counts; a
 ``CHALLENGE`` counts only on a held decision and waits for its adjudication. A
@@ -594,6 +595,35 @@ class ItemObligation:
 
         return bool(self.uncovered_failing) or any(not self._named_parts(r) for r in self._objections)
 
+    def _spent(self, partition: Partition) -> bool:
+        """A partition answering the item-level-no-part chain is spent once its work is done and the condition is
+        raised again on that work: every required part descending from it (through re-partitions of its parts)
+        integrated after its own partition was admitted, and failing retained work no part covers holds, or an
+        objection naming no part was admitted after those integrations. Integration facts, not a part's current
+        discharge, decide it, so neither a part the objection's veto reopened nor a part a re-partition replaced
+        can make it look unfinished or finished (same-family check of af327075, B-1 and B-2)."""
+
+        tree, ids = {partition.decision}, set()
+        while True:
+            ids = {self.part_obligation(p, i).obligation.id for p in self.partitions if p.decision in tree
+                   for i in range(len(p.parts))}
+            grown = tree | {p.decision for p in self.partitions if p.replaces in ids}
+            if grown == tree:
+                break
+            tree = grown
+        positions = {p.decision: p.position for p in self.partitions}
+        latest = 0
+        for part in self.parts:
+            if part.share[0] not in tree:
+                continue
+            integrated = part.latest_integrated
+            if integrated is None or integrated.integrated <= positions[part.share[0]]:
+                return False
+            latest = max(latest, integrated.integrated)
+        if self.uncovered_failing:
+            return True
+        return any(not self._named_parts(r) and self.s.position_of(r) > latest for r in self._objections)
+
     @property
     def carried_review_owed(self) -> bool:
         """An item-level review of a newer integrated result is owed beside the route: an objection naming no part
@@ -782,12 +812,10 @@ class ItemObligation:
             return Route("discharged", beside)
         if self.no_part_condition:
             # read before the parts: an objection naming no part may itself reopen a part whose work it judged (one
-            # part), and the principal's decision is owed all the same (§10.4 route 4; re-Review of 49bebf3,
-            # E-R3). A partition answering this chain hands the route to its parts until they are done; once they
-            # are, it did not cover the condition and the chain continues past it (R2)
-            finished = frozenset(p.decision for p in self.partitions
-                                 if all(q.discharge() != "OPEN" for q in self.parts if q.share[0] == p.decision))
-            route, opened, _ = self.chain("item-level-no-part", finished)
+            # part), and the principal's decision is owed all the same (§10.4 route 4; re-Review of 49bebf3, E-R3).
+            # A partition answering this chain holds the route until it is spent (R2)
+            spent = frozenset(p.decision for p in self.partitions if self._spent(p))
+            route, opened, _ = self.chain("item-level-no-part", spent)
             return Route(route, beside + opened)
         if any(part.discharge() == "OPEN" for part in self.parts):
             return Route(f"partitioned:{self.partition.decision}", beside)

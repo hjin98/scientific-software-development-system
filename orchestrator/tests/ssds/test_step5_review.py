@@ -438,6 +438,8 @@ class Lifecycle(unittest.TestCase):
                 rec = f.partition(d, [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])], actor=actor)
             elif outcome == "PARTITION-ELSEWHERE":
                 rec = self.partition_elsewhere(f, d, actor, n, held and who != "human")
+            elif outcome == "PARTITION-REDONE":
+                rec = self.partition_redone(f, d, actor, n, held and who != "human")
             elif outcome == "CHALLENGE":
                 f.counter += 1
                 cls = "HUMAN" if actor.startswith("human:") else "AGENT"
@@ -478,22 +480,21 @@ class Lifecycle(unittest.TestCase):
 
     @staticmethod
     def route4(f, counted) -> list[str]:
-        """While a no-part condition holds its decision is the route, or the unfinished parts of a partition answering
-        that chain; a ready part of another partition never stands in for it (§10.4; re-Review of 49bebf3, E-R3)."""
+        """While a no-part condition holds the route opens its decision, or hands it to a ``PARTITION`` answering that
+        chain whose parts the replay has not worked; a ready part never stands in for it, nor a partition whose work
+        is done (§10.4; re-Review of 49bebf3, E-R3; same-family check of af327075, B-1 and B-2). The condition is read
+        from the standing objections and the uncovered failing subjects, and the work done from the replay's own
+        history, never from the route owner, so this oracle does not reuse the code it checks."""
 
         item = f.item()
-        # the condition is read here from the standing objections and the uncovered failing subjects, not from the
-        # route owner's own predicate, so this oracle does not reuse the code it checks
         condition = any(not item._named_parts(r) for r in item._objections) or bool(item.uncovered_failing)
         if item.partition is None or not condition or item.discharge() != "OPEN":
             return []
         route = item.route.route
+        if counted and counted[-1][1] == "PARTITION":  # an answer whose parts the replay never works
+            return [] if route == f"partitioned:{counted[-1][0]}" else ["route4: the unworked partition lost the route"]
         if route.startswith(("COORDINATE:item-level-no-part", "human-attention:item-level-no-part", "awaiting-")):
             return []
-        answering = {rid for rid, outcome, _ in counted if outcome.startswith("PARTITION")}
-        rid = route.split(":", 1)[1] if route.startswith("partitioned:") else None
-        if rid in answering and any(p.share[0] == rid and p.discharge() == "OPEN" for p in item.parts):
-            return []  # a partition answering this chain holds the route until its parts are done
         return ["route4: the no-part condition holds without its decision"]
 
     def suspended(self, f, counted) -> list[str]:
@@ -501,6 +502,9 @@ class Lifecycle(unittest.TestCase):
 
     def amendment(self, f, n: int) -> dict[str, str]:
         return {"plans/work.md": plan(f"Adaptive solver, round {n}.\n")}
+
+    def partition_redone(self, f, d, actor: str, n: int, uncounted: bool):
+        raise NotImplementedError  # only the one-part seed redoes a partition's work and objects to it again
 
     def partition_elsewhere(self, f, d, actor: str, n: int, uncounted: bool):
         raise NotImplementedError  # only a condition a part cannot inherit has a partition that leaves it holding
@@ -527,9 +531,26 @@ class LifecycleOnePart(Lifecycle):
         assert f.item().route.route == "COORDINATE:item-level-no-part"
         return f
 
+    ALPHABET = ALPHABET + [("PARTITION-REDONE", True, a) for a in ("principal", "human")]
+
+    def partition_redone(self, f, d, actor: str, n: int, uncounted: bool):
+        """A ``PARTITION`` into one part, that part's work done and its item-level review a NO-PASS naming no part
+        again: the objection reopens the part, and the chain's next decision is owed (B-1)."""
+
+        rec = f.partition(d, [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])], actor=actor)
+        if not uncounted:
+            part = next(p for p in f.item().parts if p.share[0] == rec["id"])
+            f.work_part(part, {"records.md": f"# Records, round {n}\n", "notes/a.md": f"a, round {n}\n",
+                               "notes/b.md": f"b, round {n}\n"})
+            f.item_level("NO_PASS")
+        return rec
+
     def test_every_chain_up_to_length_two_and_a_sample_of_length_four(self) -> None:
         rng = random.Random(20261024)
-        for seq in [s for k in range(3) for s in chains(k)] + rng.sample(list(chains(4)), 12):
+        sample = [s for k in range(2) for s in chains(k, self.ALPHABET)]
+        for k, size in ((2, 24), (3, 12), (4, 12)):  # the full enumeration is LifecycleOnePartFull
+            sample += rng.sample(list(chains(k, self.ALPHABET)), size)
+        for seq in sample:
             with self.subTest(chain=seq):
                 self.assertEqual(self.replay("item-level-no-part", seq), [])
 
@@ -540,7 +561,7 @@ class LifecycleOnePartFull(LifecycleOnePart):
         pass
 
     def test_every_chain_up_to_length_four(self) -> None:
-        bad = [(seq, problems) for k in range(5) for seq in chains(k)
+        bad = [(seq, problems) for k in range(5) for seq in chains(k, self.ALPHABET)
                if (problems := self.replay("item-level-no-part", seq))]
         self.assertEqual(bad, [])
 

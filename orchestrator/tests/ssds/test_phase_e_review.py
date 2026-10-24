@@ -688,5 +688,47 @@ class NoPartObjection(unittest.TestCase):
         f.item_level("PASS")
         self.assertEqual(f.item().discharge(), "DISCHARGED")
 
+
+class SpentPartition(unittest.TestCase):
+    """Same-family check of af327075: a partition answering the no-part chain holds the route until its work is done
+    and the condition is raised again on that work, decided by integrations, not by a part's current discharge."""
+
+    def test_b1_a_second_objection_after_a_one_part_answer_derives_the_next_decision(self) -> None:
+        f = NoPartObjection().flow(1)
+        (decision,) = f.item().route.decisions
+        answer = f.partition(decision, [(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])])
+        part = next(p for p in f.item().parts if p.share[0] == answer["id"])
+        f.work_part(part, {"records.md": "# r2\n", "notes/a.md": "a2\n", "notes/b.md": "b2\n"})
+        item = f.item()
+        self.assertEqual(item.route.route, f"partitioned:{answer['id']}", "its work awaits the carried review")
+        self.assertTrue(item.carried_review_owed)
+        f.item_level("NO_PASS")  # the carried review objects again, naming no part, and reopens the part
+        item = f.item()
+        self.assertEqual(next(p for p in item.parts if p.share[0] == answer["id"]).discharge(), "OPEN")
+        self.assertEqual(item.route.route, "COORDINATE:item-level-no-part")
+        (following,) = item.route.decisions
+        self.assertEqual(following.target["after"], answer["id"])
+        self.assertIn(following.id, {o.id for o in f.w().obligations})
+
+    def test_b2_a_repartition_of_the_answers_part_keeps_the_route(self) -> None:
+        for shape in ("one part", "two parts"):
+            with self.subTest(answer=shape):
+                f = NoPartObjection().flow(1)
+                (decision,) = f.item().route.decisions
+                split = ([(["o1", "o2", "o3"], ["records", "notes.a", "notes.b"])] if shape == "one part"
+                         else [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])])
+                answer = f.partition(decision, split)
+                if shape == "two parts":
+                    sibling = [p for p in f.item().parts if p.share[0] == answer["id"]][1]
+                    f.work_part(sibling, {"notes/a.md": "a2\n", "notes/b.md": "b2\n"})
+                part = next(p for p in f.item().parts if p.share[0] == answer["id"] and p.discharge() == "OPEN")
+                f.spend(part.obligation)
+                part = next(p for p in f.item().parts if p.share[0] == answer["id"] and p.discharge() == "OPEN")
+                again = f.partition(f.budget_decision(part), [(sorted(part.share[2]), list(part.share[3]))])
+                item = f.item()
+                self.assertEqual(item.route.route, f"partitioned:{answer['id']}", "its work continues in the re-partition")
+                self.assertFalse([o for o in item.route.decisions if o.target.get("condition") == "item-level-no-part"])
+                self.assertTrue(any(p.share[0] == again["id"] and p.discharge() == "OPEN" for p in item.parts))
+
 if __name__ == "__main__":
     unittest.main()
