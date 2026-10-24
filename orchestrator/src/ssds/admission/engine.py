@@ -21,12 +21,14 @@ from typing import Any
 from ssds.derivation import TreeSource, Workflow, derive, trust_roots
 from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
-from ssds.ledger.read import LedgerEntry, entry_violations, read_chain, record_violations
+from ssds.ledger.read import (LedgerEntry, entry_violations, read_chain, record_id, record_violations, verify_sshsig,
+                              with_id)
 
 from .authenticate import authenticate
 from .checks import (content_identity, over_bounds, producing_context, record_problems, referenced_objects,
                      referenced_records, referenced_revisions, request_problems, verified_objects)
 from .genesis import AdmissionHome, host_key
+from .lifecycle import lifecycle_message, lifecycle_problems
 from .request import never_lost, request_id
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
@@ -171,11 +173,17 @@ class Admission:
         return Decision(rid, decision, tuple(sorted(reasons)), tuple(r["id"] for r in admitted), tuple(refused),
                         appended.position, appended=True)
 
+    def lifecycle_message(self, record: Mapping[str, Any]) -> bytes:
+        """The bytes the human gate signs to admit ``record`` as this ledger's next entry (§25.2)."""
+
+        chain = self.chain()
+        head = chain.entries[chain.readable_through]
+        return lifecycle_message(self.ledger_id, head.entry["position"] + 1, head.digest, record)
+
     def admit_lifecycle(self, record: Mapping[str, Any], signature: str, obs: str) -> int:
         """Admit a human-gated ``KEY_LIFECYCLE`` record (§25.2): its actor is a registered human whose signature over
-        the record verifies; the approval is kept in the record's provenance. Returns the entry's position."""
-
-        from ssds.ledger.read import verify_sshsig, with_id
+        the record, for this ledger at this position after this head, verifies; its key object is well formed for
+        its action (:mod:`.lifecycle`). The approval is kept in the record's provenance. Returns the position."""
 
         chain = self.chain()
         entries = chain.entries[: chain.readable_through + 1]
@@ -183,13 +191,26 @@ class Admission:
         if obs != expected:
             raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
         roots = trust_roots(entries)
-        actor = record.get("actor")
-        if record.get("kind") != "KEY_LIFECYCLE" or record.get("actor_class") != "HUMAN" or actor not in roots.humans \
-                or not verify_sshsig(roots.humans[actor], lifecycle_message(record), signature):
-            raise EntryInvalid("a lifecycle record needs a registered human's verifying approval")
-        signed = with_id({**record, "provenance": {"approval": {"actor": actor, "signature": signature}}})
         head = entries[-1]
-        entry = {"ledger_id": self.ledger_id, "position": head.entry["position"] + 1, "schema": 1, "prev": head.digest,
+        position = head.entry["position"] + 1
+        try:
+            message = lifecycle_message(self.ledger_id, position, head.digest, record)
+        except (ValueError, TypeError, AttributeError):
+            raise EntryInvalid("a lifecycle record is a JSON object canonical JSON encodes") from None
+        actor = record.get("actor")
+        if record.get("kind") != "KEY_LIFECYCLE" or record.get("actor_class") != "HUMAN" or not isinstance(actor, str) \
+                or actor not in roots.humans or not isinstance(signature, str) \
+                or not verify_sshsig(roots.humans[actor], message, signature):
+            raise EntryInvalid("a lifecycle record needs its named human's verifying approval for this ledger, position "
+                               "and head")
+        problems = record_violations(record) + lifecycle_problems(record.get("fields"), roots, position)
+        identity = record_id({**record, "provenance": None})
+        if any(e.lifecycle is not None and record_id({**e.lifecycle, "provenance": None}) == identity for e in entries):
+            problems.append("this lifecycle record is already admitted")  # Review e6ac009 B5
+        if problems:
+            raise EntryInvalid(f"the lifecycle record cannot be admitted: {problems}")
+        signed = with_id({**record, "provenance": {"approval": {"actor": actor, "signature": signature}}})
+        entry = {"ledger_id": self.ledger_id, "position": position, "schema": 1, "prev": head.digest,
                  "entry_kind": "LIFECYCLE", "host_key_id": self.key.key_id, "incarnation_id": self.incarnation_id,
                  "obs": obs, "admission": None, "absorption": None, "lifecycle": signed, "records": []}
         problems = entry_violations(entry) + record_violations(signed)
@@ -262,15 +283,6 @@ class Admission:
         if not reasons and not refused:
             reasons.add("SCHEMA_UNSUPPORTED")  # steps 4-8 are not realized yet: fail closed (§8.3 step 1)
         return reasons, refused, passing, auth
-
-
-def lifecycle_message(record: Mapping[str, Any]) -> bytes:
-    """What the human gate signs for a lifecycle record: its identity without the provenance that carries the
-    approval (Phase F reading F5)."""
-
-    from ssds.ledger.read import record_id
-
-    return b"ssds lifecycle " + record_id({**record, "provenance": None}).encode("ascii") + b"\n"
 
 
 __all__ = ["Admission", "AdmissionHalted", "Decision", "EntryInvalid", "UNREALIZED_STEPS"]

@@ -3,27 +3,27 @@
 The Dispatcher signs every task's envelope with an issue key held only in private operator state (the SSDS home,
 ``keys/dispatcher/<ledger id>.ed25519``, under the SD-59 boundary). On a harness route it also starts the task's
 fresh session with a per-task submission credential, an Ed25519 key of its own, and signs a launch attestation
-naming the session, the sessions of the task's inputs and the credential's public key: a request signed by that
-credential carries lineage ``ATTESTED_FRESH``. On manual and Git-envelope routes the session is not observed, and
-lineage is ``UNKNOWN`` unless a human attests it. No secret enters the ledger: the credential's private key stays
-with the session.
+naming the task's envelope, the session, the sessions of the task's inputs and the credential's public key: a request
+signed by that credential carries lineage ``ATTESTED_FRESH``. On manual and Git-envelope routes the session is not
+observed, and lineage is ``UNKNOWN`` unless a human attests it. No secret enters the ledger: the credential's
+private key stays with the session.
 """
 
 from __future__ import annotations
 
 import hashlib
-import os
 import secrets
-import stat
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
 
-from ssds.admission.request import ROUTES, attestation_message, envelope_message, request_message
+from ssds.admission.request import ROUTES, attestation_message, envelope_digest, envelope_message, request_message
+from ssds.ledger.qualification import Home
+
+from .home import DispatcherHome
 
 
 def _public_hex(key: Ed25519PrivateKey) -> str:
@@ -34,10 +34,6 @@ def key_id(public_hex: str) -> str:
     """The issue key's identity: the same form as an Admission host key's (§25.2)."""
 
     return "ed25519:" + hashlib.sha256(bytes.fromhex(public_hex)).hexdigest()
-
-
-class IssueKeyRefused(RuntimeError):
-    """The issue key file is not private operator state (SD-59)."""
 
 
 @dataclass
@@ -71,28 +67,22 @@ class Issued:
 
 
 class Issuer:
-    """The Dispatcher's issue key for one ledger."""
+    """The Dispatcher's issue key for one ledger, in the SSDS home's checked operator tree (Review e6ac009 B7)."""
 
-    def __init__(self, home_root: Path, ledger_id: str) -> None:
-        self.path = Path(home_root) / "keys" / "dispatcher" / f"{ledger_id}.ed25519"
+    def __init__(self, home: Home, ledger_id: str) -> None:
+        self.home = DispatcherHome(home.root)
+        self.home.check(ledger_id)
+        self.parts = self.home.issue_key_parts(ledger_id)
+        self.path = self.home.path(self.parts)
         self._key = self._load_or_create()
 
     def _load_or_create(self) -> Ed25519PrivateKey:
-        directory = self.path.parent
-        for part in (directory.parent, directory, self.path):
-            if part.is_symlink():
-                raise IssueKeyRefused(f"{part} is a symbolic link")
-        if self.path.exists():
-            mode = stat.S_IMODE(self.path.stat().st_mode)
-            if mode & 0o077:
-                raise IssueKeyRefused(f"{self.path} is readable by others ({oct(mode)})")
-            return Ed25519PrivateKey.from_private_bytes(self.path.read_bytes())
-        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        key = Ed25519PrivateKey.generate()
-        fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption()))
-        return key
+        data = self.home.read_private(self.parts)
+        if data is None:
+            self.home.create_private(self.parts, Ed25519PrivateKey.generate().private_bytes(
+                Encoding.Raw, PrivateFormat.Raw, NoEncryption()))
+            data = self.home.read_private(self.parts)  # whichever creation won (concurrent first use)
+        return Ed25519PrivateKey.from_private_bytes(data)
 
     @property
     def public_hex(self) -> str:
@@ -126,9 +116,10 @@ class Issuer:
         if not harness:
             return Issued(envelope, signature, None, None, None)
         credential = TaskCredential(Ed25519PrivateKey.generate())
-        attestation = {"task_id": task_id, "session": "session:" + secrets.token_hex(16),
-                       "input_sessions": list(input_sessions), "credential_key": credential.public_hex}
+        attestation = {"task_id": task_id, "envelope": envelope_digest(envelope),
+                       "session": "session:" + secrets.token_hex(16), "input_sessions": list(input_sessions),
+                       "credential_key": credential.public_hex}
         return Issued(envelope, signature, attestation, self._key.sign(attestation_message(attestation)).hex(), credential)
 
 
-__all__ = ["IssueKeyRefused", "Issued", "Issuer", "TaskCredential", "key_id"]
+__all__ = ["Issued", "Issuer", "TaskCredential", "key_id"]

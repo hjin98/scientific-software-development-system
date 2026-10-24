@@ -386,7 +386,7 @@ class Home:
 
         self.check_ledger_id(ledger_id)
         return (self.root / "ledgers" / f"{ledger_id}.git", self.root / "witness", self.root / "keys" / "admission",
-                self.root / "genesis" / ledger_id, self.root / "state" / ledger_id)
+                self.root / "keys" / "dispatcher", self.root / "genesis" / ledger_id, self.root / "state" / ledger_id)
 
     def outside_repositories(self) -> None:
         """The resolved home lies outside every repository (SD-56, Manual §26.3): no ancestor, nor the home

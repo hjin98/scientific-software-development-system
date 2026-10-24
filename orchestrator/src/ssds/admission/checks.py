@@ -29,6 +29,8 @@ REASONS = frozenset({
     # step 2
     "REF_BASE", "REF_RECORD", "REF_REVISION", "REF_OBJECT", "REF_OBLIGATION", "REF_DUPLICATE",
     "REF_PRODUCING_CONTEXT",
+    # step 3: authentication (Phase F step 3); its authorization codes are step 4's
+    "AUTH_ENVELOPE", "AUTH_ACTOR", "AUTH_VERSION",
 })
 
 #: Input bounds at the Admission boundary (Manual §25.4; the values are delegated, proposed defaults).

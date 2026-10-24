@@ -9,44 +9,31 @@ an issue key's retirement can list its outstanding envelopes (§25.2).
 from __future__ import annotations
 
 import json
-import os
-import stat
 from collections.abc import Iterable, Mapping
-from pathlib import Path
 from typing import Any
 
 from ssds.admission.request import binding_digest, request_id
+from ssds.ledger.qualification import Home
 
-
-class JournalRefused(RuntimeError):
-    """The journal is not private operator state (SD-59)."""
+from .home import DispatcherHome
 
 
 class Journal:
-    def __init__(self, home_root: Path, ledger_id: str) -> None:
-        self.path = Path(home_root) / "state" / ledger_id / "dispatcher-journal.jsonl"
-
-    def _check(self) -> None:
-        for part in (self.path.parent.parent, self.path.parent, self.path):
-            if part.is_symlink():
-                raise JournalRefused(f"{part} is a symbolic link")
-        if self.path.exists() and stat.S_IMODE(self.path.stat().st_mode) & 0o077:
-            raise JournalRefused(f"{self.path} is readable by others")
+    def __init__(self, home: Home, ledger_id: str) -> None:
+        self.home = DispatcherHome(home.root)
+        self.home.check(ledger_id)  # Review e6ac009 B7: the Home owner's checked tree
+        self.parts = self.home.journal_parts(ledger_id)
+        self.path = self.home.path(self.parts)
 
     def _append(self, item: Mapping[str, Any]) -> None:
-        self._check()
-        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
-        with os.fdopen(fd, "a", encoding="utf-8") as handle:
-            handle.write(json.dumps(dict(item), sort_keys=True, separators=(",", ":")) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
+        self.home.append_private(self.parts, (json.dumps(dict(item), sort_keys=True, separators=(",", ":")) + "\n")
+                                 .encode("utf-8"))
 
     def entries(self) -> list[dict[str, Any]]:
-        self._check()
-        if not self.path.exists():
+        data = self.home.read_private(self.parts)
+        if data is None:
             return []
-        return [json.loads(line) for line in self.path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        return [json.loads(line) for line in data.decode("utf-8").splitlines() if line.strip()]
 
     # -- what is recorded ---------------------------------------------------------------------------------------
 
@@ -78,4 +65,4 @@ class Journal:
                        and e["issue_key_id"] == issue_key_id and e["task_id"] not in finished})
 
 
-__all__ = ["Journal", "JournalRefused"]
+__all__ = ["Journal"]

@@ -118,26 +118,37 @@ def ledger_ref(ledger_id: str) -> str:
 
 
 def _keys_in_force(chain_so_far: Sequence[LedgerEntry]) -> tuple[dict[str, str], dict[str, int]]:
-    """Admission host keys in force after the given entries, and compromise positions."""
+    """Admission host keys in force after the given entries, and compromise positions.
+
+    Every action names its key by ``key.id`` and a rotation names the key it replaces by ``key.retires``, as for
+    every role (Review e6ac009 B6); a stored value this reader cannot read changes no key rather than raising.
+    """
 
     keys: dict[str, str] = {}
     compromised: dict[str, int] = {}
     for item in chain_so_far:
         lifecycle = item.lifecycle
-        if lifecycle is None:
+        fields = lifecycle.get("fields") if isinstance(lifecycle, Mapping) else None
+        if not isinstance(fields, Mapping):
             continue
-        fields = lifecycle["fields"]
-        if lifecycle["kind"] == "GENESIS":
-            for key in fields["trust_roots"].get("admission_keys", []):
-                keys[key["id"]] = key["public_key"]
-        elif lifecycle["kind"] == "KEY_LIFECYCLE" and fields["key"].get("role") == "ADMISSION":
-            key = fields["key"]
-            if fields["action"] in ("REGISTER", "ROTATE"):
-                keys[key["id"]] = key["public_key"]
-            if fields["action"] in ("RETIRE", "ROTATE") and key.get("retires"):
-                keys.pop(key["retires"], None)
-            if fields["action"] == "COMPROMISED":
-                compromised[key["id"]] = fields.get("from_position", item.position)
+        if lifecycle.get("kind") == "GENESIS":
+            roots = fields.get("trust_roots")
+            for key in (roots.get("admission_keys") if isinstance(roots, Mapping) else None) or []:
+                if isinstance(key, Mapping) and isinstance(key.get("id"), str) and isinstance(key.get("public_key"), str):
+                    keys[key["id"]] = key["public_key"]
+            continue
+        key, action = fields.get("key"), fields.get("action")
+        if lifecycle.get("kind") != "KEY_LIFECYCLE" or not isinstance(key, Mapping) or key.get("role") != "ADMISSION" \
+                or not isinstance(key.get("id"), str):
+            continue
+        if action in ("REGISTER", "ROTATE") and isinstance(key.get("public_key"), str):
+            keys[key["id"]] = key["public_key"]
+        old = key["id"] if action == "RETIRE" else key.get("retires") if action == "ROTATE" else None
+        if isinstance(old, str):
+            keys.pop(old, None)
+        if action == "COMPROMISED":
+            start = fields.get("from_position", item.position)
+            compromised[key["id"]] = start if isinstance(start, int) and not isinstance(start, bool) else 0
     return keys, compromised
 
 

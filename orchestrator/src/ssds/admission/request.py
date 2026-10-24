@@ -2,8 +2,8 @@
 
 A request is a JSON object built by machinery:
 
-- ``binding``: the task envelope that produced it (§12.2), or ``None`` for records an authenticated human or a
-  machinery component records directly;
+- ``binding``: the task envelope that produced it (§12.2), or ``{"human": ...}`` for records an authenticated human
+  records directly (§25.1); ``None`` authenticates nothing (``AUTH_ENVELOPE``);
 - ``claims``: the obligation identities whose discharge it claims, possibly none;
 - ``base_position`` and ``base_commit``: the admitted position and integration commit it worked from;
 - ``candidates``: its candidate commits on isolated refs, empty for a records-only request;
@@ -48,6 +48,9 @@ def request_id(request: Any) -> str:
 ENVELOPE_FIELDS = frozenset({"task_id", "obligation_id", "role", "contract_revision", "governs", "route", "lineage_class",
                              "input_sessions", "issued_at_position", "issue_key_id", "predecessors", "brief"})
 ROUTES = frozenset({"HARNESS", "MANUAL", "GIT_ENVELOPE"})
+#: The launch attestation's fields (§12.2): the task and the envelope it was launched under, its fresh session, the
+#: sessions of its inputs and the per-task credential's public key (Review e6ac009 B3: a closed set).
+ATTESTATION_FIELDS = frozenset({"task_id", "envelope", "session", "input_sessions", "credential_key"})
 
 
 def _digest(value: Any) -> str:
@@ -68,8 +71,14 @@ def binding_digest(binding: Mapping[str, Any]) -> str:
     return _digest(binding_object(binding))
 
 
+def envelope_digest(envelope: Mapping[str, Any]) -> str:
+    """The envelope's own content identity: what its issue-key signature covers and its attestation names."""
+
+    return _digest(dict(envelope))
+
+
 def envelope_message(envelope: Mapping[str, Any]) -> bytes:
-    return b"ssds envelope " + _digest(dict(envelope)).encode("ascii") + b"\n"
+    return b"ssds envelope " + envelope_digest(envelope).encode("ascii") + b"\n"
 
 
 def attestation_message(attestation: Mapping[str, Any]) -> bytes:
@@ -98,5 +107,6 @@ def never_lost(record: Mapping[str, Any]) -> bool:
     return kind in RUNNER_OBSERVATIONS and str(record.get("actor", "")).startswith("machinery:")
 
 
-__all__ = ["ENVELOPE_FIELDS", "REPORT_KINDS", "REQUEST_FIELDS", "ROUTES", "RUNNER_OBSERVATIONS", "attestation_message",
-           "binding_digest", "binding_object", "envelope_message", "never_lost", "request_id", "request_message"]
+__all__ = ["ATTESTATION_FIELDS", "ENVELOPE_FIELDS", "REPORT_KINDS", "REQUEST_FIELDS", "ROUTES", "RUNNER_OBSERVATIONS",
+           "attestation_message", "binding_digest", "binding_object", "envelope_digest", "envelope_message", "never_lost",
+           "request_id", "request_message"]

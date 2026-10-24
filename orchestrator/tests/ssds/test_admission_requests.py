@@ -51,22 +51,27 @@ class RequestFixture(GenesisFixture):
 
         return human_key_id(self.public)
 
-    def lifecycle(self, action: str, key: dict, **fields) -> None:
-        from ssds.admission.engine import lifecycle_message
+    def lifecycle(self, action: str, key: dict, private=None, actor=None, **fields) -> int:
+        """A ``KEY_LIFECYCLE`` record through the human gate's real path (§25.2), approved by ``private``."""
 
-        rec = record("KEY_LIFECYCLE", target=None, actor=self.human(), fields={"action": action, "key": key, **fields})
-        self.admission.admit_lifecycle(rec, sshsig(self.private, lifecycle_message(rec)), self.baseline)
+        rec = record("KEY_LIFECYCLE", target=None, actor=actor or self.human(),
+                     fields={"action": action, "key": key, **fields})
+        return self.admission.admit_lifecycle(rec, sshsig(private or self.private, self.admission.lifecycle_message(rec)),
+                                              self.baseline)
 
-    def register_issue_key(self, home_root=None):
+    def issuer_at(self, name: str):
+        from ssds.dispatcher.issue import Issuer
+        from ssds.ledger.qualification import Home
+
+        return Issuer(Home(self.root / name), "demo")
+
+    def register_issue_key(self):
         """A Dispatcher issue key registered by the human gate's real ``KEY_LIFECYCLE`` path (§25.2)."""
 
-        from ssds.admission.engine import lifecycle_message
         from ssds.dispatcher.issue import Issuer
 
-        issuer = Issuer(home_root or self.home.root, "demo")
-        lifecycle = record("KEY_LIFECYCLE", target=None, actor=self.human(),
-                           fields={"action": "REGISTER", "key": issuer.trust_root()})
-        self.admission.admit_lifecycle(lifecycle, sshsig(self.private, lifecycle_message(lifecycle)), self.baseline)
+        issuer = Issuer(self.home, "demo")
+        self.lifecycle("REGISTER", issuer.trust_root())
         return issuer
 
     def issue(self, route="HARNESS", issuer=None):
@@ -75,14 +80,17 @@ class RequestFixture(GenesisFixture):
                                              contract_revision=None, governs={"mode": "LEGACY", "protocol": "7.2.1"},
                                              route=route, issued_at_position=head)
 
-    def bind(self, rec: dict, issued, keep_id: bool = False) -> dict:
-        """The record bound to the issued envelope; ``keep_id`` keeps a deliberately wrong ``id``."""
+    def bind(self, rec: dict, issued, keep_id: bool = False, keep_actor: bool = False) -> dict:
+        """The record bound to the issued envelope as its task's agent's (§25.1); ``keep_id`` keeps a deliberately
+        wrong ``id``, ``keep_actor`` the record's own actor."""
 
         from ssds.admission.request import binding_digest
         from ssds.ledger.read import with_id
 
         lineage = "ATTESTED_FRESH" if issued.envelope["route"] == "HARNESS" else "UNKNOWN"
         session = issued.attestation["session"] if issued.attestation else "session:manual"
+        if not keep_actor:
+            rec = {**rec, "actor": f"agent:{issued.envelope['task_id']}/1", "actor_class": "AGENT"}
         out = with_id({**rec, "binding": {"task": issued.envelope["task_id"], "obligation": "obl", "role": "IMPLEMENTER",
                                          "lineage": [session], "lineage_class": lineage,
                                          "envelope": binding_digest(issued.binding())}})
@@ -534,7 +542,7 @@ class Envelopes(RequestFixture):
         req["binding"]["envelope"] = {**req["binding"]["envelope"], "role": "REVIEWER"}
         forged = self.admit(req)
         self.assertEqual((forged.admitted, "AUTH_ENVELOPE" in forged.reasons), ((), True))
-        stranger = Issuer(self.root / "other-home", "demo")
+        stranger = self.issuer_at("other-home")
         req, _ = self.bound([finding(materiality="MATERIAL")], issuer=stranger)
         unknown = self.admit(req)
         self.assertEqual((unknown.admitted, "AUTH_ENVELOPE" in unknown.reasons), ((), True))
@@ -550,7 +558,7 @@ class Envelopes(RequestFixture):
         from ssds.admission.request import binding_digest
         from ssds.dispatcher.issue import Issuer
 
-        old = Issuer(self.root / "old-dispatcher", "demo")
+        old = self.issuer_at("old-dispatcher")
         self.lifecycle("REGISTER", old.trust_root())
         listed, unlisted = self.issue(issuer=old), self.issue("MANUAL", issuer=old)
         self.lifecycle("RETIRE", old.trust_root(), outstanding=[binding_digest(listed.binding())])
@@ -585,32 +593,34 @@ class Envelopes(RequestFixture):
         self.assertIn("AUTH_ENVELOPE", self.admit(req).reasons)
 
     def test_a_lifecycle_record_needs_a_registered_humans_approval(self) -> None:
-        from ssds.admission.engine import EntryInvalid, lifecycle_message
-        from ssds.dispatcher.issue import Issuer
+        from ssds.admission.engine import EntryInvalid
 
         other_private, _ = __import__("tests.ssds._fixtures", fromlist=["human_key"]).human_key(self.root, "intruder")
         rec = record("KEY_LIFECYCLE", target=None, actor=self.human(),
-                     fields={"action": "REGISTER", "key": Issuer(self.root / "x", "demo").trust_root()})
+                     fields={"action": "REGISTER", "key": self.issuer_at("x").trust_root()})
         with self.assertRaises(EntryInvalid):
-            self.admission.admit_lifecycle(rec, sshsig(other_private, lifecycle_message(rec)), self.baseline)
-        position = self.admission.admit_lifecycle(rec, sshsig(self.private, lifecycle_message(rec)), self.baseline)
+            self.admission.admit_lifecycle(rec, sshsig(other_private, self.admission.lifecycle_message(rec)),
+                                           self.baseline)
+        position = self.admission.admit_lifecycle(rec, sshsig(self.private, self.admission.lifecycle_message(rec)),
+                                                  self.baseline)
         lifecycle = self.entries()[position].entry["lifecycle"]
         self.assertEqual(lifecycle["provenance"]["approval"]["actor"], self.human())
 
     def test_the_issue_key_is_private_operator_state(self) -> None:
         import os
 
-        from ssds.dispatcher.issue import IssueKeyRefused, Issuer
+        from ssds.dispatcher.issue import Issuer
+        from ssds.ledger.qualification import Home, HomeRefused
 
         os.chmod(self.issuer.path, 0o644)
-        with self.assertRaises(IssueKeyRefused):
-            Issuer(self.home.root, "demo")
+        with self.assertRaises(HomeRefused):
+            Issuer(self.home, "demo")
         os.chmod(self.issuer.path, 0o600)
         linked = self.root / "linked-home"
         (linked / "keys").mkdir(parents=True)
         os.symlink(self.issuer.path.parent, linked / "keys" / "dispatcher")
-        with self.assertRaises(IssueKeyRefused):
-            Issuer(linked, "demo")
+        with self.assertRaises(HomeRefused):
+            Issuer(Home(linked), "demo")
 
 
 class JournalAndBrief(RequestFixture):
@@ -619,7 +629,7 @@ class JournalAndBrief(RequestFixture):
     def test_a_retirement_lists_the_outstanding_envelopes_the_journal_compiles(self) -> None:
         from ssds.dispatcher.journal import Journal
 
-        journal = Journal(self.home.root, "demo")
+        journal = Journal(self.home, "demo")
         done, open_ = self.issue(), self.issue("MANUAL")
         journal.issued(done.envelope["task_id"], done.binding())
         journal.issued(open_.envelope["task_id"], open_.binding())
@@ -634,7 +644,7 @@ class JournalAndBrief(RequestFixture):
     def test_undecided_requests_are_kept_for_resubmission_by_identity(self) -> None:
         from ssds.dispatcher.journal import Journal
 
-        journal = Journal(self.home.root, "demo")
+        journal = Journal(self.home, "demo")
         req, _ = self.bound([finding()])
         rid = journal.submitted(req)
         self.assertEqual(journal.undecided(), [req])
@@ -644,20 +654,21 @@ class JournalAndBrief(RequestFixture):
     def test_the_journal_is_private_operator_state(self) -> None:
         import os
 
-        from ssds.dispatcher.journal import Journal, JournalRefused
+        from ssds.dispatcher.journal import Journal
+        from ssds.ledger.qualification import Home, HomeRefused
 
-        journal = Journal(self.home.root, "demo")
+        journal = Journal(self.home, "demo")
         journal.decided("sha256:" + "0" * 64)
         os.chmod(journal.path, 0o644)
-        with self.assertRaises(JournalRefused):
+        with self.assertRaises(HomeRefused):
             journal.entries()
         os.chmod(journal.path, 0o600)
         linked = self.root / "elsewhere"
         linked.mkdir()
-        target = Journal(self.root / "linked-home", "demo")
+        target = Journal(Home(self.root / "linked-home"), "demo")
         target.path.parent.parent.mkdir(parents=True)
-        os.symlink(linked, target.path.parent)
-        with self.assertRaises(JournalRefused):
+        os.symlink(linked, target.path.parent)  # placed after the construction's check: the write walk refuses it
+        with self.assertRaises(HomeRefused):
             target.decided("sha256:" + "1" * 64)
 
     def test_the_rendered_brief_is_recorded_in_the_envelope_and_signed(self) -> None:
@@ -674,6 +685,284 @@ class JournalAndBrief(RequestFixture):
         tampered = self.signed(issued, [self.bind(finding(materiality="MATERIAL"), issued)])
         tampered["binding"]["envelope"] = {**tampered["binding"]["envelope"], "brief": "sha256:" + "9" * 64}
         self.assertIn("AUTH_ENVELOPE", self.admit(tampered).reasons, "the brief's identity is under the signature")
+
+
+class _Item:
+    """A stored entry as :func:`ssds.derivation.trust_roots` reads it."""
+
+    def __init__(self, position: int, lifecycle) -> None:
+        self.position, self.entry = position, {"lifecycle": lifecycle}
+
+
+class StepThreeReview(RequestFixture):
+    """The same-family review of e6ac0091 (Phase F step 3a): each blocker's and surviving mutant's discriminator."""
+
+    def assert_unauthenticated(self, decision, reason="AUTH_ENVELOPE") -> None:
+        self.assertIn(reason, decision.reasons)
+        self.assertEqual((decision.admitted, decision.refused), ((), ()))
+        self.assertEqual(dict(self.entries()[-1].objects), {}, "nothing of an unauthenticated binding is stored")
+
+    # -- B1: an envelope authenticates its task's agent only --------------------------------------------------
+
+    def test_b1_a_bound_human_machinery_or_other_task_record_is_refused(self) -> None:
+        from ssds.ledger.read import with_id
+
+        issued = self.issue()
+        human = self.bind(finding(), issued, keep_actor=True)  # the fixture's human:SHA256:test, class HUMAN
+        runner = self.bind(with_id({**record("CHECK_EXECUTION", target={"obligation": "obl", "candidate": self.baseline},
+                                             outcome="CLEAN", fields={"template": "unit-tests"}),
+                                    "actor": "machinery:runner", "actor_class": "MACHINERY"}), issued, keep_actor=True)
+        other = self.bind(with_id({**finding(materiality="MATERIAL"), "actor": "agent:another-task/1",
+                                   "actor_class": "AGENT"}), issued, keep_actor=True)
+        mine = self.bind(finding(materiality="CRITICAL"), issued)
+        decision = self.admit(self.signed(issued, [human, runner, other, mine]))
+        refused = dict(decision.refused)
+        for rec in (human, runner, other):
+            self.assertIn("AUTH_ACTOR", refused[rec["id"]])
+        self.assertEqual(decision.admitted, (mine["id"],))
+
+    # -- B2: a binding that carries a secret authenticates nothing -------------------------------------------
+
+    def test_b2_a_binding_carrying_a_secret_is_neither_authenticated_nor_stored(self) -> None:
+        head = len(self.entries()) - 1
+        issued = self.issuer.issue(task_id="t-secret", obligation_id="obl", role="IMPLEMENTER", contract_revision=None,
+                                   governs={"mode": "LEGACY", "protocol": "7.2.1"}, route="HARNESS",
+                                   issued_at_position=head, predecessors={"note": "Zq8mX3vT9kL2pW7nR4sY6bH1cJ5dF0gA"})
+        self.assert_unauthenticated(self.admit(self.signed(issued, [self.bind(finding(), issued)])), "SECRET_DETECTED")
+
+    # -- B3: unverified attestation material is never stored ------------------------------------------------
+
+    def test_b3_a_manual_envelope_with_made_up_attestation_material_authenticates_nothing(self) -> None:
+        issued = self.issue("MANUAL")
+        req = self.signed(issued, [self.bind(finding(), issued)])
+        req["binding"] = {**req["binding"], "attestation": {"task_id": issued.envelope["task_id"], "anything": "goes"},
+                          "attestation_signature": "00" * 64}
+        self.assert_unauthenticated(self.admit(req))
+
+    def test_b3_m3b_a_self_minted_credential_never_proves_fresh_lineage(self) -> None:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+        from ssds.dispatcher.issue import TaskCredential
+
+        issued = self.issue()
+        mine = TaskCredential(Ed25519PrivateKey.generate())
+        attestation = {**issued.attestation, "credential_key": mine.public_hex}
+        req = self.signed(issued, [self.bind(finding(), issued)])
+        req["binding"] = {**req["binding"], "attestation": attestation}
+        req["binding"]["credential_signature"] = mine.sign(req)
+        self.assert_unauthenticated(self.admit(req))
+
+    def test_b3_an_attestation_is_bound_to_its_envelope(self) -> None:
+        first = self.issue()
+        second = self.issuer.issue(task_id=first.envelope["task_id"], obligation_id="obl", role="REVIEWER",
+                                   contract_revision=None, governs={"mode": "LEGACY", "protocol": "7.2.1"},
+                                   route="HARNESS", issued_at_position=len(self.entries()) - 1)
+        req = self.signed(second, [self.bind(finding(), second)])
+        req["binding"] = {**req["binding"], "attestation": first.attestation,
+                          "attestation_signature": first.attestation_signature,
+                          "credential_signature": first.credential.sign(req)}
+        self.assert_unauthenticated(self.admit(req))
+
+    def test_b3_a_harness_binding_without_its_attestation_authenticates_nothing(self) -> None:
+        issued = self.issue()
+        req = self.signed(issued, [self.bind(finding(), issued)])
+        req["binding"] = {**req["binding"], "attestation": None, "attestation_signature": None,
+                          "credential_signature": None}
+        self.assert_unauthenticated(self.admit(req))
+
+    # -- B4: untrusted input inside a well-shaped binding never crashes Admission ---------------------------
+
+    def test_b4_a_float_inside_the_envelope_or_attestation_is_a_recorded_rejection(self) -> None:
+        for where in ("envelope", "attestation"):
+            issued = self.issue()
+            req = self.signed(issued, [self.bind(finding(note=where), issued)])
+            field_ = "contract_revision" if where == "envelope" else "session"
+            req["binding"] = {**req["binding"], where: {**req["binding"][where], field_: 1.5}}
+            before = len(self.entries())
+            decision = self.admit(req)
+            self.assertIn("AUTH_ENVELOPE", decision.reasons)
+            self.assertEqual((len(self.entries()), decision.admitted), (before + 1, ()))
+
+    # -- B5: a lifecycle approval is spent by its entry -------------------------------------------------------
+
+    def test_b5_a_replayed_register_after_its_retirement_is_refused(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+        from ssds.derivation import trust_roots
+
+        old = self.issuer_at("replayed")
+        register = record("KEY_LIFECYCLE", target=None, actor=self.human(),
+                          fields={"action": "REGISTER", "key": old.trust_root()})
+        approval = sshsig(self.private, self.admission.lifecycle_message(register))
+        self.admission.admit_lifecycle(register, approval, self.baseline)
+        self.lifecycle("RETIRE", old.trust_root())
+        with self.assertRaises(EntryInvalid):
+            self.admission.admit_lifecycle(register, approval, self.baseline)
+        with self.assertRaises(EntryInvalid):  # re-signed for the new head, it is still the admitted record
+            self.admission.admit_lifecycle(register, sshsig(self.private, self.admission.lifecycle_message(register)),
+                                           self.baseline)
+        self.assertNotIn(old.key_id, trust_roots(self.entries()).issue)
+
+    def test_b5_an_identical_lifecycle_record_is_admitted_once(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+
+        compromise = record("KEY_LIFECYCLE", target=None, actor=self.human(),
+                            fields={"action": "COMPROMISED", "key": self.issuer.trust_root(), "from_position": 1})
+        self.admission.admit_lifecycle(compromise, sshsig(self.private, self.admission.lifecycle_message(compromise)),
+                                       self.baseline)
+        with self.assertRaises(EntryInvalid):  # the only action an identical replay could pass otherwise
+            self.admission.admit_lifecycle(compromise, sshsig(self.private, self.admission.lifecycle_message(compromise)),
+                                           self.baseline)
+
+    def test_b5_the_approval_names_the_ledger_position_and_head(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+        from ssds.admission.lifecycle import lifecycle_message
+
+        rec = record("KEY_LIFECYCLE", target=None, actor=self.human(),
+                     fields={"action": "REGISTER", "key": self.issuer_at("stale").trust_root()})
+        head = self.entries()[-1]
+        here = lifecycle_message("demo", head.position + 1, head.digest, rec)
+        self.assertEqual(here, self.admission.lifecycle_message(rec))
+        self.assertNotEqual(here, lifecycle_message("other", head.position + 1, head.digest, rec))
+        stale = sshsig(self.private, here)
+        self.lifecycle("REGISTER", self.issuer_at("between").trust_root())
+        with self.assertRaises(EntryInvalid):
+            self.admission.admit_lifecycle(rec, stale, self.baseline)
+
+    # -- B6: closed key shapes; a reader that never raises --------------------------------------------------
+
+    def test_b6_malformed_or_rebinding_key_objects_are_refused_and_the_ledger_keeps_working(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+
+        key = self.issuer.trust_root()
+        other = self.issuer_at("other").trust_root()
+        cases = [("COMPROMISED", {"role": "ISSUE"}, {}),
+                 ("RETIRE", {**other, "retires": key["id"]}, {}),
+                 ("RETIRE", {"id": key["id"], "retires": key["id"], "role": "ISSUE"}, {}),
+                 ("REGISTER", {**other, "id": key["id"]}, {}),
+                 ("REGISTER", key, {}),
+                 ("RETIRE", other, {}),
+                 ("ROTATE", {**other, "retires": "ed25519:" + "0" * 64}, {}),
+                 ("REGISTER", {**other, "role": "RUNNER"}, {}),
+                 ("REGISTER", other, {"from_position": 1}),
+                 ("COMPROMISED", key, {"from_position": 10 ** 6})]
+        for action, key_object, extra in cases:
+            with self.subTest(action=action, key=key_object, extra=extra), self.assertRaises(EntryInvalid):
+                self.lifecycle(action, key_object, **extra)
+        req, (report,) = self.bound([finding()])
+        self.assertEqual(self.admit(req).admitted, (report["id"],), "the ledger still validates")
+
+    def test_b6_m11_a_rotation_retires_the_old_key(self) -> None:
+        from ssds.admission.request import binding_digest
+
+        listed, unlisted = self.issue(), self.issue("MANUAL")
+        new = self.issuer_at("rotated")
+        self.lifecycle("ROTATE", {**new.trust_root(), "retires": self.issuer.key_id},
+                       outstanding=[binding_digest(listed.binding())])
+        self.assert_unauthenticated(self.admit(self.signed(unlisted, [self.bind(finding(), unlisted)])))
+        kept = self.admit(self.signed(listed, [self.bind(finding(materiality="MATERIAL"), listed)]))
+        self.assertEqual(len(kept.admitted), 1, "a listed envelope still covers its never-lost records")
+        fresh = self.issue(issuer=new)
+        self.assertEqual(len(self.admit(self.signed(fresh, [self.bind(finding(materiality="CRITICAL"), fresh)]))
+                             .admitted), 1)
+
+    def test_b6_the_reader_is_total_and_m20_reads_genesis_issue_keys(self) -> None:
+        from ssds.derivation import trust_roots
+
+        key = self.issuer.trust_root()
+        junk = [_Item(1, {"kind": "KEY_LIFECYCLE", "fields": {"action": "COMPROMISED", "key": {"role": "ISSUE"}}}),
+                _Item(2, {"kind": "KEY_LIFECYCLE", "fields": {"action": "RETIRE", "key": [1]}}),
+                _Item(3, {"kind": "KEY_LIFECYCLE", "fields": None}),
+                _Item(4, {"kind": "GENESIS", "fields": {"trust_roots": {"dispatcher_keys": [7, {"id": 1}]}}}),
+                _Item(5, "not a record")]
+        self.assertEqual(trust_roots(junk).issue, {})
+        genesis = _Item(0, {"kind": "GENESIS", "fields": {"trust_roots": {"dispatcher_keys": [key], "human_keys": []}}})
+        self.assertEqual(trust_roots([genesis, *junk]).issue, {key["id"]: key["public_key"]})
+
+    def test_b6_m2b_a_retired_and_compromised_key_covers_nothing(self) -> None:
+        from ssds.admission.request import binding_digest
+
+        listed = self.issue()
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[binding_digest(listed.binding())])
+        self.lifecycle("COMPROMISED", self.issuer.trust_root(), from_position=len(self.entries()))
+        self.assert_unauthenticated(self.admit(self.signed(listed, [self.bind(finding(), listed)])))
+
+    def test_b6_m7b_a_lifecycle_approval_is_the_named_humans_own(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+        from ssds.ledger.read import human_key_id
+
+        from ._fixtures import human_key
+
+        second, line = human_key(self.root, "second")
+        self.lifecycle("REGISTER", {"role": "HUMAN", "id": human_key_id(line), "public_key": line})
+        with self.assertRaises(EntryInvalid):
+            self.lifecycle("REGISTER", self.issuer_at("by-the-wrong-human").trust_root(), private=second)
+        self.lifecycle("REGISTER", self.issuer_at("by-the-second-human").trust_root(), private=second,
+                       actor=human_key_id(line))
+
+    def test_b6_the_last_human_key_is_rotated_never_retired(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+        from ssds.derivation import trust_roots
+        from ssds.ledger.read import human_key_id
+
+        from ._fixtures import human_key
+
+        mine = {"role": "HUMAN", "id": self.human(), "public_key": self.public}
+        with self.assertRaises(EntryInvalid):
+            self.lifecycle("RETIRE", mine)
+        successor, line = human_key(self.root, "successor")
+        self.lifecycle("ROTATE", {"role": "HUMAN", "id": human_key_id(line), "public_key": line, "retires": self.human()})
+        roots = trust_roots(self.entries())
+        self.assertEqual((set(roots.humans), self.human() in roots.former_humans), ({human_key_id(line)}, True))
+        with self.assertRaises(EntryInvalid):  # a former key is never registered again
+            self.lifecycle("REGISTER", mine, private=successor, actor=human_key_id(line))
+
+    # -- M4b, M4c: each bound record names this envelope and this task ------------------------------------
+
+    def test_m4_a_record_naming_another_envelope_or_task_is_refused(self) -> None:
+        from ssds.ledger.read import with_id
+
+        issued, elsewhere = self.issue(), self.issue("MANUAL")
+        good = self.bind(finding(), issued)
+        wrong_envelope = with_id({**self.bind(finding(materiality="MATERIAL"), issued),
+                                  "binding": {**good["binding"], "envelope": self.bind(finding(), elsewhere)["binding"][
+                                      "envelope"]}})
+        wrong_task = with_id({**self.bind(finding(materiality="CRITICAL"), issued),
+                              "binding": {**good["binding"], "task": "another-task"}})
+        decision = self.admit(self.signed(issued, [good, wrong_envelope, wrong_task]))
+        self.assertEqual(decision.admitted, (good["id"],))
+        refused = dict(decision.refused)
+        self.assertEqual((refused[wrong_envelope["id"]], refused[wrong_task["id"]]), (("AUTH_ENVELOPE",),) * 2)
+
+    # -- B7: the issue key and the journal live in the Home owner's checked tree --------------------------
+
+    def test_b7_a_traversing_ledger_id_or_a_home_inside_a_repository_is_refused(self) -> None:
+        from ssds.dispatcher.issue import Issuer
+        from ssds.dispatcher.journal import Journal
+        from ssds.ledger.qualification import Home, HomeRefused
+
+        for owner in (Issuer, Journal):
+            with self.subTest(owner=owner.__name__):
+                with self.assertRaises(HomeRefused):
+                    owner(self.home, "../../escaped")
+                with self.assertRaises(HomeRefused):
+                    owner(Home(self.product / "home"), "demo")
+        self.assertFalse((self.root / "escaped.ed25519").exists())
+        self.assertFalse((self.product / "home").exists())
+
+    def test_b7_a_link_placed_after_the_check_is_never_followed_even_inside_the_home(self) -> None:
+        import os
+
+        from ssds.dispatcher.journal import Journal
+        from ssds.ledger.qualification import Home, HomeRefused
+
+        journal = Journal(Home(self.root / "fresh-home"), "demo")
+        decoy = self.root / "fresh-home" / "state" / "decoy"
+        decoy.mkdir(parents=True)
+        os.symlink(decoy, journal.path.parent)  # resolves inside the home: only the no-follow walk refuses it
+        with self.assertRaises(HomeRefused):
+            journal.decided("sha256:" + "2" * 64)
+        self.assertEqual(list(decoy.iterdir()), [])
+
 
 if __name__ == "__main__":
     unittest.main()
