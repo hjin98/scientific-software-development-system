@@ -254,19 +254,28 @@ class Judgments:
             units = [u for u in (subject or target.get("unit"),) if u]
         return units
 
-    @lru_cache(maxsize=None)  # noqa: B019
-    def _judged_units_of(self, rid: str) -> frozenset[str]:
-        """``judged_units`` of an admitted record, once per record: shared record targets stay linear in the
-        ledger, never one walk per path (re-check 00fb3cb B1)."""
-
-        return frozenset(self.judged_units(self.s.record(rid)))
-
     def judged_units(self, record: dict[str, Any]) -> list[str]:
         """Every unit the record judged, for the chain class: the union over everything it judged (reviews
         799d1ba and c5a6457 B4), never its first piece only. A work judgment's units; a plan acceptance's items;
-        a realization's claim; an assessment's realization; every record a record target names, recursively (an
+        a realization's claim; an assessment's realization; every record a record target names, transitively (an
         immateriality's assessments included); a completeness's or integrated result's scope; a report's units;
-        or a subject. Empty when none can be determined. A target is strictly earlier, so the recursion ends."""
+        or a subject. Empty when none can be determined. One worklist with a visited set: linear in the records
+        reached, at any depth (re-checks 00fb3cb and c23f3ce)."""
+
+        units: set[str] = set()
+        pending, seen = [record], set()
+        while pending:
+            current = pending.pop()
+            own, referenced = self._own_units(current)
+            units |= own
+            for r in referenced:
+                if isinstance(r, str) and r in self.s.records and r not in seen:
+                    seen.add(r)
+                    pending.append(self.s.record(r))
+        return sorted(units)
+
+    def _own_units(self, record: dict[str, Any]) -> tuple[set[str], list[Any]]:
+        """The units ``record`` itself names, and the records its target names."""
 
         target = record["target"]
         units: set[str] = set()
@@ -275,14 +284,10 @@ class Judgments:
         elif record["kind"] == "PLAN_ACCEPTANCE":
             units |= {i["unit"] for i in record["fields"]["items"]}
         if not isinstance(target, dict):
-            return sorted(units)
+            return units, []
         claim = target.get("claim")
         if isinstance(claim, list):
             units |= {c["unit"] for c in claim if isinstance(c, dict) and isinstance(c.get("unit"), str)}
-        referenced = [target.get("realization"), target.get("record"), *(target.get("records") or [])]
-        for r in referenced:
-            if isinstance(r, str) and r in self.s.records:
-                units |= self._judged_units_of(r)
         listed = target.get("scope", target.get("units"))
         if isinstance(listed, list):
             units |= {u for u in listed if isinstance(u, str)}
@@ -290,7 +295,7 @@ class Judgments:
         if isinstance(subject, dict):
             subject = subject.get("subject")
         units |= {u for u in (subject, target.get("unit")) if isinstance(u, str) and u}
-        return sorted(units)
+        return units, [target.get("realization"), target.get("record"), *(target.get("records") or [])]
 
     # -- independence (§5.10 (f)) ----------------------------------------------------------------
 

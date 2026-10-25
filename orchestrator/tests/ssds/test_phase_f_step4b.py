@@ -806,6 +806,15 @@ class AdjudicationEligibility(unittest.TestCase):
         started = time.monotonic()
         self.assertEqual(d.j.judged_units(d.s.record(previous)), ["doc"])
         self.assertLess(time.monotonic() - started, 2.0, "a walk per path takes tens of seconds at depth 34, hours at 50")
+        chain = Scenario(DOC, {"doc.md": "r0\n"})
+        link = judgment("FINDING", {"units": ["doc"]}, None, fields={"materiality": "ROUTINE"})
+        chain.admit(link)
+        for depth in range(1000):  # re-check c23f3ce: a linear chain overflowed a recursive walk at about 400
+            link = judgment("FINDING", {"records": [link["id"]]}, None, fields={"materiality": "ROUTINE"},
+                            actor=HUMAN if depth % 2 else HUMAN_B)
+            chain.admit(link)
+        d = chain.derive()
+        self.assertEqual(d.j.judged_units(d.s.record(link["id"])), ["doc"])
 
     def test_n1_the_walk_stops_at_the_root(self) -> None:
         from ._scenario import agent as agent_, fresh
