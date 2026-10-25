@@ -727,6 +727,65 @@ class AdjudicationEligibility(unittest.TestCase):
                 self.assertEqual(sc.derive().j.chain_needs_human(c["id"]), r3, "a challenge made on a triple")
         self.assertTrue(sc.derive().j.chain_needs_human("sha256:" + "9" * 64), "no root reached: fail closed")
 
+    def test_b4_the_union_over_everything_the_root_judged(self) -> None:
+        """Re-check c5a6457 B4: an immateriality covering several failures, or a report on several records, is
+        about every unit any of them judged, in any order; a realization root reads its claim (R2 for a D3 claim);
+        D2 counts as D1 does; an undeclared unit fails closed."""
+
+        from ._scenario import agent as agent_, fresh
+
+        units = DOC + '''
+    [[unit]]
+    id = "spec"
+    kind = "D2"
+    subject = true
+    scope = [{ path = "spec.md" }]
+'''
+        reviewer = dict(actor=agent_("reviewer"), actor_class="AGENT", binding=fresh(agent_("reviewer")))
+
+        def failures(sc):
+            out, reals = [], []
+            for unit in ("doc", "spec"):
+                rev = sc.rev(unit)
+                real = judgment("REALIZATION", {"spec": {"unit": unit, "rev": rev}, "claim": [{"unit": unit, "rev": rev}]},
+                                "COMPLETE", actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY",
+                                fields={"execution": {}})
+                failing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": "e-" + unit},
+                                   "FAIL", fields={"mode": "ORDINARY", "reading": {"unit": unit, "rev": rev}},
+                                   **reviewer)
+                sc.admit(real, failing)
+                out.append(failing["id"])
+                reals.append(real["id"])
+            return out, reals
+
+        def class_of(root_of):
+            sc = Scenario(units, {"doc.md": "d0\n", "spec.md": "s0\n"})
+            covered, reals = failures(sc)
+            root = root_of(covered, reals)
+            if isinstance(root, dict):
+                sc.admit(root)
+                root = root["id"]
+            c = challenge({"record": root})
+            sc.admit(c)
+            return sc.derive().j.chain_needs_human(c["id"])
+
+        for order in ((0, 1), (1, 0)):
+            with self.subTest(immateriality=order):
+                self.assertTrue(class_of(lambda f, _r: judgment("IMMATERIALITY", {"records": [f[i] for i in order]},
+                                                               "IMMATERIAL", **reviewer)))
+            with self.subTest(report=order):
+                self.assertTrue(class_of(lambda f, _r: judgment("FINDING", {"records": [f[i] for i in order]}, None,
+                                                               fields={"materiality": "ROUTINE"}, **reviewer)))
+        with self.subTest(root="a D3 failure alone"):
+            self.assertFalse(class_of(lambda f, _r: judgment("IMMATERIALITY", {"records": [f[0]]}, "IMMATERIAL",
+                                                            **reviewer)))
+        with self.subTest(root="a D2 failure alone"):
+            self.assertTrue(class_of(lambda f, _r: f[1]))
+        with self.subTest(root="a realization of a D3 claim"):
+            self.assertFalse(class_of(lambda _f, r: r[0]), "R2: an agent may adjudicate (§3.4, §12.4)")
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        self.assertTrue(sc.derive().j._about_d1_d2(["no-such-unit"]), "an undeclared unit fails closed")
+
     def test_n1_the_walk_stops_at_the_root(self) -> None:
         from ._scenario import agent as agent_, fresh
 

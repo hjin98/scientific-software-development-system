@@ -255,20 +255,35 @@ class Judgments:
         return units
 
     def judged_units(self, record: dict[str, Any]) -> list[str]:
-        """Every unit the record judged, for the chain class: the policy's units, else a completeness's or an
-        integrated result's scope, a report's units, or what a record target judged (review 799d1ba B4); empty
-        when none can be determined. A target is strictly earlier, so the recursion ends."""
+        """Every unit the record judged, for the chain class: the union over everything it judged (reviews
+        799d1ba and c5a6457 B4), never its first piece only. A work judgment's units; a plan acceptance's items;
+        a realization's claim; an assessment's realization; every record a record target names, recursively (an
+        immateriality's assessments included); a completeness's or integrated result's scope; a report's units;
+        or a subject. Empty when none can be determined. A target is strictly earlier, so the recursion ends."""
 
-        units = self._policy_units(record)
         target = record["target"]
-        if units or not isinstance(target, dict):
-            return units
-        referenced = [r for r in ([target["record"]] if "record" in target else target.get("records") or [])
-                      if isinstance(r, str) and r in self.s.records]
-        if referenced:
-            return sorted({u for r in referenced for u in self.judged_units(self.s.record(r))})
+        units: set[str] = set()
+        if is_work(record):
+            units |= set(self._policy_units(record))
+        elif record["kind"] == "PLAN_ACCEPTANCE":
+            units |= {i["unit"] for i in record["fields"]["items"]}
+        if not isinstance(target, dict):
+            return sorted(units)
+        claim = target.get("claim")
+        if isinstance(claim, list):
+            units |= {c["unit"] for c in claim if isinstance(c, dict) and isinstance(c.get("unit"), str)}
+        referenced = [target.get("realization"), target.get("record"), *(target.get("records") or [])]
+        for r in referenced:
+            if isinstance(r, str) and r in self.s.records:
+                units |= set(self.judged_units(self.s.record(r)))
         listed = target.get("scope", target.get("units"))
-        return [u for u in listed if isinstance(u, str)] if isinstance(listed, list) else []
+        if isinstance(listed, list):
+            units |= {u for u in listed if isinstance(u, str)}
+        subject = target.get("subject")
+        if isinstance(subject, dict):
+            subject = subject.get("subject")
+        units |= {u for u in (subject, target.get("unit")) if isinstance(u, str) and u}
+        return sorted(units)
 
     # -- independence (§5.10 (f)) ----------------------------------------------------------------
 
