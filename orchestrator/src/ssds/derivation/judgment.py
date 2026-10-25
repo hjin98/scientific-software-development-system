@@ -254,6 +254,13 @@ class Judgments:
             units = [u for u in (subject or target.get("unit"),) if u]
         return units
 
+    @lru_cache(maxsize=None)  # noqa: B019
+    def _judged_units_of(self, rid: str) -> frozenset[str]:
+        """``judged_units`` of an admitted record, once per record: shared record targets stay linear in the
+        ledger, never one walk per path (re-check 00fb3cb B1)."""
+
+        return frozenset(self.judged_units(self.s.record(rid)))
+
     def judged_units(self, record: dict[str, Any]) -> list[str]:
         """Every unit the record judged, for the chain class: the union over everything it judged (reviews
         799d1ba and c5a6457 B4), never its first piece only. A work judgment's units; a plan acceptance's items;
@@ -275,7 +282,7 @@ class Judgments:
         referenced = [target.get("realization"), target.get("record"), *(target.get("records") or [])]
         for r in referenced:
             if isinstance(r, str) and r in self.s.records:
-                units |= set(self.judged_units(self.s.record(r)))
+                units |= self._judged_units_of(r)
         listed = target.get("scope", target.get("units"))
         if isinstance(listed, list):
             units |= {u for u in listed if isinstance(u, str)}

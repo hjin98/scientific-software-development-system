@@ -786,6 +786,27 @@ class AdjudicationEligibility(unittest.TestCase):
         sc = Scenario(DOC, {"doc.md": "r0\n"})
         self.assertTrue(sc.derive().j._about_d1_d2(["no-such-unit"]), "an undeclared unit fails closed")
 
+    def test_b1_00fb3cb_shared_record_targets_are_walked_once(self) -> None:
+        """Re-check 00fb3cb B1: reports each targeting the previous two form a DAG whose paths grow like the
+        Fibonacci numbers; the units of each record are computed once, so a deep one is read in bounded time."""
+
+        import time
+
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        first = judgment("FINDING", {"units": ["doc"]}, None, fields={"materiality": "ROUTINE"})
+        second = judgment("FINDING", {"records": [first["id"]]}, None, fields={"materiality": "ROUTINE"})
+        sc.admit(first, second)
+        previous, before = second["id"], first["id"]
+        for depth in range(34):
+            top = judgment("FINDING", {"records": [previous, before]}, None, fields={"materiality": "ROUTINE"},
+                           actor=HUMAN if depth % 2 else HUMAN_B)
+            sc.admit(top)
+            previous, before = top["id"], previous
+        d = sc.derive()
+        started = time.monotonic()
+        self.assertEqual(d.j.judged_units(d.s.record(previous)), ["doc"])
+        self.assertLess(time.monotonic() - started, 2.0, "a walk per path takes tens of seconds at depth 34, hours at 50")
+
     def test_n1_the_walk_stops_at_the_root(self) -> None:
         from ._scenario import agent as agent_, fresh
 
