@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 2, after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 3: step 4 split into 4a-4e, readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 2; questions settled by SD-64. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 3 (step 4 split, §3.1); questions settled by SD-64. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -35,7 +35,8 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
              `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
-NEXT ACTION: step 4 (authorization to currency), after step 3's same-family review.
+NEXT ACTION: step 4a (the trial extension, §3.1), after the same-family review of revision 3. Steps
+             3a and 3b are clean (§9).
 ```
 
 ## 1. Scope and authority
@@ -108,6 +109,20 @@ Two restrictions also hold: only `admission` imports the append path, and only `
 | **11** difference study | the comparison Q-F1 settles, as a qualification harness calling the real Admission owners outside the ledger (§7) | §5.2 Phase F exit | per Q-F1 |
 | **12** exit | assembly of group 4 and the admission halves of groups 2, 3 and 5; the end-to-end shadow run | §5.2 Phase F exit | the groups' results; the shadow boundary checked after every command |
 
+### 3.1 Step 4 in five parts (revision 3)
+
+The step 4 survey found that nearly every predicate §8.3 steps 3-6 needs is already computed by a derivation owner, but only for records already admitted: `Judgments.nonind`, `judged_authors` and `root_authors`, `State.status1`, `StructureFacts.well_formed`, `Support.current` and `sat` with frame roles, the support graph's components, `Conformance`'s write set, scope and protected surfaces. Several predicates have no owner yet: supersession authority, the §12.3 role-to-kind table, the challenge freeze, the enactment condition, the per-key effective-structure classification, discriminating-reading class and contradiction, and the new-or-grown component check. Step 4 is therefore built in five parts, each closing with its tests and a same-family review of its delta before the next starts. Every part keeps the fail-closed rule: a check not yet built leaves the request `SCHEMA_UNSUPPORTED`, never admitted.
+
+| Part | Owner | Builds | Cases |
+|---|---|---|---|
+| **4a** the trial extension | `derivation` | `trial(chain, entry)`: the state at `n+1` as if the request's provisional entry, carrying its records, adopted deltas and candidate frame, were appended, as a new `History`, never a mutation (reading F10; step 1's cache stays keyed on immutable histories); Admission builds the provisional entry and calls it, so every admitted-only owner judges candidate records unchanged | a trial state equals the state derived after admitting the same entry; a trial never changes the held head or any cached workflow; Admission's existing step 1-3 tests unchanged |
+| **4b** authorization (§8.3 step 3, the rest) | `derivation` facts, `admission` checks | the floors of catalogue §3.5 and policy's qualifications (`AUTH_ACTOR`); acceptance targets: effective in the record's frame, prospective tenure included, never a part, never `REVOKED`, never ill-formed or with a declared term `ABSENT` (`AUTH_TARGET_PART`, `AUTH_TARGET_REVOKED`, `AUTH_ILL_FORMED`); the envelope's obligation exists at the base and was issued for `role(kind(o))`; the §12.3 role templates as data, each record kind and outcome checked (`AUTH_ROLE_KIND`); independence classified at admission from the authenticated binding (reading F11) with the owner exception, and adjudication eligibility against the root authors and chain class; supersession authority by the superseded kind (`AUTH_SUPERSEDES`); a discriminating reading at its class, never one outcome both ways (`READING_CONTRADICTION`); the effect-keyed write set on the merged tree within the contract's write scope (`AUTH_WRITE_SCOPE`); §25.3's protected surfaces (`AUTH_PROTECTED`); the never-lost record under an unlisted envelope refused by identity with its bytes retained and a re-issue obligation (the step 3 re-check's note p8) | 51070e5 N3, f03b15e N5, 6b986de N6; one case per reason code; S1 objection cases whose distinguishing step is an Admission refusal |
+| **4c** structure (§8.3 step 4) | `derivation` | on the merged tree: the per-key classification against `Q_n` (authored, realigned, adopted by `ABSORB`, carried, else revalidation); the well-formedness checks together; no mode mixing without its `MODE_TRANSITION`; SDG members kept together; a change of kind or domain released by its current domain's owner; the challenge freeze at source and destination (`FREEZE_SOURCE`, `FREEZE_DESTINATION`); semantic structure (`RELATION_*`, `STRUCT_*`); the enactment condition for an integration (`ENACTMENT_MISSING`) | one case per code; a records-only request's empty delta; an adopting disposition validated as authored |
+| **4d** dependency (§8.3 step 5) | `derivation` | challenge-tier targets strictly earlier and of permitted kinds, a challenge of a challenge only as a counter-challenge of a restrictive adjudication; no `validity` entry on a record's own subject or a part of it; no equivalence relying on a consumer of its unit; the static support graph (§5.6, items 1-4, the cited premises of item 4 included: Phase D NF2) gains no new non-trivial component and no existing one grows, by comparing the trial state's components with the head's (`CYCLE_SUPPORT`; `CYCLE_WARRANT` for §2.4) | the mutual-acceptance configuration refused on both grounds; a cycle that absorbed content created is reported and blocks no unrelated request |
+| **4e** currency (§8.3 step 6) | `derivation` values, `admission` routing | each basis entry of each submitted support-tier record other than a report satisfied in its role in its frame, its nodes' values read at the head (reading F10); otherwise `STALE_BASIS` and routed to revalidation; the never-lost exemption with salvage to a fixed point, as step 2's | group 2's admission half: 798b2b4 B4, 29da56e N5 and 124b0b7 N2 with the records involved admitted; never-lost challenges, failing assessments and adjudications admitted whatever the request's fate |
+
+After 4e, a request passing steps 1-6 is still `SCHEMA_UNSUPPORTED` until step 5 builds steps 7-8.
+
 Each step closes with its tests, Core's suite, `run_models.py --seeds` (unchanged), the repository suite and `git diff --check` before the next starts. Under the review allocation, each step that changes behaviour ends with a same-family review of its delta. Phase F ends with an independent implementation Review (G2 workplan §5.1 item 5), which the stakeholder asks for.
 
 ## 4. Acceptance groups: cases and discriminators carried
@@ -168,6 +183,14 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   - **Human bindings.** A human binding is an SSH signature (namespace `ssds`) over the same message.
   - **Lifecycle approvals.** A human-gated lifecycle record's approval is kept in its provenance and signed over the record without it.
   - **The secret scan.** It exempts whole values whose grammar is an identity or a signature: a human key fingerprint, a key id, an armoured SSH signature.
+- **F10** *The trial extension (step 4).* Admission judges a request through the owners derivation already has, not by restating any rule for unadmitted records. The **trial** is a new `History` over the chain plus the request's one unsigned provisional entry, discarded after the decision; the held head, every cached workflow and the ledger are untouched. What each step reads from it:
+  - the records' own S0 and S1 facts (authorship, lineage, `nonind`, frames and roles, targets, status) come from the trial, where the records exist;
+  - catalogue §8.3's "at the current admitted head" stays literal: in step 6 the value of every node a basis entry names (`valid(s)`, `current(x)`) is read at the head, in the record's frame (`Support.sat` takes the value function as a parameter). A co-submitted record is no node at the head, so it never satisfies another record's basis entry, directly or through a node it would raise. This is narrower than the discharge predicate of step 7, which the catalogue reads "after the request's own records";
+  - step 5 compares the trial's non-trivial support components with the head's;
+  - the freeze, the obligation's existence at the base and the earlier-target rules read the head.
+
+  A record refused at any of steps 3-6 is removed and the trial rebuilt, to a fixed point, as step 2's salvage does, so no admitted record's facts rest on a refused one.
+- **F11** *Independence inputs come from the authentication (step 4b).* Derivation's `nonind` reads a record's `binding.lineage`, which the record itself carries. At admission that lineage must be what the binding proves: for `ATTESTED_FRESH`, exactly the attestation's session followed by its input sessions; for `UNKNOWN`, any recorded lineage proves nothing and is never disjoint (§12.2). A bound record whose lineage differs is refused (`AUTH_ENVELOPE`), so S0 never reads a lineage Admission did not authenticate (the step 3 re-check's note p9).
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
