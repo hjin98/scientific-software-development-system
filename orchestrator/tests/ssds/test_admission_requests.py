@@ -39,12 +39,29 @@ def unbound(*codes: str) -> tuple[str, ...]:
 
 
 class RequestFixture(GenesisFixture):
+    """A fixture ledger whose subject ``guide`` is ``NATIVE``, so it derives an agent-held obligation (its
+    ``ACCEPT``, held by a reviewer) that envelopes can name (§8.3 step 3). A shadow genesis declares only
+    ``LEGACY`` or ``UNGOVERNED`` subjects, and the real one still does; the test lifts that check for this
+    fixture alone, so Admission's own checks run against agent-held obligations."""
+
     def setUp(self) -> None:
+        from unittest import mock
+
         super().setUp()
-        prepared = prepare_genesis(self.spec(), self.home, self.trees)
-        admit_genesis(self.home, "demo", sshsig(self.private, prepared.message))
+        native = {"guide": {"mode": "NATIVE", "ruleset": "ssds-rules/1"}, "*": {"mode": "UNGOVERNED"}}
+        with mock.patch("ssds.admission.genesis.SHADOW_MODES", ("LEGACY", "UNGOVERNED", "NATIVE")):
+            prepared = prepare_genesis(self.spec(modes=native), self.home, self.trees)
+            admit_genesis(self.home, "demo", sshsig(self.private, prepared.message))
         self.admission = Admission(self.home, "demo", self.trees)
         self.issuer = self.register_issue_key()
+
+    def obligation(self, holder: str = "REVIEWER") -> str:
+        """An obligation the head derives for ``holder``: what an envelope names."""
+
+        from ssds.derivation import Workflow, derive
+
+        support = derive(read_chain(self.home.ledger_repository("demo"), "demo"), self.trees)
+        return next(o.id for o in Workflow(support).obligations if o.holder == holder)
 
     def human(self) -> str:
         from ssds.ledger.read import human_key_id
@@ -76,7 +93,7 @@ class RequestFixture(GenesisFixture):
 
     def issue(self, route="HARNESS", issuer=None):
         head = len(self.entries()) - 1
-        return (issuer or self.issuer).issue(task_id=f"task-{head}-{route}", obligation_id="obl", role="IMPLEMENTER",
+        return (issuer or self.issuer).issue(task_id=f"task-{head}-{route}", obligation_id=self.obligation(), role="REVIEWER",
                                              contract_revision=None, governs={"mode": "LEGACY", "protocol": "7.2.1"},
                                              route=route, issued_at_position=head)
 
@@ -88,11 +105,12 @@ class RequestFixture(GenesisFixture):
         from ssds.ledger.read import with_id
 
         lineage = "ATTESTED_FRESH" if issued.envelope["route"] == "HARNESS" else "UNKNOWN"
-        session = issued.attestation["session"] if issued.attestation else "session:manual"
+        sessions = [issued.attestation["session"]] if issued.attestation else []  # the closure, no inputs (F11)
         if not keep_actor:
             rec = {**rec, "actor": f"agent:{issued.envelope['task_id']}/1", "actor_class": "AGENT"}
-        out = with_id({**rec, "binding": {"task": issued.envelope["task_id"], "obligation": "obl", "role": "IMPLEMENTER",
-                                         "lineage": [session], "lineage_class": lineage,
+        envelope = issued.envelope
+        out = with_id({**rec, "binding": {"task": envelope["task_id"], "obligation": envelope["obligation_id"],
+                                         "role": envelope["role"], "lineage": sessions, "lineage_class": lineage,
                                          "envelope": binding_digest(issued.binding())}})
         return {**out, "id": rec["id"]} if keep_id else out
 
@@ -539,7 +557,7 @@ class Envelopes(RequestFixture):
         from ssds.dispatcher.issue import Issuer
 
         req, _ = self.bound([finding()])
-        req["binding"]["envelope"] = {**req["binding"]["envelope"], "role": "REVIEWER"}
+        req["binding"]["envelope"] = {**req["binding"]["envelope"], "role": "PRINCIPAL"}
         forged = self.admit(req)
         self.assertEqual((forged.admitted, "AUTH_ENVELOPE" in forged.reasons), ((), True))
         stranger = self.issuer_at("other-home")
@@ -676,7 +694,7 @@ class JournalAndBrief(RequestFixture):
 
         head = len(self.entries()) - 1
         brief = b"# Task brief\n\nDo the thing.\n"
-        issued = self.issuer.issue(task_id="t-brief", obligation_id="obl", role="IMPLEMENTER", contract_revision=None,
+        issued = self.issuer.issue(task_id="t-brief", obligation_id=self.obligation(), role="REVIEWER", contract_revision=None,
                                    governs={"mode": "LEGACY", "protocol": "7.2.1"}, route="HARNESS",
                                    issued_at_position=head, brief=brief)
         self.assertEqual(issued.envelope["brief"], "sha256:" + hashlib.sha256(brief).hexdigest())
@@ -725,7 +743,7 @@ class StepThreeReview(RequestFixture):
 
     def test_b2_a_binding_carrying_a_secret_is_neither_authenticated_nor_stored(self) -> None:
         head = len(self.entries()) - 1
-        issued = self.issuer.issue(task_id="t-secret", obligation_id="obl", role="IMPLEMENTER", contract_revision=None,
+        issued = self.issuer.issue(task_id="t-secret", obligation_id=self.obligation(), role="REVIEWER", contract_revision=None,
                                    governs={"mode": "LEGACY", "protocol": "7.2.1"}, route="HARNESS",
                                    issued_at_position=head, predecessors={"note": "Zq8mX3vT9kL2pW7nR4sY6bH1cJ5dF0gA"})
         self.assert_unauthenticated(self.admit(self.signed(issued, [self.bind(finding(), issued)])), "SECRET_DETECTED")
@@ -754,8 +772,8 @@ class StepThreeReview(RequestFixture):
 
     def test_b3_an_attestation_is_bound_to_its_envelope(self) -> None:
         first = self.issue()
-        second = self.issuer.issue(task_id=first.envelope["task_id"], obligation_id="obl", role="REVIEWER",
-                                   contract_revision=None, governs={"mode": "LEGACY", "protocol": "7.2.1"},
+        second = self.issuer.issue(task_id=first.envelope["task_id"], obligation_id=self.obligation(), role="REVIEWER",
+                                   contract_revision="another", governs={"mode": "LEGACY", "protocol": "7.2.1"},
                                    route="HARNESS", issued_at_position=len(self.entries()) - 1)
         req = self.signed(second, [self.bind(finding(), second)])
         req["binding"] = {**req["binding"], "attestation": first.attestation,

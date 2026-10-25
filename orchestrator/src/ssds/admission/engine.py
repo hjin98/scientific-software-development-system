@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ssds.derivation import TreeSource, Workflow, derive, trial, trust_roots
@@ -24,7 +24,8 @@ from ssds.ledger.qualification import FileWitness
 from ssds.ledger.read import (LedgerEntry, entry_violations, read_chain, record_id, record_violations, verify_sshsig,
                               with_id)
 
-from .authenticate import authenticate
+from .authenticate import authenticate, stored_attestations
+from .authorize import authorize
 from .checks import (content_identity, over_bounds, producing_context, record_problems, referenced_objects,
                      referenced_records, referenced_revisions, request_problems, verified_objects)
 from .genesis import AdmissionHome, host_key
@@ -36,12 +37,12 @@ UNREALIZED_STEPS = ("authorization", "structure", "dependency", "currency", "leg
 
 
 def salvageable(record: Mapping[str, Any]) -> bool:
-    """A never-lost record is salvaged only when every check it owes is built (Phase F plan §3.1): until step 4b,
-    a report superseding nothing. Every other never-lost record (an adverse judgment, a failing assessment, a
-    challenge-tier record, any supersession) owes authorization checks not built yet, so it is refused by
-    identity as unsupported (plan review b10018de B1: a salvaged peer judgment ended another's standing one)."""
+    """A never-lost record is salvaged only when every check it owes is built (Phase F plan §3.1): a report, whose
+    supersession step 3 now authorizes. Every other never-lost record (an adverse judgment, a failing assessment,
+    a challenge-tier record) still owes checks of steps 4-5 not built yet, so it is refused by identity as
+    unsupported (plan review b10018de B1: a salvaged peer judgment ended another's standing one)."""
 
-    return record.get("kind") in REPORT_KINDS and not record.get("supersedes")
+    return record.get("kind") in REPORT_KINDS  # a report's supersession is authorized at step 3 (step 4b-i)
 
 
 class AdmissionHalted(RuntimeError):
@@ -297,14 +298,50 @@ class Admission:
                 reasons.update("REF_OBLIGATION" for c in request["claims"] if c not in obligations)
         auth = None
         if isinstance(request, Mapping) and s is not None:  # step 3's authentication of the binding
-            auth = authenticate(request, passing, trust_roots(entries), s.n)
+            stored = {d: o for e in entries for d, o in e.objects.items()}
+            auth = authenticate(request, passing, trust_roots(entries), s.n, stored_attestations(stored))
             reasons |= auth.reasons
             covered = {rid for rid, _ in auth.refused}
             refused += list(auth.refused)
             passing = [r for r in passing if r["id"] not in covered]
+        if auth is not None and auth.ok:  # step 3's authorization (Phase F step 4b-i)
+            if request.get("candidates") or request.get("adopted_deltas"):
+                reasons.add("SCHEMA_UNSUPPORTED")  # content and structural requests are step 4c's: fail closed
+                auth = replace(auth, ok=False)
+            else:
+                position = request.get("base_position")
+                base = Workflow.historical(support.s.h, position) if "REF_BASE" not in reasons \
+                    and isinstance(position, int) and 0 <= position <= s.n else None
+                passing, more, ok = self.authorized(request, passing, chain, entries, base, auth)
+                refused += more
+                if not ok:
+                    reasons.add("AUTH_ENVELOPE")
+                    auth = replace(auth, ok=False)
         if not reasons and not refused:
             reasons.add("SCHEMA_UNSUPPORTED")  # steps 4-8 are not realized yet: fail closed (§8.3 step 1)
         return reasons, refused, passing, auth
+
+    def authorized(self, request: Mapping[str, Any], passing: list[dict], chain, entries, base, auth):
+        """Authorize the records in the trial extension of their own request (reading F10), removing each refused
+        record and rebuilding the trial until none is refused (at most once per record). Returns the records
+        still passing, the refusals, and whether the envelope's obligation and role hold."""
+
+        refused: list[tuple[str, tuple[str, ...]]] = []
+        head = entries[-1]
+        expected = self.expected_head(entries)
+        good = verified_objects(request.get("objects"))[0]
+        while passing:
+            entry = self.admission_entry(head, expected, request_id(request), "ACCEPT", (), passing, (), expected)
+            objects = {d: good[d] for r in passing for d in referenced_objects(r) if d in good} | auth.objects
+            result = authorize(request, passing, self.trial(chain, entry, objects), base)
+            if not result.ok:
+                return passing, refused, False
+            if not result.refused:
+                break
+            gone = {rid for rid, _ in result.refused}
+            refused += list(result.refused)
+            passing = [r for r in passing if r["id"] not in gone]
+        return passing, refused, True
 
 
 __all__ = ["Admission", "AdmissionHalted", "Decision", "EntryInvalid", "UNREALIZED_STEPS"]

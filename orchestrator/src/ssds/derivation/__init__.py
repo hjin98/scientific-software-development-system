@@ -14,9 +14,10 @@ from .baseline import BaselineStructure, baseline_structure, genesis_structure_p
 from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
 from .outcomes import adverse
 from .reports import allowed_outcomes
+from .roles import ROLE_TEMPLATES, role_permits
 from .trust import TrustRoots, trust_roots
 from .s3 import Consequences, Finding, Obligation
-from .state import F, P, Policy, T, State
+from .state import F, P, Policy, T, State, triple_key
 from .support import Support
 from .extension import trial
 from .workflow import Workflow
@@ -37,5 +38,5 @@ def consequences(chain, trees: TreeSource, position: int | None = None, checkpoi
 __all__ = [
     "BaselineStructure", "CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History",
     "Obligation", "P", "Policy", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "TrustRoots", "Workflow", "adverse", "allowed_outcomes", "queries", "baseline_structure", "consequences", "trust_roots",
-    "derive", "trial",
+    "derive", "trial", "ROLE_TEMPLATES", "role_permits", "triple_key",
 ]

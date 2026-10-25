@@ -54,7 +54,7 @@ class FailClosedSalvage(RequestFixture):
         self.assertNotIn(first["id"], self.state().records)
         self.assertNotIn(second["id"], self.state().records)
 
-    def test_only_reports_superseding_nothing_are_salvaged(self) -> None:
+    def test_only_reports_with_an_authorized_supersession_are_salvaged(self) -> None:
         issued = self.issue()
         report = self.bind(finding(), issued)
         earlier = self.bind(finding(materiality="MATERIAL"), issued)
@@ -67,7 +67,7 @@ class FailClosedSalvage(RequestFixture):
         decision = self.admit(self.signed(issued, [report, replacing, challenge]))
         self.assertEqual(decision.admitted, (report["id"],))
         refused = dict(decision.refused)
-        self.assertEqual(refused.get(replacing["id"]), ("SCHEMA_UNSUPPORTED",))
+        self.assertEqual(refused.get(replacing["id"]), ("AUTH_SUPERSEDES",), "another task's report is not its own")
         self.assertIn(challenge["id"], refused)
 
 

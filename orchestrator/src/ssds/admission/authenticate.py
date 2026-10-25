@@ -9,7 +9,9 @@ verifies under the issue key, and the credential it names signed this request: l
 other route carries none of the three, and its lineage is ``UNKNOWN``. Material that does not verify is never
 stored: the binding then authenticates nothing (Review e6ac009 B3).
 
-An envelope authenticates its task's agent and nothing else (§25.1): each bound record's actor is
+A bound record's lineage is exactly the attestation closure Admission computes from the launch attestations the
+ledger stores, and empty under ``UNKNOWN`` (§12.2; reading F11). An envelope authenticates its task's agent and
+nothing else (§25.1): each bound record's actor is
 ``agent:<task id>/<attempt>`` of class ``AGENT`` (``AUTH_ACTOR`` otherwise), so a binding cannot speak for a human,
 machinery or a designated runner, whose observations wait for runner keys (Phase F step 9; Review e6ac009 B1). Each
 bound record's binding must name this envelope, task, obligation, role and lineage, and its ``governs`` must equal
@@ -97,7 +99,44 @@ def _attested(request: Mapping[str, Any], binding: Mapping[str, Any], public: st
         and _verify(attestation["credential_key"], request_message(request), binding["credential_signature"])
 
 
-def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRoots, head: int) -> Authentication:
+def lineage_closure(session: str, inputs: list[str], attestations: Mapping[str, list[str]]) -> list[str]:
+    """The attestation closure of a launched session (§12.2; Phase F reading F11): the session, then every session
+    reachable through the input sessions of stored launch attestations, sorted, and ``UNKNOWN`` when an input
+    session has no stored attestation, so the closure is open and never disjoint from anything."""
+
+    seen, frontier, open_ = {session}, list(inputs), False
+    while frontier:
+        current = frontier.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        if current in attestations:
+            frontier.extend(attestations[current])
+        else:
+            open_ = True
+    return [session, *sorted(seen - {session}), *(["UNKNOWN"] if open_ else [])]
+
+
+def stored_attestations(objects: Mapping[str, bytes]) -> dict[str, list[str]]:
+    """Session -> its input sessions, from the launch attestations of the binding objects the ledger stores."""
+
+    import json
+
+    out: dict[str, list[str]] = {}
+    for data in objects.values():
+        try:
+            value = json.loads(data)
+        except ValueError:
+            continue
+        attestation = value.get("attestation") if isinstance(value, dict) else None
+        if isinstance(attestation, dict) and isinstance(attestation.get("session"), str) \
+                and isinstance(attestation.get("input_sessions"), list):
+            out[attestation["session"]] = [x for x in attestation["input_sessions"] if isinstance(x, str)]
+    return out
+
+
+def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRoots, head: int,
+                 attestations: Mapping[str, list[str]] | None = None) -> Authentication:
     binding = request.get("binding")
     if not isinstance(binding, Mapping) or not _encodable(binding):
         return NOT_AUTHENTICATED
@@ -131,6 +170,9 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
     else:
         lineage = "UNKNOWN"
     agent = f"agent:{envelope['task_id']}/"
+    attestation = binding["attestation"]
+    lineage_list = lineage_closure(attestation["session"], attestation["input_sessions"], attestations or {}) \
+        if lineage == "ATTESTED_FRESH" else []
     refused = []
     for record in records:
         own = []
@@ -143,6 +185,8 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         if (rb.get("envelope"), rb.get("task"), rb.get("obligation"), rb.get("role"), rb.get("lineage_class")) != \
                 (digest, envelope["task_id"], envelope["obligation_id"], envelope["role"], lineage):
             own.append("AUTH_ENVELOPE")
+        if (rb.get("lineage") or []) != lineage_list:
+            own.append("AUTH_ENVELOPE")  # the lineage is what the binding proves (reading F11)
         if record.get("governs") != envelope["governs"]:
             own.append("AUTH_VERSION")
         if retired and not never_lost(record):
@@ -163,4 +207,4 @@ def _human(request: Mapping[str, Any], human: Any, records: list[dict], roots: T
     return Authentication(True, frozenset(), tuple(refused), None, {})
 
 
-__all__ = ["Authentication", "NOT_AUTHENTICATED", "authenticate"]
+__all__ = ["Authentication", "NOT_AUTHENTICATED", "authenticate", "lineage_closure", "stored_attestations"]

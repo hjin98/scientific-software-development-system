@@ -14,7 +14,7 @@ from functools import cached_property
 from typing import Any
 
 from ssds import analyzers
-from ssds.content import RESIDUAL_SUFFIX, Structure, TreeView, static_errors
+from ssds.content import ABSENT, RESIDUAL_SUFFIX, Structure, TreeView, static_errors
 
 from .vocabulary import CHALLENGES_INQUIRY, DOMAIN_LAYERED, LAYER, LAYER_FREE, VOCABULARY
 
@@ -307,6 +307,18 @@ class StructureFacts:
     def well_formed(self, subject: str) -> bool:
         members = {u for u in self.structure.units if self.structure.subj(u) == subject}
         return not any(d.unit in members for d in self.defects)
+
+    def absent_term(self, subject: str) -> bool:
+        """Some declared file or span term of the subject's units resolves to ``ABSENT`` (§1.9): no acceptance is
+        admitted on such a revision (catalogue §8.3 step 3, ``AUTH_ILL_FORMED``)."""
+
+        resolutions = self.view.term_resolutions
+        for uid, unit in self.structure.units.items():
+            if self.structure.subj(uid) != subject:
+                continue
+            if any(term.kind != "prefix" and region is ABSENT for term, region in zip(unit.scope, resolutions[uid])):
+                return True
+        return False
 
     # -- conservative widening and closure (§4.5-§4.6) --------------------------------------
 
