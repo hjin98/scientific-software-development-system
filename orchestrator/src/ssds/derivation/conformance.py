@@ -36,7 +36,7 @@ from functools import cached_property
 from typing import Any
 
 from ssds import analyzers as py
-from ssds.content import REVIEW, Check, Contract, EvidenceVerifier, Item, Structure, TreeView
+from ssds.content import REVIEW, Check, Contract, EvidenceVerifier, Item, TreeView
 
 from .frames import Frame, frame_of, integrating_position, transformation_of
 from .library import HEURISTIC, TEMPLATES
@@ -190,12 +190,12 @@ class Conformance:
     def candidate_tree(self) -> Any:
         return self.candidate_view.tree if self.candidate_view is not None else None
 
-    @cached_property
+    @property
     def base_view(self) -> TreeView | None:
-        if self.frame is None:
-            return None
-        return TreeView(self.frame.base_tree, Structure(self.s.h.sigma(self.s.position_of(self.rid))),
-                        self.s.h.manifest_path)
+        """``tree(B)`` under the frame's structure, as ``candidate_view`` is: both sides of a base-to-candidate
+        comparison read one structure (review 2280eae)."""
+
+        return self.frame.base_view if self.frame is not None else None
 
     @cached_property
     def candidate_view(self) -> TreeView | None:

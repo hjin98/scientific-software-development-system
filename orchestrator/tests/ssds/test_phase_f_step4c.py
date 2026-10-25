@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import unittest
 
+from ssds.derivation import State, Workflow
 from ssds.derivation.conformance import CLEAN
-from ssds.derivation.frames import transformation_of
+from ssds.derivation.frames import Frame, Transformation, frame_of, transformation_of
 from ssds.ledger.read import transformation_id, with_id
 
-from ._fixtures import record
-from ._scenario import OWNER, agent, integrate, judgment
+from ._fixtures import record, tree
+from ._scenario import OWNER, Scenario, agent, fresh, integrate, judgment
+from ._scenario import submit as submit_x
 from .test_conformance import accepted_plan, conformance, submit
 
 SOLVED = {"src/solver.py": "def step():\n    return 2\n"}
@@ -73,6 +75,129 @@ class WriteSetAtTheHead(unittest.TestCase):
         self.assertEqual(c.outside_scope(c.contract[0]), [])
 
 
+NESTED = '''
+    [[unit]]
+    id = "s1"
+    kind = "D3"
+    role = "composite"
+    scope = [{ prefix = "pkg/" }]
+    [[unit]]
+    id = "p"
+    part_of = "s1"
+    role = "composite"
+    subject = false
+    scope = [{ prefix = "pkg/sub/" }]
+    [[unit]]
+    id = "u"
+    part_of = "p"
+    subject = false
+    scope = [{ file = "pkg/sub/u.py" }]
+'''
+NESTED_FILES = {"pkg/a.py": "a = 1\n", "pkg/sub/u.py": "u = 1\n", "theory.md": "t\n"}
+
+
+def frame_for(sc: Scenario, manifest: str, files: dict[str, str]) -> Frame:
+    d = sc.derive()
+    candidate = sc.add_tree(tree(files, manifest))
+    return Frame(d.s.h, d.s.n, Transformation(transformation_id(sc.head, candidate), sc.head, candidate), None)
+
+
+class FrameWriteSet(unittest.TestCase):
+    """Review 2280eae B2: the frame's write set compares two structures and two mode maps (§1.2)."""
+
+    def test_a_new_subject_over_unchanged_content_is_in_it(self) -> None:
+        sc = Scenario(NESTED, NESTED_FILES)
+        frame = frame_for(sc, NESTED + '''
+    [[unit]]
+    id = "w"
+    kind = "D1"
+    subject = true
+    scope = [{ file = "theory.md" }]
+''', NESTED_FILES)
+        self.assertTrue(frame.exists)
+        self.assertIn("w", frame.write_set, "§1.2: a newly declared unit is in it, read under the merged structure")
+
+    def test_a_governance_signature_changed_only_by_mode_is_in_it(self) -> None:
+        sc = Scenario(NESTED, NESTED_FILES, modes={"s1": {"mode": "LEGACY", "ruleset": "ssds-rules/1"}})
+        promoted = NESTED.replace('''id = "p"
+    part_of = "s1"
+    role = "composite"
+    subject = false''', '''id = "p"
+    part_of = "s1"
+    role = "composite"
+    subject = true
+    kind = "D3"''')
+        frame = frame_for(sc, promoted, NESTED_FILES)
+        self.assertTrue(frame.exists)
+        # u's governing subject moves from s1 (LEGACY) to p, which takes genesis's "*" mode: only its mode differs
+        self.assertIn("u", frame.write_set)
+
+    def test_an_effect_arising_only_where_the_candidate_meets_the_head(self) -> None:
+        doc = '''
+    [[unit]]
+    id = "doc"
+    kind = "D3"
+    subject = true
+    scope = [{ path = "doc.md" }]
+'''
+        sc = Scenario(doc, {"doc.md": "d0\n", "more.md": "m0\n"})
+        x, candidate, _ = submit_x(sc, {"more.md": "m1\n"}, agent("maker"), "task-x")
+        # concurrently, doc's scope widens over more.md, with its structural delta admitted
+        widened = doc.replace('[{ path = "doc.md" }]', '[{ path = "doc.md" }, { path = "more.md" }]')
+        y, cy, _ = submit_x(sc, {}, agent("other"), "task-y", manifest=widened)
+        integrate(sc, y, cy)
+        d = sc.derive()
+        frame = frame_of(d.s, transformation_of(d.s, x))
+        self.assertIn("doc", frame.write_set, "more.md is doc's only on the head, where C's edit meets it")
+        self.assertEqual(Frame(d.s.h, d.s.position_of(_result_of(d, x)), transformation_of(d.s, x), None).write_set,
+                         {}, "at its own base the edit owned by nothing reaches no unit")
+
+    def test_a_historical_state_reads_the_frame_at_its_own_head(self) -> None:
+        sc = Scenario('''
+    [[unit]]
+    id = "doc"
+    kind = "D3"
+    subject = true
+    scope = [{ path = "doc.md" }]
+''', {"doc.md": "d0\n"})
+        x, candidate, result = submit_x(sc, {"doc.md": "d1\n"}, agent("maker"), "task-x")
+        sc.admit(judgment("FINDING", {"units": ["doc"]}, None, fields={"materiality": "ROUTINE"}))
+        integrate(sc, x, candidate)
+        d = sc.derive()
+        submitted = d.s.position_of(result["id"])
+        then = State(d.s.h, submitted)
+        self.assertEqual(frame_of(then, transformation_of(then, x)).n, submitted,
+                         "an integration after the state's position is not yet one")
+        self.assertEqual(frame_of(d.s, transformation_of(d.s, x)).n, d.s.n - 1)
+
+
+def _result_of(d, x: str) -> str:
+    return next(r for r in d.s.of_kind("TASK_RESULT") if d.s.record(r)["target"].get("transformation") == x)
+
+
+class FirstSubmittingResult(unittest.TestCase):
+    """Review 2280eae B1: one predicate decides the result that submits ``X`` for every owner (§7.1)."""
+
+    def test_a_result_naming_x_with_another_candidate_claims_nothing(self) -> None:
+        sc = accepted_plan()
+        base = sc.head
+        cand = sc.add_tree(tree(dict(sc.files, **SOLVED), sc.manifest))
+        real = transformation_id(base, cand)
+        other = sc.add_tree(tree(dict(sc.files, **{"src/solver.py": "def step():\n    return 9\n"}), sc.manifest))
+        forged = with_id({**record("TASK_RESULT", target={"task": "task-evil", "candidate": other, "transformation": real,
+                                                          "base": base},
+                                   outcome="COMPLETE", actor=agent("evil"), actor_class="AGENT",
+                                   frame={"transformation": real}, fields={"slots": {}}),
+                          "binding": fresh(agent("evil"), "task-evil")})
+        sc.admit(forged)
+        x, _, result = submit(sc, SOLVED)
+        self.assertEqual(x, real)
+        d = sc.derive()
+        self.assertEqual(transformation_of(d.s, x).candidate, cand)
+        self.assertEqual(d.s.enactment(x), "task-1")
+        self.assertEqual(Workflow(d).submitting_result(x), result["id"])
+
+
 class IntegratedEnactment(unittest.TestCase):
     """Reading F17: an integrated enactment's tree facts are fixed at its integrating head and its frame records
     are current in the admitted state (catalogue §7.3), so later heads, an overlapping edit included, change
@@ -108,6 +233,8 @@ class TransformationIdentity(unittest.TestCase):
         two = {"key": ["v", "kind"], "value": "D3"}
         self.assertNotEqual(transformation_id(self.B, self.C, [one]), expected)
         self.assertEqual(transformation_id(self.B, self.C, [one, two]), transformation_id(self.B, self.C, [two, one]))
+        self.assertEqual(transformation_id(self.B, self.C, [one, one]), transformation_id(self.B, self.C, [one]), "a set")
+        self.assertEqual(transformation_id(self.B, self.C, [{**one, "note": "x"}]), transformation_id(self.B, self.C, [one]))
 
     def test_a_result_naming_another_identity_fixes_nothing(self) -> None:
         sc = accepted_plan()

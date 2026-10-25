@@ -29,7 +29,7 @@ from .judgment import RouteEligibility
 from .obligations import obligation_id
 from .outcomes import ADVERSE, PASSING
 from .runs import REVISING_REVIEW, revising_review_id
-from .state import NEVER_PROVISIONAL, UNKNOWN, F, P, T, triple_key
+from .state import NEVER_PROVISIONAL, UNKNOWN, F, P, T, submits, triple_key
 
 # Holder roles (§12.3) and the Dispatcher.
 PRINCIPAL, IMPLEMENTER, INVESTIGATOR, REVIEWER, HUMAN, DISPATCHER = (
@@ -412,7 +412,8 @@ class Workflow:
         """The task result that first submitted ``X`` (§7.1)."""
 
         for rid in self.s.of_kind("TASK_RESULT"):
-            if self.s.record(rid)["target"].get("transformation") == transformation:
+            target = self.s.record(rid)["target"]
+            if target.get("transformation") == transformation and submits(target):
                 return rid
         return None
 

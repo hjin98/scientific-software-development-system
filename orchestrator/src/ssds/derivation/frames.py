@@ -15,10 +15,8 @@ from typing import Any
 
 from ssds.content import Structure, Tree, TreeView, merge3, static_errors, value_from_json, write_set
 
-from ssds.ledger.read import transformation_id as identity
-
 from .history import History, manifest_decl
-from .state import F, T, State
+from .state import F, T, State, submits
 
 
 @dataclass(frozen=True)
@@ -34,9 +32,7 @@ def transformation_of(state: State, transformation_id: str) -> Transformation | 
 
     for rid in state.of_kind("TASK_RESULT"):
         target = state.record(rid)["target"]
-        if target.get("transformation") == transformation_id and "candidate" in target and "base" in target \
-                and identity(target["base"], target["candidate"], target.get("adopts", [])) == transformation_id:
-            # a result whose transformation is not §7.1's identity of what it names fixes nothing
+        if target.get("transformation") == transformation_id and submits(target):
             adopts = tuple((tuple(a["key"]), a["value"]) for a in target.get("adopts", []))
             return Transformation(transformation_id, target["base"], target["candidate"], adopts)  # type: ignore[arg-type]
     return None

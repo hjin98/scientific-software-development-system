@@ -17,6 +17,7 @@ from typing import Any
 
 from ssds import analyzers
 from ssds.content import Structure, TreeView, scope_identity
+from ssds.ledger.read import transformation_id
 
 from .history import History, RecordFact, manifest_decl
 from .s0 import StructureFacts, tenure_start
@@ -45,6 +46,16 @@ def target_key(target: Any) -> str | None:
             return triple_key(target["subject"], target["scope_id"], target["rev"])
     return None
 
+
+
+def submits(target: Any) -> bool:
+    """A task result's target submits the transformation it names: it carries ``B`` and ``C`` and names
+    exactly §7.1's ``id(B, C, A)``. The one predicate for the first submitting result (§7.1; review 2280eae
+    B1): a result naming another candidate's identity fixes nothing and claims no enactment."""
+
+    return isinstance(target, dict) and isinstance(target.get("transformation"), str) \
+        and isinstance(target.get("base"), str) and isinstance(target.get("candidate"), str) \
+        and transformation_id(target["base"], target["candidate"], target.get("adopts") or []) == target["transformation"]
 
 @dataclass(frozen=True)
 class Policy:
@@ -211,7 +222,7 @@ class State:
         out: dict[str, str] = {}
         for rid in self.of_kind("TASK_RESULT"):
             target = self.record(rid)["target"]
-            if "transformation" in target:
+            if submits(target):
                 out.setdefault(target["transformation"], target["task"])
         return out
 

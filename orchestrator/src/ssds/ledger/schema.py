@@ -309,9 +309,11 @@ def record_id(record: Mapping[str, Any]) -> str:
 def transformation_id(base: str, candidate: str, adopts: Any = ()) -> str:
     """``id(X) = sha256("ssds.transformation.v1" ‖ B ‖ C ‖ JCS(sorted A))`` (catalogue §7.1). ``‖`` is byte
     concatenation, ``B`` and ``C`` the commits' ASCII hex (fixed-length, so unambiguous), and ``A`` the task
-    result's ``adopts`` elements ``{key, value}``, sorted by their own canonical JSON; an empty ``A`` is ``[]``."""
+    result's ``adopts`` elements, each read as exactly ``{key, value}`` (the fields a transformation keeps), a set:
+    duplicates removed and sorted by their own canonical JSON (review 2280eae); an empty ``A`` is ``[]``."""
 
-    elements = sorted((dict(a) for a in adopts), key=canonical_json)
+    unique = {canonical_json(e): e for e in ({"key": a["key"], "value": a["value"]} for a in adopts)}
+    elements = [unique[k] for k in sorted(unique)]
     data = b"ssds.transformation.v1" + base.encode("ascii") + candidate.encode("ascii") + canonical_json(elements)
     return "sha256:" + hashlib.sha256(data).hexdigest()
 

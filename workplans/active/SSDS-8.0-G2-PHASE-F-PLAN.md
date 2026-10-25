@@ -652,6 +652,17 @@ Its notes, taken up:
   - modes not passed (M7), equivalent while no frame carries a cutover;
   - scope resolved on `tree(C)` (M9), killed by a unit-named write scope that a concurrent file joins.
 
+**Same-family review of step 4c-i (2280eae1).** No SERIOUS CHALLENGE; nothing is wrongly admitted, since content requests stay `SCHEMA_UNSUPPORTED`. NO-PASS on two blockers, repaired:
+- **B1, three owners of the first submitting result.** Only `transformation_of` checked §7.1's identity, so a result naming `id(X)` with another candidate became `X`'s enactment and `submitting_result`. One predicate, `state.submits`, now serves `transformation_of`, `State.submissions` and `Workflow.submitting_result`; a test puts the forged result first.
+- **B2, the write set's two structures and mode maps untested.** My M7 equivalence claim was wrong: a composite made a subject moves a part to a subject of another mode, and only its governance signature differs. New tests cover that, a new D1 subject over unchanged content, and an effect arising only where `C` meets `T_n` (a concurrent widening of a unit's scope over the file `C` edits).
+
+Its notes, taken up:
+- `Conformance.base_view` is the frame's, so the layer-direction template compares one structure;
+- `A` in `id(X)` is a set of exactly `{key, value}` elements;
+- a historical state reads its frame at its own head (F3).
+
+Kept: the near-equivalent survivors F14 and F21-F25, reachable only through kind changes or deletions, and F15.
+
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
