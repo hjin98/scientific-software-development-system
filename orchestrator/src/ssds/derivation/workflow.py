@@ -638,7 +638,7 @@ class Workflow:
                     authors |= self.s.authors(unit, rev)
             return frozenset(authors) or frozenset({UNKNOWN})
         if o.kind == "REVIEW":
-            return frozenset(self.s._makers(target["transformation"])) or frozenset({UNKNOWN})
+            return self.d.j.transformation_authors(target["transformation"])  # the one rule (plan review 6e0fa9e NB-1)
         if o.kind in ("ADJUDICATE", "ADJUDICATE_DISAGREEMENT", "REVALIDATE"):
             return self.d.j.root_authors(target["record"]) if target["record"] in self.s.records else frozenset({UNKNOWN})
         return frozenset({UNKNOWN})

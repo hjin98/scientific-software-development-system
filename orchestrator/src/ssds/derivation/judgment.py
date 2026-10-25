@@ -280,7 +280,7 @@ class Judgments:
         if kind == "ADJUDICATION":
             return self.root_authors(rid, at)
         if is_work(record):
-            return self.work_authors(rid) if at is None else self._authors_of(sorted(self.judged_content(rid)), authors)
+            return self._authors_of(sorted(self.judged_content(rid)), authors)
         if kind == "PLAN_ACCEPTANCE":
             return self._authors_of([(i["unit"], i["rev"]) for i in record["fields"]["items"]], authors)
         if kind == "EVIDENCE_ASSESSMENT":
@@ -303,19 +303,28 @@ class Judgments:
         too (§5.10 (b): "a revert, restore or re-application that re-produced it included"); ``UNKNOWN`` when
         nothing recorded produced it."""
 
-        s = self.s
-        if at is None:
-            return s.authors
         produced = self._candidate_pieces(record)
+        position = self.s.n if at is None else at
+        return lambda unit, rev: self.piece_authors(unit, rev, position, produced)
 
-        def authors(unit: str, rev: str) -> frozenset[str]:
-            admitted = _earlier_producers(s.h, unit, rev, at)
-            made = produced.get((unit, rev))
-            if made is None:
-                return admitted or frozenset({UNKNOWN})
-            return made | admitted
+    def piece_authors(self, unit: str, rev: str, position: int,
+                      produced: dict[tuple[str, str], frozenset[str]] | None = None) -> frozenset[str]:
+        """The one authorship rule every reader applies, classification and routing alike (§5.10 (b):
+        "Authorship is a ledger fact, read the same way by every rule"; plan review 6e0fa9e NB-1): whoever
+        produced ``(unit, rev)`` in an admitted view at or before ``position``, and, when a candidate produces
+        it, that candidate's makers (``produced``); ``UNKNOWN`` when nothing recorded produced it."""
 
-        return authors
+        admitted = _earlier_producers(self.s.h, unit, rev, position)
+        made = (produced or {}).get((unit, rev))
+        if made is None:
+            return admitted or frozenset({UNKNOWN})
+        return made | admitted
+
+    def transformation_authors(self, transformation: str) -> frozenset[str]:
+        """The authors of what an answer judging a transformation would judge, by the one rule."""
+
+        judged, produced = self._transformation_work(transformation, None)
+        return self._authors_of(sorted(judged), lambda u, r: self.piece_authors(u, r, self.s.n, produced))
 
     def _candidate_pieces(self, record: dict[str, Any]) -> dict[tuple[str, str], frozenset[str]]:
         """The pieces of the candidate a record is about (it declares the candidate's frame, or judges its
@@ -599,6 +608,8 @@ class Judgments:
         """The independence test, or ``None`` when it fails and only the owner exception could hold."""
 
         if record["actor_class"] == "HUMAN":
+            # §5.10 (f): judged content of unknown authorship admits only a human with a non-authorship attestation
+            # (plan review 6e0fa9e NB-3)
             if record["actor"] not in authors or self._non_authorship_attested(record["id"]):
                 return True
             return None
@@ -631,25 +642,26 @@ class Routes:
         return not self.admissible
 
 
-#: Kinds whose supersession target (catalogue §5.10 (b), "Supersession target") reaches beyond one exact target:
-#: a transformation's judged scope, a plan's tighter revisions, an equivalence chain, a completeness union, a
-#: product-scope item. Their supersession is not built at Admission yet and fails closed (Phase F plan §3.1, 4b-i).
-JUDGED_SCOPE_SUPERSESSION = frozenset({"CONFORMANCE", "PLAN_ACCEPTANCE", "EQUIVALENCE", "COMPLETENESS",
-                                       "PRODUCT_SCOPE_ACCEPTANCE"})
+#: Kinds whose supersession target (catalogue §5.10 (b), "Supersession target") is conditional: a plan acceptance's
+#: is its target only while its step 6 basis holds. Not built at Admission yet: it fails closed (plan §3.1, 4b-i).
+CONDITIONAL_SUPERSESSION = frozenset({"PLAN_ACCEPTANCE"})
 
 
 def supersession_target(record: dict[str, Any]) -> Any:
     """What a record's superseder must judge (catalogue §5.10 (b), "Supersession target"), or ``None`` when that
-    target reaches beyond one exact target (``JUDGED_SCOPE_SUPERSESSION``, a transformation review):
+    target is conditional (``CONDITIONAL_SUPERSESSION``). The column, not the wider "reach" one:
     - an acceptance or a subject review: the same triple, in any frame or tenure;
     - a gate decision: the same gate and triple, in any frame, tenure or run (its evidence core may differ);
     - an assessment: the same realization and obligation under the same reading (§6.7: "an explicit
       reassessment of the realization");
-    - every other kind: its target (§3.4)."""
+    - a completeness: its target without the analyzer (a machinery record's analyzer is its ``tgt`` condition);
+    - every other kind, a transformation review, conformance and equivalence included: its target (§3.4)."""
 
     kind, target = record["kind"], record["target"] or {}
-    if kind in JUDGED_SCOPE_SUPERSESSION or (kind == "REVIEW" and "transformation" in target) or is_work(record):
+    if kind in CONDITIONAL_SUPERSESSION:
         return None
+    if kind == "COMPLETENESS":
+        return ("target", json.dumps({k: v for k, v in target.items() if k != "analyzer"}, sort_keys=True))
     if kind in ("ACCEPTANCE", "REVIEW") and isinstance(target.get("subject"), str):
         return ("triple", target.get("subject"), target.get("scope_id"), target.get("rev"))
     if kind == "GATE_DECISION":

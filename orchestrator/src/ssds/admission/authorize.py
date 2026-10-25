@@ -84,15 +84,15 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
 
 
 def _supersession_unbuilt(superseded: str, trial: Any) -> bool:
-    """A supersession whose authority needs an owner not built yet: a judged-scope target (§5.10 (b)) or the
-    plan of a principal's decision (plan review 8a41539 B2)."""
+    """A supersession whose authority needs an owner not built yet: a conditional supersession target (§5.10 (b))
+    or the plan of a principal's decision (plan review 8a41539 B2)."""
 
     s = trial.s
     if superseded not in s.records:
         return False
     x = s.record(superseded)
     return x["kind"] in PRINCIPAL_SUPERSEDED or (x["kind"] in SUPPORT_TIER and x["kind"] not in REPORT_KINDS
-                                                and supersession_target(x) is None)
+                                                and supersession_target(x) is None)  # a conditional target
 
 
 def _acceptance_target(record: dict, trial: Any) -> set[str]:

@@ -9,9 +9,8 @@ verifies under the issue key, and the credential it names signed this request: l
 other route carries none of the three, and its lineage is ``UNKNOWN``. Material that does not verify is never
 stored: the binding then authenticates nothing (Review e6ac009 B3).
 
-A bound record's lineage contains the attestation closure Admission computes from the launch attestations the
-ledger stores (a superset only adds sessions, so it can only make the record less independent), and is empty under
-``UNKNOWN`` (§12.2; reading F11). An envelope authenticates its task's agent and
+A bound record's lineage is exactly the attestation closure Admission computes from the verified launch
+attestations the ledger stores, and empty under ``UNKNOWN`` (§12.2; reading F11). An envelope authenticates its task's agent and
 nothing else (§25.1): each bound record's actor is
 ``agent:<task id>/<attempt>`` of class ``AGENT`` (``AUTH_ACTOR`` otherwise), so a binding cannot speak for a human,
 machinery or a designated runner, whose observations wait for runner keys (Phase F step 9; Review e6ac009 B1). Each
@@ -195,10 +194,10 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         if (rb.get("envelope"), rb.get("task"), rb.get("obligation"), rb.get("role"), rb.get("lineage_class")) != \
                 (digest, envelope["task_id"], envelope["obligation_id"], envelope["role"], lineage):
             own.append("AUTH_ENVELOPE")
-        recorded = rb.get("lineage") or []
-        if (lineage == "ATTESTED_FRESH" and not set(lineage_list) <= set(recorded)) or (lineage != "ATTESTED_FRESH"
-                                                                                      and recorded):
-            own.append("AUTH_ENVELOPE")  # the lineage covers what the binding proves; none under UNKNOWN (F11)
+        if (rb.get("lineage") or []) != lineage_list:
+            # exactly what the binding proves: derivation reads a producing record's lineage as authorship, so a
+            # superset would plant authors (plan review 6e0fa9e NB-2); none under UNKNOWN (reading F11)
+            own.append("AUTH_ENVELOPE")
         if record.get("governs") != envelope["governs"]:
             own.append("AUTH_VERSION")
         if retired and not never_lost(record):

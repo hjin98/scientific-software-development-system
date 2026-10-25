@@ -220,13 +220,28 @@ class Lineage(RequestFixture):
         self.assertEqual(decision.admitted, (right["id"],))
         self.assertEqual(dict(decision.refused)[short["id"]], ("AUTH_ENVELOPE",), "the input's session is missing")
 
-    def test_a_lineage_covering_the_closure_with_more_is_admitted(self) -> None:
+    def test_nb2_a_lineage_is_exactly_the_closure(self) -> None:
         issued = self.issue()
-        wider = self.bind(finding(), issued)
-        wider = with_id({**wider, "binding": {**wider["binding"],
-                                              "lineage": [issued.attestation["session"], "session:more"]}})
-        self.assertEqual(self.admit(self.signed(issued, [wider])).admitted, (wider["id"],),
-                         "more sessions can only make it less independent")
+        for extra in ("session:more", "UNKNOWN", "human:SHA256:" + "A" * 43):
+            with self.subTest(extra=extra):
+                wider = self.bind(finding(note=extra), issued)
+                wider = with_id({**wider, "binding": {**wider["binding"],
+                                                      "lineage": [issued.attestation["session"], extra]}})
+                refused = dict(self.admit(self.signed(issued, [wider])).refused)
+                self.assertEqual(refused.get(wider["id"]), ("AUTH_ENVELOPE",),
+                                 "a producing record's lineage is authorship: no token beyond the closure")
+
+    def test_n20_a_session_two_bindings_attest_differently_stays_open(self) -> None:
+        import json
+
+        from ssds.admission.authenticate import stored_attestations
+
+        one = json.dumps({"attestation": {"session": "s1", "input_sessions": ["a"]}}).encode()
+        two = json.dumps({"attestation": {"session": "s1", "input_sessions": ["b"]}}).encode()
+        three = json.dumps({"attestation": {"session": "s2", "input_sessions": []}}).encode()
+        objects = {"sha256:1": one, "sha256:2": two, "sha256:3": three}
+        self.assertEqual(stored_attestations(objects, set(objects)), {"s2": []})
+        self.assertEqual(stored_attestations(objects, {"sha256:3"}), {"s2": []}, "only named bindings are read")
 
     def test_an_unknown_lineage_is_empty(self) -> None:
         issued = self.issue("MANUAL")
@@ -429,6 +444,90 @@ class SupersessionTargets(unittest.TestCase):
         again = judgment("REALIZATION", realization["target"], "COMPLETE", actor="machinery:dispatcher@ed25519:test",
                          actor_class="MACHINERY", fields={"execution": {}}, supersedes=[realization["id"]])
         self.assertFalse(self.authorized(realization, again))
+
+
+class OneAuthorshipRule(unittest.TestCase):
+    """Routing reads authorship by the rule classification reads (§5.10 (b); plan review 6e0fa9e NB-1, N3)."""
+
+    def test_nb1_judge_selection_and_classification_read_the_same_authors(self) -> None:
+        from ssds.derivation import Workflow
+
+        from ._scenario import agent, submit
+
+        sc = Scenario(DOC + '''
+    [[unit]]
+    id = "notes"
+    kind = "D3"
+    subject = true
+    scope = [{ path = "notes.md" }]
+''', {"doc.md": "r0\n", "notes.md": "n0\n"})
+        x, _, _ = submit(sc, {"doc.md": "r1\n"}, agent("x"), "task-x")
+        sc.integrate({"doc.md": "r1\n", "notes.md": "n1\n"}, agent("y"), "task-y", lineage=[HUMAN])
+        review = judgment("REVIEW", {"transformation": x}, "PASS", actor=HUMAN)
+        sc.admit(review)
+        d = sc.derive()
+        at_admission = d.j.judged_authors(review["id"], d.s.position_of(review["id"]))
+        self.assertIn(HUMAN, at_admission)
+        self.assertEqual(d.j.judged_authors(review["id"]), at_admission)
+        self.assertIn(HUMAN, d.j.transformation_authors(x))
+        w = Workflow(d)
+        review_obligation = next((o for o in w.obligations if o.kind == "REVIEW" and o.target.get("transformation") == x),
+                                 None)
+        if review_obligation is not None:
+            self.assertIn(HUMAN, w.judged_authors(review_obligation))
+
+    def test_n3_a_maker_reviewing_its_own_candidate_is_never_independent(self) -> None:
+        from ._scenario import agent, submit
+
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        x, _, result = submit(sc, {"doc.md": "r1\n"}, agent("x"), "task-x")
+        sc.entries.pop()
+        result = dict(result)
+        result["binding"] = dict(result["binding"], lineage=[HUMAN])
+        result.pop("id")
+        sc.admit(with_id(result))
+        review = judgment("REVIEW", {"transformation": x}, "PASS", actor=HUMAN)
+        sc.admit(review)
+        self.assertTrue(sc.derive().j.nonind(review["id"]), "the candidate's own maker, before integration")
+
+    def test_a14_an_ill_formed_subject_without_an_absent_term(self) -> None:
+        sc = Scenario('''
+    [[unit]]
+    id = "theory"
+    kind = "D1"
+    subject = true
+    scope = [{ path = "theory.md" }]
+    [[unit]]
+    id = "code"
+    kind = "D4"
+    subject = true
+    scope = [{ path = "code.md" }]
+''', {"theory.md": "<!-- ssds:rel DEPENDS_ON code -->\n", "code.md": "x\n"})  # a layer violation (§2.5)
+        rec = judgment("ACCEPTANCE", sc.triple("theory"), "PASS", actor=HUMAN)
+        sc.admit(rec)
+        d = sc.derive()
+        self.assertEqual((d.s.s0.well_formed("theory"), d.s.s0.absent_term("theory")), (False, False))
+        self.assertEqual(_acceptance_target(rec, d), {"AUTH_ILL_FORMED"})
+
+    def test_newly_built_supersession_targets(self) -> None:
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        transformation = "sha256:" + "7" * 64
+        review = judgment("REVIEW", {"transformation": transformation}, "NO_PASS", actor=HUMAN,
+                          frame={"transformation": transformation})
+        again = judgment("REVIEW", {"transformation": transformation}, "PASS", actor=HUMAN, supersedes=[review["id"]],
+                         frame={"transformation": transformation})
+        from ssds.derivation import supersession_target
+
+        self.assertEqual(supersession_target(review), supersession_target(again))
+        completeness = judgment("COMPLETENESS", {"scope": ["doc"], "classes": ["WARRANT"], "membership": "sha256:" + "1" * 64,
+                                                 "analyzer": "ssds.analyzer.python/1"}, "INCOMPLETE")
+        by_judgment = judgment("COMPLETENESS", {"scope": ["doc"], "classes": ["WARRANT"], "membership": "sha256:" + "1" * 64},
+                               "COMPLETE")
+        self.assertEqual(supersession_target(completeness), supersession_target(by_judgment), "without the analyzer")
+        plan = judgment("PLAN_ACCEPTANCE", {"units": ["doc"]}, "REJECTED",
+                        fields={"objective": {"unit": "doc", "rev": "sha256:" + "4" * 64},
+                                "items": [{"unit": "doc", "rev": "sha256:" + "5" * 64}]})
+        self.assertIsNone(supersession_target(plan), "conditional on its basis: not built")
 
 
 class ProductionShapedLedger(unittest.TestCase):
