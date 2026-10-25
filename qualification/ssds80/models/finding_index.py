@@ -502,6 +502,16 @@ _d("AFD3BE2", "N1", "CLOSED-ARCH", "A6 restated after review: an unrequestable a
 _d("AFD3BE2", "N2", "CLOSED-S5", "finding_inventory_check.py --self-test runs the restatement probe through the filters")
 _d("AFD3BE2", "N3", "CLOSED-CYCLE", "A4 cites §5.10 (c); G2 workplan NEXT ACTION updated (post-review correction, §4.14)")
 
+# Manual amendment A10 (project memory), its three different-family Reviews, accepted at SD-66
+_d("0368198", "B1 B2 B4", "CLOSED-LATER-REVIEW",
+   "97E5D6B re-verification: revision 1 closes them (MANUAL-REVIEW-SSDS-8.0-97E5D6B-A10-DIFFERENT-FAMILY-NO-PASS.md)")
+_d("0368198", "B3 B5", "CLOSED-LATER-REVIEW",
+   "carried as 97e5d6b N1/B3 and N2/B5, closed by the 3A7A43D re-Review (A10 revision 2, PASS)")
+_d("97E5D6B", "N1 N2", "CLOSED-LATER-REVIEW",
+   "3A7A43D re-verification: revision 2 closes N1/B3 and N2/B5 (MANUAL-REVIEW-SSDS-8.0-3A7A43D-A10-DIFFERENT-FAMILY-PASS.md)")
+_d("3A7A43D", "N1 N2 B1", "NOTED", "the PASS record's headings state earlier blockers closed (N1/B3, N2/B5) or still "
+   "closed (B1, B2, B4); no new finding")
+
 
 def s1_evidence():
     """(record, finding) -> the s1 diagnostic's named discriminators that reproduce it."""
