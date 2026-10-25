@@ -677,6 +677,56 @@ class AdjudicationEligibility(unittest.TestCase):
         sc.admit(c)
         self.assertTrue(sc.derive().j.chain_needs_human(c["id"]), "an adjudication of a D1/D2 claim is R3 (§3.4)")
 
+    def test_b4_residual_every_judged_unit_counts_and_an_undetermined_root_fails_closed(self) -> None:
+        """Review 799d1ba B4: the root is about a D1/D2 claim when any unit it judged lies in D1 or D2, read from a
+        completeness's scope, a report's units, a record target or a triple; undetermined units fail closed."""
+
+        from ._scenario import agent as agent_, fresh
+
+        theory = DOC + '''
+    [[unit]]
+    id = "theory"
+    kind = "D1"
+    subject = true
+    scope = [{ path = "theory.md" }]
+'''
+        reviewer = dict(actor=agent_("reviewer"), actor_class="AGENT", binding=fresh(agent_("reviewer")))
+
+        def completeness(scope):
+            return judgment("COMPLETENESS", {"scope": scope, "classes": ["DEF"], "membership": "sha256:" + "1" * 64},
+                            "COMPLETE", **reviewer)
+
+        def report(units):
+            return judgment("FINDING", {"units": units}, None, fields={"materiality": "ROUTINE"}, **reviewer)
+
+        def reclassified(units):
+            r = report(units)
+            return [r, judgment("MATERIALITY_RECLASSIFICATION", {"record": r["id"]}, "ROUTINE", **reviewer)]
+
+        cases = {"completeness of D1": ([completeness(["theory"])], True),
+                 "completeness of D3": ([completeness(["doc"])], False),
+                 "multi-domain completeness": ([completeness(["doc", "theory"])], True),
+                 "report on D1": ([report(["theory"])], True),
+                 "multi-domain report": ([report(["theory", "doc"])], True),
+                 "record target on D1": (reclassified(["theory"]), True),
+                 "record target on D3": (reclassified(["doc"]), False),
+                 "no units": ([judgment("TASK_RESULT", {"task": "task-x"}, "COMPLETE", fields={"slots": {}},
+                                        **reviewer)], True)}
+        for name, (roots, r3) in cases.items():
+            with self.subTest(root=name):
+                sc = Scenario(theory, {"doc.md": "r0\n", "theory.md": "t0\n"})
+                sc.admit(*roots)
+                c = challenge({"record": roots[-1]["id"]})
+                sc.admit(c)
+                self.assertEqual(sc.derive().j.chain_needs_human(c["id"]), r3)
+        for unit, r3 in (("theory", True), ("doc", False)):
+            with self.subTest(triple=unit):
+                sc = Scenario(theory, {"doc.md": "r0\n", "theory.md": "t0\n"})
+                c = challenge(sc.triple(unit))
+                sc.admit(c)
+                self.assertEqual(sc.derive().j.chain_needs_human(c["id"]), r3, "a challenge made on a triple")
+        self.assertTrue(sc.derive().j.chain_needs_human("sha256:" + "9" * 64), "no root reached: fail closed")
+
     def test_n1_the_walk_stops_at_the_root(self) -> None:
         from ._scenario import agent as agent_, fresh
 
@@ -839,6 +889,43 @@ class Reissue(RequestFixture):
         decision = self.admit(req)
         self.assertEqual((decision.admitted, decision.refused), ((), ()))
         self.assertEqual(dict(self.entries()[-1].objects), {})
+
+    def test_b1_residual_a_bad_envelope_signature_authenticates_nothing(self) -> None:
+        """Review 799d1ba B1: the envelope's issue-key signature is checked on every path: in force (harness
+        route, whose attestation still verifies) and a retired key's unlisted envelope."""
+
+        import dataclasses
+
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+        from ssds.admission.request import envelope_message
+
+        forger = Ed25519PrivateKey.generate()
+        for path in ("in force", "retired unlisted"):
+            with self.subTest(path=path):
+                self.setUp()
+                issued = self.issue("HARNESS" if path == "in force" else "MANUAL")
+                if path != "in force":
+                    self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+                forged = dataclasses.replace(issued, signature=forger.sign(envelope_message(issued.envelope)).hex())
+                rec = self.bind(finding(materiality="MATERIAL"), forged)
+                decision = self.admit(self.signed(forged, [rec]))
+                self.assertEqual((decision.admitted, decision.refused), ((), ()))
+                self.assertEqual(dict(self.entries()[-1].objects), {}, "nothing stored")
+
+    def test_b1_residual_a_record_authorization_refuses_is_not_retained_for_reissue(self) -> None:
+        """Review 799d1ba B1 (E1): the unlisted path runs authorization too; a record it refuses is not kept."""
+
+        from ssds.derivation import Workflow
+
+        unlisted = self.issue("MANUAL")
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+        rec = self.bind({**finding(materiality="MATERIAL"), "provenance": {"reissue_of": "sha256:" + "ab" * 32}},
+                        unlisted)
+        decision = self.admit(self.signed(unlisted, [rec]))
+        self.assertEqual((decision.admitted, dict(decision.refused).get(rec["id"])), ((), ("SCHEMA_UNSUPPORTED",)))
+        self.assertNotIn(rec["id"], self.entries()[-1].objects)
+        self.assertFalse([o for o in Workflow(derive_state_support(self)).obligations if o.kind == "REISSUE"])
 
     def test_n4_an_envelope_issued_after_its_keys_retirement_is_no_outstanding_one(self) -> None:
         self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])

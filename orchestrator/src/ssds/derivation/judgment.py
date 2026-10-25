@@ -229,6 +229,10 @@ class Judgments:
         """The domain whose policy owns the record's disagreements: of what it judged (§5.10 (e))."""
 
         structure = self.s.view.structure
+        domains = {structure.domain(u) for u in self._policy_units(record) if u in structure.units}
+        return domains.pop() if len(domains) == 1 else None
+
+    def _policy_units(self, record: dict[str, Any]) -> list[str]:
         target = record["target"]
         units: list[str] = []
         if is_work(record):
@@ -248,8 +252,23 @@ class Judgments:
             if isinstance(subject, dict):
                 subject = subject.get("subject")
             units = [u for u in (subject or target.get("unit"),) if u]
-        domains = {structure.domain(u) for u in units if u in structure.units}
-        return domains.pop() if len(domains) == 1 else None
+        return units
+
+    def judged_units(self, record: dict[str, Any]) -> list[str]:
+        """Every unit the record judged, for the chain class: the policy's units, else a completeness's or an
+        integrated result's scope, a report's units, or what a record target judged (review 799d1ba B4); empty
+        when none can be determined. A target is strictly earlier, so the recursion ends."""
+
+        units = self._policy_units(record)
+        target = record["target"]
+        if units or not isinstance(target, dict):
+            return units
+        referenced = [r for r in ([target["record"]] if "record" in target else target.get("records") or [])
+                      if isinstance(r, str) and r in self.s.records]
+        if referenced:
+            return sorted({u for r in referenced for u in self.judged_units(self.s.record(r))})
+        listed = target.get("scope", target.get("units"))
+        return [u for u in listed if isinstance(u, str)] if isinstance(listed, list) else []
 
     # -- independence (§5.10 (f)) ----------------------------------------------------------------
 
@@ -505,14 +524,21 @@ class Judgments:
             if record["kind"] != "CHALLENGE" and record["actor_class"] == "HUMAN":
                 return True
             if record["kind"] not in ("CHALLENGE", "ADJUDICATION", "WITHDRAWAL", "RISK_OVERRIDE"):
-                return self.domain_of(record) in ("D1", "D2")  # the root
+                return self._about_d1_d2(self.judged_units(record))  # the root
             key = target_key(record["target"])
             if key is not None and key.startswith("triple:"):
-                subject = key.split(":", 3)[1]
-                structure = s.view.structure
-                return subject in structure.units and structure.domain(subject) in ("D1", "D2")
+                return self._about_d1_d2([key.split(":", 3)[1]])
             current = key
-        return False
+        return True  # no root reached: fail closed
+
+    def _about_d1_d2(self, units: list[str]) -> bool:
+        """Any judged unit lies in D1 or D2; failing closed when the units cannot be determined or a unit is not
+        declared (review 799d1ba B4)."""
+
+        structure = self.s.view.structure
+        if not units or any(u not in structure.units for u in units):
+            return True
+        return any(structure.domain(u) in ("D1", "D2") for u in units)
 
     def requirement(self, record: dict[str, Any]) -> bool:
         """Whether the record carries an independence requirement (catalogue §5.10 (a) "Requirement"): the kinds

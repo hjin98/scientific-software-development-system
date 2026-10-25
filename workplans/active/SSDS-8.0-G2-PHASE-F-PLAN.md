@@ -558,6 +558,15 @@ Its notes:
   - N2: "any human record makes the chain R3" over-approximates §3.5's "an R3 human record". It is conservative (it only refuses) but costs liveness; the precise rule is Stage S's.
   - N5, for step 8: "keeping its original actor" under "the re-issued task's envelope" meets §25.1's rule that an envelope authenticates only its own task's agent.
 
+**Narrow re-check of 799d1bac.** No SERIOUS CHALLENGE; nothing is wrongly admitted today. B2, B3 and the B1 code are closed. NO-PASS on two residual blockers, repaired:
+- **B1, residual: two checks with no test.** Mutants survived the whole suite after deleting the envelope signature check (every path) or dropping authorization on the re-issue path. Two tests now pin them: a forged envelope signature, on an in-force harness envelope whose attestation still verifies and on a retired key's unlisted envelope, stores nothing; a record that authorization refuses under an unlisted envelope is neither retained nor queued for `REISSUE`.
+- **B4, residual: roots whose domain reads `None`.** The root rule read `domain_of`, which is undefined for a completeness, a report, a record target or a multi-domain root, so such a chain over a D1 unit counted as R2. `chain_needs_human` now reads `judged_units`: the policy units, else a completeness's or integrated result's scope, a report's units, or, recursively, what a record target judged. The root is R3 when any of them lies in D1 or D2, and when none can be determined, a unit is undeclared or no root is reached (fail closed). `domain_of` itself is unchanged, because widening it re-routes the owner and adjudicators policy names for record-target kinds. Tests cover a completeness, a report, a record target, a multi-domain root, a root with no units and a challenge made directly on a triple.
+
+Its notes, kept:
+- The binding object of a withheld unlisted envelope is stored although nothing under it is retained. It is inert.
+- `_resubmitted` is dead until step 8. N5 stays open there.
+- **For Stage S, or the domain owner's next change: `domain_of`'s gaps.** It reads no completeness scope, report units or record target, so the owner and adjudicators for those kinds come from the default domain.
+
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
