@@ -56,6 +56,7 @@ class Authentication:
     lineage: str | None = None
     objects: dict[str, bytes] = field(default_factory=dict)  # the binding object, stored with admitted records
     retired_key: bool = False  # under a retired key: only never-lost records are admissible
+    reissue: str | None = None  # a verified envelope of a retired key its retirement does not list (§8.3 step 3)
 
 
 NOT_AUTHENTICATED = Authentication(False, frozenset({"AUTH_ENVELOPE"}))
@@ -166,6 +167,11 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         public = roots.issue[key_id]
     elif key_id in roots.retired and compromised is None and digest in roots.retired[key_id][1]:
         public, retired = roots.retired[key_id][0], True
+    elif key_id in roots.retired and compromised is None \
+            and _verify(roots.retired[key_id][0], envelope_message(envelope), binding["signature"]):
+        # genuinely issued, but unlisted: its never-lost records are refused, retained and re-issued (§8.3 step 3)
+        return Authentication(False, frozenset({"AUTH_ENVELOPE"}), reissue=digest,
+                              objects={digest: canonical_json(binding_object(binding))})
     else:
         return NOT_AUTHENTICATED
     if not _verify(public, envelope_message(envelope), binding["signature"]):

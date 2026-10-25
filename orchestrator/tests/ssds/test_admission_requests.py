@@ -876,7 +876,10 @@ class StepThreeReview(RequestFixture):
         new = self.issuer_at("rotated")
         self.lifecycle("ROTATE", {**new.trust_root(), "retires": self.issuer.key_id},
                        outstanding=[binding_digest(listed.binding())])
-        self.assert_unauthenticated(self.admit(self.signed(unlisted, [self.bind(finding(), unlisted)])))
+        orphan = self.bind(finding(), unlisted)
+        refused = self.admit(self.signed(unlisted, [orphan]))
+        self.assertEqual((refused.admitted, refused.refused), ((), ((orphan["id"], ("AUTH_ENVELOPE",)),)),
+                         "the rotated key no longer covers it: refused by identity, kept for re-issue (step 4b-ii)")
         kept = self.admit(self.signed(listed, [self.bind(finding(materiality="MATERIAL"), listed)]))
         self.assertEqual(len(kept.admitted), 1, "a listed envelope still covers its never-lost records")
         fresh = self.issue(issuer=new)

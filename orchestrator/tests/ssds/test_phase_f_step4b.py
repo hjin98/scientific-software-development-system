@@ -598,6 +598,122 @@ class OneAuthorshipRule(unittest.TestCase):
         self.assertIsNone(supersession_target(plan), "conditional on its basis: not built")
 
 
+class AdjudicationEligibility(unittest.TestCase):
+    """Step 4b-ii: an adjudication is independent of its chain's root and of a class not lower than the chain's
+    (catalogue §5.10 (e), §12.4, §3.5), refused alone otherwise. Its engine path opens once challenges are
+    admissible (4d); the decision functions are checked over derivation histories."""
+
+    def chain(self, root_actor: str, serious: bool = False, policy: str | None = None):
+        from ._scenario import agent as agent_, fresh
+
+        sc = Scenario(DOC, {"doc.md": "r0\n"}, policy=policy)
+        sc.integrate({"doc.md": "r1\n"}, agent_("author"), "task-1", lineage=[agent_("author")])
+        t = sc.triple("doc")
+        if root_actor.startswith("agent:"):
+            root = judgment("REVIEW", t, "PASS", actor=root_actor, actor_class="AGENT", binding=fresh(root_actor))
+        else:
+            root = judgment("REVIEW", t, "PASS", actor=root_actor)
+        c = with_id({**challenge({"record": root["id"]}), "fields": {**challenge({"record": root["id"]})["fields"],
+                                                                     "serious": serious}})
+        sc.admit(*attested(root))
+        sc.admit(c)
+        return sc, c
+
+    def adjudicate(self, sc, c, actor: str, actor_class: str = "HUMAN", binding=None):
+        rec = judgment("ADJUDICATION", {"record": c["id"]}, "UPHELD", actor=actor, actor_class=actor_class,
+                       binding=binding)
+        sc.admit(*attested(rec))
+        return rec, sc.derive()
+
+    def test_an_agent_adjudicates_an_agent_chain_and_never_a_human_or_serious_one(self) -> None:
+        from ssds.admission.authorize import _adjudication_eligible
+
+        from ._scenario import agent as agent_, fresh
+
+        for root, serious, eligible in ((agent_("reviewer"), False, True), (HUMAN, False, False),
+                                        (agent_("reviewer"), True, False)):
+            with self.subTest(root=root, serious=serious):
+                sc, c = self.chain(root, serious)
+                rec, d = self.adjudicate(sc, c, agent_("judge"), "AGENT", fresh(agent_("judge")))
+                self.assertEqual(d.j.chain_needs_human(c["id"]), not eligible)
+                self.assertEqual(_adjudication_eligible(rec, d), eligible)
+
+    def test_a_human_adjudicates_any_class_but_never_its_own_root(self) -> None:
+        from ssds.admission.authorize import _adjudication_eligible
+
+        sc, c = self.chain(HUMAN, serious=True)
+        rec, d = self.adjudicate(sc, c, HUMAN_B)
+        self.assertTrue(_adjudication_eligible(rec, d))
+        from ._scenario import agent as agent_
+
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        sc.integrate({"doc.md": "r1\n"}, agent_("author"), "task-1", lineage=[HUMAN])  # HUMAN authored the root content
+        root = judgment("REVIEW", sc.triple("doc"), "PASS", actor=HUMAN_B)
+        sc.admit(*attested(root))
+        c2 = challenge({"record": root["id"]})
+        sc.admit(c2)
+        own = judgment("ADJUDICATION", {"record": c2["id"]}, "UPHELD", actor=HUMAN)
+        sc.admit(own)
+        d = sc.derive()
+        self.assertTrue(d.j.nonind(own["id"]))
+        self.assertFalse(_adjudication_eligible(own, d), "never independent of the authors at its chain's root")
+
+    def test_an_ineligible_adjudication_is_refused_alone(self) -> None:
+        from ssds.admission.authorize import authorize
+
+        from ._scenario import agent as agent_, fresh
+
+        sc, c = self.chain(HUMAN)
+        rec, d = self.adjudicate(sc, c, agent_("judge"), "AGENT", fresh(agent_("judge")))
+        result = authorize({"binding": None}, [rec], d, None)
+        self.assertEqual((result.ok, result.refused, result.alone), (True, (), ((rec["id"], ("AUTH_ACTOR",)),)))
+
+
+class Reissue(RequestFixture):
+    """Step 4b-ii: a never-lost record under a retired key's unlisted envelope is refused by identity, its bytes
+    retained, and REISSUE(envelope) derived until a record citing the refusal is admitted (§8.3 step 3, §10.2)."""
+
+    def test_an_unlisted_envelopes_report_is_kept_and_reissued(self) -> None:
+        from ssds.admission.request import request_message
+        from ssds.derivation import Workflow
+
+        from ._fixtures import sshsig
+
+        unlisted = self.issue("MANUAL")
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+        orphan = self.bind(finding(materiality="MATERIAL"), unlisted)
+        decision = self.admit(self.signed(unlisted, [orphan]))
+        self.assertEqual((decision.admitted, decision.refused), ((), ((orphan["id"], ("AUTH_ENVELOPE",)),)))
+        entry = self.entries()[-1]
+        self.assertIn(orphan["id"], entry.objects, "its bytes, by content identity")
+        self.assertIn(orphan["binding"]["envelope"], entry.objects, "and its binding")
+        w = Workflow(derive_state_support(self))
+        (reissue,) = [o for o in w.obligations if o.kind == "REISSUE"]
+        self.assertEqual((reissue.target, reissue.params, reissue.holder),
+                         ({"envelope": orphan["binding"]["envelope"]}, {"records": [orphan["id"]]}, "DISPATCHER"))
+        resubmitted = with_id({**finding(materiality="MATERIAL"), "actor": self.human(),
+                               "provenance": {"reissue_of": orphan["id"]}})
+        req = self.request([resubmitted], base_position=len(self.entries()) - 1)
+        req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+        self.assertEqual(self.admit(req).admitted, (resubmitted["id"],))
+        self.assertFalse([o for o in Workflow(derive_state_support(self)).obligations if o.kind == "REISSUE"])
+
+    def test_a_compromised_retired_key_keeps_nothing(self) -> None:
+        unlisted = self.issue("MANUAL")
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+        self.lifecycle("COMPROMISED", self.issuer.trust_root(), from_position=len(self.entries()))
+        orphan = self.bind(finding(), unlisted)
+        decision = self.admit(self.signed(unlisted, [orphan]))
+        self.assertEqual((decision.admitted, decision.refused), ((), ()))
+        self.assertNotIn(orphan["id"], self.entries()[-1].objects)
+
+
+def derive_state_support(fixture):
+    from ssds.derivation import derive
+
+    return derive(read_chain(fixture.home.ledger_repository("demo"), "demo"), fixture.trees)
+
+
 class ProductionShapedLedger(unittest.TestCase):
     """On a shadow genesis as production makes it (``LEGACY``/``UNGOVERNED`` only), nothing derives an agent-held
     obligation, so every agent-bound request is ``AUTH_ENVELOPE`` and its reports are recorded as refused: the

@@ -487,6 +487,25 @@ class Judgments:
             current = key
         return frozenset({UNKNOWN})
 
+    def chain_needs_human(self, challenge: str) -> bool:
+        """The chain of ``challenge`` has class R3, so only a human adjudicates it (catalogue §5.10 (e), §12.4,
+        §3.5): the challenge is serious, or some support-tier or adjudication record on its chain of targets is a
+        human's (challenges carry no class). The one owner judge selection and Admission both read."""
+
+        s = self.s
+        if challenge in s.records and (s.record(challenge).get("fields") or {}).get("serious"):
+            return True
+        seen: set[str] = set()
+        current: Any = challenge
+        while isinstance(current, str) and current in s.records and current not in seen:
+            seen.add(current)
+            record = s.record(current)
+            if record["kind"] != "CHALLENGE" and record["actor_class"] == "HUMAN":
+                return True
+            target = record["target"]
+            current = target.get("record") if isinstance(target, dict) else None
+        return False
+
     def requirement(self, record: dict[str, Any]) -> bool:
         """Whether the record carries an independence requirement (catalogue §5.10 (a) "Requirement"): the kinds
         of ``REQUIREMENT`` and every disposition of a failing assessment, never a machinery record."""

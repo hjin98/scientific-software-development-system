@@ -173,6 +173,31 @@ class Workflow:
         unique = {o.id: o for o in found}
         return tuple(sorted(unique.values()))
 
+    def _reissue_obligations(self) -> list[Obligation]:
+        """``REISSUE(envelope)`` for the Dispatcher (R0; catalogue §8.3 step 3, §10.2): an admission refused a
+        never-lost record under a retired key's envelope its retirement did not list, keeping the record's bytes by
+        content identity. Open until a record whose provenance cites each such refusal (``reissue_of``) is
+        admitted, the Dispatcher resubmitting it under the re-issued task's envelope."""
+
+        h = self.s.h
+        cited = {(self.s.record(r).get("provenance") or {}).get("reissue_of") for r in self.s.records}
+        pending: dict[str, list[str]] = {}
+        for entry in h.chain.entries[1: self.s.n + 1]:
+            admission = entry.entry.get("admission") or {}
+            for refusal in admission.get("refused", []):
+                rid = refusal.get("record_id")
+                if "AUTH_ENVELOPE" not in refusal.get("reasons", []) or rid not in entry.objects or rid in cited:
+                    continue
+                try:
+                    body = json.loads(entry.objects[rid])
+                except ValueError:
+                    continue
+                envelope = (body.get("binding") or {}).get("envelope") if isinstance(body, dict) else None
+                if isinstance(envelope, str):
+                    pending.setdefault(envelope, []).append(rid)
+        return [make("REISSUE", {"envelope": envelope}, {"records": sorted(records)}, holder=DISPATCHER)
+                for envelope, records in sorted(pending.items())]
+
     @cached_property
     def base_obligations(self) -> tuple[Obligation, ...]:
         found: list[Obligation] = []
@@ -182,6 +207,7 @@ class Workflow:
         found += self._disagreement_obligations()
         found += self._spec_and_invariant_obligations()
         found += self._review_obligations()
+        found += self._reissue_obligations()
         for item in self.items.all:
             found.append(item.obligation)
             found.extend(item.route.decisions)
@@ -643,20 +669,6 @@ class Workflow:
             return self.d.j.root_authors(target["record"]) if target["record"] in self.s.records else frozenset({UNKNOWN})
         return frozenset({UNKNOWN})
 
-    def _human_chain(self, rid: str) -> bool:
-        """A challenge chain containing an authenticated human's record (§3.5, §8.3 step 3)."""
-
-        seen = set()
-        current: str | None = rid
-        while current in self.s.records and current not in seen:
-            seen.add(current)
-            record = self.s.record(current)
-            if record["actor_class"] == "HUMAN" and current != rid:
-                return True
-            target = record["target"]
-            current = target.get("record") if isinstance(target, dict) else None
-        return False
-
     # -- what the renderers read (Phase E step 7) --------------------------------------------------------
 
     @cached_property
@@ -754,7 +766,7 @@ class Workflow:
             domain = self.d.j.domain_of(record)
             owner = policy.get(domain, "owner", None)
             names = list(policy.get(domain, "adjudicators", [owner] if owner else []))
-            if record["fields"].get("serious") or self._human_chain(o.target["record"]):
+            if self.d.j.chain_needs_human(o.target["record"]):
                 names = [n for n in names if n.startswith("human:")]
             return tuple(n for n in names if self.routes.independent(n, authors, domain))
         humans = list(policy.get(domain, "humans", ())) + [a for a in policy.get(domain, "acceptors", ()) or ()

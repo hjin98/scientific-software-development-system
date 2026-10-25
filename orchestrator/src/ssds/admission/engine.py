@@ -18,6 +18,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from ssds.core.api.v1 import canonical_json
 from ssds.derivation import TreeSource, Workflow, derive, trial, trust_roots
 from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
@@ -147,8 +148,8 @@ class Admission:
         if obs != expected:
             raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
 
-        reasons, refused, passing, auth = self.validate(request, chain, entries)
-        decision = "REJECT" if reasons or refused else "ACCEPT"
+        reasons, refused, passing, auth, alone = self.validate(request, chain, entries)
+        decision = "REJECT" if reasons or [r for r in refused if r not in alone] else "ACCEPT"
         if decision == "ACCEPT":
             admitted = passing
         elif auth is not None and auth.ok:  # never-lost salvage after the binding authenticated (§8.3 step 6)
@@ -168,6 +169,15 @@ class Admission:
         objects = {d: good[d] for r in admitted for d in referenced_objects(r) if d in good}
         if admitted and auth is not None:
             objects.update(auth.objects)  # the binding, so derivation reads it from the ledger alone (§12.2)
+        if auth is not None and auth.reissue is not None:
+            # a never-lost record under an unlisted retired envelope: refused by identity, its bytes and its binding
+            # retained by content identity with the refusal, inert (S0 never reads them; §8.3 step 3)
+            for record in passing:
+                if never_lost(record):
+                    body = {k: v for k, v in record.items() if k != "id"}
+                    objects[record["id"]] = canonical_json(body)
+                    refused.append((record["id"], ("AUTH_ENVELOPE",)))
+            objects.update(auth.objects)
         head = entries[-1]
         entry = self.admission_entry(head, obs, rid, decision, reasons, admitted, refused, expected)
         problems = entry_violations(entry) + [p for r in admitted for p in record_violations(r)]
@@ -244,15 +254,17 @@ class Admission:
         return appended.position
 
     def validate(self, request: Any, chain, entries):
-        """Steps 1 and 2: the request-level reasons, the refused records with theirs, and the records that passed
-        their own checks, in order. Every record is checked whatever the request's own faults."""
+        """Steps 1-3: the request-level reasons, the refused records with theirs, the records that passed their own
+        checks, in order, the authentication, and the refusals that leave the decision to the rest of the request
+        (an ineligible adjudication). Every record is checked whatever the request's own faults."""
 
         reasons = set(request_problems(request))
         if over_bounds(request):
-            return reasons | {"SCHEMA_BOUND"}, [], [], None  # no per-record work beyond the bounds (§25.4)
+            return reasons | {"SCHEMA_BOUND"}, [], [], None, []  # no per-record work beyond the bounds (§25.4)
         records = request.get("records") if isinstance(request, Mapping) else None
         records = records if isinstance(records, list) else []
         refused: list[tuple[str, tuple[str, ...]]] = []
+        alone: list[tuple[str, tuple[str, ...]]] = []  # refused alone: the decision rests on the rest
         passing: list[dict] = []
         support = derive(chain, self.trees) if records or not reasons else None
         s = support.s if support is not None else None
@@ -315,8 +327,8 @@ class Admission:
                 position = request.get("base_position")
                 base = Workflow.historical(support.s.h, position) if "REF_BASE" not in reasons \
                     and isinstance(position, int) and 0 <= position <= s.n else None
-                passing, more, ok = self.authorized(request, passing, chain, entries, base, auth)
-                refused += more
+                passing, more, ok, alone = self.authorized(request, passing, chain, entries, base, auth)
+                refused += more + alone
                 if not ok:
                     reasons.add("AUTH_ENVELOPE")
                     withheld = "REF_BASE" if base is None else "AUTH_ENVELOPE"
@@ -324,9 +336,9 @@ class Admission:
                 refused += [(r["id"], (withheld,)) for r in passing if never_lost(r)]
                 passing = [r for r in passing if not never_lost(r)]
                 auth = replace(auth, ok=False)
-        if not reasons and not refused:
+        if not reasons and not [r for r in refused if r not in alone]:
             reasons.add("SCHEMA_UNSUPPORTED")  # steps 4-8 are not realized yet: fail closed (§8.3 step 1)
-        return reasons, refused, passing, auth
+        return reasons, refused, passing, auth, alone
 
     def authorized(self, request: Mapping[str, Any], passing: list[dict], chain, entries, base, auth):
         """Authorize the records in the trial extension of their own request (reading F10), removing each refused
@@ -334,6 +346,7 @@ class Admission:
         still passing, the refusals, and whether the envelope's obligation and role hold."""
 
         refused: list[tuple[str, tuple[str, ...]]] = []
+        alone: list[tuple[str, tuple[str, ...]]] = []
         head = entries[-1]
         expected = self.expected_head(entries)
         good = verified_objects(request.get("objects"))[0]
@@ -342,13 +355,14 @@ class Admission:
             objects = {d: good[d] for r in passing for d in referenced_objects(r) if d in good} | auth.objects
             result = authorize(request, passing, self.trial(chain, entry, objects), base)
             if not result.ok:
-                return passing, refused, False
-            if not result.refused:
+                return passing, refused, False, alone
+            if not result.refused and not result.alone:
                 break
-            gone = {rid for rid, _ in result.refused}
+            gone = {rid for rid, _ in result.refused + result.alone}
             refused += list(result.refused)
+            alone += list(result.alone)
             passing = [r for r in passing if r["id"] not in gone]
-        return passing, refused, True
+        return passing, refused, True, alone
 
 
 __all__ = ["Admission", "AdmissionHalted", "Decision", "EntryInvalid", "UNREALIZED_STEPS"]

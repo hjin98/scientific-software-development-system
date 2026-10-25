@@ -11,9 +11,13 @@ workflow at the request's base:
   (``AUTH_ILL_FORMED``);
 - a supersession is authorized by the kind of what it supersedes (``AUTH_SUPERSEDES``).
 
+An ``ADJUDICATION`` is admitted only if eligible: independent of its chain's root authors and of a class not lower
+than its chain's (catalogue §5.10 (e), §12.4); an ineligible one is refused alone (``AUTH_ACTOR``), the rest of the
+request judged as if it were absent (step 4b-ii).
+
 Not built yet, so refused as ``SCHEMA_UNSUPPORTED`` (fail closed, plan §3.1): records declaring a candidate's frame
-(step 4c), adjudications and discriminating readings (step 4b-ii), and lifecycle-tier records, which reach the
-ledger only through the human-gated lifecycle path.
+(step 4c), an adjudication of anything but a challenge (step 4d), discriminating readings (step 9), product-scope
+acceptance, and lifecycle-tier records, which reach the ledger only through the human-gated lifecycle path.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ class Authorization:
     ok: bool  # the envelope's obligation and role hold: never-lost salvage may proceed
     reasons: frozenset[str] = frozenset()  # request-level
     refused: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    alone: tuple[tuple[str, tuple[str, ...]], ...] = ()  # refused alone: the request is judged without them
 
 
 def authorize(request: Mapping[str, Any], records: list[dict], trial: Any, base: Any) -> Authorization:
@@ -49,12 +54,24 @@ def authorize(request: Mapping[str, Any], records: list[dict], trial: Any, base:
         obligation = next((o for o in base.obligations if o.id == envelope["obligation_id"]), None) if base else None
         if obligation is None or obligation.holder != envelope["role"] or envelope["role"] not in ROLE_TEMPLATES:
             return Authorization(False, frozenset({"AUTH_ENVELOPE"}))
-    refused = []
+    refused, alone = [], []
     for record in records:
         codes = _record_codes(record, envelope, trial, base, obligation)
         if codes:
             refused.append((record["id"], tuple(sorted(codes))))
-    return Authorization(True, frozenset(), tuple(refused))
+        elif record["kind"] == "ADJUDICATION" and not _adjudication_eligible(record, trial):
+            alone.append((record["id"], ("AUTH_ACTOR",)))
+    return Authorization(True, frozenset(), tuple(refused), tuple(alone))
+
+
+def _adjudication_eligible(record: dict, trial: Any) -> bool:
+    """Catalogue §5.10 (e): independent of the authors at its chain's root, by the one classification (its
+    ``nonind``), and of a class not lower than its chain's (a human where the chain is R3, §12.4)."""
+
+    if trial.j.nonind(record["id"]):
+        return False
+    challenge = (record["target"] or {}).get("record")
+    return record["actor_class"] == "HUMAN" or not trial.j.chain_needs_human(challenge)
 
 
 def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, base: Any, obligation: Any) -> set[str]:
@@ -64,10 +81,13 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
     codes: set[str] = set()
     if envelope is not None and not role_permits(envelope["role"], kind, record.get("outcome")):
         codes.add("AUTH_ROLE_KIND")
-    if record["frame"] != "ADMITTED" or kind in ("ADJUDICATION", "PRODUCT_SCOPE_ACCEPTANCE") \
+    target = record["target"] if isinstance(record["target"], dict) else {}
+    adjudicating = kind == "ADJUDICATION" and (target.get("record") not in trial.s.records
+                                               or trial.s.record(target["record"])["kind"] != "CHALLENGE")
+    if record["frame"] != "ADMITTED" or kind == "PRODUCT_SCOPE_ACCEPTANCE" or adjudicating \
             or (kind == "EVIDENCE_ASSESSMENT" and (record.get("fields") or {}).get("mode") == "DISCRIMINATING"):
-        # not built: frames (4c); adjudications and readings (4b-ii); the product-scope authority policy
-        # designates (§3.5; plan review 8a41539 B4)
+        # not built: frames (4c); an adjudication's target kind (step 5, 4d); discriminating readings (step 9);
+        # the product-scope authority policy designates (§3.5; plan review 8a41539 B4)
         codes.add("SCHEMA_UNSUPPORTED")
         return codes
     if not trial.qualified(record, trial.j.domain_of(record)):
