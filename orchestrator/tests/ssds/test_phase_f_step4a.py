@@ -374,5 +374,103 @@ class IndependenceThirdCheck(unittest.TestCase):
         self.assertEqual(d.s.policy.get("D3", "humans", ()), [OWNER, HUMAN])
         self.assertEqual((d.j.nonind(owner["id"]), d.j.common_mode(owner["id"])), (False, True))
 
+
+class IndependenceFourthCheck(unittest.TestCase):
+    """The review of a406c0b2: one authors rule for every kind (R-B1), the owner exception per covered claim
+    (R-B2: M5, M7, M10, M13), and the disposition through a challenge of the failure's realization (§6.7)."""
+
+    failing_assessment = IndependenceAtAdmission.failing_assessment
+
+    def test_rb1_a_producer_admitted_after_the_candidates_base_is_an_author(self) -> None:
+        notes = SUBJECT_DOC + '''
+    [[unit]]
+    id = "notes"
+    kind = "D3"
+    subject = true
+    scope = [{ path = "notes.md" }]
+'''
+        sc = Scenario(notes, {"doc.md": "r0\n", "notes.md": "n0\n"})
+        x, _, _ = submit(sc, {"doc.md": "r1\n"}, agent("x"), "task-x")
+        sc.integrate({"doc.md": "r1\n", "notes.md": "n1\n"}, agent("y"), "task-y", lineage=[HUMAN])
+        review = judgment("REVIEW", {"transformation": x}, "PASS", actor=HUMAN)
+        sc.admit(review)
+        self.assertTrue(sc.derive().j.nonind(review["id"]), "HUMAN produced (doc, r1) before reviewing it")
+
+    def claims(self, sc: Scenario, lineages: list[list[str]]) -> list[str]:
+        """One unit and one failing assessment per lineage, each claim produced by its own lineage."""
+
+        failures = []
+        for n, lineage in enumerate(lineages):
+            unit = f"u{n}"
+            sc.integrate({f"{unit}.md": "r1\n"}, agent(f"author{n}"), f"task-{n}", lineage=lineage)
+            rev = sc.rev(unit)
+            real = judgment("REALIZATION", {"spec": {"unit": unit, "rev": rev}, "claim": [{"unit": unit, "rev": rev}]},
+                            "COMPLETE", actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY",
+                            fields={"execution": {}})
+            failing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": f"e{n}"}, "FAIL",
+                               actor=HUMAN_B, fields={"mode": "ORDINARY", "reading": {"unit": unit, "rev": rev}})
+            sc.admit(real, failing)
+            failures.append(failing["id"])
+        return failures
+
+    @staticmethod
+    def units(n: int) -> str:
+        return "".join(f'''
+    [[unit]]
+    id = "u{i}"
+    kind = "D3"
+    scope = [{{ path = "u{i}.md" }}]
+''' for i in range(n))
+
+    def test_rb2_m7_m13_each_claim_is_judged_against_its_own_authors(self) -> None:
+        sc = Scenario(self.units(2), {"u0.md": "r0\n", "u1.md": "r0\n"}, policy=owner_policy(OWNER, HUMAN))
+        failures = self.claims(sc, [[OWNER, HUMAN], [OWNER]])
+        immaterial = judgment("IMMATERIALITY", {"records": failures}, "IMMATERIAL", actor=OWNER)
+        sc.admit(immaterial)
+        self.assertTrue(sc.derive().j.nonind(immaterial["id"]),
+                        "the second claim has a qualified human outside its authors")
+
+    def test_rb2_m10_a_claims_authors_are_read_at_admission(self) -> None:
+        sc = Scenario(self.units(1), {"u0.md": "r0\n"}, policy=owner_policy(OWNER, HUMAN))
+        (failure,) = self.claims(sc, [[OWNER]])
+        immaterial = judgment("IMMATERIALITY", {"records": [failure]}, "IMMATERIAL", actor=OWNER)
+        sc.admit(immaterial)
+        sc.integrate({"u0.md": "r2\n"}, agent("other"), "task-o")
+        sc.integrate({"u0.md": "r1\n"}, agent("again"), "task-a", lineage=[HUMAN])  # HUMAN re-produces it later
+        self.assertTrue(sc.derive().j.nonind(immaterial["id"]))
+
+    def test_rb2_m5_covering_no_failure_takes_no_exception(self) -> None:
+        sc = Scenario(self.units(1), {"u0.md": "r0\n"}, policy=owner_policy(OWNER))
+        sc.integrate({"u0.md": "r1\n"}, agent("author"), "task-1", lineage=[OWNER])
+        rev = sc.rev("u0")
+        real = judgment("REALIZATION", {"spec": {"unit": "u0", "rev": rev}, "claim": [{"unit": "u0", "rev": rev}]},
+                        "COMPLETE", actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY",
+                        fields={"execution": {}})
+        passing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": "e"}, "PASS",
+                           actor=HUMAN_B, fields={"mode": "ORDINARY", "reading": {"unit": "u0", "rev": rev}})
+        sc.admit(real, passing)
+        immaterial = judgment("IMMATERIALITY", {"records": [passing["id"]]}, "IMMATERIAL", actor=OWNER)
+        sc.admit(immaterial)
+        d = sc.derive()
+        self.assertEqual((d.j.nonind(immaterial["id"]), d.j.common_mode(immaterial["id"])), (True, False))
+
+    def test_an_upheld_challenge_of_the_realization_disposes_of_its_failure(self) -> None:
+        sc = Scenario(self.units(1), {"u0.md": "r0\n"}, policy=owner_policy(OWNER))
+        sc.integrate({"u0.md": "r1\n"}, agent("author"), "task-1", lineage=[OWNER])
+        rev = sc.rev("u0")
+        real = judgment("REALIZATION", {"spec": {"unit": "u0", "rev": rev}, "claim": [{"unit": "u0", "rev": rev}]},
+                        "COMPLETE", actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY",
+                        fields={"execution": {}})
+        failing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": "e"}, "FAIL",
+                           actor=HUMAN_B, fields={"mode": "ORDINARY", "reading": {"unit": "u0", "rev": rev}})
+        sc.admit(real, failing)
+        c = challenge({"record": real["id"]})
+        sc.admit(c)
+        a = adjudication(c["id"], "UPHELD", actor=OWNER)
+        sc.admit(a)
+        d = sc.derive()
+        self.assertEqual(d.j.disposed_failures(a), [failing["id"]])
+        self.assertEqual((d.j.nonind(a["id"]), d.j.common_mode(a["id"])), (False, True))
+
 if __name__ == "__main__":
     unittest.main()

@@ -22,8 +22,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from ssds.derivation import ROLE_TEMPLATES, role_permits, triple_key
-from ssds.ledger.read import CHALLENGE_TIER, LIFECYCLE_TIER, SUPPORT_TIER
+from ssds.derivation import ROLE_TEMPLATES, role_permits, supersession_target, triple_key
+from ssds.ledger.read import LIFECYCLE_TIER, SUPPORT_TIER
 
 from .request import REPORT_KINDS
 
@@ -64,9 +64,11 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
     codes: set[str] = set()
     if envelope is not None and not role_permits(envelope["role"], kind, record.get("outcome")):
         codes.add("AUTH_ROLE_KIND")
-    if record["frame"] != "ADMITTED" or kind == "ADJUDICATION" \
+    if record["frame"] != "ADMITTED" or kind in ("ADJUDICATION", "PRODUCT_SCOPE_ACCEPTANCE") \
             or (kind == "EVIDENCE_ASSESSMENT" and (record.get("fields") or {}).get("mode") == "DISCRIMINATING"):
-        codes.add("SCHEMA_UNSUPPORTED")  # step 4c (frames) and step 4b-ii (adjudications, readings) are not built
+        # not built: frames (4c); adjudications and readings (4b-ii); the product-scope authority policy
+        # designates (§3.5; plan review 8a41539 B4)
+        codes.add("SCHEMA_UNSUPPORTED")
         return codes
     if not trial.qualified(record, trial.j.domain_of(record)):
         codes.add("AUTH_ACTOR")
@@ -75,7 +77,22 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
     if any(not _supersession_authorized(record, x, envelope, trial, base, obligation)
            for x in record.get("supersedes") or []):
         codes.add("AUTH_SUPERSEDES")
+    if any(_supersession_unbuilt(x, trial) for x in record.get("supersedes") or []):
+        codes.discard("AUTH_SUPERSEDES")
+        codes.add("SCHEMA_UNSUPPORTED")
     return codes
+
+
+def _supersession_unbuilt(superseded: str, trial: Any) -> bool:
+    """A supersession whose authority needs an owner not built yet: a judged-scope target (§5.10 (b)) or the
+    plan of a principal's decision (plan review 8a41539 B2)."""
+
+    s = trial.s
+    if superseded not in s.records:
+        return False
+    x = s.record(superseded)
+    return x["kind"] in PRINCIPAL_SUPERSEDED or (x["kind"] in SUPPORT_TIER and x["kind"] not in REPORT_KINDS
+                                                and supersession_target(x) is None)
 
 
 def _acceptance_target(record: dict, trial: Any) -> set[str]:
@@ -83,10 +100,16 @@ def _acceptance_target(record: dict, trial: Any) -> set[str]:
     target = record["target"]
     subject = target.get("subject")
     units = s.view.structure.units
-    if not isinstance(subject, str) or subject not in units or not units[subject].subject:
+    if not isinstance(subject, str) or subject not in units:
+        return {"SCHEMA_UNSUPPORTED"}  # not an effective subject: a tenure code is Q-F5's
+    if not units[subject].subject:
         return {"AUTH_TARGET_PART"}
     if s.status1(triple_key(subject, target.get("scope_id"), target.get("rev"))) == "REVOKED":
         return {"AUTH_TARGET_REVOKED"}
+    if (subject, target.get("scope_id"), target.get("rev")) != tuple(s.subject_triple(subject)):
+        # the current tenure, read as the subject's current triple: an earlier revision or another scope has no
+        # code in catalogue §8.4 yet (Q-F5), so it fails closed (plan review 8a41539 B3)
+        return {"SCHEMA_UNSUPPORTED"}
     if not s.s0.well_formed(subject) or s.s0.absent_term(subject):
         return {"AUTH_ILL_FORMED"}
     return set()
@@ -103,18 +126,16 @@ def _supersession_authorized(record: dict, superseded: str, envelope: Mapping[st
     if superseded not in s.records:
         return False
     x = s.record(superseded)
-    if x["kind"] not in SUPPORT_TIER or x["kind"] in CHALLENGE_TIER:
+    if x["kind"] not in SUPPORT_TIER:  # challenge-tier, observation, admission and lifecycle: never
         return False
     if x["kind"] in REPORT_KINDS:
         return record["actor"] == x["actor"]
     if record["kind"] != x["kind"]:
         return False
     if x["kind"] in PRINCIPAL_SUPERSEDED:
-        if envelope is None or envelope["role"] != "PRINCIPAL" or obligation is None or base is None:
-            return False
-        earlier = next((o for o in base.obligations if o.id == (x.get("binding") or {}).get("obligation")), None)
-        return earlier is not None and earlier.plan is not None and earlier.plan == obligation.plan
-    if record["target"] != x["target"]:
+        return False  # the same plan's principal: the plan's identity owner is not built (refused unsupported)
+    target = supersession_target(x)
+    if target is None or supersession_target(record) != target:
         return False
     if record["actor"] != x["actor"] and record["actor"] != trial.j.owner(x):
         return False

@@ -299,15 +299,18 @@ class Admission:
         auth = None
         if isinstance(request, Mapping) and s is not None:  # step 3's authentication of the binding
             stored = {d: o for e in entries for d, o in e.objects.items()}
-            auth = authenticate(request, passing, trust_roots(entries), s.n, stored_attestations(stored))
+            bindings = {f.record["binding"]["envelope"] for f in s.records.values()
+                        if isinstance(f.record.get("binding"), Mapping) and f.record["binding"].get("envelope")}
+            auth = authenticate(request, passing, trust_roots(entries), s.n, stored_attestations(stored, bindings))
             reasons |= auth.reasons
             covered = {rid for rid, _ in auth.refused}
             refused += list(auth.refused)
             passing = [r for r in passing if r["id"] not in covered]
         if auth is not None and auth.ok:  # step 3's authorization (Phase F step 4b-i)
+            withheld = None
             if request.get("candidates") or request.get("adopted_deltas"):
                 reasons.add("SCHEMA_UNSUPPORTED")  # content and structural requests are step 4c's: fail closed
-                auth = replace(auth, ok=False)
+                withheld = "SCHEMA_UNSUPPORTED"
             else:
                 position = request.get("base_position")
                 base = Workflow.historical(support.s.h, position) if "REF_BASE" not in reasons \
@@ -316,7 +319,11 @@ class Admission:
                 refused += more
                 if not ok:
                     reasons.add("AUTH_ENVELOPE")
-                    auth = replace(auth, ok=False)
+                    withheld = "REF_BASE" if base is None else "AUTH_ENVELOPE"
+            if withheld is not None:  # no record passes step 3: each never-lost one is recorded as refused (step 6)
+                refused += [(r["id"], (withheld,)) for r in passing if never_lost(r)]
+                passing = [r for r in passing if not never_lost(r)]
+                auth = replace(auth, ok=False)
         if not reasons and not refused:
             reasons.add("SCHEMA_UNSUPPORTED")  # steps 4-8 are not realized yet: fail closed (§8.3 step 1)
         return reasons, refused, passing, auth

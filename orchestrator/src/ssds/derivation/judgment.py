@@ -269,7 +269,7 @@ class Judgments:
             return authors(target["unit"], target["from"]) | authors(target["unit"], target["to"])
         if kind == "COMPLETENESS":
             view = s.view if at is None else s.h.view(at)
-            candidate = {u: r for u, r in self._frame_pieces(record)} if at is not None else {}
+            candidate = {u: r for u, r in self._candidate_pieces(record)} if at is not None else {}
             out: set[str] = set()
             for unit in target["scope"]:
                 if unit in candidate:  # a frame completeness judges the candidate's member, not the admitted one
@@ -280,11 +280,14 @@ class Judgments:
         if kind == "ADJUDICATION":
             return self.root_authors(rid, at)
         if is_work(record):
-            return self.work_authors(rid)
+            return self.work_authors(rid) if at is None else self._authors_of(sorted(self.judged_content(rid)), authors)
         if kind == "PLAN_ACCEPTANCE":
             return self._authors_of([(i["unit"], i["rev"]) for i in record["fields"]["items"]], authors)
         if kind == "EVIDENCE_ASSESSMENT":
             return self._claim_authors(rid, authors)
+        if kind == "REALIZATION" and isinstance(target.get("claim"), list):
+            # an observation at a chain's root: the authors of the content it ran on (§5.10 (e))
+            return self._authors_of([(c["unit"], c["rev"]) for c in target["claim"]], authors)
         if kind == "IMMATERIALITY":
             out = set()
             for covered in target["records"]:
@@ -294,25 +297,36 @@ class Judgments:
         return frozenset({UNKNOWN})
 
     def _authors_for(self, record: dict[str, Any], at: int | None):
-        """``authors(u, r)`` for judging ``record``: in this state, or as of ``at``. A record declaring the frame
-        of a transformation reads the candidate's content as authored by that transformation's makers (§7.5)."""
+        """``authors(u, r)`` for judging ``record``: in this state, or, for its classification, as of ``at``. One
+        rule for every kind (plan review 8a41539 R-B1): the producers of ``(u, r)`` in every admitted view at or
+        before ``at``, and, for a piece a candidate the record is about produces, that transformation's makers
+        too (§5.10 (b): "a revert, restore or re-application that re-produced it included"); ``UNKNOWN`` when
+        nothing recorded produced it."""
 
         s = self.s
         if at is None:
             return s.authors
-        produced = self._frame_pieces(record)
+        produced = self._candidate_pieces(record)
 
         def authors(unit: str, rev: str) -> frozenset[str]:
-            return produced.get((unit, rev)) or s.h.authors(unit, rev, at)
+            admitted = _earlier_producers(s.h, unit, rev, at)
+            made = produced.get((unit, rev))
+            if made is None:
+                return admitted or frozenset({UNKNOWN})
+            return made | admitted
 
         return authors
 
-    def _frame_pieces(self, record: dict[str, Any]) -> dict[tuple[str, str], frozenset[str]]:
-        """The content a record declaring a transformation's frame judges as the candidate's, with its producers."""
+    def _candidate_pieces(self, record: dict[str, Any]) -> dict[tuple[str, str], frozenset[str]]:
+        """The pieces of the candidate a record is about (it declares the candidate's frame, or judges its
+        transformation), with their makers."""
 
-        frame = record.get("frame")
-        if isinstance(frame, dict) and isinstance(frame.get("transformation"), str):
-            return self._transformation_work(frame["transformation"], None)[1]
+        frame, target = record.get("frame"), record.get("target") or {}
+        transformation = frame.get("transformation") if isinstance(frame, dict) else None
+        if transformation is None and isinstance(target, dict) and isinstance(target.get("transformation"), str):
+            transformation = target["transformation"]
+        if isinstance(transformation, str):
+            return self._transformation_work(transformation, None)[1]
         return {}
 
     def _authors_of(self, pieces: list[tuple[str, str]], authors=None) -> frozenset[str]:
@@ -486,20 +500,10 @@ class Judgments:
         return bool(self.disposed_failures(record))
 
     def disposed_failures(self, record: dict[str, Any]) -> list[str]:
-        """Every failing assessment the record disposes of: an ``IMMATERIALITY`` may cover several."""
-
-        if record["kind"] == "IMMATERIALITY":
-            s = self.s
-            return [x for x in (record["target"] or {}).get("records", []) if isinstance(x, str) and x in s.records
-                    and s.record(x)["kind"] == "EVIDENCE_ASSESSMENT" and s.record(x)["outcome"] == "FAIL"]
-        failure = self.disposed_failure(record)
-        return [failure] if failure is not None else []
-
-    def disposed_failure(self, record: dict[str, Any]) -> str | None:
-        """The failing assessment the record disposes of (§6.7), or ``None``: a reassessment whose supersession
-        chain reaches one at any depth (plan review 409c2f7 B2), an ``IMMATERIALITY`` covering one, or an
-        ``UPHELD`` adjudication of a challenge whose target is one (SD-48: "an adjudication upholding a challenge
-        against it"; plan review 409c2f7 B3)."""
+        """Every failing assessment the record disposes of (§6.7): a reassessment whose supersession chain reaches
+        one at any depth (plan review 409c2f7 B2); an ``IMMATERIALITY`` covering them; an ``UPHELD`` adjudication
+        of a challenge targeting one or its realization, "the only premises whose revocation discredits the
+        observation" (§6.7; SD-48)."""
 
         s = self.s
 
@@ -516,18 +520,22 @@ class Judgments:
                     continue
                 seen.add(x)
                 if failing(x):
-                    return x
+                    return [x]
                 if s.record(x)["kind"] == "EVIDENCE_ASSESSMENT":
                     frontier.extend(s.record(x).get("supersedes") or [])
-            return None
+            return []
         if kind == "IMMATERIALITY":
-            return next((x for x in target.get("records", []) if failing(x)), None)
+            return [x for x in target.get("records", []) if failing(x)]
         if kind == "ADJUDICATION" and record["outcome"] == "UPHELD":
             challenge = target.get("record")
             if challenge in s.records and s.record(challenge)["kind"] == "CHALLENGE":
                 under = (s.record(challenge)["target"] or {}).get("record")
-                return under if failing(under) else None
-        return None
+                if failing(under):
+                    return [under]
+                if under in s.records and s.record(under)["kind"] == "REALIZATION":
+                    return [a for a in s.of_kind("EVIDENCE_ASSESSMENT")
+                            if failing(a) and s.record(a)["target"].get("realization") == under]
+        return []
 
     def _claim_domain(self, assessment: str, at: int) -> str | None:
         """The domain whose policy owns a failing assessment's claim, as of ``at``."""
@@ -621,6 +629,36 @@ class Routes:
         """No eligible independent judge for any route here: the objection waits, with human attention."""
 
         return not self.admissible
+
+
+#: Kinds whose supersession target (catalogue §5.10 (b), "Supersession target") reaches beyond one exact target:
+#: a transformation's judged scope, a plan's tighter revisions, an equivalence chain, a completeness union, a
+#: product-scope item. Their supersession is not built at Admission yet and fails closed (Phase F plan §3.1, 4b-i).
+JUDGED_SCOPE_SUPERSESSION = frozenset({"CONFORMANCE", "PLAN_ACCEPTANCE", "EQUIVALENCE", "COMPLETENESS",
+                                       "PRODUCT_SCOPE_ACCEPTANCE"})
+
+
+def supersession_target(record: dict[str, Any]) -> Any:
+    """What a record's superseder must judge (catalogue §5.10 (b), "Supersession target"), or ``None`` when that
+    target reaches beyond one exact target (``JUDGED_SCOPE_SUPERSESSION``, a transformation review):
+    - an acceptance or a subject review: the same triple, in any frame or tenure;
+    - a gate decision: the same gate and triple, in any frame, tenure or run (its evidence core may differ);
+    - an assessment: the same realization and obligation under the same reading (§6.7: "an explicit
+      reassessment of the realization");
+    - every other kind: its target (§3.4)."""
+
+    kind, target = record["kind"], record["target"] or {}
+    if kind in JUDGED_SCOPE_SUPERSESSION or (kind == "REVIEW" and "transformation" in target) or is_work(record):
+        return None
+    if kind in ("ACCEPTANCE", "REVIEW") and isinstance(target.get("subject"), str):
+        return ("triple", target.get("subject"), target.get("scope_id"), target.get("rev"))
+    if kind == "GATE_DECISION":
+        subject = target.get("subject") or {}
+        return ("gate", target.get("gate"), subject.get("subject"), subject.get("scope_id"), subject.get("rev"))
+    if kind == "EVIDENCE_ASSESSMENT":
+        return ("assessment", target.get("realization"), target.get("obligation"),
+                json.dumps((record.get("fields") or {}).get("reading"), sort_keys=True))
+    return ("target", json.dumps(target, sort_keys=True))
 
 
 def _earlier_producers(history: Any, unit: str, rev: str, position: int) -> frozenset[str]:

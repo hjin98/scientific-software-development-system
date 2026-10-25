@@ -9,8 +9,9 @@ verifies under the issue key, and the credential it names signed this request: l
 other route carries none of the three, and its lineage is ``UNKNOWN``. Material that does not verify is never
 stored: the binding then authenticates nothing (Review e6ac009 B3).
 
-A bound record's lineage is exactly the attestation closure Admission computes from the launch attestations the
-ledger stores, and empty under ``UNKNOWN`` (§12.2; reading F11). An envelope authenticates its task's agent and
+A bound record's lineage contains the attestation closure Admission computes from the launch attestations the
+ledger stores (a superset only adds sessions, so it can only make the record less independent), and is empty under
+``UNKNOWN`` (§12.2; reading F11). An envelope authenticates its task's agent and
 nothing else (§25.1): each bound record's actor is
 ``agent:<task id>/<attempt>`` of class ``AGENT`` (``AUTH_ACTOR`` otherwise), so a binding cannot speak for a human,
 machinery or a designated runner, whose observations wait for runner keys (Phase F step 9; Review e6ac009 B1). Each
@@ -117,22 +118,31 @@ def lineage_closure(session: str, inputs: list[str], attestations: Mapping[str, 
     return [session, *sorted(seen - {session}), *(["UNKNOWN"] if open_ else [])]
 
 
-def stored_attestations(objects: Mapping[str, bytes]) -> dict[str, list[str]]:
-    """Session -> its input sessions, from the launch attestations of the binding objects the ledger stores."""
+def stored_attestations(objects: Mapping[str, bytes], bindings: set[str]) -> dict[str, list[str]]:
+    """Session -> its input sessions, from the launch attestations of the stored binding objects that admitted
+    records name (``bindings``: their ``binding.envelope`` digests), each verified when its records were admitted.
+    No other stored object is read, so a record cannot inject an attestation (plan review 8a41539 B1). A session
+    two bindings attest differently is left out, so its closure stays open."""
 
     import json
 
     out: dict[str, list[str]] = {}
-    for data in objects.values():
+    conflicted: set[str] = set()
+    for digest in sorted(bindings):
+        data = objects.get(digest)
         try:
-            value = json.loads(data)
+            value = json.loads(data) if data is not None else None
         except ValueError:
             continue
         attestation = value.get("attestation") if isinstance(value, dict) else None
         if isinstance(attestation, dict) and isinstance(attestation.get("session"), str) \
                 and isinstance(attestation.get("input_sessions"), list):
-            out[attestation["session"]] = [x for x in attestation["input_sessions"] if isinstance(x, str)]
-    return out
+            session = attestation["session"]
+            inputs = [x for x in attestation["input_sessions"] if isinstance(x, str)]
+            if session in out and out[session] != inputs:
+                conflicted.add(session)
+            out.setdefault(session, inputs)
+    return {k: v for k, v in out.items() if k not in conflicted}
 
 
 def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRoots, head: int,
@@ -185,8 +195,10 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         if (rb.get("envelope"), rb.get("task"), rb.get("obligation"), rb.get("role"), rb.get("lineage_class")) != \
                 (digest, envelope["task_id"], envelope["obligation_id"], envelope["role"], lineage):
             own.append("AUTH_ENVELOPE")
-        if (rb.get("lineage") or []) != lineage_list:
-            own.append("AUTH_ENVELOPE")  # the lineage is what the binding proves (reading F11)
+        recorded = rb.get("lineage") or []
+        if (lineage == "ATTESTED_FRESH" and not set(lineage_list) <= set(recorded)) or (lineage != "ATTESTED_FRESH"
+                                                                                      and recorded):
+            own.append("AUTH_ENVELOPE")  # the lineage covers what the binding proves; none under UNKNOWN (F11)
         if record.get("governs") != envelope["governs"]:
             own.append("AUTH_VERSION")
         if retired and not never_lost(record):
