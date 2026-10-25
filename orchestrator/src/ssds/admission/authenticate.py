@@ -162,16 +162,13 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
     if compromised is not None and envelope["issued_at_position"] >= compromised:
         return NOT_AUTHENTICATED
     digest = binding_digest(binding)
-    retired = False
+    retired = unlisted = False
     if key_id in roots.issue:
         public = roots.issue[key_id]
-    elif key_id in roots.retired and compromised is None and digest in roots.retired[key_id][1]:
-        public, retired = roots.retired[key_id][0], True
     elif key_id in roots.retired and compromised is None \
-            and _verify(roots.retired[key_id][0], envelope_message(envelope), binding["signature"]):
-        # genuinely issued, but unlisted: its never-lost records are refused, retained and re-issued (§8.3 step 3)
-        return Authentication(False, frozenset({"AUTH_ENVELOPE"}), reissue=digest,
-                              objects={digest: canonical_json(binding_object(binding))})
+            and envelope["issued_at_position"] < roots.retired_at.get(key_id, 0):  # issued while in force (N4)
+        public, retired = roots.retired[key_id][0], True
+        unlisted = digest not in roots.retired[key_id][1]  # the one difference the re-issue path makes
     else:
         return NOT_AUTHENTICATED
     if not _verify(public, envelope_message(envelope), binding["signature"]):
@@ -211,6 +208,11 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         if own:
             refused.append((record["id"], tuple(sorted(set(own)))))
     obj = canonical_json(binding_object(binding))
+    if unlisted:
+        # genuinely issued by a retired key, but its retirement does not list it: every check above has run, and its
+        # never-lost records that passed them are refused, retained and re-issued (§8.3 step 3; review 8d274c4 B1)
+        return Authentication(False, frozenset({"AUTH_ENVELOPE"}), tuple(refused), lineage, {digest: obj}, retired,
+                              reissue=digest)
     return Authentication(True, frozenset(), tuple(refused), lineage, {digest: obj}, retired)
 
 

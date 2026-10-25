@@ -658,6 +658,52 @@ class AdjudicationEligibility(unittest.TestCase):
         self.assertTrue(d.j.nonind(own["id"]))
         self.assertFalse(_adjudication_eligible(own, d), "never independent of the authors at its chain's root")
 
+    def test_b4_a_d1_d2_root_needs_a_human(self) -> None:
+        from ._scenario import agent as agent_, fresh
+
+        theory = '''
+    [[unit]]
+    id = "theory"
+    kind = "D1"
+    subject = true
+    scope = [{ path = "theory.md" }]
+'''
+        sc = Scenario(theory, {"theory.md": "t0\n"})
+        sc.integrate({"theory.md": "t1\n"}, agent_("author"), "task-1", lineage=[agent_("author")])
+        root = judgment("REVIEW", sc.triple("theory"), "PASS", actor=agent_("reviewer"), actor_class="AGENT",
+                        binding=fresh(agent_("reviewer")))
+        sc.admit(root)
+        c = challenge({"record": root["id"]})
+        sc.admit(c)
+        self.assertTrue(sc.derive().j.chain_needs_human(c["id"]), "an adjudication of a D1/D2 claim is R3 (§3.4)")
+
+    def test_n1_the_walk_stops_at_the_root(self) -> None:
+        from ._scenario import agent as agent_, fresh
+
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        report = judgment("FINDING", {"units": ["doc"]}, None, actor=HUMAN, fields={"materiality": "MATERIAL"})
+        sc.admit(report)
+        reclassified = judgment("MATERIALITY_RECLASSIFICATION", {"record": report["id"]}, "ROUTINE",
+                                actor=agent_("principal"), actor_class="AGENT", binding=fresh(agent_("principal")))
+        sc.admit(reclassified)
+        c = challenge({"record": reclassified["id"]})
+        sc.admit(c)
+        self.assertFalse(sc.derive().j.chain_needs_human(c["id"]), "the human's report lies beyond the root")
+
+    def test_n7_judge_selection_reads_the_chain_class(self) -> None:
+        from ssds.derivation import Workflow
+
+        from ._scenario import agent as agent_
+
+        policy = 'schema = 1\n[domains.""]\nadjudicators = ["%s", "%s"]\n' % (agent_("judge"), HUMAN_B)
+        for root, agent_eligible in ((HUMAN, False), (agent_("reviewer"), True)):
+            with self.subTest(root=root):
+                sc, c = self.chain(root, policy=policy)
+                w = Workflow(sc.derive())
+                (o,) = [x for x in w.obligations if x.kind == "ADJUDICATE" and x.target.get("record") == c["id"]]
+                self.assertIn(HUMAN_B, w.eligible_judges(o))
+                self.assertEqual(agent_("judge") in w.eligible_judges(o), agent_eligible)
+
     def test_an_ineligible_adjudication_is_refused_alone(self) -> None:
         from ssds.admission.authorize import authorize
 
@@ -667,6 +713,50 @@ class AdjudicationEligibility(unittest.TestCase):
         rec, d = self.adjudicate(sc, c, agent_("judge"), "AGENT", fresh(agent_("judge")))
         result = authorize({"binding": None}, [rec], d, None)
         self.assertEqual((result.ok, result.refused, result.alone), (True, (), ((rec["id"], ("AUTH_ACTOR",)),)))
+
+
+class RefusedAlone(RequestFixture):
+    """Review 8d274c4 B3: a refusal alone leaves the decision to the rest of the request, through the one rule the
+    fail-closed check and the decision both read. Until challenges are admissible (4d) no real adjudication reaches
+    the engine's eligibility check, so a stand-in for ``authorize`` refuses one record alone."""
+
+    def test_a_refusal_alone_is_recorded_and_decides_nothing(self) -> None:
+        from unittest import mock
+
+        from ssds.admission.authorize import Authorization
+
+        issued = self.issue()
+        kept, ineligible = self.bind(finding(), issued), self.bind(finding(materiality="MATERIAL"), issued)
+
+        def fake(request, records, trial, base):
+            present = {r["id"] for r in records}
+            return Authorization(True, frozenset(), (), tuple((rid, ("AUTH_ACTOR",)) for rid in [ineligible["id"]]
+                                                             if rid in present))
+
+        with mock.patch("ssds.admission.engine.authorize", fake):
+            decision = self.admit(self.signed(issued, [kept, ineligible]))
+        self.assertEqual(decision.reasons, ("SCHEMA_UNSUPPORTED",), "no request-level reason; steps 5-8 fail closed")
+        self.assertEqual(decision.decision, "REJECT")
+        self.assertIn((ineligible["id"], ("AUTH_ACTOR",)), decision.refused)
+        self.assertEqual(decision.admitted, (kept["id"],), "the rest of the request is judged without it")
+
+
+class SameRequestChallenge(RequestFixture):
+    def test_n3_an_adjudication_of_a_co_submitted_challenge_fails_closed(self) -> None:
+        from ssds.admission.request import request_message
+
+        from ._fixtures import sshsig
+
+        subject, scope, rev = derive_state(self).subject_triple("guide")
+        c = with_id({**record("CHALLENGE", target={"subject": subject, "scope_id": scope, "rev": rev},
+                              fields={"blocking": True, "serious": False, "inquiry": "EXPLORATORY",
+                                      "materiality": "MATERIAL"}), "actor": self.human()})
+        a = with_id({**record("ADJUDICATION", target={"record": c["id"]}, outcome="UPHELD"), "actor": self.human()})
+        req = self.request([c, a], base_position=len(self.entries()) - 1)
+        req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+        refused = dict(self.admit(req).refused)
+        self.assertEqual(refused.get(a["id"]), ("SCHEMA_UNSUPPORTED",),
+                         "its target is not strictly earlier: step 5's rule, 4d's, fails closed (review 8d274c4 N3)")
 
 
 class Reissue(RequestFixture):
@@ -691,12 +781,70 @@ class Reissue(RequestFixture):
         (reissue,) = [o for o in w.obligations if o.kind == "REISSUE"]
         self.assertEqual((reissue.target, reissue.params, reissue.holder),
                          ({"envelope": orphan["binding"]["envelope"]}, {"records": [orphan["id"]]}, "DISPATCHER"))
-        resubmitted = with_id({**finding(materiality="MATERIAL"), "actor": self.human(),
-                               "provenance": {"reissue_of": orphan["id"]}})
-        req = self.request([resubmitted], base_position=len(self.entries()) - 1)
+        citing = with_id({**finding(), "actor": self.human(), "provenance": {"reissue_of": orphan["id"]}})
+        req = self.request([citing], base_position=len(self.entries()) - 1)
         req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
-        self.assertEqual(self.admit(req).admitted, (resubmitted["id"],))
+        refused = self.admit(req)
+        self.assertEqual((refused.admitted, dict(refused.refused).get(citing["id"])), ((), ("SCHEMA_UNSUPPORTED",)),
+                         "only step 8's Dispatcher resubmits (review 8d274c4 B2)")
+        self.assertTrue([o for o in Workflow(derive_state_support(self)).obligations if o.kind == "REISSUE"],
+                        "a citation alone discharges nothing")
+
+    def test_b2_only_a_matching_resubmission_discharges_reissue(self) -> None:
+        from ssds.derivation import Workflow
+
+        unlisted = self.issue("MANUAL")
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+        orphan = self.bind(finding(materiality="MATERIAL"), unlisted)
+        self.admit(self.signed(unlisted, [orphan]))
+        chain = read_chain(self.home.ledger_repository("demo"), "demo")
+        head = chain.entries[chain.readable_through]
+        rebound = {**orphan["binding"], "envelope": "sha256:" + "cd" * 32}
+        cases = {"matching": (with_id({**orphan, "binding": rebound, "provenance": {"reissue_of": orphan["id"]}}), False),
+                 "another finding": (with_id({**orphan, "fields": {"materiality": "ROUTINE"}, "binding": rebound,
+                                              "provenance": {"reissue_of": orphan["id"]}}), True),
+                 "another actor": (with_id({**orphan, "actor": "agent:someone/1", "binding": rebound,
+                                            "provenance": {"reissue_of": orphan["id"]}}), True),
+                 "another lineage class": (with_id({**orphan, "binding": {**rebound, "lineage_class": "ATTESTED_FRESH"},
+                                                    "provenance": {"reissue_of": orphan["id"]}}), True)}
+        for name, (resubmitted, still_open) in cases.items():
+            with self.subTest(name=name):
+                entry = self.admission.admission_entry(head, self.baseline, "sha256:" + "0" * 64, "ACCEPT", [],
+                                                       [resubmitted], [], self.baseline)
+                w = Workflow(self.admission.trial(chain, entry))
+                self.assertEqual(bool([o for o in w.obligations if o.kind == "REISSUE"]), still_open)
+
+    def test_b1_the_unlisted_path_runs_every_check(self) -> None:
+        unlisted = self.issue("MANUAL")
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+        human = self.bind(finding(), unlisted, keep_actor=True)  # the fixture's human actor, under an agent envelope
+        forged = with_id({**self.bind(finding(materiality="CRITICAL"), unlisted),
+                          "binding": {**self.bind(finding(), unlisted)["binding"], "envelope": "sha256:" + "ab" * 32}})
+        decision = self.admit(self.signed(unlisted, [human, forged]))
+        refused = dict(decision.refused)
+        self.assertIn("AUTH_ACTOR", refused[human["id"]])
+        self.assertIn("AUTH_ENVELOPE", refused[forged["id"]])
+        entry = self.entries()[-1]
+        self.assertNotIn(human["id"], entry.objects, "a record failing its own checks is not retained")
+        self.assertNotIn(forged["id"], entry.objects)
+        from ssds.derivation import Workflow
+
         self.assertFalse([o for o in Workflow(derive_state_support(self)).obligations if o.kind == "REISSUE"])
+
+    def test_b1_an_unverified_harness_credential_stores_nothing(self) -> None:
+        unlisted = self.issue()
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+        req = self.signed(unlisted, [self.bind(finding(), unlisted)])
+        req["binding"] = {**req["binding"], "credential_signature": "00" * 64}
+        decision = self.admit(req)
+        self.assertEqual((decision.admitted, decision.refused), ((), ()))
+        self.assertEqual(dict(self.entries()[-1].objects), {})
+
+    def test_n4_an_envelope_issued_after_its_keys_retirement_is_no_outstanding_one(self) -> None:
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+        late = self.issue("MANUAL")  # issued_at_position: the head, after the retirement
+        decision = self.admit(self.signed(late, [self.bind(finding(), late)]))
+        self.assertEqual((decision.admitted, decision.refused), ((), ()))
 
     def test_a_compromised_retired_key_keeps_nothing(self) -> None:
         unlisted = self.issue("MANUAL")
@@ -712,6 +860,32 @@ def derive_state_support(fixture):
     from ssds.derivation import derive
 
     return derive(read_chain(fixture.home.ledger_repository("demo"), "demo"), fixture.trees)
+
+
+class PlanCoverage(unittest.TestCase):
+    """Catalogue §11.2: an item is issuable only while a current plan acceptance covers it, so a non-independent
+    plan acceptance (an unattested human over baseline content, §5.10 (f)) issues nothing (re-check d0f1044 M30)."""
+
+    def test_only_a_current_plan_acceptance_makes_an_item_issuable(self) -> None:
+        from ssds.derivation import Workflow
+
+        from ._scenario import OWNER, content
+        from .test_conformance import SECONDARY
+        from .test_lint import FILES, MANIFEST, item_block, plan_text
+
+        for attest, issuable in ((False, False), (True, True)):
+            with self.subTest(attested=attest):
+                sc = Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(item_block(secondary=SECONDARY))})
+                objective, item = sc.rev("plan.work.objective"), sc.rev("plan.work.item")
+                acceptance = judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
+                                      basis=[content("plan.work.objective", objective),
+                                             content("plan.work.item", item, "PLAN_CONTROL")],
+                                      fields={"objective": {"unit": "plan.work.objective", "rev": objective},
+                                              "items": [{"unit": "plan.work.item", "rev": item}]})
+                sc.admit(*(attested(acceptance) if attest else [acceptance]))
+                w = Workflow(sc.derive())
+                self.assertEqual(w.d.j.nonind(acceptance["id"]), not attest)
+                self.assertEqual(w.issuable("plan.work.item"), issuable)
 
 
 class ProductionShapedLedger(unittest.TestCase):

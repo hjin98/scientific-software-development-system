@@ -25,6 +25,7 @@ class TrustRoots:
     compromised: dict[str, int] = field(default_factory=dict)  # id -> the position its signatures are untrusted from
     humans: dict[str, str] = field(default_factory=dict)  # actor id (human:SHA256:...) -> OpenSSH public key line
     former_humans: frozenset[str] = frozenset()  # human key ids retired, rotated away or compromised
+    retired_at: dict[str, int] = field(default_factory=dict)  # retired issue key id -> the position retiring it
 
 
 def _human(public: Any) -> str | None:
@@ -46,6 +47,7 @@ def trust_roots(entries) -> TrustRoots:
     compromised: dict[str, int] = {}
     humans: dict[str, str] = {}
     former: set[str] = set()
+    retired_at: dict[str, int] = {}
     for item in entries:
         lifecycle = item.entry.get("lifecycle")
         fields = lifecycle.get("fields") if isinstance(lifecycle, Mapping) else None
@@ -74,6 +76,7 @@ def trust_roots(entries) -> TrustRoots:
                 outstanding = fields.get("outstanding")
                 listed = frozenset(d for d in outstanding if isinstance(d, str)) if isinstance(outstanding, list) else frozenset()
                 retired[old] = (issue.pop(old), listed)
+                retired_at[old] = item.position
             if action == "COMPROMISED":
                 start = fields.get("from_position", item.position)
                 start = start if isinstance(start, int) and not isinstance(start, bool) else 0
@@ -85,7 +88,7 @@ def trust_roots(entries) -> TrustRoots:
             if isinstance(old, str) and old in humans:
                 humans.pop(old)
                 former.add(old)
-    return TrustRoots(issue, retired, compromised, humans, frozenset(former))
+    return TrustRoots(issue, retired, compromised, humans, frozenset(former), retired_at)
 
 
 __all__ = ["TrustRoots", "trust_roots"]

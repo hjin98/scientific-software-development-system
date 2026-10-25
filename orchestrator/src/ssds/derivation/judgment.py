@@ -488,9 +488,11 @@ class Judgments:
         return frozenset({UNKNOWN})
 
     def chain_needs_human(self, challenge: str) -> bool:
-        """The chain of ``challenge`` has class R3, so only a human adjudicates it (catalogue §5.10 (e), §12.4,
-        §3.5): the challenge is serious, or some support-tier or adjudication record on its chain of targets is a
-        human's (challenges carry no class). The one owner judge selection and Admission both read."""
+        """The chain of ``challenge`` has class R3, so only a human adjudicates it (catalogue §3.4 "R2, or R3
+        (Serious Challenge, D1/D2 claims)", §5.10 (e), §12.4, §3.5): the challenge is serious; or a support-tier or
+        adjudication record on the chain, the root included, is a human's (challenges carry no class); or the root
+        is about a D1 or D2 claim. The walk stops at the root, the first record or triple that is not
+        challenge-tier (review 8d274c4 B4, N1). The one owner judge selection and Admission both read."""
 
         s = self.s
         if challenge in s.records and (s.record(challenge).get("fields") or {}).get("serious"):
@@ -502,8 +504,14 @@ class Judgments:
             record = s.record(current)
             if record["kind"] != "CHALLENGE" and record["actor_class"] == "HUMAN":
                 return True
-            target = record["target"]
-            current = target.get("record") if isinstance(target, dict) else None
+            if record["kind"] not in ("CHALLENGE", "ADJUDICATION", "WITHDRAWAL", "RISK_OVERRIDE"):
+                return self.domain_of(record) in ("D1", "D2")  # the root
+            key = target_key(record["target"])
+            if key is not None and key.startswith("triple:"):
+                subject = key.split(":", 3)[1]
+                structure = s.view.structure
+                return subject in structure.units and structure.domain(subject) in ("D1", "D2")
+            current = key
         return False
 
     def requirement(self, record: dict[str, Any]) -> bool:

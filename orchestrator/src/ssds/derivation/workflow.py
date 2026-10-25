@@ -180,23 +180,36 @@ class Workflow:
         admitted, the Dispatcher resubmitting it under the re-issued task's envelope."""
 
         h = self.s.h
-        cited = {(self.s.record(r).get("provenance") or {}).get("reissue_of") for r in self.s.records}
-        pending: dict[str, list[str]] = {}
+        pending: dict[str, set[str]] = {}
         for entry in h.chain.entries[1: self.s.n + 1]:
             admission = entry.entry.get("admission") or {}
             for refusal in admission.get("refused", []):
                 rid = refusal.get("record_id")
-                if "AUTH_ENVELOPE" not in refusal.get("reasons", []) or rid not in entry.objects or rid in cited:
+                if "AUTH_ENVELOPE" not in refusal.get("reasons", []) or rid not in entry.objects:
                     continue
                 try:
                     body = json.loads(entry.objects[rid])
                 except ValueError:
                     continue
                 envelope = (body.get("binding") or {}).get("envelope") if isinstance(body, dict) else None
-                if isinstance(envelope, str):
-                    pending.setdefault(envelope, []).append(rid)
+                if isinstance(envelope, str) and not self._resubmitted(rid, body):
+                    pending.setdefault(envelope, set()).add(rid)
         return [make("REISSUE", {"envelope": envelope}, {"records": sorted(records)}, holder=DISPATCHER)
                 for envelope, records in sorted(pending.items())]
+
+    def _resubmitted(self, rid: str, body: dict[str, Any]) -> bool:
+        """An admitted record is the refused one resubmitted: it cites the refusal and is the same record apart from
+        its binding and provenance, by the same actor, with the same lineage class (catalogue §8.3 step 3: "keeping
+        its original actor and lineage class"; review 8d274c4 B2). A citation alone discharges nothing."""
+
+        def content(record: dict[str, Any]) -> dict[str, Any]:
+            return {k: v for k, v in record.items() if k not in ("id", "binding", "provenance")}
+
+        lineage = (body.get("binding") or {}).get("lineage_class")
+        return any((self.s.record(r).get("provenance") or {}).get("reissue_of") == rid
+                   and content(self.s.record(r)) == content(body)
+                   and (self.s.record(r).get("binding") or {}).get("lineage_class") == lineage
+                   for r in self.s.records)
 
     @cached_property
     def base_obligations(self) -> tuple[Obligation, ...]:

@@ -82,12 +82,19 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
     if envelope is not None and not role_permits(envelope["role"], kind, record.get("outcome")):
         codes.add("AUTH_ROLE_KIND")
     target = record["target"] if isinstance(record["target"], dict) else {}
-    adjudicating = kind == "ADJUDICATION" and (target.get("record") not in trial.s.records
-                                               or trial.s.record(target["record"])["kind"] != "CHALLENGE")
-    if record["frame"] != "ADMITTED" or kind == "PRODUCT_SCOPE_ACCEPTANCE" or adjudicating \
+    challenged = target.get("record")
+    # an adjudication of anything but a challenge admitted before this request: the target rules of step 5 (strictly
+    # earlier, of a permitted kind) are 4d's, so a challenge in the same request fails closed (review 8d274c4 N3)
+    adjudicating = kind == "ADJUDICATION" and (
+        challenged not in trial.s.records or record["id"] not in trial.s.records
+        or trial.s.position_of(challenged) >= trial.s.position_of(record["id"])
+        or trial.s.record(challenged)["kind"] != "CHALLENGE")
+    resubmission = isinstance(record.get("provenance"), dict) and "reissue_of" in record["provenance"]
+    if record["frame"] != "ADMITTED" or kind == "PRODUCT_SCOPE_ACCEPTANCE" or adjudicating or resubmission \
             or (kind == "EVIDENCE_ASSESSMENT" and (record.get("fields") or {}).get("mode") == "DISCRIMINATING"):
         # not built: frames (4c); an adjudication's target kind (step 5, 4d); discriminating readings (step 9);
-        # the product-scope authority policy designates (§3.5; plan review 8a41539 B4)
+        # the product-scope authority policy designates (§3.5; plan review 8a41539 B4); a re-issue's resubmission,
+        # which only step 8's Dispatcher makes, under the re-issued task's envelope (review 8d274c4 B2)
         codes.add("SCHEMA_UNSUPPORTED")
         return codes
     if not trial.qualified(record, trial.j.domain_of(record)):

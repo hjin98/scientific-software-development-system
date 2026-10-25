@@ -541,6 +541,25 @@ Kept for their steps:
 - **To check at the owner (`items.Item.derived`).** Item work is derived from an acting, unsuperseded plan acceptance even when it is `nonind` (M30 survives; §11.2).
 - **Unverified.** For an integrated-result review, routing reads the parts' outputs while classification reads `_target_work`'s current content; they could diverge after a replacement.
 
+**Same-family review of step 4b-ii (8d274c4b).** No SERIOUS CHALLENGE; nothing is wrongly admitted at Admission today. NO-PASS on four blockers, repaired:
+- **B1, the re-issue branch skipped every check but the envelope signature.** It retained records whose actor, binding, lineage or `governs` failed, and stored unverified harness material. The unlisted case now runs the whole authentication against the retired key; only "listed" differs. The engine then runs step 3's authorization on it. It retains only the never-lost records that pass every check, under the authenticated envelope, and stores nothing when a harness attestation or credential fails. An envelope issued at or after its key's retirement is no outstanding one (`TrustRoots.retired_at`; note N4).
+- **B2, a forged `reissue_of` discharged `REISSUE`.** It lost the never-lost record for good, and the shipped test enshrined it. Admission now refuses any record citing `reissue_of` as unsupported until step 8's Dispatcher resubmits. Derivation discharges only on an admitted record that is the retained one apart from its binding and provenance, by the same actor, with the same lineage class (catalogue §8.3 step 3).
+- **B3, the refused-alone path was reachable and untested.** A surviving mutant admitted a challenge, and another hung the queue. Both the fail-closed check and the decision now read one rule, `engine.blocking`. A test through a stand-in `authorize` pins it.
+  - A challenge co-submitted with its adjudication now fails closed (`SCHEMA_UNSUPPORTED`): step 5's strictly-earlier rule is 4d's (note N3). That made the path unreachable again with real records.
+- **B4, a D1/D2 claim's adjudication needed a human.** Catalogue §3.4 says "R2, or R3 (Serious Challenge, D1/D2 claims)", and nothing enforced it. `chain_needs_human` now makes a chain whose root is about a D1 or D2 claim R3. It also stops at the root, the first record that is not challenge-tier (note N1).
+
+Its notes:
+- **Taken up.**
+  - N7: judge selection reads the chain's class, now tested.
+  - N4: a re-issue's record list is a set.
+  - Every reversion of these repairs fails a test, and the review's surviving mutants M9, M11, M12, M18 and M30 are killed.
+  - M13 (retain every passing record) is now equivalent: a retired key's envelope refuses every non-never-lost record per record.
+- **Kept.**
+  - N2: "any human record makes the chain R3" over-approximates §3.5's "an R3 human record". It is conservative (it only refuses) but costs liveness; the precise rule is Stage S's.
+  - N5, for step 8: "keeping its original actor" under "the re-issued task's envelope" meets §25.1's rule that an envelope authenticates only its own task's agent.
+
+Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
+
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
 - **B1, the wrong observed ref.** `main` is behind and does not contain the genesis baseline. F1 and Q-F2 (i) now put the observed ref to the stakeholder as a deployment setting, and step 10's absorption test reads observed heads.
 - **B2, a boundary resting on one CLI check, and records-only fencing.** The real-shadow Admission is observe-only. Records-only admissions are never fenced. The boundary check sits at Admission's entry for every route. Step 10 tests a restart after a records-only admission and library and Dispatcher routes.

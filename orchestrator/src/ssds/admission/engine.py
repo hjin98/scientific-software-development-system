@@ -46,6 +46,15 @@ def salvageable(record: Mapping[str, Any]) -> bool:
     return record.get("kind") in REPORT_KINDS  # a report's supersession is authorized at step 3 (step 4b-i)
 
 
+def blocking(refused: Iterable[tuple[str, tuple[str, ...]]], alone: Iterable[tuple[str, tuple[str, ...]]]) -> list:
+    """The refusals that reject their request: all but those refused alone (an ineligible adjudication), which
+    leave the decision to the rest of it (catalogue §8.3 step 3; review 8d274c4 B3). The one rule both the
+    fail-closed check and the decision read."""
+
+    alone = set(alone)
+    return [r for r in refused if r not in alone]
+
+
 class AdmissionHalted(RuntimeError):
     """Admission does not append: the observed head is not the expected head (absorption is step 6's)."""
 
@@ -149,7 +158,7 @@ class Admission:
             raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
 
         reasons, refused, passing, auth, alone = self.validate(request, chain, entries)
-        decision = "REJECT" if reasons or [r for r in refused if r not in alone] else "ACCEPT"
+        decision = "REJECT" if reasons or blocking(refused, alone) else "ACCEPT"
         if decision == "ACCEPT":
             admitted = passing
         elif auth is not None and auth.ok:  # never-lost salvage after the binding authenticated (§8.3 step 6)
@@ -318,7 +327,7 @@ class Admission:
             covered = {rid for rid, _ in auth.refused}
             refused += list(auth.refused)
             passing = [r for r in passing if r["id"] not in covered]
-        if auth is not None and auth.ok:  # step 3's authorization (Phase F step 4b-i)
+        if auth is not None and (auth.ok or auth.reissue):  # step 3's authorization (steps 4b-i, 4b-ii)
             withheld = None
             if request.get("candidates") or request.get("adopted_deltas"):
                 reasons.add("SCHEMA_UNSUPPORTED")  # content and structural requests are step 4c's: fail closed
@@ -336,7 +345,7 @@ class Admission:
                 refused += [(r["id"], (withheld,)) for r in passing if never_lost(r)]
                 passing = [r for r in passing if not never_lost(r)]
                 auth = replace(auth, ok=False)
-        if not reasons and not [r for r in refused if r not in alone]:
+        if not reasons and not blocking(refused, alone):
             reasons.add("SCHEMA_UNSUPPORTED")  # steps 4-8 are not realized yet: fail closed (§8.3 step 1)
         return reasons, refused, passing, auth, alone
 
