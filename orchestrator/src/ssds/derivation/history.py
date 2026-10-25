@@ -27,7 +27,7 @@ from ssds.content import (
     decl_to_json,
     value_from_json,
 )
-from ssds.ledger.read import SCHEMA_VERSION, Chain
+from ssds.ledger.read import SCHEMA_VERSION, Chain, submits
 
 TreeSource = Callable[[str], Tree]
 
@@ -276,8 +276,8 @@ class History:
         out: dict[str, tuple[int, list[str]]] = {}
         for fact in sorted(self.records.values(), key=lambda f: f.position):
             record = fact.record
-            transformation = record["target"].get("transformation") if record["kind"] == "TASK_RESULT" \
-                and isinstance(record["target"], dict) else None
+            transformation = record["target"]["transformation"] if record["kind"] == "TASK_RESULT" \
+                and submits(record["target"]) else None  # only §7.1's submitting result authors X (review 64a0330)
             if transformation and transformation not in out:
                 binding = record["binding"] or {}
                 out[transformation] = (fact.position, list(binding.get("lineage") or [record["actor"]]))

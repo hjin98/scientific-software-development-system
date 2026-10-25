@@ -696,6 +696,12 @@ Kept: the near-equivalent survivors F14 and F21-F25, reachable only through kind
 - a dated note on the genesis evidence;
 - NEXT ACTION's reference to Q-F7.
 
+**Narrow re-check of 64a03303 (the 4c-i repair).** No SERIOUS CHALLENGE. B2 is closed. NO-PASS on two blockers, repaired:
+- **B1, a fourth owner.** `History._producing_results` still took the first result naming `id(X)`, so a forged earlier result's lineage authored `X`'s content and made the maker's own review independent (an A5 fail-open). Admission's `producing_context` had the same pattern.
+- **B3, a crash.** The new predicate indexed `adopts` elements that schema 1 allows to be any object.
+
+`submits` now lives beside `transformation_id` in the ledger schema: total, requiring exactly `{key, value}` elements. History, frames, `State`, the workflow and Admission's producing context all read it. Tests cover a forged first result, which now authors nothing, and a malformed `adopts`, which submits nothing and crashes nothing. Kept: S4, the base view's structure, is reachable only through a concurrent declaration change.
+
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:

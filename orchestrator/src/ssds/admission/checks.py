@@ -17,7 +17,7 @@ from collections.abc import Iterator, Mapping
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
-from ssds.ledger.read import is_commit, is_digest, is_token, record_id
+from ssds.ledger.read import is_commit, is_digest, is_token, record_id, submits
 
 from .request import REQUEST_FIELDS
 
@@ -283,9 +283,10 @@ def producing_context(record: Mapping[str, Any]) -> tuple[str, tuple[str, ...], 
 
     if record.get("kind") != "TASK_RESULT":
         return None
-    x = (record.get("target") or {}).get("transformation")
-    if not x:
+    target = record.get("target") or {}
+    if not submits(target):  # a result naming another candidate's identity claims no producing context (64a0330)
         return None
+    x = target["transformation"]
     binding = record.get("binding") or {}
     return x, tuple(sorted(binding.get("write_scope") or ())), binding.get("item_key")
 

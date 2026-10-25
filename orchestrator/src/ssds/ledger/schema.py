@@ -318,6 +318,21 @@ def transformation_id(base: str, candidate: str, adopts: Any = ()) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
+def submits(target: Any) -> bool:
+    """A task result's target submits the transformation it names: it carries ``B`` and ``C`` and names exactly
+    §7.1's ``id(B, C, A)``, every element of ``A`` exactly ``{key, value}``. The one predicate for the first
+    submitting result, total over schema-valid data (reviews 2280eae B1, 64a0330 B1, B3): a result naming
+    another candidate's identity fixes nothing, claims no enactment and authors nothing."""
+
+    if not isinstance(target, Mapping) or not all(isinstance(target.get(k), str)
+                                                   for k in ("transformation", "base", "candidate")):
+        return False
+    adopts = target.get("adopts") or []
+    if not isinstance(adopts, list) or not all(isinstance(a, Mapping) and set(a) == {"key", "value"} for a in adopts):
+        return False
+    return transformation_id(target["base"], target["candidate"], adopts) == target["transformation"]
+
+
 def with_id(record: Mapping[str, Any]) -> dict[str, Any]:
     out = {k: v for k, v in record.items() if k != "id"}
     out["id"] = record_id(out)

@@ -24,12 +24,13 @@ from functools import cached_property
 from typing import Any
 
 from ssds.content import Item
+from ssds.ledger.read import submits
 
 from .judgment import RouteEligibility
 from .obligations import obligation_id
 from .outcomes import ADVERSE, PASSING
 from .runs import REVISING_REVIEW, revising_review_id
-from .state import NEVER_PROVISIONAL, UNKNOWN, F, P, T, submits, triple_key
+from .state import NEVER_PROVISIONAL, UNKNOWN, F, P, T, triple_key
 
 # Holder roles (§12.3) and the Dispatcher.
 PRINCIPAL, IMPLEMENTER, INVESTIGATOR, REVIEWER, HUMAN, DISPATCHER = (

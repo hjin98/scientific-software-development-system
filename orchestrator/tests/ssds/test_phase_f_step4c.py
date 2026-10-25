@@ -197,6 +197,48 @@ class FirstSubmittingResult(unittest.TestCase):
         self.assertEqual(d.s.enactment(x), "task-1")
         self.assertEqual(Workflow(d).submitting_result(x), result["id"])
 
+    def test_a_forged_first_result_authors_nothing(self) -> None:
+        """Review 64a0330 B1: the lineage that authors ``X``'s content is the submitting result's, so a maker's
+        review of its own work stays non-independent whatever an earlier result naming ``id(X)`` claims."""
+
+        from ._scenario import attested
+
+        sc = accepted_plan()
+        x = transformation_id(sc.head, sc.add_tree(tree(dict(sc.files, **SOLVED), sc.manifest)))
+        evil = agent("evil")
+        forged = with_id({**record("TASK_RESULT", target={"task": "task-evil", "transformation": x}, outcome="COMPLETE",
+                                   actor=evil, actor_class="AGENT", fields={"slots": {}}),
+                          "binding": fresh(evil, "task-evil")})
+        sc.admit(forged)
+        submitted, _, _ = submit(sc, SOLVED)
+        self.assertEqual(submitted, x)
+        maker = agent("maker")
+        review = judgment("REVIEW", {"transformation": x}, "PASS", actor=maker, actor_class="AGENT",
+                          binding=fresh(maker, "task-review"))
+        sc.admit(*attested(review))
+        d = sc.derive()
+        self.assertEqual(d.s.h.makers(x, d.s.n), [maker])
+        self.assertTrue(d.j.nonind(review["id"]), "A5: no actor reviews its own work")
+
+    def test_malformed_adopted_elements_submit_nothing_and_never_crash(self) -> None:
+        """Review 64a0330 B3: derivation is total over schema-valid ``adopts``; Admission's producing context too."""
+
+        from ssds.admission.checks import producing_context
+        from ssds.ledger.read import record_violations, submits
+
+        sc = accepted_plan()
+        base = sc.head
+        cand = sc.add_tree(tree(dict(sc.files, **SOLVED), sc.manifest))
+        target = {"task": "task-odd", "candidate": cand, "base": base, "transformation": transformation_id(base, cand),
+                  "adopts": [{"note": 1}]}
+        odd = with_id({**record("TASK_RESULT", target=target, outcome="COMPLETE", actor=agent("odd"),
+                                actor_class="AGENT", fields={"slots": {}}), "binding": fresh(agent("odd"), "task-odd")})
+        self.assertEqual(record_violations(odd), [], "schema 1 admits any JSON object as an element")
+        self.assertFalse(submits(target))
+        sc.admit(odd)
+        self.assertEqual(sc.derive().s.enactment(target["transformation"]), None)
+        self.assertIsNone(producing_context(odd), "a result that submits nothing claims no producing context")
+
 
 class IntegratedEnactment(unittest.TestCase):
     """Reading F17: an integrated enactment's tree facts are fixed at its integrating head and its frame records

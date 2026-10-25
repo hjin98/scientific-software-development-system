@@ -14,9 +14,10 @@ from functools import cached_property
 from typing import Any
 
 from ssds.content import Structure, Tree, TreeView, merge3, static_errors, value_from_json, write_set
+from ssds.ledger.read import submits
 
 from .history import History, manifest_decl
-from .state import F, T, State, submits
+from .state import F, T, State
 
 
 @dataclass(frozen=True)

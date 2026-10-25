@@ -15,7 +15,7 @@ from ssds.admission.engine import Admission, AdmissionHalted
 from ssds.admission.genesis import admit_genesis, prepare_genesis
 from ssds.admission.request import request_id
 from ssds.ledger.qualification import FileWitness
-from ssds.ledger.read import read_chain
+from ssds.ledger.read import read_chain, transformation_id
 
 from ._fixtures import record, sshsig
 from .test_admission_genesis import GenesisFixture, product_state
@@ -255,11 +255,18 @@ class SalvageAndQueue(RequestFixture):
 
 
 
+SUBMITTED_BASE, SUBMITTED_CANDIDATE = "1" * 40, "2" * 40
+SUBMITTED = transformation_id(SUBMITTED_BASE, SUBMITTED_CANDIDATE)
+
+
 def task_result(x: str, scope=("guide",), key: str | None = "sha256:" + "a" * 64, task="t-1") -> dict:
     from ssds.ledger.read import with_id
 
-    rec = record("TASK_RESULT", target={"task": task, "transformation": x}, outcome="COMPLETE", actor="agent:t/1",
-                 actor_class="AGENT", fields={"slots": {}})
+    target = {"task": task, "transformation": x}
+    if x == SUBMITTED:  # a result that submits X carries B and C under §7.1's identity (review 64a0330)
+        target.update(base=SUBMITTED_BASE, candidate=SUBMITTED_CANDIDATE)
+    rec = record("TASK_RESULT", target=target, outcome="COMPLETE", actor="agent:t/1", actor_class="AGENT",
+                 fields={"slots": {}})
     binding = {"task": task, "obligation": "obl", "role": "IMPLEMENTER", "lineage": ["agent:t/1"],
                "lineage_class": "ATTESTED_FRESH", "write_scope": list(scope)}
     if key is not None:
@@ -362,7 +369,7 @@ class StepTwoReview(RequestFixture):
         self.assertEqual(self.admit(self.request([finding()], base_position=-1)).reasons, unbound("REF_BASE"))
 
     def test_b8_the_s2_binding_cases_and_duplicates(self) -> None:
-        x = "sha256:" + "b" * 64
+        x = SUBMITTED
         joins = self.admit(self.request([task_result(x), task_result(x, task="t-2")]))
         self.assertEqual(joins.refused, (), "S2 same_context_joins")
         for name, other in (("different_scope_refused", task_result(x, scope=("code",), task="t-2")),
