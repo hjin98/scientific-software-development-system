@@ -33,11 +33,12 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              authentication and lineage, AUTH_ENVELOPE, AUTH_VERSION, AUTH_ACTOR for human bindings,
              human-gated KEY_LIFECYCLE); step 3b (the operator journal; the rendered brief's identity
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
-DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
-             `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
+DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
+             (2026-10-25); the old ledger's retirement statement needs step 7.
 NEXT ACTION: a same-family re-check of bb92b348 and the NB-3 repair (§9), then 4b-ii. Q-F4 and Q-F5
-             are settled (SD-67, SD-68); A10 is accepted (SD-66); ssdp-shadow-2's genesis waits on
-             the stakeholder's signature.
+             are settled (SD-67, SD-68); A10 is accepted (SD-66); ssdp-shadow-2 is admitted and
+             QUALIFIED (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for
+             step 10.
 ```
 
 ## 1. Scope and authority
