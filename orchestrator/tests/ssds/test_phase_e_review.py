@@ -14,6 +14,7 @@ import unittest
 from ssds.derivation import Workflow, queries
 from ssds.ledger.read import with_id
 
+from ._scenario import attested
 from . import test_assessment as ta
 from . import test_step5_review
 from ._fixtures import record
@@ -356,11 +357,12 @@ def _retained_flow():
 
             units = ["plan.work.item", "plan.work.followup"]
             sc = self.sc
-            sc.admit(judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
-                              basis=[content("plan.work.objective", sc.rev("plan.work.objective"))]
-                              + [content(u, sc.rev(u), "PLAN_CONTROL") for u in units],
-                              fields={"objective": {"unit": "plan.work.objective", "rev": sc.rev("plan.work.objective")},
-                                      "items": [{"unit": u, "rev": sc.rev(u)} for u in units]}))
+            sc.admit(*attested(judgment(
+                "PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
+                basis=[content("plan.work.objective", sc.rev("plan.work.objective"))]
+                + [content(u, sc.rev(u), "PLAN_CONTROL") for u in units],
+                fields={"objective": {"unit": "plan.work.objective", "rev": sc.rev("plan.work.objective")},
+                        "items": [{"unit": u, "rev": sc.rev(u)} for u in units]})))
 
         def item(self):
             return self.w().items.by_id("plan.work", "work")

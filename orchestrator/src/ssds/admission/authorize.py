@@ -101,15 +101,14 @@ def _acceptance_target(record: dict, trial: Any) -> set[str]:
     subject = target.get("subject")
     units = s.view.structure.units
     if not isinstance(subject, str) or subject not in units:
-        return {"SCHEMA_UNSUPPORTED"}  # not an effective subject: a tenure code is Q-F5's
+        return {"AUTH_TARGET_NOT_EFFECTIVE"}  # SD-68
     if not units[subject].subject:
         return {"AUTH_TARGET_PART"}
     if s.status1(triple_key(subject, target.get("scope_id"), target.get("rev"))) == "REVOKED":
         return {"AUTH_TARGET_REVOKED"}
     if (subject, target.get("scope_id"), target.get("rev")) != tuple(s.subject_triple(subject)):
-        # the current tenure, read as the subject's current triple: an earlier revision or another scope has no
-        # code in catalogue §8.4 yet (Q-F5), so it fails closed (plan review 8a41539 B3)
-        return {"SCHEMA_UNSUPPORTED"}
+        # the current tenure, read as the subject's current triple (plan review 8a41539 B3; SD-68)
+        return {"AUTH_TARGET_NOT_CURRENT"}
     if not s.s0.well_formed(subject) or s.s0.absent_term(subject):
         return {"AUTH_ILL_FORMED"}
     return set()

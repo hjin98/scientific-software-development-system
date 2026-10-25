@@ -130,9 +130,12 @@ def judgment(kind: str, target: dict, outcome: str, actor: str = HUMAN, actor_cl
     return with_id(rec)
 
 
-#: Kinds whose records carry an independence requirement (catalogue §5.10 (a)).
-REQUIREMENT_KINDS = frozenset({"REVIEW", "CONFORMANCE", "ACCEPTANCE", "PLAN_ACCEPTANCE", "EQUIVALENCE", "COMPLETENESS",
-                               "INTAKE_DISPOSITION", "IMMATERIALITY", "ADJUDICATION", "EVIDENCE_ASSESSMENT"})
+def _requirement_kinds() -> frozenset[str]:
+    """The kinds derivation gives an independence requirement, and the reassessment a disposition can be."""
+
+    from ssds.derivation.judgment import REQUIREMENT
+
+    return REQUIREMENT | {"EVIDENCE_ASSESSMENT"}
 
 
 def attested(*records: dict) -> list[dict]:
@@ -144,7 +147,7 @@ def attested(*records: dict) -> list[dict]:
     out = []
     for rec in records:
         out.append(rec)
-        if rec.get("actor_class") == "HUMAN" and rec.get("kind") in REQUIREMENT_KINDS:
+        if rec.get("actor_class") == "HUMAN" and rec.get("kind") in _requirement_kinds():
             out.append(judgment("NON_AUTHORSHIP_ATTESTATION", {"record": rec["id"]}, "NOT_AUTHOR", actor=rec["actor"]))
     return out
 

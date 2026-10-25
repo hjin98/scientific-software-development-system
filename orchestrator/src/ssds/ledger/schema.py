@@ -166,7 +166,9 @@ KINDS: dict[str, KindSpec] = {
     "LEGACY_ACCEPTANCE": _k("support", "triple", "IMPORTED", {"legacy": list_of(is_token)}),
     "EXTERNAL_ACCEPTANCE": _k("support", "external", "IMPORTED"),
     "RECONSTRUCTION_PROPOSAL": _k("support", "units", "PROPOSED PROVISIONAL UNKNOWN"),
-    "TASK_RESULT": _k("support", "task", "COMPLETE INCOMPLETE PARTIAL", {"slots": is_json_object}),
+    # the §12.3 roles' outcomes, and INCOMPLETE, which catalogue §13.7 routes and Stage S settles (SD-67)
+    "TASK_RESULT": _k("support", "task", "COMPLETE PARTIAL BLOCKED INFEASIBLE FOUND NONE_FOUND INCONCLUSIVE INCOMPLETE",
+                      {"slots": is_json_object}),
     "FINDING": _k("support", "units|records", None, _REPORT_FIELDS, ("materiality",)),
     "AMENDMENT_REQUEST": _k("support", "units|records", None, _REPORT_FIELDS, ("materiality",)),
     "BLOCKER": _k("support", "units|records", None, _REPORT_FIELDS, ("materiality",)),

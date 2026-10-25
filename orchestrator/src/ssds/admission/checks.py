@@ -29,8 +29,11 @@ REASONS = frozenset({
     # step 2
     "REF_BASE", "REF_RECORD", "REF_REVISION", "REF_OBJECT", "REF_OBLIGATION", "REF_DUPLICATE",
     "REF_PRODUCING_CONTEXT",
-    # step 3: authentication (Phase F step 3); its authorization codes are step 4's
-    "AUTH_ENVELOPE", "AUTH_ACTOR", "AUTH_VERSION",
+    # step 3: authentication and authorization (Phase F steps 3-4)
+    "AUTH_ENVELOPE", "AUTH_ACTOR", "AUTH_VERSION", "AUTH_ROLE_KIND", "AUTH_TARGET_PART", "AUTH_TARGET_REVOKED",
+    "AUTH_ILL_FORMED", "AUTH_TARGET_NOT_CURRENT", "AUTH_TARGET_NOT_EFFECTIVE", "AUTH_SUPERSEDES",
+    # step 5's checks other than cycles (SD-68), realized by Phase F step 4d
+    "DEP_TARGET_ORDER", "DEP_TARGET_KIND", "DEP_COUNTER_CHALLENGE", "DEP_OWN_SUBJECT", "DEP_CONSUMER",
 })
 
 #: Input bounds at the Admission boundary (Manual §25.4; the values are delegated, proposed defaults).

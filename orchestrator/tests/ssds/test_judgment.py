@@ -114,7 +114,7 @@ class ItemLevelJudgedContent(unittest.TestCase):
                                              "changes": [], "scope": SCOPE}, "PASS", actor="human:SHA256:reviewer")
                 h.sc.admit(review)
                 j = h.derive().j
-                self.assertEqual(j.work_authors(review["id"]), frozenset(actor(a) for a in excluded))
+                self.assertEqual(j.judged_authors(review["id"]), frozenset(actor(a) for a in excluded))
 
 
 class TransformationJudgedContent(unittest.TestCase):
@@ -148,7 +148,7 @@ class TransformationJudgedContent(unittest.TestCase):
                 for owner, item, d, a in later:
                     h.enact(owner, item, d, a)
                 j = h.derive().j
-                self.assertEqual(j.work_authors(review["id"]), frozenset(actor(a) for a in excluded))
+                self.assertEqual(j.judged_authors(review["id"]), frozenset(actor(a) for a in excluded))
                 self.assertEqual(j.supports_integration(review["id"], h.sc.position - 1), supported)
 
 

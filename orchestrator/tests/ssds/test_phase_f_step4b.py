@@ -63,6 +63,16 @@ class EnvelopeAndRole(RequestFixture):
         self.assertTrue(all(role_permits(r, "FINDING", None) and role_permits(r, "CHALLENGE", None)
                             for r in ("PRINCIPAL", "IMPLEMENTER", "REVIEWER", "INVESTIGATOR")))
 
+    def test_sd67_task_result_outcomes_are_the_roles(self) -> None:
+        issued = self.issue()
+        blocked = self.bind(record("TASK_RESULT", target={"task": issued.envelope["task_id"]}, outcome="BLOCKED",
+                                   fields={"slots": {}}), issued)
+        incomplete = self.bind(record("TASK_RESULT", target={"task": issued.envelope["task_id"]}, outcome="INCOMPLETE",
+                                      fields={"slots": {"n": 1}}), issued)
+        refused = dict(self.admit(self.signed(issued, [blocked, incomplete])).refused)
+        self.assertNotIn(blocked["id"], refused, "a reviewer's BLOCKED is in schema 1 and its template (SD-67)")
+        self.assertEqual(refused.get(incomplete["id"]), ("AUTH_ROLE_KIND",), "INCOMPLETE waits on Stage S: no role")
+
     def test_the_human_floor_refuses_an_agent(self) -> None:
         issued = self.issue()
         gate = self.bind(record("HUMAN_DECISION", target={"obligation": self.obligation()}, outcome="ACKNOWLEDGE"),
@@ -311,13 +321,16 @@ class Recheck(RequestFixture):
                                                          "rev": "sha256:" + "6" * 64}, outcome="PASS"), issued)
         decision = self.admit(self.signed(issued, [earlier, removed]))
         refused = dict(decision.refused)
-        for rec in (earlier, removed):
-            self.assertIn(refused.get(rec["id"]), (("SCHEMA_UNSUPPORTED",), ("REF_REVISION",)))
+        self.assertIn(refused.get(earlier["id"]), (("AUTH_TARGET_NOT_CURRENT",), ("REF_REVISION",)))
+        self.assertIn(refused.get(removed["id"]), (("AUTH_TARGET_NOT_EFFECTIVE",), ("REF_REVISION",)))
         sc = Scenario(DOC, {"doc.md": "r0\n"})
         t = sc.triple("doc")
         stale = judgment("ACCEPTANCE", {**t, "scope_id": "sha256:" + "5" * 64}, "PASS", actor=HUMAN)
-        sc.admit(stale)
-        self.assertEqual(_acceptance_target(stale, sc.derive()), {"SCHEMA_UNSUPPORTED"})
+        gone = judgment("ACCEPTANCE", {**t, "subject": "nowhere"}, "PASS", actor=HUMAN)
+        sc.admit(stale, gone)
+        d = sc.derive()
+        self.assertEqual((_acceptance_target(stale, d), _acceptance_target(gone, d)),
+                         ({"AUTH_TARGET_NOT_CURRENT"}, {"AUTH_TARGET_NOT_EFFECTIVE"}), "SD-68's codes")
         from ssds.admission.authorize import _record_codes
 
         product = with_id({**record("PRODUCT_SCOPE_ACCEPTANCE", target={"item": "x", "rev": "sha256:" + "1" * 64},
@@ -470,11 +483,34 @@ class OneAuthorshipRule(unittest.TestCase):
         self.assertIn(HUMAN, at_admission)
         self.assertEqual(d.j.judged_authors(review["id"]), at_admission)
         self.assertIn(HUMAN, d.j.transformation_authors(x))
-        w = Workflow(d)
-        review_obligation = next((o for o in w.obligations if o.kind == "REVIEW" and o.target.get("transformation") == x),
-                                 None)
-        if review_obligation is not None:
-            self.assertIn(HUMAN, w.judged_authors(review_obligation))
+
+    def test_nb1_a_reviewer_dispatched_is_one_admission_would_find_independent(self) -> None:
+        """Re-check d0f1044 B1: judge selection for REVIEW(X) reads the one authorship rule, so an earlier producer
+        of content X restores is never chosen (SD-51)."""
+
+        from ssds.derivation import Workflow
+
+        from ._scenario import OWNER, agent, content
+        from .test_conformance import SECONDARY, realize, submit
+        from .test_lint import FILES, MANIFEST, item_block, plan_text
+
+        policy = 'schema = 1\n[domains.""]\nhumans = ["%s", "%s"]\n' % (HUMAN, HUMAN_B)
+        sc = Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(item_block(secondary=SECONDARY))}, policy=policy)
+        objective, item = sc.rev("plan.work.objective"), sc.rev("plan.work.item")
+        sc.admit(*attested(judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
+                                    basis=[content("plan.work.objective", objective),
+                                           content("plan.work.item", item, "PLAN_CONTROL")],
+                                    fields={"objective": {"unit": "plan.work.objective", "rev": objective},
+                                            "items": [{"unit": "plan.work.item", "rev": item}]})))
+        sc.integrate({"src/solver.py": "def step():\n    return 2\n"}, agent("y"), "task-y", lineage=[HUMAN])
+        sc.integrate({"src/solver.py": "def step():\n    return 3\n"}, agent("z"), "task-z")
+        x, candidate, _ = submit(sc, {"src/solver.py": "def step():\n    return 2\n"}, task="task-x")  # restores HUMAN's
+        realize(sc, candidate)
+        w = Workflow(sc.derive())
+        (review,) = [o for o in w.of_kind("REVIEW") if o.target.get("transformation") == x]
+        self.assertIn(HUMAN, w.judged_authors(review))
+        self.assertNotIn(HUMAN, w.eligible_judges(review))
+        self.assertIn(HUMAN_B, w.eligible_judges(review))
 
     def test_n3_a_maker_reviewing_its_own_candidate_is_never_independent(self) -> None:
         from ._scenario import agent, submit
@@ -500,6 +536,14 @@ class OneAuthorshipRule(unittest.TestCase):
         self.assertEqual(d.j.judged_authors(bare["id"]), frozenset({"UNKNOWN"}))
         self.assertEqual((d.j.nonind(bare["id"]), d.j.nonind(attesting["id"])), (True, False),
                          "Manual §5.10 (f): only with a NON_AUTHORSHIP_ATTESTATION")
+        later = judgment("ACCEPTANCE", sc.triple("doc"), "FAIL", actor=HUMAN)
+        sc.admit(later)
+        sc.admit(judgment("NON_AUTHORSHIP_ATTESTATION", {"record": later["id"]}, "NOT_AUTHOR", actor=HUMAN))
+        borrowed = judgment("ACCEPTANCE", sc.triple("doc"), "PASS", actor=OWNER)
+        sc.admit(borrowed, judgment("NON_AUTHORSHIP_ATTESTATION", {"record": borrowed["id"]}, "NOT_AUTHOR", actor=HUMAN_B))
+        d = sc.derive()
+        self.assertTrue(d.j.nonind(later["id"]), "co-submitted only: a later attestation changes nothing (§5.10 (a))")
+        self.assertTrue(d.j.nonind(borrowed["id"]), "the judge's own: another human's attestation is no attestation")
         from ssds.derivation import Workflow
 
         w = Workflow(d)
@@ -534,11 +578,19 @@ class OneAuthorshipRule(unittest.TestCase):
                          frame={"transformation": transformation})
         from ssds.derivation import supersession_target
 
+        self.assertIsNotNone(supersession_target(review))
         self.assertEqual(supersession_target(review), supersession_target(again))
+        for kind, target in (("CONFORMANCE", {"transformation": transformation}),
+                             ("EQUIVALENCE", {"unit": "doc", "from": "sha256:" + "1" * 64, "to": "sha256:" + "2" * 64,
+                                              "class": "EDITORIAL"}),
+                             ("PRODUCT_SCOPE_ACCEPTANCE", {"item": "x", "rev": "sha256:" + "3" * 64})):
+            self.assertIsNotNone(supersession_target({"kind": kind, "target": target, "fields": {}, "frame": "ADMITTED"}),
+                                 f"{kind}: the column's target")
         completeness = judgment("COMPLETENESS", {"scope": ["doc"], "classes": ["WARRANT"], "membership": "sha256:" + "1" * 64,
                                                  "analyzer": "ssds.analyzer.python/1"}, "INCOMPLETE")
         by_judgment = judgment("COMPLETENESS", {"scope": ["doc"], "classes": ["WARRANT"], "membership": "sha256:" + "1" * 64},
                                "COMPLETE")
+        self.assertIsNotNone(supersession_target(completeness))
         self.assertEqual(supersession_target(completeness), supersession_target(by_judgment), "without the analyzer")
         plan = judgment("PLAN_ACCEPTANCE", {"units": ["doc"]}, "REJECTED",
                         fields={"objective": {"unit": "doc", "rev": "sha256:" + "4" * 64},

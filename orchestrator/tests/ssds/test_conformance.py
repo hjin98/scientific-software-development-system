@@ -13,6 +13,7 @@ from ssds.derivation.conformance import CLEAN, DISCREPANCY, INCOMPLETE, SIGNAL, 
 from ssds.derivation.workflow import DISCHARGED, OPEN, READY, Workflow
 from ssds.ledger.read import with_id
 
+from ._scenario import attested
 from ._fixtures import record, tree
 from ._scenario import OWNER, Scenario, agent, content, fresh, judgment
 from .test_lint import FILES, MANIFEST, item_block, plan_text
@@ -25,10 +26,11 @@ SLOTS = {"claims": [{"claim": "the solver adapts", "records": []}], "unverified_
 def accepted_plan(block: str | None = None) -> Scenario:
     sc = Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(block or item_block(secondary=SECONDARY))})
     objective, item = sc.rev("plan.work.objective"), sc.rev("plan.work.item")
-    sc.admit(judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
-                      basis=[content("plan.work.objective", objective), content("plan.work.item", item, "PLAN_CONTROL")],
-                      fields={"objective": {"unit": "plan.work.objective", "rev": objective},
-                              "items": [{"unit": "plan.work.item", "rev": item}]}))
+    sc.admit(*attested(judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
+                                basis=[content("plan.work.objective", objective),
+                                       content("plan.work.item", item, "PLAN_CONTROL")],
+                                fields={"objective": {"unit": "plan.work.objective", "rev": objective},
+                                        "items": [{"unit": "plan.work.item", "rev": item}]})))
     return sc
 
 

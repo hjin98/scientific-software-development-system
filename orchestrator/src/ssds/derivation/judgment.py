@@ -351,12 +351,6 @@ class Judgments:
             return frozenset({UNKNOWN})
         return self._authors_of([(c["unit"], c["rev"]) for c in self.s.record(realization)["target"]["claim"]], authors)
 
-    def work_authors(self, rid: str) -> frozenset[str]:
-        authors: set[str] = set()
-        for unit, rev in self.judged_content(rid):
-            authors |= self._work_producers(rid).get((unit, rev), frozenset({UNKNOWN}))
-        return frozenset(authors) or frozenset({UNKNOWN})
-
     # -- judged content of work (§5.10 (b)) ----------------------------------------------------------
 
     def _work(self, rid: str) -> tuple[frozenset[tuple[str, str]], dict[tuple[str, str], frozenset[str]]]:
