@@ -35,9 +35,11 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
              `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
-NEXT ACTION: step 4b-i (§3.1, authorization for records-only requests) is built and under same-family
-             review with the last 4a repair; then 4b-ii. Q-F4 and Q-F5 (§7) wait for the stakeholder; the
-             work they touch fails closed.
+NEXT ACTION: NB-3 (§9, re-check of 6e0fa9eb): a human is independent of content of unknown authorship
+             only with a NON_AUTHORSHIP_ATTESTATION (Manual §5.10 (f)). Its two-line derivation repair
+             reverses about 50 Phase D-E test expectations that judge genesis-baseline content, each to
+             be examined; then a same-family re-check of bb92b348 and NB-3, then 4b-ii. Q-F4 and Q-F5 (§7)
+             wait for the stakeholder; the work they touch fails closed.
 ```
 
 ## 1. Scope and authority

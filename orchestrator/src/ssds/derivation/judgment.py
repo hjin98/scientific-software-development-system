@@ -608,8 +608,8 @@ class Judgments:
         """The independence test, or ``None`` when it fails and only the owner exception could hold."""
 
         if record["actor_class"] == "HUMAN":
-            # §5.10 (f): judged content of unknown authorship admits only a human with a non-authorship attestation
-            # (plan review 6e0fa9e NB-3)
+            # Known gap (Phase F plan §9, NB-3): Manual §5.10 (f) also requires UNKNOWN not among the authors unless
+            # the human presents a non-authorship attestation; the repair and its test ripple are the next action
             if record["actor"] not in authors or self._non_authorship_attested(record["id"]):
                 return True
             return None
