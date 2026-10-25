@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 3: step 4 split into 4a-4e, readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 3 (step 4 split, §3.1); questions settled by SD-64. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 4 (step 4 in five parts, §3.1); questions settled by SD-64. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -35,8 +35,9 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
              `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
-NEXT ACTION: step 4a (the trial extension, §3.1), after the same-family review of revision 3. Steps
-             3a and 3b are clean (§9).
+NEXT ACTION: step 4a (§3.1): the salvage restriction, the trial extension and the derivation repairs.
+             Steps 3a and 3b are clean (§9). Q-F4 and Q-F5 (§7) wait for the stakeholder; the work they
+             touch fails closed.
 ```
 
 ## 1. Scope and authority
@@ -109,17 +110,42 @@ Two restrictions also hold: only `admission` imports the append path, and only `
 | **11** difference study | the comparison Q-F1 settles, as a qualification harness calling the real Admission owners outside the ledger (§7) | §5.2 Phase F exit | per Q-F1 |
 | **12** exit | assembly of group 4 and the admission halves of groups 2, 3 and 5; the end-to-end shadow run | §5.2 Phase F exit | the groups' results; the shadow boundary checked after every command |
 
-### 3.1 Step 4 in five parts (revision 3)
+### 3.1 Step 4 in five parts (revisions 3-4)
 
-The step 4 survey found that nearly every predicate §8.3 steps 3-6 needs is already computed by a derivation owner, but only for records already admitted: `Judgments.nonind`, `judged_authors` and `root_authors`, `State.status1`, `StructureFacts.well_formed`, `Support.current` and `sat` with frame roles, the support graph's components, `Conformance`'s write set, scope and protected surfaces. Several predicates have no owner yet: supersession authority, the §12.3 role-to-kind table, the challenge freeze, the enactment condition, the per-key effective-structure classification, discriminating-reading class and contradiction, and the new-or-grown component check. Step 4 is therefore built in five parts, each closing with its tests and a same-family review of its delta before the next starts. Every part keeps the fail-closed rule: a check not yet built leaves the request `SCHEMA_UNSUPPORTED`, never admitted.
+The step 4 survey and the plan review of b10018de found that nearly every predicate §8.3 steps 3-6 need is computed by a derivation owner, but only for records already admitted. The admitted-only owners are `Judgments.nonind`, `judged_authors` and `root_authors`, `State.status1`, `StructureFacts.well_formed`, `Support.current` and `sat`, the support graph's components, and `Conformance`. Some of these are not yet what the Manual says:
+- `nonind` is recomputed in every state, where §5.10 (f) fixes the classification at admission, and it lacks the SD-48 owner exception, which only `RouteEligibility` applies;
+- `Conformance.writes` compares base with candidate, where §1.2's one write set compares `T_n` under `Σ_n` with `M_n(X)`.
+
+These predicates have no owner yet:
+- supersession authority;
+- the §12.3 role-to-kind table;
+- the decision class of a challenge chain (§12.4);
+- prospective tenure in a frame;
+- the challenge freeze;
+- the enactment condition;
+- the per-key effective-structure classification;
+- the discriminating reading's class and contradiction;
+- "a consumer of a unit";
+- the warrant relations of `CYCLE_WARRANT`;
+- the new-or-grown component check;
+- the `REISSUE(envelope)` obligation.
+
+Step 4 is built in five parts, each closing with its tests and a same-family review of its delta before the next starts.
+
+**Fail closed, for every request shape and every route.** A check not yet built never admits:
+- A request that passes everything built is `SCHEMA_UNSUPPORTED`.
+- Never-lost salvage admits a record only when every check that record owes exists, so until 4b only reports with an empty `supersedes` are salvaged. Every other never-lost record (adverse judgments, failing assessments, challenge-tier records, any record whose `supersedes` is not empty) is refused by identity as `SCHEMA_UNSUPPORTED`. The plan review's probe showed that before this, an `IMPLEMENTER`-bound `REVIEW NO_PASS` was salvaged and superseded another task's judgment: a step 3 defect, repaired first in 4a.
+- Until 4c, a request with candidates or adopted deltas is `SCHEMA_UNSUPPORTED` at any step after authentication: 4a and 4b handle records-only requests without deltas.
+
+**Rejection or refusal.** Every code of steps 3-6 rejects the request; its never-lost records are still salvaged when their own checks pass. The one code that refuses a record alone is the refusal of an ineligible `ADJUDICATION` (catalogue §8.3 step 3, §5.10 (e)): the rest of the request is judged as if the adjudication were absent.
 
 | Part | Owner | Builds | Cases |
 |---|---|---|---|
-| **4a** the trial extension | `derivation` | `trial(chain, entry)`: the state at `n+1` as if the request's provisional entry, carrying its records, adopted deltas and candidate frame, were appended, as a new `History`, never a mutation (reading F10; step 1's cache stays keyed on immutable histories); Admission builds the provisional entry and calls it, so every admitted-only owner judges candidate records unchanged | a trial state equals the state derived after admitting the same entry; a trial never changes the held head or any cached workflow; Admission's existing step 1-3 tests unchanged |
-| **4b** authorization (§8.3 step 3, the rest) | `derivation` facts, `admission` checks | the floors of catalogue §3.5 and policy's qualifications (`AUTH_ACTOR`); acceptance targets: effective in the record's frame, prospective tenure included, never a part, never `REVOKED`, never ill-formed or with a declared term `ABSENT` (`AUTH_TARGET_PART`, `AUTH_TARGET_REVOKED`, `AUTH_ILL_FORMED`); the envelope's obligation exists at the base and was issued for `role(kind(o))`; the §12.3 role templates as data, each record kind and outcome checked (`AUTH_ROLE_KIND`); independence classified at admission from the authenticated binding (reading F11) with the owner exception, and adjudication eligibility against the root authors and chain class; supersession authority by the superseded kind (`AUTH_SUPERSEDES`); a discriminating reading at its class, never one outcome both ways (`READING_CONTRADICTION`); the effect-keyed write set on the merged tree within the contract's write scope (`AUTH_WRITE_SCOPE`); §25.3's protected surfaces (`AUTH_PROTECTED`); the never-lost record under an unlisted envelope refused by identity with its bytes retained and a re-issue obligation (the step 3 re-check's note p8) | 51070e5 N3, f03b15e N5, 6b986de N6; one case per reason code; S1 objection cases whose distinguishing step is an Admission refusal |
-| **4c** structure (§8.3 step 4) | `derivation` | on the merged tree: the per-key classification against `Q_n` (authored, realigned, adopted by `ABSORB`, carried, else revalidation); the well-formedness checks together; no mode mixing without its `MODE_TRANSITION`; SDG members kept together; a change of kind or domain released by its current domain's owner; the challenge freeze at source and destination (`FREEZE_SOURCE`, `FREEZE_DESTINATION`); semantic structure (`RELATION_*`, `STRUCT_*`); the enactment condition for an integration (`ENACTMENT_MISSING`) | one case per code; a records-only request's empty delta; an adopting disposition validated as authored |
-| **4d** dependency (§8.3 step 5) | `derivation` | challenge-tier targets strictly earlier and of permitted kinds, a challenge of a challenge only as a counter-challenge of a restrictive adjudication; no `validity` entry on a record's own subject or a part of it; no equivalence relying on a consumer of its unit; the static support graph (§5.6, items 1-4, the cited premises of item 4 included: Phase D NF2) gains no new non-trivial component and no existing one grows, by comparing the trial state's components with the head's (`CYCLE_SUPPORT`; `CYCLE_WARRANT` for §2.4) | the mutual-acceptance configuration refused on both grounds; a cycle that absorbed content created is reported and blocks no unrelated request |
-| **4e** currency (§8.3 step 6) | `derivation` values, `admission` routing | each basis entry of each submitted support-tier record other than a report satisfied in its role in its frame, its nodes' values read at the head (reading F10); otherwise `STALE_BASIS` and routed to revalidation; the never-lost exemption with salvage to a fixed point, as step 2's | group 2's admission half: 798b2b4 B4, 29da56e N5 and 124b0b7 N2 with the records involved admitted; never-lost challenges, failing assessments and adjudications admitted whatever the request's fate |
+| **4a** salvage restriction, trial extension, derivation repairs | `admission`, `derivation` | the fail-closed salvage above; `trial(chain, entry)` (reading F10) for records-only requests; `nonind` fixed at the record's admission position, with the SD-48 owner exception for a disposition of a failing assessment by the owner, and the common-mode dependency derived for the inspector; `UNKNOWN` lineage never disjoint (reading F11) | the review's probe as a regression; a trial equals the state derived after admitting the same entry, except the facts keyed on the trial entry's digest (reading F10); a trial changes no held state; a `COMPLETENESS` non-independent at admission stays so after a member moves (the review's fail-open); an owner disposition under the exception is independent |
+| **4b** authorization (§8.3 step 3, the rest), records-only | `derivation` facts, `admission` checks | the floors of catalogue §3.5 and policy's qualifications (`AUTH_ACTOR`); acceptance targets in the admitted state: never a part, never `REVOKED`, never ill-formed or with a declared term `ABSENT` (`AUTH_TARGET_PART`, `AUTH_TARGET_REVOKED`, `AUTH_ILL_FORMED`); the envelope's obligation exists at the request's base and was issued for `role(kind(o))` (`AUTH_ENVELOPE`); the §12.3 role templates as data (`AUTH_ROLE_KIND`; until Q-F4, outcomes outside schema 1 fail at step 1); the bound record's lineage equal to the attestation closure (reading F11; `AUTH_ENVELOPE`), and `HUMAN_ATTESTED_FRESH` refused until its `LINEAGE_ATTESTATION` path is placed; adjudication eligibility against the root authors and the chain's decision class (§12.4), refused alone (`AUTH_ACTOR`); supersession authority by the superseded kind (`AUTH_SUPERSEDES`); a discriminating reading at its class (`AUTH_ACTOR`) and never one outcome both ways (`READING_CONTRADICTION`); a never-lost record under an unlisted retired envelope refused by identity with its bytes retained, and derivation's `REISSUE(envelope)` obligation (catalogue §8.3 step 3, §10.2), the Dispatcher's resubmission being step 8's. Salvage widens, kind by kind, as each kind's checks exist | 51070e5 N3, f03b15e N5, 6b986de N6; one case per code; S1 objection cases whose distinguishing step is an Admission refusal |
+| **4c** content and structural requests (§8.3 step 4, and step 3's write scope) | `derivation` | `Σ_{n+1}` and the merged tree's source for the trial; the per-key classification against `Q_n` (authored, realigned, adopted by `ABSORB`, carried, else revalidation as a `STRUCT_*` member); the well-formedness checks together; no mode mixing without its `MODE_TRANSITION`; SDG members kept together; a change of kind or domain released by its current domain's owner; the challenge freeze at source and destination (`FREEZE_SOURCE`, `FREEZE_DESTINATION`); semantic structure (`RELATION_*`, `STRUCT_*`); the enactment condition (`ENACTMENT_MISSING`); prospective tenure for frame acceptances; one write-set owner on the frame (`T_n` under `Σ_n` against `M_n(X)`, §1.2) that `Conformance` and Admission both read (`AUTH_WRITE_SCOPE`); one protected-surface owner, §25.3's whole list including unit governance state, binding agent-bound requests (`AUTH_PROTECTED`) | one case per code; an adopting disposition validated as authored; a write outside scope on the merged tree that the base-to-candidate set misses |
+| **4d** dependency (§8.3 step 5) | `derivation` | the static support graph (§5.6, items 1-4, the cited premises of item 4 included: Phase D NF2): every non-trivial component of the trial is a subset of some component at the head (`CYCLE_SUPPORT`); warrant cycles over §2.4's relation set `E` that the request's records would close (`CYCLE_WARRANT`); challenge-tier targets strictly earlier and of permitted kinds, a challenge of a challenge only as a counter-challenge of a restrictive adjudication, no `validity` entry on a record's own subject or a part of it, no equivalence relying on a consumer of its unit: these four have no code in catalogue §8.4 (Q-F5), so until Stage S fixes them a challenge-tier record or equivalence that would need them stays `SCHEMA_UNSUPPORTED` | the mutual-acceptance configuration refused on both grounds; a cycle that absorbed content created is reported and blocks no unrelated request |
+| **4e** currency (§8.3 step 6) | `derivation` values, `admission` routing | each basis entry of each submitted support-tier record other than a report evaluated entry by entry on the head's `Support` in the record's frame: `D_n`, or the frame state of `X` at the head built directly from `X` as the trial gives it, with frame and roles passed explicitly (reading F10); otherwise `STALE_BASIS`; a request carrying content or structural changes evaluated as a frame record of its own transformation; the never-lost exemption with salvage to a fixed point | group 2's admission half: 798b2b4 B4, 29da56e N5 and 124b0b7 N2 with the records involved admitted; a before-image entry on a unit a concurrent change moved is stale in `D_n[X]` |
 
 After 4e, a request passing steps 1-6 is still `SCHEMA_UNSUPPORTED` until step 5 builds steps 7-8.
 
@@ -183,14 +209,26 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   - **Human bindings.** A human binding is an SSH signature (namespace `ssds`) over the same message.
   - **Lifecycle approvals.** A human-gated lifecycle record's approval is kept in its provenance and signed over the record without it.
   - **The secret scan.** It exempts whole values whose grammar is an identity or a signature: a human key fingerprint, a key id, an armoured SSH signature.
-- **F10** *The trial extension (step 4).* Admission judges a request through the owners derivation already has, not by restating any rule for unadmitted records. The **trial** is a new `History` over the chain plus the request's one unsigned provisional entry, discarded after the decision; the held head, every cached workflow and the ledger are untouched. What each step reads from it:
-  - the records' own S0 and S1 facts (authorship, lineage, `nonind`, frames and roles, targets, status) come from the trial, where the records exist;
-  - catalogue §8.3's "at the current admitted head" stays literal: in step 6 the value of every node a basis entry names (`valid(s)`, `current(x)`) is read at the head, in the record's frame (`Support.sat` takes the value function as a parameter). A co-submitted record is no node at the head, so it never satisfies another record's basis entry, directly or through a node it would raise. This is narrower than the discharge predicate of step 7, which the catalogue reads "after the request's own records";
-  - step 5 compares the trial's non-trivial support components with the head's;
-  - the freeze, the obligation's existence at the base and the earlier-target rules read the head.
+- **F10** *The trial extension (step 4).* Admission judges a request through the owners derivation already has, not by restating any rule for unadmitted records.
+  - **What the trial is.** A new `History` over the readable prefix plus one unsigned **trial entry** (not §22.4's provisional entry), discarded after the decision. The held head, every cached workflow and the ledger are untouched.
+  - **What differs from admission.** The trial entry has no signature, so no digest. These facts at its position are keyed on an entry digest and differ from the state after admission:
+    - run identities at an event with no enactment (`runs.py`);
+    - `SPEC_REVIEW` and `JOINT_INVARIANT` obligation identities (`workflow.py`);
+    - item change facts (`items.py`);
+    - query listings (`queries.py`).
 
-  A record refused at any of steps 3-6 is removed and the trial rebuilt, to a fixed point, as step 2's salvage does, so no admitted record's facts rest on a refused one.
-- **F11** *Independence inputs come from the authentication (step 4b).* Derivation's `nonind` reads a record's `binding.lineage`, which the record itself carries. At admission that lineage must be what the binding proves: for `ATTESTED_FRESH`, exactly the attestation's session followed by its input sessions; for `UNKNOWN`, any recorded lineage proves nothing and is never disjoint (§12.2). A bound record whose lineage differs is refused (`AUTH_ENVELOPE`), so S0 never reads a lineage Admission did not authenticate (the step 3 re-check's note p9).
+    No decision of steps 3-6 reads them: step 6 reads values at the head, which has no such position, and steps 3-5 read records' own facts. Every other fact equals the state derived after admission.
+  - **What each step reads from it:**
+    - steps 3 and 5 read the records' own S0 and S1 facts from the trial, where the records exist: authorship, lineage, `nonind`, targets, status and the support components;
+    - step 6 is evaluated entry by entry on the head's `Support` in the record's frame, with the frame and roles passed explicitly (4e). This keeps catalogue §8.3's "at the current admitted head" literal. A co-submitted record is no node at the head, so it never satisfies another record's basis entry. This is narrower than step 7's discharge predicate ("after the request's own records") and disclosed as such: a completeness attested beside the acceptance it bounds, or an assessment submitted with its realization, needs two requests;
+    - the obligation's existence and role read the request's base (step 3); the freeze and earlier-target rules read the head.
+  - **Fixed point.** A record refused at any of steps 3-6 is removed and the trial rebuilt, at most once per record, with every refusal of a round computed together. Refusals stay within the rejection-or-refusal scope of §3.1, so the result is one entry that accepts or rejects.
+- **F11** *Independence inputs come from the authentication (step 4b).* Lineage is what the binding proves (Manual §12.2):
+  - **`ATTESTED_FRESH`.** A bound record's `binding.lineage` must equal the **attestation closure**: the attestation's session, then, recursively, each input session and the input sessions of that session's own stored attestation. Admission computes the closure from the attestations stored in the ledger. An input session with no stored attestation leaves the closure open, recorded as `UNKNOWN`, which is never disjoint from anything.
+  - **`UNKNOWN`.** The recorded lineage must be empty.
+  - **`HUMAN_ATTESTED_FRESH`.** It stays refused (`AUTH_ENVELOPE`) until its `LINEAGE_ATTESTATION` path is placed.
+
+  A bound record whose lineage differs is refused (`AUTH_ENVELOPE`). Derivation reads lineage both for independence (`nonind`) and for the authors of produced content (`State._makers`), so S0 reads no lineage that Admission did not authenticate.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -236,6 +274,19 @@ A dry run of `prepare` (baseline `1e34abef`, throwaway key, scratch SSDS home) v
 - runner processes are confined by `bwrap`, which is installed here (bubblewrap 0.6.1). It denies reads of the operator trees and the network, a runtime dependency for the runner path.
 
 Both the trees in the real home and the dependency are the stakeholder's to approve (§8). Without the sandbox, real-runner execution stays limited to secret-free fixtures (§6).
+
+**Q-F4. The `TASK_RESULT` outcome vocabulary (open, revision 4).** Ledger schema 1 allows `COMPLETE`, `INCOMPLETE` and `PARTIAL`. Catalogue §3.4 gives a task result "the task's allowed outcomes (§12.3)": `COMPLETE`, `PARTIAL`, `BLOCKED`, `INFEASIBLE`, `FOUND`, `NONE_FOUND` and `INCONCLUSIVE`. §13.7 also routes an `INCOMPLETE` result, which no §12.3 template permits, so the catalogue disagrees with itself there. §3.6 makes any change to an enumeration a new schema version adopted by `SCHEMA_MIGRATION`. Until this is settled, a result with an outcome outside schema 1 is refused at step 1, so a reviewer or investigator task cannot end with `BLOCKED`, `FOUND` or `NONE_FOUND`.
+- Recommended: (a) correct schema 1 in place as a transcription defect. No ledger holds a `TASK_RESULT`; the old `ssdp-shadow` has none and `ssdp-shadow-2` has no genesis yet. Send the `INCOMPLETE` disagreement to Stage S, and keep it permitted by no role until then.
+- Alternative: (b) schema 2 through `SCHEMA_MIGRATION`, which needs that lifecycle record's checks first.
+
+**Q-F5. Codes for step 5's non-cycle checks (open, revision 4).** Catalogue §8.4 has no code for these:
+- challenge-tier targets strictly earlier and of permitted kinds;
+- the counter-challenge rule;
+- no `validity` entry on a record's own subject;
+- no equivalence relying on a consumer of its unit.
+
+Reading F6 sends a refusal with no code back to Stage S.
+- Recommended: Stage S adds one code per check to §8.4 (for example `DEP_TARGET_ORDER`, `DEP_TARGET_KIND`, `DEP_OWN_SUBJECT`, `DEP_CONSUMER`). Until then a record that would need them fails closed (§3.1, 4d).
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -350,6 +401,26 @@ Each of the six fails its test under reversion. Under the review allocation, a t
 - Its probes r1-r7 hold. r6 now meets the empty-line refusal. One residual stays non-blocking: an append still succeeds onto a journal corrupt before its last line, and the reader refuses that journal afterwards, failing closed.
 
 Steps 3a and 3b are clean under the review allocation.
+
+**Same-family plan review of b10018de (revision 3, the step 4 split).** It found the split and the trial's owner right. NO-PASS on seven blockers, with no SERIOUS CHALLENGE. Revision 4 repairs:
+- **B1, a live fail-open in salvage (a step 3 defect).** Never-lost salvage admitted records whose own checks are not built yet. The review's probe salvaged an `IMPLEMENTER`-bound `REVIEW NO_PASS` whose `supersedes` then ended another task's standing judgment. Until 4b, salvage admits only reports with an empty `supersedes`; every other never-lost record is refused by identity (§3.1). The code change and the probe as a regression come first in 4a.
+- **B2, F10's step 6 mechanism.** `Support.sat` reads its own state as well as the value function, so a trial-side evaluation would pass a stale before-image and let a co-submitted record satisfy a `standing` entry. Step 6 now runs on the head's `Support` in the record's frame, with frame and roles explicit. The base-versus-head wording is fixed, and each code's scope (rejection, or refusal alone) is stated.
+- **B3, F11's lineage.** It is now the §12.2 attestation closure. `UNKNOWN` carries an empty lineage, and `HUMAN_ATTESTED_FRESH` stays refused until placed.
+- **B4, the survey's ownership claims.** `nonind` was not fixed at admission and lacked the owner exception; `Conformance.writes` was not §1.2's write set; prospective tenure, chain class, the consumer predicate, the warrant relations and `REISSUE` had no owner. Each is now listed in §3.1 and placed: `nonind` in 4a, the write set in 4c.
+- **B5, the `TASK_RESULT` outcome vocabulary.** It goes to the stakeholder as Q-F4, failing closed meanwhile.
+- **B6, checks with no code.** The adjudication and class checks are `AUTH_ACTOR`; the envelope's obligation and role are `AUTH_ENVELOPE`; 4c's revalidation is a `STRUCT_*` member; `CYCLE_WARRANT` reads §2.4's relation set. Step 5's four non-cycle checks go to Q-F5, failing closed.
+- **B7, 4a's equality claim.** It now excludes the facts keyed on the trial entry's digest, which reading F10 lists, and 4a and 4b are restricted to records-only requests without deltas.
+
+Its non-blocking notes are taken up:
+- the co-submission cost, disclosed in F10;
+- the component predicate stated as a subset;
+- "trial entry", not "provisional entry";
+- one owner for protected surfaces;
+- `REISSUE` placed.
+
+Kept for 4a's implementation:
+- trial cost (a resume from a `History` checkpoint is available);
+- the unbounded class-level caches in a long-lived `admission serve`.
 
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
 - **B1, the wrong observed ref.** `main` is behind and does not contain the genesis baseline. F1 and Q-F2 (i) now put the observed ref to the stakeholder as a deployment setting, and step 10's absorption test reads observed heads.
