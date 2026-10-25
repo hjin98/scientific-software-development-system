@@ -36,11 +36,11 @@ from functools import cached_property
 from typing import Any
 
 from ssds import analyzers as py
-from ssds.content import REVIEW, Check, Contract, EvidenceVerifier, Item, Structure, TreeView, write_set
+from ssds.content import REVIEW, Check, Contract, EvidenceVerifier, Item, Structure, TreeView
 
-from .frames import Frame, transformation_of
+from .frames import Frame, frame_of, integrating_position, transformation_of
 from .library import HEURISTIC, TEMPLATES
-from .plans import contained, intersects, required_slots, resolve
+from .plans import contained, intersects, protected_surfaces, required_slots, resolve
 from .state import F
 
 VIOLATION, INCOMPLETE, DISCREPANCY, SIGNAL, CLEAN = "VIOLATION", "INCOMPLETE", "DISCREPANCY", "SIGNAL", "CLEAN"
@@ -150,7 +150,7 @@ class Conformance:
         x = transformation_of(self.s, self.transformation)
         if x is None:
             return None
-        return Frame(self.s.h, self.s.position_of(self.rid), x, self.s.enactment(self.transformation))
+        return frame_of(self.s, x)  # at the head while unintegrated, else its integrating head (reading F17)
 
     @cached_property
     def contract(self) -> tuple[Contract | None, Item | None, str]:
@@ -201,16 +201,26 @@ class Conformance:
     def candidate_view(self) -> TreeView | None:
         return self.frame.candidate_view if self.frame is not None else None
 
-    @cached_property
-    def writes(self) -> dict[str, frozenset[str]]:
-        """The effect-keyed write set of the candidate against its base (§1.2)."""
+    @property
+    def head_view(self) -> TreeView | None:
+        """``T_n`` under ``Σ_n``: the write-set templates' head side (§1.2, reading F17)."""
 
-        if self.base_view is None or self.candidate_view is None:
-            return {}
-        return write_set(self.base_view, self.candidate_view)
+        return self.frame.head_view if self.frame is not None else None
+
+    @property
+    def merged_view(self) -> TreeView | None:
+        """``M_n(X)`` under ``Σ_n ⊕ Δ_Σ(X)``: the write-set templates' merged side."""
+
+        return self.frame.view if self.frame is not None else None
+
+    @property
+    def writes(self) -> dict[str, frozenset[str]]:
+        """The frame's one write set (§1.2)."""
+
+        return self.frame.write_set if self.frame is not None else {}
 
     def _region_atoms(self, unit: str) -> list[tuple[Any, ...]]:
-        for view in (self.candidate_view, self.base_view):
+        for view in (self.merged_view, self.head_view):
             if view is not None and unit in view.structure.units:
                 region = view.regions.get(unit)
                 if region:
@@ -320,7 +330,9 @@ class Conformance:
     def _current(self, rid: str) -> int:
         """Currency of a record, in the candidate's frame when it declares that frame (§11.5)."""
 
-        if self.transformation and self.s.record(rid)["frame"] == {"transformation": self.transformation}:
+        if self.transformation and self.s.record(rid)["frame"] == {"transformation": self.transformation} \
+                and integrating_position(self.s, self.transformation) is None:
+            # once integrated, the enactment's records are current in the admitted state (catalogue §7.3)
             framed = self.w._frame_support(self.transformation)
             return framed.current(rid) if framed is not None else F
         return self.d.current(rid)
@@ -358,28 +370,28 @@ class Conformance:
     def _kinds(self) -> dict[str, str | None]:
         out = {}
         for unit in self.writes:
-            view = self.candidate_view if self.candidate_view and unit in self.candidate_view.structure.units else self.base_view
+            view = self.merged_view if self.merged_view and unit in self.merged_view.structure.units else self.head_view
             out[unit] = view.structure.kind(unit) if view is not None else None
         return out
 
     def outside_scope(self, contract: Contract) -> list[str]:  # noqa: D401 - units of the write set
         """Units in the write set whose bytes lie outside the write scope: the detected boundary breaches."""
 
-        if self.candidate_view is None:
+        if self.merged_view is None:
             return []
-        scope, _ = resolve(self.candidate_view, contract.write_scope)
+        scope, _ = resolve(self.merged_view, contract.write_scope)
         out = []
         for unit in sorted(self.writes):
             atoms = self._region_atoms(unit)
-            if not atoms or not contained(self.candidate_view, atoms, scope):
+            if not atoms or not contained(self.merged_view, atoms, scope):
                 out.append(unit)
         return out
 
     def owners(self, path: str) -> tuple[str, ...]:
-        """The units whose region lies in ``path``, in the candidate or else the base; ``<path>`` when none."""
+        """The units whose region lies in ``path``, in the merged tree or else the head; ``<path>`` when none."""
 
         found: set[str] = set()
-        for view in (self.candidate_view, self.base_view):
+        for view in (self.merged_view, self.head_view):
             if view is None:
                 continue
             for uid, region in view.regions.items():
@@ -392,14 +404,14 @@ class Conformance:
         when genesis declares no ``ssds.unclassified`` (§1.8). §12.3 limits a write to the write scope, so this
         fails closed (step 4 review SC-1, put to the stakeholder)."""
 
-        if self.candidate_view is None:
+        if self.merged_view is None:
             return []
-        scope, _ = resolve(self.candidate_view, contract.write_scope)
+        scope, _ = resolve(self.merged_view, contract.write_scope)
         out = []
         for path in self.changed_files:
             if self.owners(path) != (f"<{path}>",) or path == self.s.h.manifest_path:
                 continue
-            if not contained(self.candidate_view, [("file", path)], scope):
+            if not contained(self.merged_view, [("file", path)], scope):
                 out.append(path)
         return out
 
@@ -420,18 +432,15 @@ class Conformance:
     def _t_boundary_protected_surfaces(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
         """Any touch of a protected surface (§25.3), by changed path as well as by unit (B8)."""
 
-        if self.candidate_view is None:
+        view = self.merged_view
+        if view is None:
             return []
-        entries = list(self.s.policy.flow("protected_surfaces"))
-        if "ssds.policy" in self.candidate_view.structure.units:
-            entries.append("ssds.policy")
-        protected, _ = resolve(self.candidate_view, entries)
-        protected.append(("file", self.s.h.policy_path))
+        protected = protected_surfaces(view, self.s.policy, self.s.h.policy_path)
         findings: list[Any] = [(f"{u} is a protected surface", (u,)) for u in sorted(self.writes)
-                               if any(intersects(self.candidate_view, protected, a[1], a[2], a[3]) for a in self._region_atoms(u))]
+                               if any(intersects(view, protected, a[1], a[2], a[3]) for a in self._region_atoms(u))]
         for path, (before, after) in self.changed_files.items():
             length = max(len(before or b""), len(after or b""))
-            if any(intersects(self.candidate_view, [atom], path, 0, max(length, 1)) for atom in protected
+            if any(intersects(view, [atom], path, 0, max(length, 1)) for atom in protected
                    if atom[0] in ("prefix", "file")):
                 findings.append((f"{path} is a protected surface", self.owners(path)))
         return findings
@@ -525,20 +534,11 @@ class Conformance:
 
     # -- the Python analyzer's templates (§14.3, §14.5) -------------------------------------------------
 
-    @cached_property
+    @property
     def changed_files(self) -> dict[str, tuple[bytes | None, bytes | None]]:
-        """Path -> (base bytes, candidate bytes) for every file that differs between ``B`` and ``C``."""
+        """Path -> (``T_n`` bytes, ``M_n(X)`` bytes) for every file the merge changes: the frame's (§1.2)."""
 
-        if not self.has_candidate:
-            return {}
-        base, cand = self.base_tree, self.candidate_tree
-        out = {}
-        for path in sorted(set(base) | set(cand)):
-            before = base[path].data if path in base else None
-            after = cand[path].data if path in cand else None
-            if before != after:
-                out[path] = (before, after)
-        return out
+        return self.frame.changed_files if self.frame is not None else {}
 
     def _selected(self, path: str, params: dict) -> bool:
         selectors = params.get("selectors")

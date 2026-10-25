@@ -6,12 +6,11 @@ the rule under test.
 
 from __future__ import annotations
 
-import hashlib
 import unittest
 
 from ssds.derivation.conformance import CLEAN, DISCREPANCY, INCOMPLETE, SIGNAL, VIOLATION
 from ssds.derivation.workflow import DISCHARGED, OPEN, READY, Workflow
-from ssds.ledger.read import with_id
+from ssds.ledger.read import transformation_id, with_id
 
 from ._scenario import attested
 from ._fixtures import record, tree
@@ -39,7 +38,7 @@ def submit(sc: Scenario, files: dict[str, str], slots: dict | None = None, outco
     base = sc.head
     merged = dict(sc.files, **files)
     cand = sc.add_tree(tree(merged, sc.manifest))
-    x = "sha256:" + hashlib.sha256(f"ssds.transformation.v1|{base}|{cand}".encode()).hexdigest()
+    x = transformation_id(base, cand)
     result = record("TASK_RESULT", target={"task": task, "candidate": cand, "transformation": x, "base": base},
                     outcome=outcome, actor=producer, actor_class="AGENT", frame={"transformation": x},
                     fields={"slots": SLOTS if slots is None else slots})

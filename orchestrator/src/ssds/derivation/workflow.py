@@ -398,12 +398,12 @@ class Workflow:
         """A judgment about work carries a content entry on every unit of its judged content (§4.3, §5.10 (b)):
         each unit ``X`` changed, at its output revision (step 4 review B13; Admission's §8.3 minimum in Phase F)."""
 
-        from .frames import Frame, transformation_of
+        from .frames import frame_of, transformation_of
 
         x = transformation_of(self.s, transformation)
         if x is None:
             return False
-        frame = Frame(self.s.h, self.s.n, x, self.s.enactment(transformation))
+        frame = frame_of(self.s, x)
         entries = {(e["target"].get("unit"), e["target"].get("rev")) for e in self.s.record(review)["basis"]
                    if e["mode"] == "content"}
         return all((unit, frame.candidate_rev(unit)) in entries for unit in frame.changed)

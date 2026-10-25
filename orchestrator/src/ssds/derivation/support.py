@@ -14,7 +14,7 @@ from functools import cached_property, lru_cache
 from typing import Any
 
 from .assessment import Assessments
-from .frames import Frame, frame_state, role_sat, transformation_of
+from .frames import Frame, frame_of, frame_state, role_sat, transformation_of
 from .judgment import Judgments
 from .outcomes import PASSING, covers
 from .s0 import nontrivial, strongly_connected
@@ -172,7 +172,7 @@ class Support:
     @lru_cache(maxsize=None)  # noqa: B019
     def _frames(self, transformation: str) -> Frame | None:
         x = transformation_of(self.s, transformation)
-        return Frame(self.s.h, self.s.n, x, self.s.enactment(transformation)) if x else None
+        return frame_of(self.s, x) if x else None  # reading F17
 
     def content(self, unit: str, rev: str, cls: str, value: Callable[[Node], int]) -> int:
         """``sat(content (u, r, k))``: the current revision, or the widest current equivalence path (§4.4)."""

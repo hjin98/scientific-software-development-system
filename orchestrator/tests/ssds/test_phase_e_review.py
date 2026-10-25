@@ -12,7 +12,7 @@ import os
 import unittest
 
 from ssds.derivation import Workflow, queries
-from ssds.ledger.read import with_id
+from ssds.ledger.read import transformation_id, with_id
 
 from ._scenario import attested
 from . import test_assessment as ta
@@ -167,8 +167,6 @@ class Inspector(unittest.TestCase):
 
 
 def _submit(f: Flow, changes: dict, tree_edit=None) -> tuple[str, str]:
-    import hashlib
-
     from ._scenario import agent, fresh
     from .test_routes import SLOTS
 
@@ -179,7 +177,7 @@ def _submit(f: Flow, changes: dict, tree_edit=None) -> tuple[str, str]:
         t = dict(f.sc.trees[cand])
         tree_edit(t)
         cand = f.sc.add_tree(t)
-        x = "sha256:" + hashlib.sha256(f"ssds.transformation.v1|{base}|{cand}".encode()).hexdigest()
+        x = transformation_id(base, cand)
     holder = f.item()
     binding = dict(fresh(agent("maker"), task), obligation=holder.obligation.id, item={"unit": holder.unit, "rev": f.sc.rev(holder.unit)})
     result = record("TASK_RESULT", target={"task": task, "candidate": cand, "transformation": x, "base": base},

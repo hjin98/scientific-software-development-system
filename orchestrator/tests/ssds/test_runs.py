@@ -8,14 +8,13 @@ run). Expected values are written from catalogue §10.2 and the Stage S cases, n
 
 from __future__ import annotations
 
-import hashlib
 import unittest
 
 from ssds.content import Structure, TreeView
 from ssds.derivation import F, P, T
 from ssds.derivation.frames import frame_state
 from ssds.derivation.support import Support
-from ssds.ledger.read import with_id
+from ssds.ledger.read import transformation_id, with_id
 
 from ._fixtures import admission_body, record, tree
 from ._scenario import HUMAN, HUMAN_B, OWNER, Scenario, agent, content, fresh, judgment
@@ -68,7 +67,7 @@ def rev_in(sc: Scenario, commit: str, unit: str = "numerics") -> str:
 def candidate(sc: Scenario, files: dict[str, str]) -> tuple[str, str, str, dict[str, str]]:
     merged = dict(sc.files, **files)
     cand = sc.add_tree(tree(merged, sc.manifest))
-    x = "sha256:" + hashlib.sha256(f"ssds.transformation.v1|{sc.head}|{cand}".encode()).hexdigest()
+    x = transformation_id(sc.head, cand)
     return sc.head, cand, x, merged
 
 

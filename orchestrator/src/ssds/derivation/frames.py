@@ -13,7 +13,9 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any
 
-from ssds.content import Structure, Tree, TreeView, merge3, static_errors, value_from_json
+from ssds.content import Structure, Tree, TreeView, merge3, static_errors, value_from_json, write_set
+
+from ssds.ledger.read import transformation_id as identity
 
 from .history import History, manifest_decl
 from .state import F, T, State
@@ -32,7 +34,9 @@ def transformation_of(state: State, transformation_id: str) -> Transformation | 
 
     for rid in state.of_kind("TASK_RESULT"):
         target = state.record(rid)["target"]
-        if target.get("transformation") == transformation_id and "candidate" in target and "base" in target:
+        if target.get("transformation") == transformation_id and "candidate" in target and "base" in target \
+                and identity(target["base"], target["candidate"], target.get("adopts", [])) == transformation_id:
+            # a result whose transformation is not §7.1's identity of what it names fixes nothing
             adopts = tuple((tuple(a["key"]), a["value"]) for a in target.get("adopts", []))
             return Transformation(transformation_id, target["base"], target["candidate"], adopts)  # type: ignore[arg-type]
     return None
@@ -80,6 +84,40 @@ class Frame:
             return False
         return not static_errors(self.structure)
 
+    @property
+    def head_view(self) -> TreeView:
+        """``T_n`` under ``Σ_n``: the write set's head side (§1.2)."""
+
+        return self.h.view(self.n)
+
+    def _modes(self, structure: Structure) -> dict[str, str]:
+        return {u: self.h.mode(self.n, structure.subj(u) or u).get("mode", "UNGOVERNED") for u in structure.units}
+
+    @cached_property
+    def write_set(self) -> dict[str, frozenset[str]]:
+        """The one write set of ``X`` (§1.2): ``T_n`` under ``Σ_n`` against ``M_n(X)`` under ``Σ_n ⊕ Δ_Σ(X)``,
+        with each side's governance modes; empty when the merge conflicts."""
+
+        if self.merged is None:
+            return {}
+        head = self.head_view
+        return write_set(head, self.view, self._modes(head.structure), self._modes(self.structure))
+
+    @cached_property
+    def changed_files(self) -> dict[str, tuple[bytes | None, bytes | None]]:
+        """Path -> (``T_n`` bytes, ``M_n(X)`` bytes) for every file the merge changes; empty on a conflict."""
+
+        if self.merged is None:
+            return {}
+        head, merged = self.head_tree, self.merged
+        out = {}
+        for path in sorted(set(head) | set(merged)):
+            before = head[path].data if path in head else None
+            after = merged[path].data if path in merged else None
+            if before != after:
+                out[path] = (before, after)
+        return out
+
     @cached_property
     def _base_view(self) -> TreeView:
         return TreeView(self.base_tree, self.structure, self.h.manifest_path)
@@ -121,6 +159,23 @@ class Frame:
         if rev == self._candidate_view.rev(unit):
             return "output"
         return "never"
+
+
+def integrating_position(state: State, transformation_id: str) -> int | None:
+    """The admission at or before ``state``'s position that integrated ``X``, if any."""
+
+    found = [k for k, i in state.h.integrations.items() if k <= state.n and i.transformation == transformation_id]
+    return min(found) if found else None
+
+
+def frame_of(state: State, x: Transformation) -> Frame:
+    """``X``'s frame where its checks read it (reading F17): at ``state``'s head while ``X`` is unintegrated;
+    once integrated at ``k``, its tree and structure facts fixed at ``k - 1``, the head its integration merged
+    onto. Currency is never read from the second: an integrated enactment's records are current in the
+    admitted state (catalogue §7.3)."""
+
+    k = integrating_position(state, x.id)
+    return Frame(state.h, state.n if k is None else k - 1, x, state.enactment(x.id))
 
 
 def role_sat(frame: Frame, unit: str, rev: str, in_frame: bool, ordinary: int) -> int:

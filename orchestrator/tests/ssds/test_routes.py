@@ -8,11 +8,10 @@ Also carried: the four identity cases (RR-4) as the assembled transition, and b3
 
 from __future__ import annotations
 
-import hashlib
 import unittest
 
 from ssds.derivation.workflow import READY, WAITING, Workflow
-from ssds.ledger.read import with_id
+from ssds.ledger.read import transformation_id, with_id
 
 from ._scenario import attested
 from ._fixtures import admission_body, record, tree
@@ -62,7 +61,7 @@ class Flow:
         sc = self.sc
         merged = dict(sc.files, **files)
         cand = sc.add_tree(tree(merged, sc.manifest))
-        x = "sha256:" + hashlib.sha256(f"ssds.transformation.v1|{sc.head}|{cand}".encode()).hexdigest()
+        x = transformation_id(sc.head, cand)
         return sc.head, cand, x, merged
 
     def submit(self, text: str, outcome: str = "COMPLETE", slots: dict | None = None) -> tuple[str, str]:

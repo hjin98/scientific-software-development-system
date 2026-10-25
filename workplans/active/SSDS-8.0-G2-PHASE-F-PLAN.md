@@ -35,8 +35,8 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
              (2026-10-25); the old ledger's retirement statement needs step 7.
-NEXT ACTION: step 4b-ii is built (repair c5a6457f under narrow re-check); revision 7 of 4c's split
-             (§3.1) is under same-family re-check; then 4c-i. A10 is accepted (SD-66);
+NEXT ACTION: step 4b-ii is closed (PASS at c98bb647); plan revision 7 passed; step 4c-i is built
+             and under same-family review; then 4c-ii. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10.
 ```
@@ -641,6 +641,16 @@ Its notes, taken up:
 - Q-F6 (i) (a) also corrects `INTAKE_CLASSIFICATION` and the fixtures;
 - shrinking an existing cycle is disclosed as refused;
 - Q-F6's heading now counts three acts.
+
+**Narrow re-checks of 00fb3cb4, c23f3cee and c98bb647 (step 4b-ii's last repairs).** No SERIOUS CHALLENGE in any. The union of 00fb3cb4 closed B4's semantics but recursed with no memo, so a DAG of reports each targeting the previous two was walked once per path (exponential), and once memoized (c23f3cee) a linear chain of about 400 overflowed the stack. `judged_units` is now one worklist with a visited set (c98bb647): **PASS**. A depth-34 DAG and a 1000-deep chain are tested, and dropping the visited set fails the first. Kept: mutants L5, L6, L9 and L10 (work units, plan items, an unwrapped gate subject, an equivalence's `unit`) fail closed to R3 or are near-equivalent. **Step 4b-ii is closed.**
+
+**Step 4c-i built.**
+- **The frame.** `frame_of` builds a pending transformation's frame at the head and an integrated one's at its integrating head (reading F17).
+- **The write set.** It and the changed files are the frame's (`T_n` against `M_n(X)`, with modes). `Conformance` reads them, and its write-set templates resolve on the frame's two sides. An integrated enactment's frame records are current in the admitted state.
+- **One owner each.** `protected_surfaces` is the one protected-surface owner for lint and conformance. `transformation_id` is §7.1's `id(X)`; a result naming another identity fixes nothing, and every fixture computes it.
+- **Mutants.** Nine were run, with two survivors:
+  - modes not passed (M7), equivalent while no frame carries a cutover;
+  - scope resolved on `tree(C)` (M9), killed by a unit-named write scope that a concurrent file joins.
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 

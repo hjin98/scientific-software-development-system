@@ -279,6 +279,19 @@ def _evidence_obligation(verifier: Any) -> bool:
         isinstance(verifier, Check) and verifier.template == "OBLIGATION.required_evidence")
 
 
+def protected_surfaces(view: TreeView, policy: Policy, policy_path: str | None) -> list[Atom]:
+    """The one owner of the protected surfaces in a tree (§25.3, reading F14): the policy unit ``ssds.policy``,
+    the policy file and the entries the policy lists, resolved in ``view``. Every other surface §25.3 names lives
+    outside any product tree and is reached only by records."""
+
+    entries = list(policy.flow("protected_surfaces"))
+    if "ssds.policy" in view.structure.units:
+        entries.append("ssds.policy")
+    atoms, _ = resolve(view, entries)
+    if policy_path:
+        atoms.append(("file", policy_path))
+    return atoms
+
 class PlanFacts:
     """Plans, items, lint and amendment classes in one state."""
 
@@ -423,16 +436,7 @@ class PlanFacts:
         return out
 
     def protected(self) -> list[Atom]:
-        """Protected surfaces in the tree: the system's (the policy unit and file, §25.3) and the policy's own."""
-
-        entries = list(self.policy.flow("protected_surfaces"))
-        if "ssds.policy" in self.view.structure.units:
-            entries.append("ssds.policy")
-        atoms, _ = resolve(self.view, entries)
-        policy_path = getattr(self.s.h, "policy_path", None)
-        if policy_path:
-            atoms.append(("file", policy_path))
-        return atoms
+        return protected_surfaces(self.view, self.policy, getattr(self.s.h, "policy_path", None))
 
     def _coverage(self, item: Item, kinds: dict[str, str | None]) -> list[str]:
         """Minimum verifier coverage per item kind (§13.3); the ACCEPT obligation of an AUTHOR item is

@@ -11,6 +11,7 @@ from typing import Any
 
 from ssds.content import Structure, TreeView, decl_to_json
 from ssds.derivation import derive
+from ssds.ledger.read import transformation_id
 
 from ._fixtures import (
     RULESET,
@@ -99,7 +100,7 @@ class Scenario:
         base = self.head
         merged = dict(self.files, **files)
         candidate = self.add_tree(tree(merged, self.manifest))
-        transformation = "sha256:" + hashlib.sha256(f"ssds.transformation.v1|{base}|{candidate}".encode()).hexdigest()
+        transformation = transformation_id(base, candidate)
         result = record("TASK_RESULT", target={"task": task, "candidate": candidate, "transformation": transformation,
                                                "base": base},
                         outcome="COMPLETE", actor=producer, actor_class="AGENT",
@@ -201,7 +202,7 @@ def submit(sc: Scenario, files: dict[str, str], producer: str, task: str, manife
     candidate_tree = tree({**{p: e.data.decode() for p, e in sc.trees[base].items() if p != ".ssds/manifest.toml"},
                            **files}, manifest or sc.manifest)
     candidate = sc.add_tree(candidate_tree)
-    transformation = "sha256:" + hashlib.sha256(f"ssds.transformation.v1|{base}|{candidate}".encode()).hexdigest()
+    transformation = transformation_id(base, candidate)
     result = record("TASK_RESULT", target={"task": task, "candidate": candidate, "transformation": transformation,
                                            "base": base},
                     outcome="COMPLETE", actor=producer, actor_class="AGENT", frame={"transformation": transformation})
