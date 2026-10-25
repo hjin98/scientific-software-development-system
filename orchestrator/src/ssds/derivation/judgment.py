@@ -439,26 +439,110 @@ class Judgments:
             current = key
         return frozenset({UNKNOWN})
 
-    @lru_cache(maxsize=None)  # noqa: B019
-    def nonind(self, rid: str) -> bool:
-        """The S0 fact that the record had a requirement and was not independent at admission."""
+    def requirement(self, record: dict[str, Any]) -> bool:
+        """Whether the record carries an independence requirement (catalogue §5.10 (a) "Requirement"): the kinds
+        of ``REQUIREMENT`` and every disposition of a failing assessment, never a machinery record."""
 
-        s = self.s
-        record = s.record(rid)
-        if record["kind"] not in REQUIREMENT or record["actor_class"] == "MACHINERY":
+        if record["actor_class"] == "MACHINERY":
             return False
         if record["kind"] in ("EQUIVALENCE", "COMPLETENESS", "INTAKE_DISPOSITION") and record["actor_class"] == "ADMISSION":
             return False
+        return record["kind"] in REQUIREMENT or self.disposes_failing(record)
+
+    def disposes_failing(self, record: dict[str, Any]) -> bool:
+        """A disposition of a failing assessment (§6.7): a reassessment superseding one, an ``IMMATERIALITY``
+        covering one, or an adjudication whose challenge chain is rooted at one."""
+
+        s = self.s
+
+        def failing(rid: Any) -> bool:
+            return isinstance(rid, str) and rid in s.records and s.record(rid)["kind"] == "EVIDENCE_ASSESSMENT" \
+                and s.record(rid)["outcome"] == "FAIL"
+
+        kind, target = record["kind"], record["target"]
+        if kind == "EVIDENCE_ASSESSMENT":
+            return any(failing(x) for x in record.get("supersedes") or [])
+        if kind == "IMMATERIALITY":
+            return any(failing(x) for x in (target or {}).get("records", []))
+        if kind == "ADJUDICATION":
+            return failing(self.root(record["id"]))
+        return False
+
+    def root(self, rid: str) -> str | None:
+        """The first record that is not challenge-tier on the record's chain of targets (§5.10 (e))."""
+
+        s = self.s
+        current, seen = rid, set()
+        while current in s.records and current not in seen:
+            seen.add(current)
+            record = s.record(current)
+            if record["kind"] not in ("CHALLENGE", "ADJUDICATION", "WITHDRAWAL", "RISK_OVERRIDE"):
+                return current
+            key = target_key(record["target"])
+            if key is None or key.startswith("triple:"):
+                return None
+            current = key
+        return None
+
+    @staticmethod
+    def at_admission(history: Any, position: int) -> "Judgments":
+        """The judgments of the admitted state at ``position``, built once per history (as ``Workflow.historical``)."""
+
+        cache = history.__dict__.setdefault("_judgments_at", {})
+        found = cache.get(position)
+        if found is None:
+            found = cache[position] = Judgments(State(history, position))
+        return found
+
+    def common_mode(self, rid: str) -> bool:
+        """The record was admitted as independent only under the owner exception: its common-mode dependency on
+        the authors, shown in the inspector view (catalogue §5.10 (a))."""
+
+        s = self.s
+        at = s.position_of(rid)
+        if s.frame is not None or s.n != at:
+            return Judgments.at_admission(s.h, at).common_mode(rid)
+        record = s.record(rid)
+        return self.requirement(record) and self._independent(record, self.judged_authors(rid)) is None \
+            and self._owner_exception(record, self.judged_authors(rid))
+
+    def _owner_exception(self, record: dict[str, Any], authors: frozenset[str]) -> bool:
+        return self.disposes_failing(record) and owner_exception(self.s.policy, record["actor"], authors,
+                                                                 self.domain_of(record))
+
+    @lru_cache(maxsize=None)  # noqa: B019
+    def nonind(self, rid: str) -> bool:
+        """The S0 fact that the record had a requirement and was not independent at admission (§5.10 (a)): it is
+        classified once, in the admitted state at the record's own admission position, so no later state changes
+        it (plan review b10018de B4)."""
+
+        s = self.s
+        at = s.position_of(rid)
+        if s.frame is not None or s.n != at:
+            return Judgments.at_admission(s.h, at).nonind(rid)
+        record = s.record(rid)
+        if not self.requirement(record):
+            return False
         authors = self.judged_authors(rid)
+        independent = self._independent(record, authors)
+        if independent is None:
+            return not self._owner_exception(record, authors)
+        return not independent
+
+    def _independent(self, record: dict[str, Any], authors: frozenset[str]) -> bool | None:
+        """The independence test, or ``None`` when it fails and only the owner exception could hold."""
+
         if record["actor_class"] == "HUMAN":
-            if record["actor"] not in authors:
-                return False
-            return not self._non_authorship_attested(rid)
+            if record["actor"] not in authors or self._non_authorship_attested(record["id"]):
+                return True
+            return None
         binding = record["binding"] or {}
         if binding.get("lineage_class") not in ("ATTESTED_FRESH", "HUMAN_ATTESTED_FRESH"):
-            return True
+            return None
         lineage = set(binding.get("lineage") or [record["actor"]])
-        return UNKNOWN in authors or bool(lineage & authors)
+        if UNKNOWN in authors or UNKNOWN in lineage or lineage & authors:  # an open closure is never disjoint
+            return None
+        return True
 
     def _non_authorship_attested(self, rid: str) -> bool:
         position = self.s.position_of(rid)
@@ -479,6 +563,15 @@ class Routes:
         """No eligible independent judge for any route here: the objection waits, with human attention."""
 
         return not self.admissible
+
+
+def owner_exception(policy: Any, judge: str, authors: frozenset[str], domain: str | None) -> bool:
+    """SD-48: the claim's owner may dispose of a failing assessment when no qualified human is outside its authors.
+    The one definition both the routes and the admission-time classification read."""
+
+    humans = set(policy.get(domain, "humans", ()))
+    outside = {h for h in humans if h not in authors}
+    return judge.startswith("human:") and judge == policy.get(domain, "owner", None) and (not outside or UNKNOWN in authors)
 
 
 def _is_agent(actor: str) -> bool:
@@ -502,12 +595,7 @@ class RouteEligibility:
         return judge not in authors
 
     def owner_exception(self, judge: str, authors: frozenset[str], domain: str | None) -> bool:
-        """SD-48: the claim's owner may dispose of a failing assessment when no qualified human is outside its authors."""
-
-        humans = set(self.s.policy.get(domain, "humans", ()))
-        outside = {h for h in humans if h not in authors}
-        return judge.startswith("human:") and judge == self.s.policy.get(domain, "owner", None) and \
-            (not outside or UNKNOWN in authors)
+        return owner_exception(self.s.policy, judge, authors, domain)
 
     def acts(self, frame: Any) -> bool:
         """Whether a record declaring ``frame`` would act in this state (§5.2)."""

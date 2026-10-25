@@ -18,6 +18,7 @@ from .trust import TrustRoots, trust_roots
 from .s3 import Consequences, Finding, Obligation
 from .state import F, P, Policy, T, State
 from .support import Support
+from .extension import trial
 from .workflow import Workflow
 
 
@@ -36,5 +37,5 @@ def consequences(chain, trees: TreeSource, position: int | None = None, checkpoi
 __all__ = [
     "BaselineStructure", "CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History",
     "Obligation", "P", "Policy", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "TrustRoots", "Workflow", "adverse", "allowed_outcomes", "queries", "baseline_structure", "consequences", "trust_roots",
-    "derive",
+    "derive", "trial",
 ]

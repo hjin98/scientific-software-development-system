@@ -35,9 +35,9 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
              `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
-NEXT ACTION: step 4a (§3.1): the salvage restriction, the trial extension and the derivation repairs.
-             Steps 3a and 3b are clean (§9). Q-F4 and Q-F5 (§7) wait for the stakeholder; the work they
-             touch fails closed.
+NEXT ACTION: step 4a (§3.1) is built (the salvage restriction, the trial extension, nonind at its
+             owner) and under same-family review; then 4b. Steps 3a and 3b are clean (§9). Q-F4 and Q-F5
+             (§7) wait for the stakeholder; the work they touch fails closed.
 ```
 
 ## 1. Scope and authority

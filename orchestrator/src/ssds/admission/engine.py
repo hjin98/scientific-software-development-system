@@ -18,7 +18,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from ssds.derivation import TreeSource, Workflow, derive, trust_roots
+from ssds.derivation import TreeSource, Workflow, derive, trial, trust_roots
 from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
 from ssds.ledger.read import (LedgerEntry, entry_violations, read_chain, record_id, record_violations, verify_sshsig,
@@ -29,10 +29,19 @@ from .checks import (content_identity, over_bounds, producing_context, record_pr
                      referenced_records, referenced_revisions, request_problems, verified_objects)
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems
-from .request import never_lost, request_id
+from .request import REPORT_KINDS, never_lost, request_id
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
 UNREALIZED_STEPS = ("authorization", "structure", "dependency", "currency", "legality", "regression")
+
+
+def salvageable(record: Mapping[str, Any]) -> bool:
+    """A never-lost record is salvaged only when every check it owes is built (Phase F plan §3.1): until step 4b,
+    a report superseding nothing. Every other never-lost record (an adverse judgment, a failing assessment, a
+    challenge-tier record, any supersession) owes authorization checks not built yet, so it is refused by
+    identity as unsupported (plan review b10018de B1: a salvaged peer judgment ended another's standing one)."""
+
+    return record.get("kind") in REPORT_KINDS and not record.get("supersedes")
 
 
 class AdmissionHalted(RuntimeError):
@@ -142,7 +151,8 @@ class Admission:
         if decision == "ACCEPT":
             admitted = passing
         elif auth is not None and auth.ok:  # never-lost salvage after the binding authenticated (§8.3 step 6)
-            admitted = [r for r in passing if never_lost(r)]
+            admitted = [r for r in passing if never_lost(r) and salvageable(r)]
+            refused += [(r["id"], ("SCHEMA_UNSUPPORTED",)) for r in passing if never_lost(r) and not salvageable(r)]
             known = set(derive(chain, self.trees).s.records)
             while True:  # a salvaged record names only records that exist: admitted before, or admitted with it
                 ids = {r["id"] for r in admitted}
@@ -158,13 +168,7 @@ class Admission:
         if admitted and auth is not None:
             objects.update(auth.objects)  # the binding, so derivation reads it from the ledger alone (§12.2)
         head = entries[-1]
-        entry = {"ledger_id": self.ledger_id, "position": head.entry["position"] + 1, "schema": 1, "prev": head.digest,
-                 "entry_kind": "ADMISSION", "host_key_id": self.key.key_id, "incarnation_id": self.incarnation_id,
-                 "obs": obs, "absorption": None, "lifecycle": None, "records": admitted,
-                 "admission": {"request_id": rid, "decision": decision, "reasons": sorted(reasons),
-                               "base_commit": expected, "admitted_commit": expected, "adopted_deltas": [],
-                               "integrates": None,
-                               "refused": [{"record_id": r, "reasons": list(why)} for r, why in refused]}}
+        entry = self.admission_entry(head, obs, rid, decision, reasons, admitted, refused, expected)
         problems = entry_violations(entry) + [p for r in admitted for p in record_violations(r)]
         if problems:  # nothing that would break the chain is ever appended
             raise EntryInvalid(f"the entry for {rid} would not verify: {problems}")
@@ -179,6 +183,24 @@ class Admission:
         chain = self.chain()
         head = chain.entries[chain.readable_through]
         return lifecycle_message(self.ledger_id, head.entry["position"] + 1, head.digest, record)
+
+    def admission_entry(self, head: LedgerEntry, obs: str, rid: str, decision: str, reasons: Iterable[str],
+                        admitted: list[dict], refused: Iterable[tuple[str, tuple[str, ...]]], expected: str) -> dict:
+        """The ``ADMISSION`` entry that records a decision after ``head``: what is appended, and what a trial
+        extension derives over (reading F10)."""
+
+        return {"ledger_id": self.ledger_id, "position": head.entry["position"] + 1, "schema": 1, "prev": head.digest,
+                "entry_kind": "ADMISSION", "host_key_id": self.key.key_id, "incarnation_id": self.incarnation_id,
+                "obs": obs, "absorption": None, "lifecycle": None, "records": list(admitted),
+                "admission": {"request_id": rid, "decision": decision, "reasons": sorted(reasons),
+                              "base_commit": expected, "admitted_commit": expected, "adopted_deltas": [],
+                              "integrates": None,
+                              "refused": [{"record_id": r, "reasons": list(why)} for r, why in refused]}}
+
+    def trial(self, chain, entry: Mapping[str, Any], objects: Mapping[str, bytes] | None = None):
+        """The derived state as if ``entry`` were appended to ``chain`` (reading F10); nothing is written."""
+
+        return trial(chain, self.trees, entry, objects)
 
     def admit_lifecycle(self, record: Mapping[str, Any], signature: str, obs: str) -> int:
         """Admit a human-gated ``KEY_LIFECYCLE`` record (§25.2): its actor is a registered human whose signature over
