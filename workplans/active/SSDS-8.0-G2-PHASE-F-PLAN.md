@@ -291,12 +291,12 @@ Tests: `test_admission_requests.StepThreeReview`, which also covers the survivin
 **Step 3a repair re-check and step 3b review (a71cca2f).** All seven repairs are in place, and their probed behaviour is correct (8 concurrent first uses give one key; a hard-linked journal is refused). NO-PASS on three blockers, with no SERIOUS CHALLENGE. The repair:
 - **N1, a second compromise relaxed the first.** It was new in a71cca2f. A later `COMPROMISED` of the same key overwrote its position, so an envelope refused under the first was admitted again, and §25.2 has no path to un-compromise a key. A re-declaration is now admitted only with an earlier position, and both readers keep the minimum. B5's note above was incomplete: a non-identical re-declaration also passed.
 - **N2, a torn journal tail (step 3b).** A crash part-way through an append left an unterminated line, and the journal could no longer be read; the next append was glued onto it, losing that envelope from a retirement's listing (catalogue §8.1, §22.4, §25.2). An append now drops an unterminated last line first, under an exclusive lock. That line was never acknowledged. Reading ignores it and refuses any other unreadable line (`JournalCorrupt`).
-- **N3, repaired claims without discriminators.** `StepThreeRecheck` adds one for each surviving mutant of the re-check's 45: m1-m8, m14-m16, m18, m21-m24, m26, m28, m29, m31, m32, m35-m38, m46 and m47, plus N1 and N2. Four are equivalent and are not tested:
+- **N3, repaired claims without discriminators.** `StepThreeRecheck` adds one for each surviving mutant of the re-check's 45: m1-m8, m14-m16, m18, m21-m24, m26, m28, m29, m31, m32, m35-m38, m46 and m47, plus N1 and N2. Four were claimed equivalent and are not tested:
   - m25, a redundant line, now removed;
   - m40, `_check_paths` for names every operation checks again;
   - m43, the retired key's public key, which the identity check already pins.
 
-  - m48, B5's already-admitted rule: after N1, the state rules refuse every action's identical replay. The rule is kept as the review asked.
+  - m48, B5's already-admitted rule: after N1, the state rules refuse every action's identical replay. The rule is kept as the review asked. (Wrong for m48 and m43: see the narrow re-check below.)
 
   One of the new tests found a defect: `read_private` read a directory before checking its kind. It now checks first. All 45 of the re-check's mutants, the 21 earlier reversions and 7 reversions of this repair are run again. Every one fails a test except the 4 equivalents.
 
@@ -309,6 +309,24 @@ Its non-blocking notes:
   - `Issuer.issue` does not journal its envelope (write-ahead order is step 8's);
   - the brief-digest formula duplicates `interface.render.Brief.digest`;
   - the journal keeps request bytes indefinitely.
+
+**Narrow re-check of the N1-N3 repair (496311ee).** N1 and N2 are closed at their owners. No code defect in the delta (six writers and two readers in parallel lose no entry). NO-PASS on one test-only blocker, R1, with no SERIOUS CHALLENGE:
+- **The append lock had no test.** Without it, concurrent writers overwrite each other's lines, because the append writes at an explicit offset; the re-check kept 108 of 361 entries.
+- **m48 and m43 are not equivalent.**
+  - m48: an identical `COMPROMISED` of a former human key passes the state rules, and only the already-admitted rule refuses it. The m48 entry above was wrong.
+  - m43: a human `RETIRE` whose key line differs from the one in force only in its comment is refused because the comparison is exact.
+
+The repair is `StepThreeThirdCheck`: six concurrent writers keep all 361 entries, plus the m48 and m43 cases. Its notes are taken up too:
+- an empty journal line is refused;
+- a line that is JSON but not an entry is `JournalCorrupt`, now tested;
+- a read opens without blocking, so a FIFO at the journal's name is refused rather than hanging;
+- an append makes the directory durable as well.
+
+Each of the six fails its test under reversion. Under the review allocation, a test-only repair of this kind is checked by rerunning the reviewer's own probes and mutants rather than by another full pass. Rerun on the repair:
+- 12 of the reviewer's 13 delta reversions and 43 of its 45 mutants fail a test. The survivors are d4 (no truncation: the junk it leaves has no newline, so readers ignore it and the next append drops it) and m40, both equivalent. m25's line no longer exists.
+- Its probes r1-r7 hold. r6 now meets the empty-line refusal. One residual stays non-blocking: an append still succeeds onto a journal corrupt before its last line, and the reader refuses that journal afterwards, failing closed.
+
+Steps 3a and 3b are clean under the review allocation.
 
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
 - **B1, the wrong observed ref.** `main` is behind and does not contain the genesis baseline. F1 and Q-F2 (i) now put the observed ref to the stakeholder as a deployment setting, and step 10's absorption test reads observed heads.

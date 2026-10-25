@@ -1226,6 +1226,104 @@ class StepThreeRecheck(RequestFixture):
             Issuer(Home(home), "demo")
 
 
+class StepThreeThirdCheck(RequestFixture):
+    """The narrow re-check of 496311ee (R1): the append lock, and the m43 and m48 cases that are not equivalent."""
+
+    def test_r1_concurrent_appends_lose_no_entry(self) -> None:
+        import multiprocessing
+
+        from ssds.dispatcher.journal import Journal
+        from ssds.ledger.qualification import Home
+
+        root = self.root / "concurrent-home"
+        Journal(Home(root), "demo").decided("sha256:" + "f" * 64)
+        context = multiprocessing.get_context("fork")
+        writers = [context.Process(target=_append_many, args=(str(root), w, 60)) for w in range(6)]
+        for process in writers:
+            process.start()
+        for process in writers:
+            process.join(120)
+        self.assertEqual([p.exitcode for p in writers], [0] * 6)
+        entries = Journal(Home(root), "demo").entries()
+        self.assertEqual((len(entries), len({e["request_id"] for e in entries})), (361, 361))
+
+    def test_r1_m48_an_identical_compromise_of_a_former_human_key_is_admitted_once(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+        from ssds.ledger.read import human_key_id
+
+        from ._fixtures import human_key
+
+        _, line = human_key(self.root, "second")
+        second = {"role": "HUMAN", "id": human_key_id(line), "public_key": line}
+        self.lifecycle("REGISTER", second)
+        compromise = record("KEY_LIFECYCLE", target=None, actor=self.human(),
+                            fields={"action": "COMPROMISED", "key": second})
+        self.admission.admit_lifecycle(compromise, sshsig(self.private, self.admission.lifecycle_message(compromise)),
+                                       self.baseline)
+        with self.assertRaises(EntryInvalid):  # the state rules pass it: only the already-admitted rule refuses it
+            self.admission.admit_lifecycle(compromise, sshsig(self.private, self.admission.lifecycle_message(compromise)),
+                                           self.baseline)
+
+    def test_r1_m43_a_retirement_names_the_key_line_in_force_exactly(self) -> None:
+        from ssds.admission.engine import EntryInvalid
+        from ssds.ledger.read import human_key_id
+
+        from ._fixtures import human_key
+
+        _, line = human_key(self.root, "second")
+        self.lifecycle("REGISTER", {"role": "HUMAN", "id": human_key_id(line), "public_key": line})
+        renamed = " ".join(line.split()[:2] + ["another-comment"])
+        self.assertEqual(human_key_id(renamed), human_key_id(line))
+        with self.assertRaises(EntryInvalid):
+            self.lifecycle("RETIRE", {"role": "HUMAN", "id": human_key_id(line), "public_key": renamed})
+
+    def test_journal_lines_are_non_empty_objects_and_a_fifo_never_blocks(self) -> None:
+        import os
+        import signal
+
+        from ssds.dispatcher.journal import Journal, JournalCorrupt
+        from ssds.ledger.qualification import Home, HomeRefused
+
+        journal = Journal(self.home, "demo")
+        with self.assertRaises(ValueError):
+            journal.home.append_line(journal.parts, b"\n")
+        journal.decided("sha256:" + "0" * 64)
+        with open(journal.path, "ab") as handle:
+            handle.write(b"[1, 2]\n")
+        with self.assertRaises(JournalCorrupt):  # JSON, but not an entry
+            journal.entries()
+        fifo = Journal(Home(self.root / "fifo-home"), "demo")
+        fifo.path.parent.mkdir(parents=True, mode=0o700)
+        os.mkfifo(fifo.path, 0o600)
+        previous = signal.signal(signal.SIGALRM, _blocked)  # not an OSError, which the home would turn into a refusal
+        signal.alarm(10)
+        try:
+            with self.assertRaises(HomeRefused):
+                fifo.entries()
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, previous)
+
+
+class _Blocked(Exception):
+    pass
+
+
+def _blocked(*_) -> None:
+    raise _Blocked("blocked on a FIFO")
+
+
+def _append_many(root: str, writer: int, count: int) -> None:
+    from pathlib import Path
+
+    from ssds.dispatcher.journal import Journal
+    from ssds.ledger.qualification import Home
+
+    journal = Journal(Home(Path(root)), "demo")
+    for n in range(count):
+        journal.decided(f"sha256:{writer:032x}{n:032x}")
+
+
 class _Host:
     """A stored entry as the host-key reader of ``ledger.read`` reads it."""
 

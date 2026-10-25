@@ -99,7 +99,7 @@ class DispatcherHome(Home):
             return None
         try:
             try:
-                descriptor = self._open(directory, parts[-1], os.O_RDONLY)
+                descriptor = self._open(directory, parts[-1], os.O_RDONLY | os.O_NONBLOCK)  # a FIFO never blocks
             except FileNotFoundError:
                 return None
             try:
@@ -147,8 +147,8 @@ class DispatcherHome(Home):
         line is glued onto it (re-check a71cca2 N2). Appends hold an exclusive lock on the file.
         """
 
-        if not line.endswith(b"\n") or b"\n" in line[:-1]:
-            raise ValueError("a journal line is one newline-terminated line")
+        if len(line) < 2 or not line.endswith(b"\n") or b"\n" in line[:-1]:
+            raise ValueError("a journal line is one non-empty newline-terminated line")
         self.path(parts)
         directory = self._directory(parts[:-1], create=True)
         try:
@@ -165,6 +165,7 @@ class DispatcherHome(Home):
                 os.fsync(descriptor)
             finally:
                 os.close(descriptor)
+            os.fsync(directory)  # a first creation's name is durable too
         finally:
             os.close(directory)
 
