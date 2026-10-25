@@ -15,7 +15,7 @@ from ssds.admission.authorize import _acceptance_target, _supersession_authorize
 from ssds.ledger.read import read_chain, with_id
 
 from ._fixtures import record
-from ._scenario import HUMAN, HUMAN_B, OWNER, Scenario, adjudication, agent, challenge, judgment
+from ._scenario import HUMAN, HUMAN_B, OWNER, Scenario, adjudication, agent, attested, challenge, judgment
 from .test_admission_requests import RequestFixture, finding
 
 DOC = '''
@@ -170,7 +170,7 @@ class Supersession(RequestFixture):
                 scenario = Scenario(DOC, {"doc.md": "r0\n"}, policy=policy)
                 scenario.entries = list(sc.entries)
                 scenario.objects = dict(sc.objects)
-                scenario.admit(rec)
+                scenario.admit(*attested(rec))
                 d = scenario.derive()
                 self.assertEqual(_supersession_authorized(rec, rec["supersedes"][0], None, d, None, None), allowed)
 
@@ -393,7 +393,7 @@ class SupersessionTargets(unittest.TestCase):
     def authorized(self, original, again):
         sc = Scenario(DOC, {"doc.md": "r0\n"})
         sc.admit(original)
-        sc.admit(again)
+        sc.admit(*attested(again))  # an independent human presents its non-authorship attestation (§5.10 (f))
         return _supersession_authorized(again, original["id"], None, sc.derive(), None, None)
 
     def test_an_assessment_is_reassessed_only_under_its_own_reading(self) -> None:
@@ -489,6 +489,22 @@ class OneAuthorshipRule(unittest.TestCase):
         review = judgment("REVIEW", {"transformation": x}, "PASS", actor=HUMAN)
         sc.admit(review)
         self.assertTrue(sc.derive().j.nonind(review["id"]), "the candidate's own maker, before integration")
+
+    def test_nb3_unknown_authorship_admits_only_an_attested_human(self) -> None:
+        sc = Scenario(DOC, {"doc.md": "r0\n"})  # baseline content: no admitted record produced it
+        bare = judgment("ACCEPTANCE", sc.triple("doc"), "PASS", actor=HUMAN)
+        attesting = judgment("ACCEPTANCE", sc.triple("doc"), "PASS", actor=HUMAN_B)
+        sc.admit(bare)
+        sc.admit(*attested(attesting))
+        d = sc.derive()
+        self.assertEqual(d.j.judged_authors(bare["id"]), frozenset({"UNKNOWN"}))
+        self.assertEqual((d.j.nonind(bare["id"]), d.j.nonind(attesting["id"])), (True, False),
+                         "Manual §5.10 (f): only with a NON_AUTHORSHIP_ATTESTATION")
+        from ssds.derivation import Workflow
+
+        w = Workflow(d)
+        self.assertTrue(w.routes.independent(HUMAN, frozenset({"UNKNOWN"})),
+                        "a human outside the known authors stays eligible: it can present the attestation")
 
     def test_a14_an_ill_formed_subject_without_an_absent_term(self) -> None:
         sc = Scenario('''

@@ -130,6 +130,25 @@ def judgment(kind: str, target: dict, outcome: str, actor: str = HUMAN, actor_cl
     return with_id(rec)
 
 
+#: Kinds whose records carry an independence requirement (catalogue §5.10 (a)).
+REQUIREMENT_KINDS = frozenset({"REVIEW", "CONFORMANCE", "ACCEPTANCE", "PLAN_ACCEPTANCE", "EQUIVALENCE", "COMPLETENESS",
+                               "INTAKE_DISPOSITION", "IMMATERIALITY", "ADJUDICATION", "EVIDENCE_ASSESSMENT"})
+
+
+def attested(*records: dict) -> list[dict]:
+    """The records with each human judgment's ``NON_AUTHORSHIP_ATTESTATION`` beside it: content with no admitted
+    authoring record (a genesis baseline, an absorbed push) has unknown authors, and a human is independent of it
+    only with that attestation, co-submitted in the same entry (Manual §5.10 (f); re-check 6e0fa9e NB-3). Only
+    for a human who is in fact no author: an author's attestation is a false claim a test must never make."""
+
+    out = []
+    for rec in records:
+        out.append(rec)
+        if rec.get("actor_class") == "HUMAN" and rec.get("kind") in REQUIREMENT_KINDS:
+            out.append(judgment("NON_AUTHORSHIP_ATTESTATION", {"record": rec["id"]}, "NOT_AUTHOR", actor=rec["actor"]))
+    return out
+
+
 def content(unit: str, rev: str, cls: str = "EXACT", role: str | None = None) -> dict:
     entry = {"mode": "content", "target": {"unit": unit, "rev": rev}, "class": cls}
     if role:

@@ -21,6 +21,7 @@ from ssds.derivation.workflow import (
     Workflow,
 )
 
+from ._scenario import attested
 from ._scenario import HUMAN, HUMAN_B, OWNER, Scenario, challenge, content, judgment, on_record
 from .test_lint import FILES as PLAN_FILES, MANIFEST as PLAN_MANIFEST, item_block, plan_text
 from .test_runs import MANIFEST as RUN_MANIFEST, RUN_FILES, author
@@ -88,7 +89,7 @@ class SubjectObligations(unittest.TestCase):
         arch = [o for o in w.of_kind("ACCEPT") if o.target["subject"] == "arch"][0]
         self.assertEqual(arch.holder, "REVIEWER")
         self.assertEqual(w.readiness(arch).state, READY, "a named human outside the (unknown) authors may answer")
-        sc.admit(accept(sc, "arch"))
+        sc.admit(*attested(accept(sc, "arch")))
         self.assertNotIn("arch", [o.target["subject"] for o in wf(sc).of_kind("ACCEPT")])
 
     def test_no_eligible_judge_waits(self) -> None:
@@ -102,11 +103,11 @@ class SubjectObligations(unittest.TestCase):
         # 8f4e75d N4 (group 6, the judgment half): a non-current judgment a current obligation depends on has a route.
         sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
         premise = accept(sc, "impl", actor=HUMAN_B)
-        sc.admit(premise)
+        sc.admit(*attested(premise))
         decision = accept(sc, "arch", basis=[content("arch", sc.rev("arch")), on_record(premise["id"])])
-        sc.admit(decision)
+        sc.admit(*attested(decision))
         self.assertEqual(sc.derive().current(decision["id"]), T)
-        sc.admit(challenge({"record": premise["id"]}))
+        sc.admit(*attested(challenge({"record": premise["id"]})))
         w = wf(sc)
         self.assertEqual(w.d.current(decision["id"]), F)
         arch = [o for o in w.of_kind("ACCEPT") if o.target["subject"] == "arch"][0]
@@ -201,9 +202,9 @@ class ChallengeAndDisagreement(unittest.TestCase):
         sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"},
                       policy='schema = 1\n[domains.D3]\nowner = "human:SHA256:owner"\n')
         passing = accept(sc, "arch", actor=HUMAN)
-        sc.admit(passing)
+        sc.admit(*attested(passing))
         adverse = judgment("ACCEPTANCE", sc.triple("arch"), "FAIL", actor=HUMAN_B, basis=[content("arch", sc.rev("arch"))])
-        sc.admit(adverse)
+        sc.admit(*attested(adverse))
         w = wf(sc)
         found = [o for o in w.of_kind("ADJUDICATE_DISAGREEMENT") if o.target == {"record": adverse["id"]}]
         self.assertEqual(len(found), 1)
@@ -250,7 +251,7 @@ class Discharge(unittest.TestCase):
     def provisional(self, policy: str, kinds: list[str]) -> str:
         sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=policy)
         acc = accept(sc, "arch")
-        sc.admit(acc)
+        sc.admit(*attested(acc))
         c = challenge({"record": acc["id"]})
         sc.admit(c)
         sc.admit(judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER,
@@ -283,10 +284,10 @@ class Discharge(unittest.TestCase):
         from ssds.derivation.workflow import make
 
         o = make("ACCEPT", sc.triple("arch"))
-        sc.admit(accept(sc, "arch"))
+        sc.admit(*attested(accept(sc, "arch")))
         self.assertEqual(wf(sc).discharge(o), DISCHARGED)
         sc2 = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
-        sc2.admit(judgment("ACCEPTANCE", sc2.triple("arch"), "FAIL", actor=HUMAN, basis=[content("arch", sc2.rev("arch"))]))
+        sc2.admit(*attested(judgment("ACCEPTANCE", sc2.triple("arch"), "FAIL", actor=HUMAN, basis=[content("arch", sc2.rev("arch"))])))
         self.assertEqual(wf(sc2).discharge(o), REFUSED)
 
 
@@ -310,9 +311,9 @@ class ReviewRepairs(unittest.TestCase):
         # §10.4, §5.10 (h) (B3): FAIL then the author's superseding PASS discharges; a standing FAIL refuses either way
         sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
         fail = judgment("ACCEPTANCE", sc.triple("arch"), "FAIL", actor=HUMAN, basis=[content("arch", sc.rev("arch"))])
-        sc.admit(fail)
-        sc.admit(judgment("ACCEPTANCE", sc.triple("arch"), "PASS", actor=HUMAN, basis=[content("arch", sc.rev("arch"))],
-                          supersedes=[fail["id"]]))
+        sc.admit(*attested(fail))
+        sc.admit(*attested(judgment("ACCEPTANCE", sc.triple("arch"), "PASS", actor=HUMAN, basis=[content("arch", sc.rev("arch"))],
+                          supersedes=[fail["id"]])))
         self.assertNotIn("arch", [o.target["subject"] for o in wf(sc).of_kind("ACCEPT")], "discharged, not stranded")
         from ssds.derivation.workflow import make
 
@@ -321,8 +322,8 @@ class ReviewRepairs(unittest.TestCase):
             sc = Scenario(TWO, {"arch.md": "a\n", "impl.md": "i\n", "spec.toml": "s\n"}, policy=HUMANS)
             actors = {"PASS": HUMAN, "FAIL": HUMAN_B}
             for outcome in (first, second):
-                sc.admit(judgment("ACCEPTANCE", sc.triple("arch"), outcome, actor=actors[outcome],
-                                  basis=[content("arch", sc.rev("arch"))]))
+                sc.admit(*attested(judgment("ACCEPTANCE", sc.triple("arch"), outcome, actor=actors[outcome],
+                                  basis=[content("arch", sc.rev("arch"))])))
             results.append(wf(sc).discharge(make("ACCEPT", sc.triple("arch"))))
         self.assertEqual(results, [REFUSED, REFUSED])
 
@@ -332,11 +333,11 @@ class ReviewRepairs(unittest.TestCase):
             with self.subTest(kinds=kinds):
                 sc = Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(item_block())})
                 acceptance = PlanObligations.acceptance(None, sc)
-                sc.admit(acceptance)
+                sc.admit(*attested(acceptance))
                 c = challenge({"record": acceptance["id"]})
-                sc.admit(c)
-                sc.admit(judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER,
-                                  fields={"continuation": {"subjects": [], "items": items, "kinds": kinds}}))
+                sc.admit(*attested(c))
+                sc.admit(*attested(judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER,
+                                  fields={"continuation": {"subjects": [], "items": items, "kinds": kinds}})))
                 w = wf(sc)
                 self.assertEqual(w.d.current(acceptance["id"]), P)
                 self.assertEqual(w.issuable("plan.work.item"), issuable)
@@ -371,7 +372,7 @@ class ReviewRepairs(unittest.TestCase):
 
     def test_a_contract_waits_on_no_judge(self) -> None:
         sc = Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(item_block(budget=11))})
-        sc.admit(PlanObligations.acceptance(None, sc))
+        sc.admit(*attested(PlanObligations.acceptance(None, sc)))
         w = wf(sc)
         (contract,) = w.of_kind("CONTRACT")
         self.assertEqual(w.readiness(contract).state, READY, "a principal's contract obligation needs no judge")
@@ -395,7 +396,7 @@ class PlanObligations(unittest.TestCase):
         (pa,) = w.of_kind("PLAN_ACCEPT")
         self.assertEqual((pa.plan, w.readiness(pa).state), ("plan.work", READY))
         self.assertFalse(w.issuable("plan.work.item"))
-        sc.admit(self.acceptance(sc))
+        sc.admit(*attested(self.acceptance(sc)))
         w = wf(sc)
         self.assertEqual((w.of_kind("PLAN_ACCEPT"), w.of_kind("CONTRACT")), ([], []))
         self.assertTrue(w.issuable("plan.work.item"))
@@ -411,7 +412,7 @@ class PlanObligations(unittest.TestCase):
         w = wf(sc)
         (pa,) = w.of_kind("PLAN_ACCEPT")
         self.assertEqual(w.readiness(pa).state, WAITING, "a plan failing lint waits on its principal")
-        sc.admit(self.acceptance(sc))
+        sc.admit(*attested(self.acceptance(sc)))
         w = wf(sc)
         self.assertEqual([o.target["item"] for o in w.of_kind("CONTRACT")], ["plan.work.item"])
         self.assertFalse(w.issuable("plan.work.item"))

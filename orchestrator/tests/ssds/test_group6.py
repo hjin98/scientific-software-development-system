@@ -23,6 +23,7 @@ from unittest import mock
 
 from ssds.derivation import Workflow
 
+from ._scenario import attested
 from . import _scenario
 
 GROUPS = ("tests.ssds.test_group3_discriminators", "tests.ssds.test_routes", "tests.ssds.test_partition",

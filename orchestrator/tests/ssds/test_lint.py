@@ -15,6 +15,7 @@ import unittest
 from ssds.derivation import F, T
 from ssds.derivation.plans import partition_violations, resolve
 
+from ._scenario import attested
 from ._scenario import OWNER, Scenario, content, judgment
 
 MANIFEST = '''
@@ -237,7 +238,7 @@ class PlanAcceptanceCurrency(unittest.TestCase):
             with self.subTest(after=after[-60:], prose=prose):
                 sc = scenario(item_block())
                 acceptance = self.accept(sc)
-                sc.admit(acceptance)
+                sc.admit(*attested(acceptance))
                 self.assertEqual(sc.derive().current(acceptance["id"]), T)
                 sc.absorb({"plans/work.md": plan_text(after, prose=prose)})
                 self.assertEqual(sc.derive().current(acceptance["id"]), expected)

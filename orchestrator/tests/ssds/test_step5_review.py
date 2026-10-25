@@ -18,6 +18,7 @@ from unittest import mock
 
 from ssds.ledger.read import Chain, LedgerEntry, with_id
 
+from ._scenario import attested
 from . import _scenario
 from ._fixtures import admission_body, record
 from ._scenario import HUMAN, Scenario, adjudication, agent, content, fresh, judgment, submit
@@ -316,10 +317,10 @@ class Floors(unittest.TestCase):
             r.run(t0, ta.BAD)
             good = r.run(t1, ta.GOOD)
             view = r.sc.view(t0)
-            r.sc.admit(judgment("EVIDENCE_ASSESSMENT", {"realization": good["id"], "obligation": "obl"}, "PASS",
+            r.sc.admit(*attested(judgment("EVIDENCE_ASSESSMENT", {"realization": good["id"], "obligation": "obl"}, "PASS",
                                 actor=agent("assessor"), actor_class="AGENT",
                                 basis=[_scenario.on_record(good["id"]), content("spec", view.rev("spec"))],
-                                fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}}))
+                                fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}})))
 
             def floors() -> list:
                 return [k for k in attention(wf(r.sc)) if isinstance(k, str) and k.startswith("disagreement:")]

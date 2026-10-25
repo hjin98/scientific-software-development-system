@@ -11,6 +11,7 @@ import unittest
 
 from ssds.derivation import F, T, Consequences, consequences, derive
 
+from ._scenario import attested
 from ._fixtures import chain_of, lifecycle_body, record
 from ._scenario import HUMAN_B, OWNER, Scenario, judgment, validity
 from .test_assessment import BAD, Runs
@@ -34,8 +35,8 @@ class IntegrityHalt(unittest.TestCase):
 
     def setUp(self) -> None:
         self.sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
-        self.sc.admit(accept(self.sc, "arch"))
-        self.sc.admit(accept(self.sc, "impl", actor=HUMAN_B))
+        self.sc.admit(*attested(accept(self.sc, "arch")))
+        self.sc.admit(*attested(accept(self.sc, "impl", actor=HUMAN_B)))
         clean = chain_of("demo", self.sc.entries, self.sc.objects)
         self.clean = clean
         self.halted = dataclasses.replace(clean, halt=2, halt_reasons=("record: unknown kind",))
@@ -127,15 +128,16 @@ class Requalification(unittest.TestCase):
         sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
         acc = accept(sc, "arch")
         adverse = judgment("ACCEPTANCE", sc.triple("impl"), "FAIL", actor=HUMAN_B)
-        sc.admit(acc, adverse)
+        sc.admit(*attested(acc, adverse))  # each human judge presents its non-authorship attestation (§5.10 (f))
         retained = sc.position - 1
         loss(sc, retained)
         c = view(sc)
         self.assertEqual(c.support.valid("arch"), F)
         self.assertEqual([o.about for o in c.obligations if o.kind == "REQUALIFY"], [(acc["id"],)],
-                         "the acceptance was current at R; the adverse judgment is unchanged by a boundary")
+                         "the acceptance was current at R; the adverse judgment is unchanged by a boundary, and an "
+                         "attestation's classification is an S0 fact no boundary withholds")
         fresh = accept(sc, "arch", actor=HUMAN_B)
-        sc.admit(fresh)
+        sc.admit(*attested(fresh))
         c = view(sc)
         self.assertEqual(c.support.valid("arch"), T)
         self.assertFalse([o for o in c.obligations if o.kind == "REQUALIFY"], "requalified by a fresh acceptance")

@@ -14,6 +14,7 @@ import unittest
 from ssds.derivation.workflow import READY, WAITING, Workflow
 from ssds.ledger.read import with_id
 
+from ._scenario import attested
 from ._fixtures import admission_body, record, tree
 from ._scenario import HUMAN, OWNER, Scenario, agent, content, fresh, judgment
 from .test_lint import FILES, MANIFEST, item_block, plan_text
@@ -44,7 +45,7 @@ class Flow:
                               basis=[content("plan.work.objective", objective), content("plan.work.item", item, "PLAN_CONTROL")],
                               fields={"objective": {"unit": "plan.work.objective", "rev": objective},
                                       "items": [{"unit": "plan.work.item", "rev": item}]})
-        sc.admit(acceptance)
+        sc.admit(*attested(acceptance))
         return acceptance
 
     def w(self) -> Workflow:

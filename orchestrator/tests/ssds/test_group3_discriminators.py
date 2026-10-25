@@ -16,6 +16,7 @@ from ssds.derivation.frames import frame_state
 from ssds.derivation.judgment import RouteEligibility
 from ssds.derivation.support import Support
 
+from ._scenario import attested
 from ._scenario import (
     HUMAN,
     HUMAN_B,
@@ -64,20 +65,20 @@ class GateDiscriminators(unittest.TestCase):
     def test_no_identical_content_gate_veto(self) -> None:
         # 362af9f N6: a gate REJECT on one subject does not reach another subject with identical bytes
         sc = Scenario(TWIN, {"left.md": "same\n", "right.md": "same\n"}, policy=GATE_POLICY)
-        sc.admit(accept(sc, "left"), accept(sc, "right"), gate(sc, "left", "ACCEPT", HUMAN), gate(sc, "right", "ACCEPT", HUMAN))
-        sc.admit(gate(sc, "left", "REJECT", HUMAN_B))
+        sc.admit(*attested(accept(sc, "left"), accept(sc, "right"), gate(sc, "left", "ACCEPT", HUMAN), gate(sc, "right", "ACCEPT", HUMAN)))
+        sc.admit(*attested(gate(sc, "left", "REJECT", HUMAN_B)))
         d = sc.derive()
         self.assertEqual((d.valid("left"), d.valid("right")), (F, T))
 
     def test_a_frame_supersession_of_an_admitted_reject_has_no_admitted_effect(self) -> None:
         # b46c250 N4: an admitted REJECT keeps vetoing until the superseding frame integrates
         sc = Scenario(TWIN, {"left.md": "a\n", "right.md": "b\n"}, policy=GATE_POLICY)
-        sc.admit(accept(sc, "left"), gate(sc, "left", "ACCEPT", HUMAN))
+        sc.admit(*attested(accept(sc, "left"), gate(sc, "left", "ACCEPT", HUMAN)))
         reject = gate(sc, "left", "REJECT", HUMAN_B)
-        sc.admit(reject)
+        sc.admit(*attested(reject))
         x, candidate, _ = submit(sc, {"right.md": "b2\n"}, agent("maker"), "task-1")
         lifting = gate(sc, "left", "ACCEPT", OWNER, frame={"transformation": x}, supersedes=[reject["id"]])
-        sc.admit(lifting)
+        sc.admit(*attested(lifting))
         admitted = sc.derive()
         self.assertEqual(admitted.valid("left"), F, "the frame supersession does not act in the admitted state")
         in_frame = Support(frame_state(admitted.s.h, admitted.s.n, x, admitted.s))
@@ -91,14 +92,14 @@ class GateDiscriminators(unittest.TestCase):
         for lifter, lifts in ((HUMAN_B, True), (OWNER, True), (HUMAN, False)):
             with self.subTest(lifter=lifter):
                 sc = Scenario(TWIN, {"left.md": "a\n", "right.md": "b\n"}, policy=GATE_POLICY)
-                sc.admit(accept(sc, "left"), gate(sc, "left", "ACCEPT", HUMAN))
+                sc.admit(*attested(accept(sc, "left"), gate(sc, "left", "ACCEPT", HUMAN)))
                 reject = gate(sc, "left", "REJECT", HUMAN_B)
-                sc.admit(reject)
+                sc.admit(*attested(reject))
                 x, _, _ = submit(sc, {"right.md": "b2\n"}, agent("maker"), "task-1")
                 d = sc.derive()
                 self.assertEqual(Support(frame_state(d.s.h, d.s.n, x, d.s)).valid("left"), F, "the reject binds the run")
                 supersedes = [reject["id"]] if lifts else []
-                sc.admit(gate(sc, "left", "ACCEPT", lifter, frame={"transformation": x}, supersedes=supersedes))
+                sc.admit(*attested(gate(sc, "left", "ACCEPT", lifter, frame={"transformation": x}, supersedes=supersedes)))
                 d = sc.derive()
                 self.assertEqual(Support(frame_state(d.s.h, d.s.n, x, d.s)).valid("left"), T if lifts else F)
                 self.assertEqual(d.valid("left"), F, "and nothing changes in the admitted state")
@@ -106,18 +107,18 @@ class GateDiscriminators(unittest.TestCase):
     def test_an_abandoned_iteration_decides_nothing_and_two_integrated_frames_take_the_minimum(self) -> None:
         # 575dc78 N5, f7419d5 N4 (frames' gate decisions; the D1/D2 run variants are Phase E)
         sc = Scenario(TWIN, {"left.md": "a\n", "right.md": "b\n"}, policy=GATE_POLICY)
-        sc.admit(accept(sc, "left"))
+        sc.admit(*attested(accept(sc, "left")))
         x1, c1, _ = submit(sc, {"right.md": "b1\n"}, agent("maker"), "task-1")
-        sc.admit(gate(sc, "left", "ACCEPT", HUMAN, frame={"transformation": x1}))
+        sc.admit(*attested(gate(sc, "left", "ACCEPT", HUMAN, frame={"transformation": x1})))
         x2, c2, _ = submit(sc, {"right.md": "b2\n"}, agent("maker"), "task-2")
         qualified = judgment("GATE_DECISION", {"gate": "design-gate", "subject": sc.triple("left"), "core": "sha256:" + "d" * 64},
                              "ACCEPT", actor=HUMAN_B, basis=[content("left", sc.rev("left"))],
                              frame={"transformation": x2}, fields={"adequacy": "ADEQUATE", "qualification": "QUALIFIED"})
-        sc.admit(qualified)
+        sc.admit(*attested(qualified))
         integrate(sc, x2, c2)
         self.assertEqual(sc.derive().valid("left"), P, "only the integrated iteration's decision acts")
         x3, c3, _ = submit(sc, {"right.md": "b3\n"}, agent("maker"), "task-3")
-        sc.admit(gate(sc, "left", "ACCEPT", HUMAN, frame={"transformation": x3}))
+        sc.admit(*attested(gate(sc, "left", "ACCEPT", HUMAN, frame={"transformation": x3})))
         integrate(sc, x3, c3)
         self.assertEqual(sc.derive().valid("left"), P, "two integrated frames' decisions: the minimum")
 
@@ -125,9 +126,9 @@ class GateDiscriminators(unittest.TestCase):
         # d94a293 N3: a gate decision relies in record mode on its required premise; when it falls, so does the term
         sc = Scenario(TWIN, {"left.md": "a\n", "right.md": "b\n"}, policy=GATE_POLICY)
         premise = accept(sc, "right", actor=HUMAN_B)
-        sc.admit(accept(sc, "left"), premise)
+        sc.admit(*attested(accept(sc, "left"), premise))
         decision = gate(sc, "left", "ACCEPT", HUMAN, basis=[content("left", sc.rev("left")), on_record(premise["id"])])
-        sc.admit(decision)
+        sc.admit(*attested(decision))
         self.assertEqual(sc.derive().valid("left"), T)
         sc.absorb({"right.md": "b changed\n"})
         d = sc.derive()

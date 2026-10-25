@@ -13,6 +13,7 @@ from ssds.derivation import F, P, T
 
 from ._fixtures import lifecycle_body, record
 from ._scenario import (
+    attested,
     HUMAN,
     HUMAN_B,
     OWNER,
@@ -50,24 +51,24 @@ class Validity(unittest.TestCase):
     def test_a_current_acceptance_on_the_exact_triple_makes_a_subject_valid(self) -> None:
         sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
         self.assertEqual(sc.derive().valid("arch"), F, "no acceptance, no validity")
-        sc.admit(accept(sc, "arch"))
+        sc.admit(*attested(accept(sc, "arch")))
         self.assertEqual(sc.derive().valid("arch"), T)
         sc.absorb({"arch.md": "a2\n"})
         self.assertEqual(sc.derive().valid("arch"), F, "the acceptance is on the previous revision")
 
     def test_early_cutoff_after_an_upstream_change(self) -> None:
         sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
-        sc.admit(accept(sc, "arch"))
+        sc.admit(*attested(accept(sc, "arch")))
         accept_impl = accept(sc, "impl", extra=[validity("arch", sc.rev("arch"))])
         consumer = judgment("REVIEW", sc.triple("impl"), "PASS", actor=HUMAN_B, basis=[validity("impl", sc.rev("impl"))])
-        sc.admit(accept_impl, consumer)
+        sc.admit(*attested(accept_impl, consumer))
         d = sc.derive()
         self.assertEqual((d.valid("impl"), d.current(consumer["id"])), (T, T))
         sc.absorb({"arch.md": "a2\n"})
         d = sc.derive()
         self.assertEqual((d.valid("arch"), d.valid("impl"), d.current(consumer["id"])), (F, F, F))
-        sc.admit(accept(sc, "arch"))
-        sc.admit(accept(sc, "impl", actor=HUMAN_B, extra=[validity("arch", sc.rev("arch"))]))
+        sc.admit(*attested(accept(sc, "arch")))
+        sc.admit(*attested(accept(sc, "impl", actor=HUMAN_B, extra=[validity("arch", sc.rev("arch"))])))
         d = sc.derive()
         self.assertEqual((d.valid("impl"), d.current(consumer["id"])), (T, T),
                          "a re-review that keeps impl unchanged makes its consumer current again with no further work")
@@ -75,9 +76,9 @@ class Validity(unittest.TestCase):
     def test_a_superseded_record_never_becomes_current_again(self) -> None:
         sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
         first = accept(sc, "arch")
-        sc.admit(first)
+        sc.admit(*attested(first))
         second = accept(sc, "arch", supersedes=[first["id"]])
-        sc.admit(second)
+        sc.admit(*attested(second))
         d = sc.derive()
         self.assertEqual((d.current(first["id"]), d.current(second["id"]), d.valid("arch")), (F, T, T))
 
@@ -88,42 +89,42 @@ class ChallengeTier(unittest.TestCase):
     def setUp(self) -> None:
         self.sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
         self.acc = accept(self.sc, "arch")
-        self.sc.admit(self.acc)
+        self.sc.admit(*attested(self.acc))
 
     def test_an_open_blocking_challenge_blocks_and_a_risk_override_makes_it_provisional(self) -> None:
         c = challenge({"record": self.acc["id"]})
-        self.sc.admit(c)
+        self.sc.admit(*attested(c))
         self.assertEqual(self.sc.derive().valid("arch"), F)
         override = judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER, fields={"continuation": {"subjects": ["arch"], "items": [], "kinds": []}})
-        self.sc.admit(override)
+        self.sc.admit(*attested(override))
         self.assertEqual(self.sc.derive().valid("arch"), P)
 
     def test_a_non_blocking_challenge_has_no_s1_effect(self) -> None:
-        self.sc.admit(challenge({"record": self.acc["id"]}, blocking=False))
+        self.sc.admit(*attested(challenge({"record": self.acc["id"]}, blocking=False)))
         self.assertEqual(self.sc.derive().valid("arch"), T)
 
     def test_upholding_revokes_and_an_upheld_counter_challenge_relaxes(self) -> None:
         c = challenge(self.sc.triple("arch"))
         upheld = adjudication(c["id"], "UPHELD")
-        self.sc.admit(c, upheld)
+        self.sc.admit(*attested(c, upheld))
         d = self.sc.derive()
         self.assertEqual(d.s.status1(f"triple:arch:{self.sc.triple('arch')['scope_id']}:{self.sc.triple('arch')['rev']}"), "REVOKED")
         self.assertEqual(d.valid("arch"), F)
         counter = challenge({"record": upheld["id"]}, actor=HUMAN)
-        self.sc.admit(counter)
+        self.sc.admit(*attested(counter))
         self.assertEqual(self.sc.derive().valid("arch"), F, "an open counter-challenge has no effect")
-        self.sc.admit(adjudication(counter["id"], "UPHELD", actor=OWNER))
+        self.sc.admit(*attested(adjudication(counter["id"], "UPHELD", actor=OWNER)))
         d = self.sc.derive()
         key = f"triple:arch:{self.sc.triple('arch')['scope_id']}:{self.sc.triple('arch')['rev']}"
         self.assertEqual(d.s.status1(key), "BLOCKED",
                          "the upheld counter-challenge ends the revocation; the original challenge is open again")
-        self.sc.admit(adjudication(c["id"], "DISMISSED", actor=OWNER))
+        self.sc.admit(*attested(adjudication(c["id"], "DISMISSED", actor=OWNER)))
         self.assertEqual(self.sc.derive().valid("arch"), T)
 
     def test_dismissal_and_withdrawal_end_a_block(self) -> None:
         c = challenge({"record": self.acc["id"]})
-        self.sc.admit(c)
-        self.sc.admit(judgment("WITHDRAWAL", {"record": c["id"]}, None, actor=HUMAN_B))
+        self.sc.admit(*attested(c))
+        self.sc.admit(*attested(judgment("WITHDRAWAL", {"record": c["id"]}, None, actor=HUMAN_B)))
         self.assertEqual(self.sc.derive().valid("arch"), T)
 
 
@@ -146,7 +147,7 @@ class SupportCycles(unittest.TestCase):
         c = challenge({"record": acc_arch["id"]})
         override = judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER, fields={"continuation": {"subjects": ["arch", "impl"], "items": [], "kinds": []}})
         acc_impl = accept(sc, "impl", actor=HUMAN_B, extra=[validity("arch", sc.rev("arch"))])
-        sc.admit(acc_arch, c, override, acc_impl)
+        sc.admit(*attested(acc_arch, c, override, acc_impl))
         d = sc.derive()
         self.assertEqual((d.valid("arch"), d.valid("impl")), (P, P))
 
@@ -154,7 +155,7 @@ class SupportCycles(unittest.TestCase):
 class LossBoundary(unittest.TestCase):
     def test_a_loss_boundary_withholds_permissive_records_until_held(self) -> None:
         sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
-        sc.admit(accept(sc, "arch"))
+        sc.admit(*attested(accept(sc, "arch")))
         loss = record("LEDGER_LOSS", target=None, actor=OWNER, fields={
             "retained": {"position": 1}, "abandoned": [{"digest": "sha256:" + "a" * 64}], "report": "sha256:" + "b" * 64,
             "controls": {}})
@@ -162,7 +163,7 @@ class LossBoundary(unittest.TestCase):
         self.assertEqual(sc.derive().valid("arch"), F)
         attest = judgment("CONTINUITY_ATTESTATION", {"loss": loss["id"]}, None, actor=OWNER,
                           fields={"scope_form": "COMPLEMENT", "listed": [], "evidence": []})
-        sc.admit(attest)
+        sc.admit(*attested(attest))
         self.assertEqual(sc.derive().valid("arch"), T, "a complement attestation listing nothing holds everything")
 
 
@@ -172,18 +173,18 @@ class Equivalence(unittest.TestCase):
         r1 = sc.rev("arch")
         consumer = judgment("REVIEW", sc.triple("impl"), "PASS", basis=[content("arch", r1, "EDITORIAL")])
         exact = judgment("REVIEW", sc.triple("impl"), "PASS", actor=HUMAN_B, basis=[content("arch", r1)])
-        sc.admit(consumer, exact)
+        sc.admit(*attested(consumer, exact))
         sc.absorb({"arch.md": "a1 \n"})
         r2 = sc.rev("arch")
         eq = judgment("EQUIVALENCE", {"unit": "arch", "from": r1, "to": r2, "class": "EDITORIAL"}, "EQUIVALENT",
                       actor=HUMAN_B, basis=[{"mode": "identity", "target": {"unit": "arch", "rev": r1}, "class": "EXACT"},
                                             {"mode": "identity", "target": {"unit": "arch", "rev": r2}, "class": "EXACT"}])
-        sc.admit(eq)
+        sc.admit(*attested(eq))
         d = sc.derive()
         self.assertEqual((d.current(consumer["id"]), d.current(exact["id"])), (T, F), "EXACT is never covered")
         veto = judgment("EQUIVALENCE", {"unit": "arch", "from": r1, "to": r2, "class": "EDITORIAL"}, "NOT_EQUIVALENT",
                         actor=OWNER)
-        sc.admit(veto)
+        sc.admit(*attested(veto))
         self.assertEqual(sc.derive().current(consumer["id"]), F, "a standing NOT_EQUIVALENT vetoes the hop")
 
 
@@ -202,13 +203,13 @@ class GateTerm(unittest.TestCase):
 
     def test_the_gate_term_is_the_minimum_over_eligible_decisions(self) -> None:
         sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"}, policy=POLICY_GATE)
-        sc.admit(accept(sc, "arch", actor=OWNER))
+        sc.admit(*attested(accept(sc, "arch", actor=OWNER)))
         self.assertEqual(sc.derive().valid("arch"), F, "no eligible decision: F")
-        sc.admit(self.gate(sc, "ACCEPT", HUMAN))
+        sc.admit(*attested(self.gate(sc, "ACCEPT", HUMAN)))
         self.assertEqual(sc.derive().valid("arch"), T)
-        sc.admit(self.gate(sc, "ACCEPT", HUMAN_B, "QUALIFIED"))
+        sc.admit(*attested(self.gate(sc, "ACCEPT", HUMAN_B, "QUALIFIED")))
         self.assertEqual(sc.derive().valid("arch"), P, "a QUALIFIED decision caps the minimum at P")
-        sc.admit(self.gate(sc, "REJECT", OWNER))
+        sc.admit(*attested(self.gate(sc, "REJECT", OWNER)))
         self.assertEqual(sc.derive().valid("arch"), F, "a gate REJECT vetoes every passing decision on that gate")
 
 
@@ -221,7 +222,7 @@ class TargetConditionsAndIndependence(unittest.TestCase):
         right = judgment("COMPLETENESS", {"scope": ["arch"], "classes": ["WARRANT"],
                                           "membership": d0.s.membership_digest(["arch"])}, "COMPLETE", actor=HUMAN_B,
                          basis=[content("arch", sc.rev("arch"))])
-        sc.admit(wrong, right)
+        sc.admit(*attested(wrong, right))
         d = sc.derive()
         self.assertEqual((d.current(wrong["id"]), d.current(right["id"])), (F, T))
 
@@ -281,7 +282,7 @@ class EvidenceTerm(unittest.TestCase):
                                              "claim": [{"unit": "arch", "rev": sc.rev("arch")}]}, "COMPLETE",
                              actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY",
                              basis=[content("arch", sc.rev("arch"))], fields={"execution": {}})
-        sc.admit(accept(sc, "arch"), self.real)
+        sc.admit(*attested(accept(sc, "arch"), self.real))
 
     def assessment(self, outcome: str, actor: str = HUMAN_B) -> dict:
         return judgment("EVIDENCE_ASSESSMENT", {"realization": self.real["id"], "obligation": "arch-check"}, outcome,
@@ -290,14 +291,14 @@ class EvidenceTerm(unittest.TestCase):
 
     def test_required_evidence_holds_and_a_counting_failure_caps_validity_at_p(self) -> None:
         self.assertEqual(self.sc.derive().valid("arch"), F, "no passing assessment of the required obligation")
-        self.sc.admit(self.assessment("PASS"))
+        self.sc.admit(*attested(self.assessment("PASS")))
         self.assertEqual(self.sc.derive().valid("arch"), T)
         failing = self.assessment("FAIL", actor=HUMAN)
-        self.sc.admit(failing)
+        self.sc.admit(*attested(failing))
         self.assertEqual(self.sc.derive().valid("arch"), P, "a live disagreement caps validity at P, never F")
         immaterial = judgment("IMMATERIALITY", {"records": [failing["id"]]}, "IMMATERIAL", actor=OWNER,
                               basis=[on_record(failing["id"], "identity"), content("spec", self.sc.rev("spec"))])
-        self.sc.admit(immaterial)
+        self.sc.admit(*attested(immaterial))
         self.assertEqual(self.sc.derive().valid("arch"), T, "an independent IMMATERIALITY disposes of it")
 
 

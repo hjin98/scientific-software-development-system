@@ -608,9 +608,9 @@ class Judgments:
         """The independence test, or ``None`` when it fails and only the owner exception could hold."""
 
         if record["actor_class"] == "HUMAN":
-            # Known gap (Phase F plan §9, NB-3): Manual §5.10 (f) also requires UNKNOWN not among the authors unless
-            # the human presents a non-authorship attestation; the repair and its test ripple are the next action
-            if record["actor"] not in authors or self._non_authorship_attested(record["id"]):
+            # §5.10 (f): judged content of unknown authorship admits only a human with a non-authorship attestation
+            # (re-check 6e0fa9e NB-3)
+            if (record["actor"] not in authors and UNKNOWN not in authors) or self._non_authorship_attested(record["id"]):
                 return True
             return None
         binding = record["binding"] or {}
@@ -710,6 +710,8 @@ class RouteEligibility:
             return UNKNOWN not in authors and judge not in authors  # a fresh attested lineage, disjoint
         if not judge.startswith("human:"):
             return False
+        # a human outside the known authors can answer content of unknown authorship by presenting a
+        # NON_AUTHORSHIP_ATTESTATION, which classification then requires (§5.10 (f)): eligible, never stranded
         return judge not in authors
 
     def owner_exception(self, judge: str, authors: frozenset[str], domain: str | None) -> bool:

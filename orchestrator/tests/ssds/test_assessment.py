@@ -12,6 +12,7 @@ import unittest
 
 from ssds.content import Tree, recorded_identity
 
+from ._scenario import attested
 from ._fixtures import manifest, tree
 from ssds.derivation import F
 
@@ -56,7 +57,7 @@ class Runs:
             c = judgment("COMPLETENESS", {"scope": ["code", "spec"], "classes": ["EXEC"],
                                           "membership": view.membership_digest(("code", "spec"))}, "COMPLETE",
                          actor=HUMAN_B, basis=[content("code", view.rev("code")), content("spec", view.rev("spec"))])
-            self.sc.admit(c)
+            self.sc.admit(*attested(c))
             self.completeness[head] = c["id"]
         return self.completeness[head]
 
@@ -210,7 +211,7 @@ class BoundingCurrency(unittest.TestCase):
                                       "membership": membership or view.membership_digest(("code", "spec"))},
                      "COMPLETE", actor=HUMAN_B,
                      basis=[content("code", view.rev("code")), content("spec", view.rev("spec")), *extra])
-        self.r.sc.admit(c)
+        self.r.sc.admit(*attested(c))
         return c
 
     def stale(self, failing: dict) -> bool:
@@ -250,11 +251,11 @@ class BoundingCurrency(unittest.TestCase):
     def test_a_cited_record_premise_holds_in_the_state_of_evaluation(self) -> None:
         cited = judgment("ACCEPTANCE", self.r.sc.triple("spec"), "PASS", actor=HUMAN_B,
                          basis=[content("spec", self.r.sc.rev("spec"))])
-        self.r.sc.admit(cited)
+        self.r.sc.admit(*attested(cited))
         failing = self.scenario(self.completeness(self.t0, extra=[on_record(cited["id"])]))
         self.assertTrue(self.stale(failing), "the cited acceptance is current: the run is bounded")
         r = self.r
-        r.sc.admit(challenge({"record": cited["id"]}))
+        r.sc.admit(*attested(challenge({"record": cited["id"]})))
         d = r.sc.derive()
         self.assertFalse(d.a.stale(failing["id"], d.base, lambda node: d.values.get(node, F)),
                          "the cited record is blocked now: the premise fails in the state of evaluation")
@@ -303,17 +304,17 @@ class Group2Discriminators(unittest.TestCase):
         self.assertEqual(d.a.adverse("code", "obl", d.base), [failing["id"]])
         c = challenge({"record": realization["id"]})
         upheld = adjudication(c["id"], "UPHELD", actor="human:SHA256:adjudicator")
-        r.sc.admit(c, upheld)
+        r.sc.admit(*attested(c, upheld))
         d = r.sc.derive()
         self.assertEqual(d.a.disposition(failing["id"], d.values.get, d.base, d.j.nonind), 2,
                          "an upheld challenge of the failing run's realization disposes of the failure")
         counter = challenge({"record": upheld["id"]}, actor="human:SHA256:carol")
-        r.sc.admit(counter, adjudication(counter["id"], "UPHELD", actor="human:SHA256:dave"))
+        r.sc.admit(*attested(counter, adjudication(counter["id"], "UPHELD", actor="human:SHA256:dave")))
         d = r.sc.derive()
         self.assertEqual(d.a.disposition(failing["id"], d.values.get, d.base, d.j.nonind), 0,
                          "the upholding is itself overturned: the dispute is live again")
         dismissed = challenge({"record": failing["id"]}, actor="human:SHA256:erin")
-        r.sc.admit(dismissed, adjudication(dismissed["id"], "DISMISSED", actor="human:SHA256:frank"))
+        r.sc.admit(*attested(dismissed, adjudication(dismissed["id"], "DISMISSED", actor="human:SHA256:frank")))
         d = r.sc.derive()
         self.assertEqual(d.a.disposition(failing["id"], d.values.get, d.base, d.j.nonind), 0,
                          "a dismissed challenge disposes of nothing")

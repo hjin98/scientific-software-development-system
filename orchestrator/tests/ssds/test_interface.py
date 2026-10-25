@@ -20,6 +20,7 @@ from pathlib import Path
 
 from ssds.derivation import Workflow, queries
 
+from ._scenario import attested
 from ._fixtures import commit, git, human_key, init_repo, tree
 from ._scenario import HUMAN, Scenario, agent, content, judgment, on_record, submit
 from ._scenario import integrate as integrate_change
@@ -135,9 +136,9 @@ class StepSixReview(unittest.TestCase):
         self.assertEqual([(i["unit"], i["label"]) for i in dependents["items"]], [("tool", "CANDIDATE")])
         d = sc.derive()
         for unit in ("arch", "impl", "tool"):
-            sc.admit(judgment("COMPLETENESS", {"scope": [unit], "classes": ["WARRANT"],
+            sc.admit(*attested(judgment("COMPLETENESS", {"scope": [unit], "classes": ["WARRANT"],
                                                "membership": d.s.membership_digest([unit])}, "COMPLETE", actor=HUMAN,
-                              basis=[content(unit, sc.rev(unit))]))
+                              basis=[content(unit, sc.rev(unit))])))
         w = Workflow(sc.derive())
         self.assertEqual(queries.depends(w, "tool")["widening"], "EXACT")
         self.assertEqual([(i["unit"], i["label"]) for i in queries.depends(w, "tool")["items"]], [("impl", "IMPLIED")])

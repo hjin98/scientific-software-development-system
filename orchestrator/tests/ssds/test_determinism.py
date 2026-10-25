@@ -15,6 +15,7 @@ import unittest
 
 from ssds.derivation import CheckpointInvalid, Consequences, History, State, Support
 
+from ._scenario import attested
 from ._fixtures import chain_of, lifecycle_body, record
 from ._scenario import HUMAN, HUMAN_B, OWNER, Scenario, agent, adjudication, challenge, content, judgment, validity
 
@@ -51,12 +52,12 @@ def generate(seed: int, steps: int = 22) -> Scenario:
         if op == "accept":
             extra = [validity(o, sc.rev(o)) for o in subjects if o != subject and rng.random() < 0.3]
             t = sc.triple(subject)
-            made += sc.admit(judgment("ACCEPTANCE", t, "PASS", actor=actor, basis=[content(subject, t["rev"]), *extra]))
+            made += sc.admit(*attested(judgment("ACCEPTANCE", t, "PASS", actor=actor, basis=[content(subject, t["rev"]), *extra])))
         elif op == "fail":
-            made += sc.admit(judgment("ACCEPTANCE", sc.triple(subject), "FAIL", actor=actor))
+            made += sc.admit(*attested(judgment("ACCEPTANCE", sc.triple(subject), "FAIL", actor=actor)))
         elif op == "review":
-            made += sc.admit(judgment("REVIEW", sc.triple(subject), rng.choice(["PASS", "NO_PASS"]), actor=actor,
-                                      basis=[content(subject, sc.rev(subject))]))
+            made += sc.admit(*attested(judgment("REVIEW", sc.triple(subject), rng.choice(["PASS", "NO_PASS"]), actor=actor,
+                                      basis=[content(subject, sc.rev(subject))])))
         elif op == "challenge" and made:
             accepted = [r for r in made if r["kind"] == "ACCEPTANCE" and r["outcome"] == "PASS"]
             target = rng.choice(accepted if accepted and rng.random() < 0.7 else made)
@@ -64,7 +65,7 @@ def generate(seed: int, steps: int = 22) -> Scenario:
         elif op == "adjudicate":
             open_ = [r for r in made if r["kind"] == "CHALLENGE"]
             if open_:
-                made += sc.admit(adjudication(rng.choice(open_)["id"], rng.choice(["UPHELD", "DISMISSED"])))
+                made += sc.admit(*attested(adjudication(rng.choice(open_)["id"], rng.choice(["UPHELD", "DISMISSED"]))))
         elif op == "override":
             blocking = [r for r in made if r["kind"] == "CHALLENGE" and r["fields"]["blocking"]]
             if blocking:
@@ -78,8 +79,8 @@ def generate(seed: int, steps: int = 22) -> Scenario:
             revisions[subject].append(sc.rev(subject))
         elif op == "equivalence" and len(revisions[subject]) > 1:
             a, b = revisions[subject][-2:]
-            made += sc.admit(judgment("EQUIVALENCE", {"unit": subject, "from": a, "to": b, "class": "EDITORIAL"},
-                                      rng.choice(["EQUIVALENT", "NOT_EQUIVALENT"]), actor=actor))
+            made += sc.admit(*attested(judgment("EQUIVALENCE", {"unit": subject, "from": a, "to": b, "class": "EDITORIAL"},
+                                      rng.choice(["EQUIVALENT", "NOT_EQUIVALENT"]), actor=actor)))
         elif op == "loss" and sc.position > 2 and rng.random() < 0.4:
             rec = record("LEDGER_LOSS", target=None, actor=OWNER, fields={
                 "retained": {"position": sc.position - 1}, "abandoned": [{"digest": "sha256:" + f"{step:064x}"}],

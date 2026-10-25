@@ -18,6 +18,7 @@ from ssds.interface.render import NOT_ISSUED, SLOT_DUTIES, Renderer
 from ssds.ledger.read import with_id
 from ssds.ledger.schema import record_violations
 
+from ._scenario import attested
 from ._fixtures import admission_body, record, tree
 from ._scenario import HUMAN, HUMAN_B, Scenario, agent, content, fresh, judgment
 from .test_lint import FILES, MANIFEST, item_block, plan_text
@@ -273,7 +274,7 @@ def plan_accept(sc: Scenario, items: list[str], outcome: str = "ACCEPTED", actor
                    basis=[content("plan.work.objective", objective)] + [content(u, sc.rev(u), "PLAN_CONTROL") for u in items],
                    fields={"objective": {"unit": "plan.work.objective", "rev": objective},
                            "items": [{"unit": u, "rev": sc.rev(u)} for u in items]})
-    sc.admit(rec)
+    sc.admit(*attested(rec))
     return rec
 
 
@@ -429,7 +430,7 @@ class StepSevenReview(unittest.TestCase):
     def test_b8_decision_outcomes_are_the_owners(self) -> None:
         sc = Scenario(REPORT_MANIFEST, REPORT_FILES)
         defect = report("AMENDMENT_REQUEST", ["arch"], reasons=("AUTHORITY_DEFECT",))
-        sc.admit(defect)
+        sc.admit(*attested(defect))
         w = Workflow(sc.derive())
         (decision,) = [o for o in w.of_kind("COORDINATE") if o.target.get("report") == defect["id"]]
         self.assertIn("allowed CHALLENGE, ESCALATE", section(renderer(w).brief(decision), "Decisions owed"))

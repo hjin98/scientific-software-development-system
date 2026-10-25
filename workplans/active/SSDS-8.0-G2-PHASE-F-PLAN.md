@@ -35,11 +35,8 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. Step 10 needs the stakeholder-signed genesis of
              `ssdp-shadow-2`; the old ledger's retirement statement needs step 7.
-NEXT ACTION: NB-3 (§9, re-check of 6e0fa9eb): a human is independent of content of unknown authorship
-             only with a NON_AUTHORSHIP_ATTESTATION (Manual §5.10 (f)). Its two-line derivation repair
-             reverses about 50 Phase D-E test expectations that judge genesis-baseline content, each to
-             be examined; then a same-family re-check of bb92b348 and NB-3, then 4b-ii. Q-F4 and Q-F5 (§7)
-             wait for the stakeholder; the work they touch fails closed.
+NEXT ACTION: a same-family re-check of bb92b348 and the NB-3 repair (§9), then 4b-ii. Q-F4 and Q-F5
+             (§7) wait for the stakeholder; the work they touch fails closed.
 ```
 
 ## 1. Scope and authority
@@ -507,6 +504,18 @@ Tests now cover the review's survivors that matter:
 - A14 (ill-formed without `ABSENT`).
 
 E3 is recorded as unreachable now, not equivalent: test it once a principal-held obligation exists.
+
+**NB-3 repaired (the stakeholder approved proceeding, 2026-10-25).** A human with an independence requirement is now independent of judged content of unknown authorship only with a `NON_AUTHORSHIP_ATTESTATION` (Manual §5.10 (f): "an authenticated human must not be one of them or must present a `NON_AUTHORSHIP_ATTESTATION`"). This follows the catalogue, too:
+- §5.10 (a) makes content with no admitted authoring record unknown-authored: absorbed pushes, legacy imports, restores, a genesis baseline;
+- its §31 cases say "a triple with absorbed bytes admits only a human with `NON_AUTHORSHIP_ATTESTATION` or the owner exception".
+
+The two repairs at derivation's owners:
+- **Classification.** `Judgments._independent` adds the unknown-authorship condition.
+- **Requalification.** A first version also made routing refuse such a human. That stranded every obligation on baseline content, and it was wrong: a human outside the known authors can answer by presenting the attestation, so routing keeps them eligible (`RouteEligibility.independent`, with a comment). Separately, `NON_AUTHORSHIP_ATTESTATION` and `LINEAGE_ATTESTATION` are no longer permissive for `REQUALIFY` (`s3._permissive`). Their one effect is a classification fixed at admission, an S0 fact no boundary withholds (catalogue §5.5). Without this, each attestation left an obligation after a loss boundary that nothing could end.
+
+**Test ripple.** 44 Phase D-F tests had a human judge baseline or absorbed content. Each was examined, and the human judge was given the attestation an independent human would present, through a test helper, `_scenario.attested`. A rewriter flagged any test in which a human is also an author through a lineage, where an attestation would be a false claim; it flagged none. One expectation was restated: `test_s3`'s requalification list, whose exact original expectation holds again once attestations are not requalified. A new test, `OneAuthorshipRule.test_nb3_unknown_authorship_admits_only_an_attested_human`, pins both the classification and routing's eligibility. Each of the three changes, reverted alone, fails a test.
+
+**Consequence, disclosed (Manual §32.2's "broad authorship fails closed").** Until content has an admitted authoring record, every human review, acceptance, plan acceptance, equivalence or completeness of it needs that human's `NON_AUTHORSHIP_ATTESTATION`. On a shadow ledger every subject is `LEGACY` or `UNGOVERNED`, so nothing is owed now. A cutover (G4) meets it for all pre-existing content.
 
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
 - **B1, the wrong observed ref.** `main` is behind and does not contain the genesis baseline. F1 and Q-F2 (i) now put the observed ref to the stakeholder as a deployment setting, and step 10's absorption test reads observed heads.

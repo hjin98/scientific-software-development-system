@@ -180,6 +180,8 @@ class Consequences:
 
         if record["kind"] not in EVALUATED or adverse(record):
             return False
+        if record["kind"] in ("NON_AUTHORSHIP_ATTESTATION", "LINEAGE_ATTESTATION"):
+            return False  # its one effect is a classification fixed at admission, an S0 fact no boundary withholds
         return not (record["kind"] == "EVIDENCE_ASSESSMENT" and record["outcome"] != "PASS")
 
     def _requalified(self, rid: str, boundary: int, holds) -> bool:
