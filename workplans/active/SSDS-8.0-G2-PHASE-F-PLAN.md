@@ -444,6 +444,17 @@ Its notes:
 
 Every repair, reverted alone, fails a test: 12 new reversions and the earlier 7.
 
+**Narrow re-check of the 4a repair (b8a18003).** B1-B4 of 409c2f71 are closed. Classification costs 0.02-0.04 s over 800-1,200 admissions and 0.33 s over 800 frame records. An instrumented full suite found `State.authors` equal to the old per-`State` fold in every call. NO-PASS on two defects and test gaps, with no SERIOUS CHALLENGE:
+- **B1, a restored revision's earlier producers (new in b8a18003).** A frame record took the candidate's makers instead of the authors of a revision the candidate restores, so the original author's prospective `ACCEPTANCE` of a restore was independent. The same override was older, in `_transformation_work`. That one owner now unites the makers with every earlier admitted producer of the piece (§5.10 (b): "a revert, restore or re-application that re-produced it included"). Frame records read it, so no second union exists.
+- **B2, an `IMMATERIALITY` covering several failures (present since 409c2f71).** The owner exception read only the first covered failure, so list order decided whether the owner disposed of another domain's failure. It now holds only when it holds for every covered failure, each in its own claim's domain against that claim's authors.
+- **B3, test gaps.** The exception's unknown-authorship clause (the review's J20) and the policy in force at admission (R12) are now tested. §9's earlier claim that J20 was covered was inaccurate: that test covered the agent-lineage rule.
+
+Each fix, reverted alone, fails its test. Survivors the review judged behaviour-preserving in the suite are kept as notes:
+- R17, R19 and R20 (makers bound by position, first producing result);
+- R15 and R16 (adjudication-root authors as of admission);
+- J22 (the exception for agent judges, which `owner_exception`'s `human:` test already excludes);
+- J24 (the route exception disabled, an existing gap).
+
 **Same-family plan review of 07284144.** NO-PASS as a plan, with seven blockers and no SERIOUS CHALLENGE. Revision 1 repairs them:
 - **B1, the wrong observed ref.** `main` is behind and does not contain the genesis baseline. F1 and Q-F2 (i) now put the observed ref to the stakeholder as a deployment setting, and step 10's absorption test reads observed heads.
 - **B2, a boundary resting on one CLI check, and records-only fencing.** The real-shadow Admission is observe-only. Records-only admissions are never fenced. The boundary check sits at Admission's entry for every route. Step 10 tests a restart after a records-only admission and library and Dispatcher routes.

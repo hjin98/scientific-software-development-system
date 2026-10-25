@@ -283,5 +283,96 @@ class IndependenceRecheck(unittest.TestCase):
                 d.j.nonind(rid)
         self.assertEqual(built, [], "the classification reads the history's one authorship fold")
 
+
+class IndependenceThirdCheck(unittest.TestCase):
+    """The narrow re-check of b8a18003: a restored revision's earlier producers (B1), the owner exception over
+    every failure an ``IMMATERIALITY`` covers (B2), and the exception's unknown-authorship clause and the policy
+    in force at admission (B3)."""
+
+    failing_assessment = IndependenceAtAdmission.failing_assessment
+
+    def test_b1_a_candidate_restoring_a_revision_keeps_its_earlier_authors(self) -> None:
+        sc = Scenario(SUBJECT_DOC, {"doc.md": "r0\n"})
+        sc.integrate({"doc.md": "r1\n"}, agent("a"), "task-0", lineage=[HUMAN])
+        sc.integrate({"doc.md": "r2\n"}, agent("b"), "task-1", lineage=[HUMAN_B])
+        x, candidate, _ = submit(sc, {"doc.md": "r1\n"}, agent("reverter"), "task-2")
+        acceptance = judgment("ACCEPTANCE", sc.triple("doc", head=candidate), "PASS", actor=HUMAN,
+                              frame={"transformation": x})
+        sc.admit(acceptance)
+        self.assertTrue(sc.derive().j.nonind(acceptance["id"]), "r1's author accepting its restoration")
+        integrate(sc, x, candidate)
+        self.assertTrue(sc.derive().j.nonind(acceptance["id"]))
+
+    def test_b2_an_owners_immateriality_takes_the_exception_only_for_every_failure_it_covers(self) -> None:
+        units = DOC + '''
+    [[unit]]
+    id = "spec"
+    kind = "D2"
+    scope = [{ path = "spec.md" }]
+'''
+        policy = ('schema = 1\n[domains.D3]\nowner = "%s"\nhumans = ["%s"]\n[domains.D2]\nowner = "%s"\n'
+                  'humans = ["%s", "%s"]\n' % (OWNER, OWNER, HUMAN_B, HUMAN_B, OWNER))
+        for order in ((0, 1), (1, 0)):
+            with self.subTest(order=order):
+                sc = Scenario(units, {"doc.md": "d0\n", "spec.md": "s0\n"}, policy=policy)
+                sc.integrate({"doc.md": "d1\n", "spec.md": "s1\n"}, agent("author"), "task-1", lineage=[OWNER])
+                failures = []
+                for unit in ("doc", "spec"):
+                    rev = sc.rev(unit)
+                    real = judgment("REALIZATION", {"spec": {"unit": unit, "rev": rev}, "claim": [{"unit": unit, "rev": rev}]},
+                                    "COMPLETE", actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY",
+                                    fields={"execution": {}})
+                    failing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": "e-" + unit},
+                                       "FAIL", actor=HUMAN_B, fields={"mode": "ORDINARY", "reading": {"unit": unit, "rev": rev}})
+                    sc.admit(real, failing)
+                    failures.append(failing["id"])
+                immaterial = judgment("IMMATERIALITY", {"records": [failures[i] for i in order]}, "IMMATERIAL",
+                                      actor=OWNER)
+                sc.admit(immaterial)
+                d = sc.derive()
+                self.assertEqual((d.j.nonind(immaterial["id"]), d.j.common_mode(immaterial["id"])), (True, False),
+                                 "the D2 failure has another qualified human")
+
+    def test_b3_j20_unknown_authorship_lets_the_owner_take_the_exception(self) -> None:
+        units = DOC + '''
+    [[unit]]
+    id = "notes"
+    kind = "D3"
+    scope = [{ path = "notes.md" }]
+'''
+        sc = Scenario(units, {"doc.md": "r0\n", "notes.md": "n0\n"}, policy=owner_policy(OWNER, HUMAN))
+        sc.integrate({"doc.md": "r1\n"}, agent("author"), "task-1", lineage=[OWNER])
+        sc.absorb({"notes.md": "n1\n"})  # authored by no admitted record: UNKNOWN
+        claim = [{"unit": "doc", "rev": sc.rev("doc")}, {"unit": "notes", "rev": sc.rev("notes")}]
+        real = judgment("REALIZATION", {"spec": claim[0], "claim": claim}, "COMPLETE",
+                        actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY", fields={"execution": {}})
+        failing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": "e"}, "FAIL", actor=HUMAN_B,
+                           fields={"mode": "ORDINARY", "reading": claim[0]})
+        sc.admit(real, failing)
+        owner = judgment("EVIDENCE_ASSESSMENT", failing["target"], "PASS", actor=OWNER, supersedes=[failing["id"]],
+                         fields=failing["fields"])
+        sc.admit(owner)
+        d = sc.derive()
+        self.assertEqual((d.j.nonind(owner["id"]), d.j.common_mode(owner["id"])), (False, True),
+                         "with an unknown author, another qualified human may be an author too")
+
+    def test_b3_r12_the_exception_reads_the_policy_in_force_at_admission(self) -> None:
+        import hashlib
+
+        sc = Scenario(DOC, {"doc.md": "r0\n"}, policy=owner_policy(OWNER))
+        sc.integrate({"doc.md": "r1\n"}, agent("author"), "task-1", lineage=[OWNER])
+        failing = self.failing_assessment(sc, sc.triple("doc")["rev"])
+        owner = judgment("EVIDENCE_ASSESSMENT", failing["target"], "PASS", actor=OWNER, supersedes=[failing["id"]],
+                         fields=failing["fields"])
+        sc.admit(owner)
+        later = owner_policy(OWNER, HUMAN).encode("utf-8")  # a second qualified human, adopted afterwards
+        digest = "sha256:" + hashlib.sha256(later).hexdigest()
+        sc.objects.setdefault(sc.position, {})[digest] = later
+        sc.lifecycle(record("RULESET_ADOPTION", target=None, actor=HUMAN,
+                            fields={"system": "ssds-rules/1", "policy": digest, "analyzers": ["ssds.analyzer.python/1"]}))
+        d = sc.derive()
+        self.assertEqual(d.s.policy.get("D3", "humans", ()), [OWNER, HUMAN])
+        self.assertEqual((d.j.nonind(owner["id"]), d.j.common_mode(owner["id"])), (False, True))
+
 if __name__ == "__main__":
     unittest.main()

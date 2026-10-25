@@ -384,7 +384,8 @@ class Judgments:
         makers = frozenset(self._makers(transformation)) or frozenset({UNKNOWN})
         producers = {}
         for unit, rev in judged:
-            producers[(unit, rev)] = makers if unit in frame.changed else before.authors(unit, rev)
+            producers[(unit, rev)] = makers | _earlier_producers(s.h, unit, rev, base) if unit in frame.changed \
+                else before.authors(unit, rev)
         return judged, producers
 
     def judged_content(self, rid: str) -> frozenset[tuple[str, str]]:
@@ -482,7 +483,17 @@ class Judgments:
     def disposes_failing(self, record: dict[str, Any]) -> bool:
         """A disposition of a failing assessment (§6.7), which carries an independence requirement (§6.8)."""
 
-        return self.disposed_failure(record) is not None
+        return bool(self.disposed_failures(record))
+
+    def disposed_failures(self, record: dict[str, Any]) -> list[str]:
+        """Every failing assessment the record disposes of: an ``IMMATERIALITY`` may cover several."""
+
+        if record["kind"] == "IMMATERIALITY":
+            s = self.s
+            return [x for x in (record["target"] or {}).get("records", []) if isinstance(x, str) and x in s.records
+                    and s.record(x)["kind"] == "EVIDENCE_ASSESSMENT" and s.record(x)["outcome"] == "FAIL"]
+        failure = self.disposed_failure(record)
+        return [failure] if failure is not None else []
 
     def disposed_failure(self, record: dict[str, Any]) -> str | None:
         """The failing assessment the record disposes of (§6.7), or ``None``: a reassessment whose supersession
@@ -530,13 +541,17 @@ class Judgments:
         return domains.pop() if len(domains) == 1 else None
 
     def _owner_exception(self, record: dict[str, Any], authors: frozenset[str], at: int) -> bool:
-        """SD-48 at admission: the record disposes of a failing assessment, and its actor is that claim's owner
-        with no qualified human outside the authors, under the policy in force at ``at``."""
+        """SD-48 at admission: the record disposes of failing assessments, and for each its actor is that claim's
+        owner with no qualified human outside that claim's authors, under the policy in force at ``at``."""
 
-        failure = self.disposed_failure(record)
-        if failure is None:
-            return False
-        return owner_exception(self._policy_at(at), record["actor"], authors, self._claim_domain(failure, at))
+        failures = self.disposed_failures(record)
+        policy = self._policy_at(at)
+        authors_at = self._authors_for(record, at)
+        # it holds only for every failure disposed of, each in its own claim's domain against that claim's authors
+        # (SD-48; plan review b8a1800 B2): an owner's IMMATERIALITY reaches no other domain's failure
+        return bool(failures) and all(
+            owner_exception(policy, record["actor"], self._claim_authors(f, authors_at), self._claim_domain(f, at))
+            for f in failures)
 
     @lru_cache(maxsize=None)  # noqa: B019
     def _policy_at(self, at: int) -> Any:
@@ -606,6 +621,16 @@ class Routes:
         """No eligible independent judge for any route here: the objection waits, with human attention."""
 
         return not self.admissible
+
+
+def _earlier_producers(history: Any, unit: str, rev: str, position: int) -> frozenset[str]:
+    """Who produced ``(unit, rev)`` in admitted views at or before ``position``, none when no admitted view did:
+    a candidate that restores a revision has its makers and every earlier producer of it as authors (§5.10 (b):
+    "a revert, restore or re-application that re-produced it included"; plan review b8a1800 B1)."""
+
+    if not any(k <= position for k, _ in history.productions.get((unit, rev), ())):
+        return frozenset()
+    return history.authors(unit, rev, position)
 
 
 def owner_exception(policy: Any, judge: str, authors: frozenset[str], domain: str | None) -> bool:
