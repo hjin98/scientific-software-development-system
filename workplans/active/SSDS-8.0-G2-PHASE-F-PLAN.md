@@ -38,7 +38,8 @@ DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `s
 NEXT ACTION: step 4b-ii is closed (PASS at c98bb647); plan revision 7 passed; step 4c-i is built
              and under same-family review; then 4c-ii. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
-             (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10.
+             (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
+             its missing reserved leaves are Q-F7.
 ```
 
 ## 1. Scope and authority
@@ -246,8 +247,9 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F17** *Where the frame is read (step 4c).* §1.2 computes the write set "at the admitted head `n` where each check runs", and §7.5 evaluates conformance in `D_n[X]`: for an **unintegrated** transformation (a pending candidate, its `REVIEW(X)` derivation, Admission and §7.5's other readers) the frame is built at the current head, so a pending result's conformance changes as the head moves exactly where `M_n(X)` changes. An **integrated** enactment's frame **tree and structure facts** are fixed at its integrating admission's head `k - 1`: `M_{k-1}(X)`, its structure, the write set, the changed files, `Frame.exists` and the conformance templates' tree inputs. Read at a later head, `M_n(X)` of an integrated `X` is `T_n` (an empty write set) or a conflict (no frame), and either would reopen settled work, against §10.4 (an integrated item relies "only on its latest integrated enactment's review") and SD-40 (no `REVALIDATE` for an integrated enactment's review or task result). **Currency is not fixed:** after integration the enactment's frame records take catalogue §7.3's admitted-state column (before-images a fixed fact, output and context entries ordinary currency in the admitted state; `validity`, `record`, challenge-tier and loss-boundary facts in the admitted state), since discharge is not latched (§10.4, SD-36). So `Conformance._current` and `required_evidence` read an integrated result's records in the admitted state, never in a frame rebuilt at the head. `Support.binds_tenure` reads currency at `k - 1` for §7.6 condition 3 alone, which concerns the integrating admission itself. `queries.impact` keeps its own comparison of the workspace under `Σ_n`: it is a query about an uncommitted workspace with no `X`, and it reads no frame.
 - **F18** *The reserved leaves (step 4c-ii).* Manual §1.8: "Genesis declares the reserved leaves `ssds.manifest`, `ssds.policy` … and `ssds.unclassified`", and refuses a genesis without `ssds.unclassified` on the empty prefix. §1.9 checks "the reserved leaves of §1.8 declared" on every admission.
   - **The gap.** The program's genesis check enforced only the refusal clause (`genesis_structure_problems`). So `ssdp-shadow-2`'s genesis, signed on 2026-10-25, declares `ssds.unclassified` but neither `ssds.manifest` nor `ssds.policy` (read through the program). Neither unit is supplied implicitly: `Structure` holds only declared units, and the write set's `ssds.manifest` entry is §1.2's rule for manifest bytes, not a declaration.
-  - **How 4c-ii applies it.** The owner applies §1.9 as written, to `Σ_{n+1}` as a whole: all three declared, each with its reserved kind, `ssds.unclassified` on the empty prefix (`STRUCT_RESERVED_LEAF`). The genesis check becomes the same owner, so a future genesis without them is refused.
-  - **On `ssdp-shadow-2`.** Every frame fails that check, so no content request could be admitted and no frame exists. This changes nothing in Phase F, where no agent submits content and absorptions do not run step 4. Under Q-F1 (a) the difference study reports it as this genesis deviation, not as a property of each observed change.
+  - **How 4c-ii applies it.** The owner applies §1.9 as written, to `Σ_{n+1}` as a whole: all three declared, each with its reserved kind (`MANIFEST`, `POLICY`, `UNCLASSIFIED`: catalogue §1.8 and `SYSTEM_UNITS`; Manual §1.8 names no kinds), `ssds.unclassified` on the empty prefix (`STRUCT_RESERVED_LEAF`). The genesis check becomes the same owner, so a future genesis without them is refused.
+  - **No unit carries it.** The check belongs to Admission and `Frame.exists` only. S0's `well_formed(s)` and S2's `ok` are unchanged, so no subject on `ssdp-shadow-2` becomes invalid in the admitted state through it.
+  - **On `ssdp-shadow-2`.** Every request whose `Σ_{n+1}` still lacks the two leaves is refused, and its frame does not exist. A request authoring them passes: they are `⊥` in both `decl(T_n)` and `Σ_n`, so they lie outside `Q_n` and are authored (§8.3 4 (a)). This changes nothing in Phase F, where no agent submits content and absorptions do not run step 4. Under Q-F1 (a) the difference study reports it as this genesis deviation, not as a property of each observed change.
   - **Open.** What to do with `ssdp-shadow-2` is the stakeholder's (Q-F7).
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
@@ -330,11 +332,23 @@ Reading F6 sends a refusal with no code back to Stage S.
   - Alternative: (b) schema 2 through `SCHEMA_MIGRATION`.
   - Until then a rebase-frame record is refused `REF_TRANSFORMATION`. Machinery rebases (§11.5 step 3) wait with it, so an overtaken candidate takes a new iteration.
 
-**Q-F7. `ssdp-shadow-2`'s genesis lacks two reserved leaves (reading F18).** Manual §1.8 has genesis declare `ssds.manifest`, `ssds.policy` and `ssds.unclassified`. The program refused only a genesis without `ssds.unclassified`, so the genesis signed on 2026-10-25 declares neither `ssds.manifest` nor `ssds.policy`. From step 4c-ii, Admission checks all three on every admission (§1.9), so on that ledger no frame exists and no content request can be admitted. Nothing in Phase F needs one: no agent submits content in shadow, and absorptions are unaffected.
-- Recommended: (b) keep `ssdp-shadow-2` for Phase F's observe-only operation (step 10) and record the deviation. Correct the genesis check now (step 4c-ii), so no later genesis repeats it. Re-found the shadow before any campaign or cutover, with a baseline manifest declaring the three leaves; that needs a new signed genesis.
-- Alternatives:
-  - (a) re-found now, as `ssdp-shadow-3`, before step 10: another signing, and step 10 observes the new ledger;
-  - (c) read §1.9 as requiring only what §1.8's refusal clause names. This contradicts §1.8's first sentence, so it would be a Manual amendment.
+**Q-F7. `ssdp-shadow-2`'s genesis lacks two reserved leaves (reading F18).** Manual §1.8 has genesis declare `ssds.manifest`, `ssds.policy` and `ssds.unclassified`. The program refused only a genesis without `ssds.unclassified`, so the genesis signed on 2026-10-25 declares neither of the other two.
+
+From step 4c-ii, Admission checks all three on every admission (§1.9), so a request whose new structure still lacks them is refused. Nothing in Phase F needs one: no agent submits content in shadow, and absorptions are unaffected.
+
+The ledger can also be repaired in place, by any admitted structural change that authors the two declarations (§1.6, §8.3 4 (a)). The options:
+- **(b) Keep it, re-found before a campaign.** Keep `ssdp-shadow-2` for step 10, record the deviation, and re-found before any campaign or cutover with a baseline manifest declaring the leaves.
+  - Costs: a later signing, and a new observation history.
+- **(d2) Repair in place by adoption.** Commit the two declarations to the observed branch's manifest; they are absorbed as quarantined deltas, and an R2 `ABSORB` adopts them (§18.4).
+  - It is a records-only request (`C = B`), inside the shadow boundary.
+  - Costs: none in signings or history, but it waits for Q-F6 (i) and the adoption path.
+- **(d1) Repair in place by a content request.** A human content request authors the two declarations.
+  - Costs: F1's observe-only check refuses any request whose candidate differs from its base, so the stakeholder would have to relax that boundary for this one request.
+- **(a) Re-found now**, as `ssdp-shadow-3`, before step 10.
+  - Costs: a signing now, and step 10 observes the new ledger.
+- **(c) Read §1.9 as requiring only §1.8's refusal clause.** It contradicts §1.8's first sentence, so it would be a Manual amendment.
+
+Recommended: **(b) with (d2)**. Keep `ssdp-shadow-2` for step 10, and correct the genesis check now (4c-ii). Once Q-F6 (i) is settled and adoption is built, repair the ledger in place by (d2); re-found under (b) only if that is not available before a campaign.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -675,6 +689,12 @@ Its notes, taken up:
 Kept: the near-equivalent survivors F14 and F21-F25, reachable only through kind changes or deletions, and F15.
 
 **Revision 8 (reading F18, Q-F7).** Before building 4c-ii, a read of `ssdp-shadow-2`'s genesis through the program found it declares only one of §1.8's three reserved leaves, because the genesis check enforced only A9's refusal clause. F18 applies §1.9 as written from 4c-ii, and Q-F7 puts the ledger's disposition to the stakeholder.
+
+**Narrow check of 0f209be6 (revision 8).** No SERIOUS CHALLENGE: the Manual is clear, and the defect is the program's genesis check and the artefact signed under it. F18's reading and the whole-structure application were confirmed. NO-PASS on one blocker: Q-F7 claimed no request could be admitted on the ledger, but one authoring the two leaves passes. It now carries the in-place repairs (d1) and (d2) with their dependencies and costs, and recommends (b) with (d2). Its notes are taken up:
+- the kinds' source;
+- the check carried by no unit, so S0 and S2 are unchanged;
+- a dated note on the genesis evidence;
+- NEXT ACTION's reference to Q-F7.
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 

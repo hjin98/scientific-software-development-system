@@ -38,6 +38,7 @@ stakeholder's private state and are not copied anywhere.
 ## 3. What was checked
 
 - **Validation (`prepare`).** `valid: true`; no problems and no findings. The 21 declared units include the mandatory `ssds.unclassified` (A9, SD-61).
+  - *Note, 2026-10-25, after admission:* that validation enforced only Manual §1.8's refusal clause (`ssds.unclassified` on the empty prefix). The structure declares neither of §1.8's other reserved leaves, `ssds.manifest` and `ssds.policy`. The Phase F plan's reading F18 and question Q-F7 carry this. The ledger's `QUALIFIED` state (§23) is unaffected.
 - **Admission (`admit`).** `qualification: QUALIFIED`, `QUALIFIED at 0`, `current assertion: True`. The derivation report is in the genesis workspace.
 - **Independent read-back.** The author read the ledger with `ssds.ledger.read.read_chain` and derived it with `ssds.derivation.derive` over the repository's trees, writing nothing. The results:
   - one entry, readable through position 0, no halt;
