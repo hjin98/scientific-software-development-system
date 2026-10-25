@@ -246,6 +246,58 @@ class History:
     def positions(self) -> range:
         return range(self.last + 1)
 
+    @cached_property
+    def productions(self) -> dict[tuple[str, str], tuple[tuple[int, frozenset[str]], ...]]:
+        """(unit, revision) -> each position at which an admitted view changed that unit to that revision, with the
+        actors whose record produced it there (``UNKNOWN`` when unrecorded): the one fold of authorship over the
+        prefix (§5.10 (b)), from which the authors as of any position are read."""
+
+        unknown = frozenset({"UNKNOWN"})
+        out: dict[tuple[str, str], list[tuple[int, frozenset[str]]]] = {}
+        previous: TreeView | None = None
+        for k in range(self.last + 1):
+            current = self.view(k)
+            if previous is current:
+                continue
+            integration = self.integrations.get(k)
+            makers = unknown
+            if integration is not None and integration.transformation:
+                makers = frozenset(self.makers(integration.transformation, k)) or unknown
+            for unit in current.structure.units:
+                rev = current.rev(unit)
+                before = previous.rev(unit) if previous is not None and unit in previous.structure.units else None
+                if before != rev:
+                    out.setdefault((unit, rev), []).append((k, makers))
+            previous = current
+        return {key: tuple(value) for key, value in out.items()}
+
+    @cached_property
+    def _producing_results(self) -> dict[str, tuple[int, list[str]]]:
+        out: dict[str, tuple[int, list[str]]] = {}
+        for fact in sorted(self.records.values(), key=lambda f: f.position):
+            record = fact.record
+            transformation = record["target"].get("transformation") if record["kind"] == "TASK_RESULT" \
+                and isinstance(record["target"], dict) else None
+            if transformation and transformation not in out:
+                binding = record["binding"] or {}
+                out[transformation] = (fact.position, list(binding.get("lineage") or [record["actor"]]))
+        return out
+
+    def makers(self, transformation: str, position: int) -> list[str]:
+        """The lineage of the first task result, admitted at or before ``position``, producing a transformation."""
+
+        found = self._producing_results.get(transformation)
+        return list(found[1]) if found is not None and found[0] <= position else []
+
+    def authors(self, unit: str, rev: str, position: int) -> frozenset[str]:
+        """Every actor whose record, admitted at or before ``position``, produced ``(unit, rev)``; else UNKNOWN."""
+
+        out: set[str] = set()
+        for k, makers in self.productions.get((unit, rev), ()):
+            if k <= position:
+                out |= makers
+        return frozenset(out) or frozenset({"UNKNOWN"})
+
     def mode(self, position: int, subject: str) -> Mapping[str, Any]:
         """A subject's governance mode; one first declared after genesis takes genesis's ``"*"`` mode, else UNGOVERNED."""
 

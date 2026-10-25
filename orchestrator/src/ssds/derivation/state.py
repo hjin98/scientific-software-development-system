@@ -325,38 +325,13 @@ class State:
 
     # -- authorship (§5.10 (b)) --------------------------------------------------------------
 
-    @cached_property
-    def producers(self) -> dict[tuple[str, str], frozenset[str]]:
-        """(unit, revision) -> every actor whose admitted record produced that revision; UNKNOWN when unrecorded."""
-
-        out: dict[tuple[str, str], set[str]] = {}
-        previous: TreeView | None = None
-        for k in range(self.n + 1):
-            current = self.h.view(k)
-            if previous is current:
-                continue
-            integration = self.h.integrations.get(k)
-            makers: set[str] = {UNKNOWN}
-            if integration is not None and integration.transformation:
-                makers = set(self._makers(integration.transformation)) or {UNKNOWN}
-            for unit in current.structure.units:
-                rev = current.rev(unit)
-                before = previous.rev(unit) if previous is not None and unit in previous.structure.units else None
-                if before != rev:
-                    out.setdefault((unit, rev), set()).update(makers)
-            previous = current
-        return {key: frozenset(value) for key, value in out.items()}
-
     def _makers(self, transformation: str) -> list[str]:
-        for rid in self.of_kind("TASK_RESULT"):
-            record = self.record(rid)
-            if record["target"].get("transformation") == transformation:
-                binding = record["binding"] or {}
-                return list(binding.get("lineage") or [record["actor"]])
-        return []
+        return self.h.makers(transformation, self.n)
 
     def authors(self, unit: str, rev: str) -> frozenset[str]:
-        return self.producers.get((unit, rev), frozenset({UNKNOWN}))
+        """The authors of ``(unit, rev)`` in this state: its producers through position ``n`` (§5.10 (b))."""
+
+        return self.h.authors(unit, rev, self.n)
 
     # -- S1: the challenge tier (§5.3) -----------------------------------------------------
 

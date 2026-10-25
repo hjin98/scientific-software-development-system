@@ -196,6 +196,8 @@ def explain(w: Any, ref: str) -> dict[str, Any]:
                             ("independent", not d.j.nonind(ref))):
             if not holds:
                 why.append(f"fails: {name}")
+        if d.j.common_mode(ref):  # SD-48: independent only by the owner exception, shown as such (§5.10 (a))
+            why.append("common-mode: admitted as independent under the owner exception; its author disposed of it")
         basis = [{"entry": e, "sat": _VALUE[d.sat(e, w._value, ref)]} for e in record["basis"]]
         return {"record": ref, "kind": record["kind"], "outcome": record["outcome"], "status1": s.status1(ref),
                 "base": _VALUE[d.base(ref)], "current": _VALUE[d.current(ref)], "why": why, "basis": basis}

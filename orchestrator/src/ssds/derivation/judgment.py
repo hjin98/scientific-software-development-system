@@ -253,50 +253,80 @@ class Judgments:
 
     # -- independence (§5.10 (f)) ----------------------------------------------------------------
 
-    def judged_authors(self, rid: str) -> frozenset[str]:
-        """The authors of what the record judged, by its kind (§5.10 (b))."""
+    def judged_authors(self, rid: str, at: int | None = None) -> frozenset[str]:
+        """The authors of what the record judged, by its kind (§5.10 (b)). With ``at``, as the ledger knew them
+        at that position, with the record's judged content pinned there: the inputs of its classification at
+        admission (§5.10 (a); plan review 409c2f7 B1, B4)."""
 
         s = self.s
         record = s.record(rid)
         target = record["target"]
         kind = record["kind"]
+        authors = self._authors_for(record, at)
         if kind in ("ACCEPTANCE", "REVIEW") and "subject" in target and isinstance(target["subject"], str):
-            return s.authors(target["subject"], target["rev"])
+            return authors(target["subject"], target["rev"])
         if kind == "EQUIVALENCE":
-            return s.authors(target["unit"], target["from"]) | s.authors(target["unit"], target["to"])
+            return authors(target["unit"], target["from"]) | authors(target["unit"], target["to"])
         if kind == "COMPLETENESS":
+            view = s.view if at is None else s.h.view(at)
+            candidate = {u: r for u, r in self._frame_pieces(record)} if at is not None else {}
             out: set[str] = set()
             for unit in target["scope"]:
-                if unit in s.view.structure.units:
-                    out |= s.authors(unit, s.cur(unit))
+                if unit in candidate:  # a frame completeness judges the candidate's member, not the admitted one
+                    out |= authors(unit, candidate[unit])
+                elif unit in view.structure.units:
+                    out |= authors(unit, view.rev(unit))
             return frozenset(out) or frozenset({UNKNOWN})
         if kind == "ADJUDICATION":
-            return self.root_authors(rid)
+            return self.root_authors(rid, at)
         if is_work(record):
             return self.work_authors(rid)
         if kind == "PLAN_ACCEPTANCE":
-            return self._authors_of([(i["unit"], i["rev"]) for i in record["fields"]["items"]])
+            return self._authors_of([(i["unit"], i["rev"]) for i in record["fields"]["items"]], authors)
         if kind == "EVIDENCE_ASSESSMENT":
-            return self._claim_authors(rid)
+            return self._claim_authors(rid, authors)
         if kind == "IMMATERIALITY":
-            out: set[str] = set()
+            out = set()
             for covered in target["records"]:
                 if covered in s.records:
-                    out |= self._claim_authors(covered)
+                    out |= self._claim_authors(covered, authors)
             return frozenset(out) or frozenset({UNKNOWN})
         return frozenset({UNKNOWN})
 
-    def _authors_of(self, pieces: list[tuple[str, str]]) -> frozenset[str]:
+    def _authors_for(self, record: dict[str, Any], at: int | None):
+        """``authors(u, r)`` for judging ``record``: in this state, or as of ``at``. A record declaring the frame
+        of a transformation reads the candidate's content as authored by that transformation's makers (§7.5)."""
+
+        s = self.s
+        if at is None:
+            return s.authors
+        produced = self._frame_pieces(record)
+
+        def authors(unit: str, rev: str) -> frozenset[str]:
+            return produced.get((unit, rev)) or s.h.authors(unit, rev, at)
+
+        return authors
+
+    def _frame_pieces(self, record: dict[str, Any]) -> dict[tuple[str, str], frozenset[str]]:
+        """The content a record declaring a transformation's frame judges as the candidate's, with its producers."""
+
+        frame = record.get("frame")
+        if isinstance(frame, dict) and isinstance(frame.get("transformation"), str):
+            return self._transformation_work(frame["transformation"], None)[1]
+        return {}
+
+    def _authors_of(self, pieces: list[tuple[str, str]], authors=None) -> frozenset[str]:
+        authors = authors or self.s.authors
         out: set[str] = set()
         for unit, rev in pieces:
-            out |= self.s.authors(unit, rev)
+            out |= authors(unit, rev)
         return frozenset(out) or frozenset({UNKNOWN})
 
-    def _claim_authors(self, assessment: str) -> frozenset[str]:
+    def _claim_authors(self, assessment: str, authors=None) -> frozenset[str]:
         realization = self.s.record(assessment)["target"]["realization"]
         if realization not in self.s.records:
             return frozenset({UNKNOWN})
-        return self._authors_of([(c["unit"], c["rev"]) for c in self.s.record(realization)["target"]["claim"]])
+        return self._authors_of([(c["unit"], c["rev"]) for c in self.s.record(realization)["target"]["claim"]], authors)
 
     def work_authors(self, rid: str) -> frozenset[str]:
         authors: set[str] = set()
@@ -422,20 +452,20 @@ class Judgments:
                 return entry.position
         return None
 
-    def root_authors(self, rid: str) -> frozenset[str]:
+    def root_authors(self, rid: str, at: int | None = None) -> frozenset[str]:
         s = self.s
         current, seen = rid, set()
         while current in s.records and current not in seen:
             seen.add(current)
             record = s.record(current)
             if record["kind"] not in ("CHALLENGE", "ADJUDICATION", "WITHDRAWAL", "RISK_OVERRIDE"):
-                return self.judged_authors(current)
+                return self.judged_authors(current, at)
             key = target_key(record["target"])
             if key is None:
                 return frozenset({UNKNOWN})
             if key.startswith("triple:"):
                 _, subject, _scope, rev = key.split(":", 3)
-                return s.authors(subject, rev)
+                return self._authors_for(record, at)(subject, rev)
             current = key
         return frozenset({UNKNOWN})
 
@@ -450,8 +480,15 @@ class Judgments:
         return record["kind"] in REQUIREMENT or self.disposes_failing(record)
 
     def disposes_failing(self, record: dict[str, Any]) -> bool:
-        """A disposition of a failing assessment (§6.7): a reassessment superseding one, an ``IMMATERIALITY``
-        covering one, or an adjudication whose challenge chain is rooted at one."""
+        """A disposition of a failing assessment (§6.7), which carries an independence requirement (§6.8)."""
+
+        return self.disposed_failure(record) is not None
+
+    def disposed_failure(self, record: dict[str, Any]) -> str | None:
+        """The failing assessment the record disposes of (§6.7), or ``None``: a reassessment whose supersession
+        chain reaches one at any depth (plan review 409c2f7 B2), an ``IMMATERIALITY`` covering one, or an
+        ``UPHELD`` adjudication of a challenge whose target is one (SD-48: "an adjudication upholding a challenge
+        against it"; plan review 409c2f7 B3)."""
 
         s = self.s
 
@@ -459,75 +496,81 @@ class Judgments:
             return isinstance(rid, str) and rid in s.records and s.record(rid)["kind"] == "EVIDENCE_ASSESSMENT" \
                 and s.record(rid)["outcome"] == "FAIL"
 
-        kind, target = record["kind"], record["target"]
+        kind, target = record["kind"], record["target"] or {}
         if kind == "EVIDENCE_ASSESSMENT":
-            return any(failing(x) for x in record.get("supersedes") or [])
+            frontier, seen = list(record.get("supersedes") or []), set()
+            while frontier:
+                x = frontier.pop()
+                if not isinstance(x, str) or x in seen or x not in s.records:
+                    continue
+                seen.add(x)
+                if failing(x):
+                    return x
+                if s.record(x)["kind"] == "EVIDENCE_ASSESSMENT":
+                    frontier.extend(s.record(x).get("supersedes") or [])
+            return None
         if kind == "IMMATERIALITY":
-            return any(failing(x) for x in (target or {}).get("records", []))
-        if kind == "ADJUDICATION":
-            return failing(self.root(record["id"]))
-        return False
-
-    def root(self, rid: str) -> str | None:
-        """The first record that is not challenge-tier on the record's chain of targets (§5.10 (e))."""
-
-        s = self.s
-        current, seen = rid, set()
-        while current in s.records and current not in seen:
-            seen.add(current)
-            record = s.record(current)
-            if record["kind"] not in ("CHALLENGE", "ADJUDICATION", "WITHDRAWAL", "RISK_OVERRIDE"):
-                return current
-            key = target_key(record["target"])
-            if key is None or key.startswith("triple:"):
-                return None
-            current = key
+            return next((x for x in target.get("records", []) if failing(x)), None)
+        if kind == "ADJUDICATION" and record["outcome"] == "UPHELD":
+            challenge = target.get("record")
+            if challenge in s.records and s.record(challenge)["kind"] == "CHALLENGE":
+                under = (s.record(challenge)["target"] or {}).get("record")
+                return under if failing(under) else None
         return None
 
-    @staticmethod
-    def at_admission(history: Any, position: int) -> "Judgments":
-        """The judgments of the admitted state at ``position``, built once per history (as ``Workflow.historical``)."""
+    def _claim_domain(self, assessment: str, at: int) -> str | None:
+        """The domain whose policy owns a failing assessment's claim, as of ``at``."""
 
-        cache = history.__dict__.setdefault("_judgments_at", {})
-        found = cache.get(position)
-        if found is None:
-            found = cache[position] = Judgments(State(history, position))
-        return found
+        realization = self.s.record(assessment)["target"]["realization"]
+        if realization not in self.s.records:
+            return None
+        structure = self.s.h.view(at).structure
+        domains = {structure.domain(c["unit"]) for c in self.s.record(realization)["target"]["claim"]
+                   if c["unit"] in structure.units}
+        return domains.pop() if len(domains) == 1 else None
 
-    def common_mode(self, rid: str) -> bool:
-        """The record was admitted as independent only under the owner exception: its common-mode dependency on
-        the authors, shown in the inspector view (catalogue §5.10 (a))."""
+    def _owner_exception(self, record: dict[str, Any], authors: frozenset[str], at: int) -> bool:
+        """SD-48 at admission: the record disposes of a failing assessment, and its actor is that claim's owner
+        with no qualified human outside the authors, under the policy in force at ``at``."""
 
-        s = self.s
-        at = s.position_of(rid)
-        if s.frame is not None or s.n != at:
-            return Judgments.at_admission(s.h, at).common_mode(rid)
-        record = s.record(rid)
-        return self.requirement(record) and self._independent(record, self.judged_authors(rid)) is None \
-            and self._owner_exception(record, self.judged_authors(rid))
-
-    def _owner_exception(self, record: dict[str, Any], authors: frozenset[str]) -> bool:
-        return self.disposes_failing(record) and owner_exception(self.s.policy, record["actor"], authors,
-                                                                 self.domain_of(record))
+        failure = self.disposed_failure(record)
+        if failure is None:
+            return False
+        return owner_exception(self._policy_at(at), record["actor"], authors, self._claim_domain(failure, at))
 
     @lru_cache(maxsize=None)  # noqa: B019
-    def nonind(self, rid: str) -> bool:
-        """The S0 fact that the record had a requirement and was not independent at admission (§5.10 (a)): it is
-        classified once, in the admitted state at the record's own admission position, so no later state changes
-        it (plan review b10018de B4)."""
+    def _policy_at(self, at: int) -> Any:
+        from .state import Policy
+
+        return Policy.parse(self.s.h.objects.get(self.s.h.ruleset(at)["policy"]))
+
+    @lru_cache(maxsize=None)  # noqa: B019
+    def _classified(self, rid: str) -> tuple[bool, bool]:
+        """``(nonind, common_mode)``, classified once from the facts at the record's admission position (§5.10 (a):
+        "fixed at admission"): its binding, its judged content and their authors as the ledger knew them there,
+        a candidate's content authored by its transformation's makers, and the policy then in force."""
 
         s = self.s
-        at = s.position_of(rid)
-        if s.frame is not None or s.n != at:
-            return Judgments.at_admission(s.h, at).nonind(rid)
         record = s.record(rid)
         if not self.requirement(record):
-            return False
-        authors = self.judged_authors(rid)
-        independent = self._independent(record, authors)
-        if independent is None:
-            return not self._owner_exception(record, authors)
-        return not independent
+            return False, False
+        at = s.position_of(rid)
+        authors = self.judged_authors(rid, at)
+        if self._independent(record, authors):
+            return False, False
+        exception = self._owner_exception(record, authors, at)
+        return not exception, exception
+
+    def nonind(self, rid: str) -> bool:
+        """The S0 fact that the record had a requirement and was not independent at admission (§5.10 (a))."""
+
+        return self._classified(rid)[0]
+
+    def common_mode(self, rid: str) -> bool:
+        """Admitted as independent only under the owner exception: its common-mode dependency on the authors,
+        shown in the inspector view (§5.10 (a), SD-48)."""
+
+        return self._classified(rid)[1]
 
     def _independent(self, record: dict[str, Any], authors: frozenset[str]) -> bool | None:
         """The independence test, or ``None`` when it fails and only the owner exception could hold."""

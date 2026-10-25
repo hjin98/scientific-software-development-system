@@ -13,7 +13,8 @@ from ssds.derivation import derive
 from ssds.ledger.read import read_chain
 
 from ._fixtures import record
-from ._scenario import HUMAN, HUMAN_B, OWNER, Scenario, agent, fresh, judgment
+from ._scenario import (HUMAN, HUMAN_B, OWNER, Scenario, adjudication, agent, challenge, fresh, integrate, judgment,
+                        submit)
 from .test_admission_requests import RequestFixture, finding
 
 DOC = '''
@@ -22,6 +23,17 @@ DOC = '''
     kind = "D3"
     scope = [{ path = "doc.md" }]
 '''
+SUBJECT_DOC = '''
+    [[unit]]
+    id = "doc"
+    kind = "D3"
+    subject = true
+    scope = [{ path = "doc.md" }]
+'''
+
+
+def owner_policy(*humans: str) -> str:
+    return 'schema = 1\n[domains.D3]\nowner = "%s"\nhumans = [%s]\n' % (OWNER, ", ".join(f'"{h}"' for h in humans))
 
 
 class FailClosedSalvage(RequestFixture):
@@ -127,6 +139,149 @@ class IndependenceAtAdmission(unittest.TestCase):
         d = sc.derive()
         self.assertEqual((d.j.nonind(open_["id"]), d.j.nonind(closed["id"])), (True, False))
 
+
+
+class IndependenceRecheck(unittest.TestCase):
+    """The same-family review of 409c2f71: frame records (B1), chained dispositions (B2), the adjudication branch
+    of the owner exception (B3), the classification's cost (B4) and the exception's scope (B5)."""
+
+    failing_assessment = IndependenceAtAdmission.failing_assessment
+
+    def candidate_by(self, sc: Scenario, lineage: list[str]):
+        from ssds.ledger.read import with_id
+
+        sc.integrate({"doc.md": "r1\n"}, agent("other"), "task-0", lineage=[HUMAN_B])
+        x, candidate, result = submit(sc, {"doc.md": "r2\n"}, agent("author"), "task-1")
+        sc.entries.pop()
+        result = dict(result)
+        result["binding"] = dict(result["binding"], lineage=lineage)
+        result.pop("id")
+        sc.admit(with_id(result))
+        return x, candidate
+
+    def test_b1_a_frame_record_by_the_candidates_author_is_never_independent(self) -> None:
+        for kind in ("ACCEPTANCE", "COMPLETENESS"):
+            with self.subTest(kind=kind):
+                sc = Scenario(SUBJECT_DOC, {"doc.md": "r0\n"})
+                x, candidate = self.candidate_by(sc, [HUMAN])
+                frame = {"transformation": x}
+                if kind == "ACCEPTANCE":
+                    j = judgment("ACCEPTANCE", sc.triple("doc", head=candidate), "PASS", actor=HUMAN, frame=frame)
+                else:
+                    j = judgment("COMPLETENESS", {"scope": ["doc"], "classes": ["WARRANT"],
+                                                  "membership": sc.derive().s.membership_digest(["doc"])},
+                                 "COMPLETE", actor=HUMAN, frame=frame)
+                sc.admit(j)
+                self.assertTrue(sc.derive().j.nonind(j["id"]), "in its frame, before integration")
+                integrate(sc, x, candidate)
+                self.assertTrue(sc.derive().j.nonind(j["id"]), "and after it")
+
+    def test_b2_a_disposition_through_a_chain_of_reassessments_has_the_requirement(self) -> None:
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        sc.integrate({"doc.md": "r1\n"}, agent("author"), "task-1", lineage=[HUMAN])
+        failing = self.failing_assessment(sc, sc.triple("doc")["rev"])
+        first = judgment("EVIDENCE_ASSESSMENT", failing["target"], "PASS", actor=HUMAN, supersedes=[failing["id"]],
+                         fields=failing["fields"])
+        sc.admit(first)
+        second = judgment("EVIDENCE_ASSESSMENT", failing["target"], "PASS", actor=HUMAN, supersedes=[first["id"]],
+                          fields=failing["fields"])
+        sc.admit(second)
+        d = sc.derive()
+        self.assertTrue(d.j.requirement(second))
+        self.assertEqual((d.j.nonind(first["id"]), d.j.nonind(second["id"])), (True, True))
+        self.assertEqual(d.a.disposition(failing["id"], lambda node: d.values.get(node, 0), d.base, d.j.nonind), 0)
+
+    def test_j6_superseding_a_passing_assessment_disposes_of_nothing(self) -> None:
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        sc.integrate({"doc.md": "r1\n"}, agent("author"), "task-1", lineage=[HUMAN])
+        failing = self.failing_assessment(sc, sc.triple("doc")["rev"])
+        passing = judgment("EVIDENCE_ASSESSMENT", failing["target"], "PASS", actor=HUMAN_B, fields=failing["fields"])
+        sc.admit(passing)
+        again = judgment("EVIDENCE_ASSESSMENT", failing["target"], "PASS", actor=HUMAN, supersedes=[passing["id"]],
+                         fields=failing["fields"])
+        sc.admit(again)
+        self.assertFalse(sc.derive().j.requirement(again))
+
+    def test_b3_the_owner_exception_covers_an_upheld_adjudication_of_the_failure_only(self) -> None:
+        for outcome, nonind in (("UPHELD", False), ("DISMISSED", True)):
+            with self.subTest(outcome=outcome):
+                sc = Scenario(DOC, {"doc.md": "r0\n"}, policy=owner_policy(OWNER))
+                sc.integrate({"doc.md": "r1\n"}, agent("author"), "task-1", lineage=[OWNER])
+                failing = self.failing_assessment(sc, sc.triple("doc")["rev"])
+                c = challenge({"record": failing["id"]})
+                sc.admit(c)
+                a = adjudication(c["id"], outcome, actor=OWNER)
+                sc.admit(a)
+                d = sc.derive()
+                self.assertEqual((d.j.nonind(a["id"]), d.j.common_mode(a["id"])), (nonind, not nonind))
+
+    def test_j4_j5_the_owners_immateriality_of_the_failure_takes_the_exception(self) -> None:
+        sc = Scenario(DOC, {"doc.md": "r0\n"}, policy=owner_policy(OWNER))
+        sc.integrate({"doc.md": "r1\n"}, agent("author"), "task-1", lineage=[OWNER])
+        failing = self.failing_assessment(sc, sc.triple("doc")["rev"])
+        immaterial = judgment("IMMATERIALITY", {"records": [failing["id"]]}, "IMMATERIAL", actor=OWNER)
+        sc.admit(immaterial)
+        d = sc.derive()
+        self.assertEqual((d.j.nonind(immaterial["id"]), d.j.common_mode(immaterial["id"])), (False, True))
+        from ssds.derivation import Workflow, queries
+
+        why = queries.explain(Workflow(d), immaterial["id"])["why"]
+        self.assertTrue(any(line.startswith("common-mode") for line in why), "the inspector shows the dependency")
+
+    def test_b5_j19_the_exception_never_covers_a_judgment_that_disposes_of_no_failure(self) -> None:
+        sc = Scenario(SUBJECT_DOC, {"doc.md": "r0\n"}, policy=owner_policy(OWNER))
+        sc.integrate({"doc.md": "r1\n"}, agent("author"), "task-1", lineage=[OWNER])
+        t = sc.triple("doc")
+        review = judgment("REVIEW", t, "PASS", actor=OWNER)
+        acceptance = judgment("ACCEPTANCE", t, "PASS", actor=OWNER)
+        sc.admit(review, acceptance)
+        d = sc.derive()
+        for rec in (review, acceptance):
+            self.assertEqual((d.j.nonind(rec["id"]), d.j.common_mode(rec["id"])), (True, False))
+
+    def test_authors_are_read_as_the_ledger_knew_them_at_admission(self) -> None:
+        sc = Scenario(SUBJECT_DOC, {"doc.md": "r0\n"})
+        sc.integrate({"doc.md": "r1\n"}, agent("author"), "task-1")
+        t = sc.triple("doc")
+        review = judgment("REVIEW", t, "PASS", actor=agent("reviewer"), actor_class="AGENT",
+                          binding=fresh(agent("reviewer")))
+        sc.admit(review)
+        sc.integrate({"doc.md": "r2\n"}, agent("other"), "task-2")
+        sc.integrate({"doc.md": "r1\n"}, agent("reviewer"), "task-3")  # the reviewer later re-produces r1
+        d = sc.derive()
+        self.assertIn(agent("reviewer"), d.s.authors("doc", t["rev"]), "a later producer of the same revision")
+        self.assertFalse(d.j.nonind(review["id"]), "is no author of what the review judged at its admission")
+
+    def test_j20_unknown_authorship_is_never_disjoint_from_an_agent(self) -> None:
+        sc = Scenario(SUBJECT_DOC, {"doc.md": "r0\n"})
+        sc.absorb({"doc.md": "r1\n"})  # content no admitted record produced: its authors are UNKNOWN
+        review = judgment("REVIEW", sc.triple("doc"), "PASS", actor=agent("reviewer"), actor_class="AGENT",
+                          binding=fresh(agent("reviewer")))
+        sc.admit(review)
+        self.assertTrue(sc.derive().j.nonind(review["id"]))
+
+    def test_b4_classifying_builds_no_state(self) -> None:
+        from unittest import mock
+
+        from ssds.derivation.state import State
+
+        sc = Scenario(DOC, {"doc.md": "r0\n"})
+        for n in range(30):
+            sc.integrate({"doc.md": f"r{n + 1}\n"}, agent(f"a{n}"), f"task-{n}")
+            sc.admit(judgment("COMPLETENESS", {"scope": ["doc"], "classes": ["WARRANT"], "membership": "sha256:" + "0" * 64},
+                              "COMPLETE", actor=HUMAN))
+        d = sc.derive()
+        built = []
+        original = State.__init__
+
+        def counting(self, *args, **kwargs):
+            built.append(args)
+            original(self, *args, **kwargs)
+
+        with mock.patch.object(State, "__init__", counting):
+            for rid in d.s.of_kind("COMPLETENESS"):
+                d.j.nonind(rid)
+        self.assertEqual(built, [], "the classification reads the history's one authorship fold")
 
 if __name__ == "__main__":
     unittest.main()
