@@ -208,22 +208,22 @@ class Admission:
         chain = self.chain()
         held = self.qualification(chain)
         if held.current and held.provisional is not None:
-            self.distribute(chain.entries[held.provisional])
+            self.distribute(chain.entries[held.provisional], chain)
             held = self.qualification(chain)
         if not held.current or held.provisional is not None:
             raise AdmissionHalted(f"the ledger is {held.state} at {held.head}, provisional {held.provisional} (§23.4)")
         self.home.high_water(self.ledger_id).set(HighWaterMark(held.head, held.head_digest))
         return chain
 
-    def distribute(self, appended: LedgerEntry) -> None:
+    def distribute(self, appended: LedgerEntry, chain=None) -> None:
         """Write ``appended``'s checkpoint to every witness this host reaches; one that fails holds nothing."""
 
         body = checkpoint_body(self.ledger_id, appended.entry["position"], appended.digest, appended.commit,
                                appended.entry["host_key_id"])
         if body["host_key_id"] != self.key.key_id:
-            raise AdmissionHalted("a provisional entry another host appended: its checkpoint is that host's (§22.4)")
+            raise AdmissionHalted("a provisional entry appended under another host key: its checkpoint is that key's (§22.4)")
         checkpoint = Checkpoint(**body, signature=self.key.sign(checkpoint_message(body)).hex())
-        _, files = self.witness_set(self.chain())
+        _, files = self.witness_set(chain if chain is not None else self.chain())
         for witness in files.values():
             try:
                 write_checkpoint(witness, checkpoint)
@@ -240,7 +240,7 @@ class Admission:
         appended = append_entry(self.repository, entry, self.key, head.commit, objects=objects,
                                 referenced=list(referenced))
         chain = self.chain()
-        self.distribute(chain.entries[appended.position])
+        self.distribute(chain.entries[appended.position], chain)
         held = self.qualification(chain)
         if not held.current or held.head != appended.position:
             raise AdmissionHalted(f"entry {appended.position} is appended but not yet held by a witness quorum (§22.4)")
