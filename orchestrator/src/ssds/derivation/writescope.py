@@ -10,9 +10,11 @@ frame's one write set: ``T_n`` under ``Σ_n`` against ``M_n(X)`` under ``Σ_n �
 - **A unit only one side declares.** A scope entry naming a unit the other side lacks (one the request creates,
   or a rename's new name) resolves on that side to the whole files the unit covers where it is declared (re-check
   ad8daeb RB2), as §1.8's "names that content in its write scope" asks.
-- **The outermost owner.** ``ssds.unclassified`` holds every byte no other unit owns, so it is judged by the bytes
-  it gains or loses, file by file: each of its changed pieces lies within the scope on the side that holds it.
-  A write elsewhere in the repository never needs a scope over all of its bytes (re-check ad8daeb).
+- **The outermost owner.** ``ssds.unclassified`` holds every byte no other unit owns, so it is judged file by file:
+  in each file whose unclassified content changes, all of its pieces in that file lie within the scope, on each
+  side that holds any. A write elsewhere in the repository never needs a scope over all of its bytes (re-check
+  ad8daeb). The rule is file-granular, not piece-granular: classifying one span of a file as a new unit needs the
+  file's other unowned bytes in the scope too, which fails closed (re-check c550803 N1).
 """
 
 from __future__ import annotations

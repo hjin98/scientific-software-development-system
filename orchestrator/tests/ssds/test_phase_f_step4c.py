@@ -775,6 +775,31 @@ class OutermostOwnerRevision(unittest.TestCase):
         ignored = '[governed]\nignore = ["pkg/a.py"]\n' + NESTED
         self.assertIn("FREEZE_SOURCE", codes(frame_for(prefixed, ignored, NESTED_FILES)), "an ignore entry")
 
+    def test_a_stranger_nested_in_a_frozen_subject_freezes(self) -> None:
+        """Re-check ad8daeb RB1 case 3: a non-member unit declared inside the frozen subject's region takes its
+        bytes by innermost ownership; only ``_held``'s owned bytes see it."""
+
+        from ._scenario import challenge
+
+        doc = '''
+    [[unit]]
+    id = "fz"
+    kind = "D3"
+    scope = [{ file = "doc.md", heading = ["A"] }]
+'''
+        files = {"doc.md": "# A\na1\n<!-- ssds:begin g -->\na2\n<!-- ssds:end g -->\n# B\nb\n"}
+        sc = Scenario(doc, files)
+        sc.admit(challenge(sc.triple("fz")))
+        stranger = doc + '''
+    [[unit]]
+    id = "g"
+    kind = "D3"
+    scope = [{ file = "doc.md", anchor = "g" }]
+'''
+        frame = frame_for(sc, stranger, files)
+        self.assertNotIn("STRUCT_SIBLING_OVERLAP", codes(frame))
+        self.assertIn("FREEZE_SOURCE", codes(frame))
+
     def test_a_term_ceasing_to_resolve_by_declaration_freezes(self) -> None:
         """Review ad8daeb N-b (R15): F20's "a term coming to resolve or not"."""
 
@@ -804,6 +829,9 @@ class OutermostOwnerRevision(unittest.TestCase):
         self.assertTrue(frame.exists)
         self.assertEqual(outside_scope(frame, ["readme", "ssds.manifest"]), [])
         self.assertEqual(outside_scope(frame, ["ssds.manifest"]), ["readme", "ssds.unclassified"])
+        widened = frame_for(sc, readme, {k: v for k, v in files.items() if k != "notes/n.md"})
+        self.assertIn("ssds.unclassified", outside_scope(widened, ["readme", "ssds.manifest"]),
+                      "the head-side widening is the new unit's files, never more (re-check c550803 M14)")
         added = frame_for(sc, units, {**files, "notes/new.md": "new\n"})
         self.assertEqual(outside_scope(added, ["notes/"]), [], "README.md, elsewhere, is not in this write")
         self.assertEqual(outside_scope(added, ["src/"]), ["ssds.unclassified"])
