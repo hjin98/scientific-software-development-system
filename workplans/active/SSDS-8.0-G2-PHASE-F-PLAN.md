@@ -42,8 +42,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              5d is closed (PASS at b546a2b8, notes taken up); 5e and 5f
              are deferred (SD-71). Step 5 is closed for Phase F. Revision 19 splits step 6 into 6a-6g (§3.3,
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a and 6b are closed (PASS at c06f5be5 and
-             e78d0cf7); 6c (accepting) is built and under same-family review. Admission now accepts records-only
-             requests and a records-only ABSORB adoption. A10 is accepted (SD-66);
+             e78d0cf7); 6c (accepting) is built; its review blocker (unchecked targets) is repaired and under
+             re-check. Admission now accepts records-only requests and a records-only ABSORB adoption. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1444,3 +1444,17 @@ Its notes are taken up: N1, the halt message names "another host key", not anoth
   - **step 10's repair rehearsed end to end**: a foreign declaration change absorbed, then adopted by a human `ABSORB` with `adopted_deltas`, accepted with the `ADOPTED` delta and no integration, `Σ` updated and the key no longer quarantined;
   - the gate, case by case; an adoption waiting while a realization is admitted.
 - **Mutants.** Nine: all are killed.
+
+**Same-family review of c80fc6ad (6c).** No SERIOUS CHALLENGE. NO-PASS on one blocker, repaired:
+- **B1, records on targets never checked were accepted.** Before 6c every request ended `SCHEMA_UNSUPPORTED`, which hid two gaps:
+  - step 3's acceptance-target rules ran only for `ACCEPTANCE`;
+  - step 2 checked record references and basis revisions, but not a record's own target.
+
+  A probe accepted a `LEGACY_ACCEPTANCE` on a part or on a missing subject, and an `EQUIVALENCE`, a `RECONSTRUCTION_PROPOSAL` and an `EXTERNAL_ACCEPTANCE` on missing targets. The repairs:
+  - Step 2 checks that a record's target exists (`REF_TARGET`, a new `REF_*` member and a Stage S note; Manual §8.3 step 2): its units (`units`, `unit`, `scope`) are declared at the head, and its `(unit, revision)` pairs (a triple, a gate decision's triple, an item or spec revision) are known revisions. It applies to `ADMITTED` records, since a frame record's target is its frame's. An acceptance's triple stays with step 3's codes (SD-68).
+  - Step 3 applies the acceptance-target rules to `LEGACY_ACCEPTANCE`, which "supplies the acceptance for that (subject, scope_id, rev)" (§19.2). A legacy import on a subject not `LEGACY` is `AUTH_VERSION`.
+  - `EXTERNAL_ACCEPTANCE`, whose external target has no checker, is gated.
+
+  The probe's cases are tests, and six mutants are killed.
+
+Its answers confirm the rest of the gate, the trial and committed entries agreeing, the cascade, and the adoption path. Its note N1 is answered by Phase E's E31: a records-only `AMEND` with no plan change in the same request is settled at once.

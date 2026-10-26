@@ -28,7 +28,7 @@ REASONS = frozenset({
     "SCHEMA_REQUEST", "SCHEMA_RECORD", "SCHEMA_BOUND", "SCHEMA_OBJECT", "SCHEMA_UNSUPPORTED", "SECRET_DETECTED",
     # step 2
     "REF_BASE", "REF_RECORD", "REF_REVISION", "REF_OBJECT", "REF_OBLIGATION", "REF_DUPLICATE",
-    "REF_PRODUCING_CONTEXT", "REF_TRANSFORMATION", "REF_DELTA", "REF_ADOPTION",
+    "REF_PRODUCING_CONTEXT", "REF_TRANSFORMATION", "REF_DELTA", "REF_ADOPTION", "REF_TARGET",
     # step 3: authentication and authorization (Phase F steps 3-4)
     "AUTH_ENVELOPE", "AUTH_ACTOR", "AUTH_VERSION", "AUTH_ROLE_KIND", "AUTH_TARGET_PART", "AUTH_TARGET_REVOKED",
     "AUTH_ILL_FORMED", "AUTH_TARGET_NOT_CURRENT", "AUTH_TARGET_NOT_EFFECTIVE", "AUTH_SUPERSEDES",
@@ -288,6 +288,31 @@ def referenced_records(record: Mapping[str, Any]) -> set[str]:
             if isinstance(ref, str):
                 out.add(ref)
     return out
+
+
+def target_references(record: Mapping[str, Any]) -> tuple[set[str], set[tuple[str, str]]]:
+    """The units a record's target names, and the ``(unit, revision)`` pairs: a triple's subject and revision, an
+    ``(item unit, rev)``, a gate decision's triple. Step 2 checks they exist (Manual §8.3 step 2: "every identity,
+    revision, … target … exists"; review c80fc6a B1)."""
+
+    target = record.get("target")
+    if not isinstance(target, Mapping):
+        return set(), set()
+    units: set[str] = set()
+    pairs: set[tuple[str, str]] = set()
+    for key in ("units", "scope"):
+        if isinstance(target.get(key), list):
+            units.update(u for u in target[key] if isinstance(u, str))
+    if isinstance(target.get("unit"), str):
+        units.add(target["unit"])
+    triple = target.get("subject") if isinstance(target.get("subject"), Mapping) else target
+    if isinstance(triple.get("subject"), str) and isinstance(triple.get("rev"), str):
+        pairs.add((triple["subject"], triple["rev"]))
+    for key in ("spec", "objective"):
+        named = target.get(key)
+        if isinstance(named, Mapping) and isinstance(named.get("unit"), str) and isinstance(named.get("rev"), str):
+            pairs.add((named["unit"], named["rev"]))
+    return units, pairs
 
 
 def referenced_revisions(record: Mapping[str, Any]) -> set[tuple[str, str]]:

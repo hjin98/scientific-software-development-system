@@ -32,7 +32,8 @@ from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_cha
 from .authenticate import authenticate, stored_attestations
 from .authorize import authorize
 from .checks import (content_identity, on_merits, over_bounds, producing_context, record_problems, referenced_objects,
-                     referenced_records, referenced_revisions, request_problems, transformation_named, verified_objects)
+                     referenced_records, referenced_revisions, request_problems, target_references, transformation_named,
+                     verified_objects)
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems
 from .currency import Currency
@@ -458,6 +459,12 @@ class Admission:
                         own.append("REF_REVISION")  # a frame record's revisions may also be its frame's
                     if referenced_objects(record) - stored - set(good):
                         own.append("REF_OBJECT")
+                    if record["frame"] == "ADMITTED":  # a frame record's target is its frame's (§7.5)
+                        units, pairs = target_references(record)
+                        if record["kind"] in ("ACCEPTANCE", "LEGACY_ACCEPTANCE"):
+                            pairs = set()  # step 3's own codes judge an acceptance's triple (SD-68)
+                        if units - set(s.view.structure.units) or pairs - revisions:
+                            own.append("REF_TARGET")  # the target exists (§8.3 step 2; review c80fc6a B1)
                     context = producing_context(record)
                     if context is not None:
                         earlier = admitted_contexts.get(context[0], set()) | {
@@ -676,7 +683,8 @@ def gated(request: Mapping[str, Any], records: list, support: Any, change: Any) 
     step 9; and an adoption while any realization is admitted, a stricter form of SD-72's rule (F42), until step 8."""
 
     kinds = {r.get("kind") for r in records if isinstance(r, Mapping)}
-    if "TASK_RESULT" in kinds or request.get("candidates") or kinds & _STEP_NINE:
+    if "TASK_RESULT" in kinds or request.get("candidates") or kinds & _STEP_NINE or "EXTERNAL_ACCEPTANCE" in kinds:
+        # an external acceptance's target has no checker yet (review c80fc6a B1)
         return True
     items = Workflow(support).items if support is not None else None
     if any(items is None or items.of(c) is not None for c in request.get("claims") or []):

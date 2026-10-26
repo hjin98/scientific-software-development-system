@@ -99,8 +99,13 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
         return codes
     if not trial.qualified(record, trial.j.domain_of(record)):
         codes.add("AUTH_ACTOR")
-    if kind == "ACCEPTANCE":
+    if kind in ("ACCEPTANCE", "LEGACY_ACCEPTANCE"):
+        # a legacy import "supplies the acceptance for that (subject, scope_id, rev)" (§19.2), so it meets the same
+        # target rules, on a subject the protocol it imports governs (review c80fc6a B1)
         codes |= _acceptance_target(record, _in_frame(record, trial))
+        subject = (record.get("target") or {}).get("subject")
+        if kind == "LEGACY_ACCEPTANCE" and isinstance(subject, str) and trial.s.mode(subject) != "LEGACY":
+            codes.add("AUTH_VERSION")
     if any(not _supersession_authorized(record, x, envelope, trial, base, obligation)
            for x in record.get("supersedes") or []):
         codes.add("AUTH_SUPERSEDES")

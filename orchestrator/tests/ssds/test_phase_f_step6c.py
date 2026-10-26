@@ -67,6 +67,63 @@ class Accepting(RequestFixture):
         self.assertNotIn(naming["id"], decision.admitted)
 
 
+class Targets(RequestFixture):
+    """Review c80fc6a B1: with ACCEPT lifted, a record's target exists (§8.3 step 2: ``REF_TARGET``), and a legacy
+    import meets the acceptance target rules, on a subject its protocol governs (§19.2)."""
+
+    def signed_by_human(self, records):
+        from ssds.admission.request import request_message
+
+        from ._fixtures import sshsig
+
+        req = self.request(records, base_position=len(self.entries()) - 1)
+        req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+        return req
+
+    def refused(self, kind, target, outcome, **fields):
+        rec = with_id({**record(kind, target=target, outcome=outcome, fields=fields or None), "actor": self.human()})
+        decision = self.admit(self.signed_by_human([rec]))
+        return decision, dict(decision.refused).get(rec["id"])
+
+    def test_a_target_that_does_not_exist(self) -> None:
+        from .test_phase_f_step4b import derive_state
+
+        rev = derive_state(self).subject_triple("guide")[2]
+        _, codes = self.refused("EQUIVALENCE", {"unit": "nowhere", "from": rev, "to": rev, "class": "EDITORIAL"},
+                                "EQUIVALENT")
+        self.assertEqual(codes, ("REF_TARGET",))
+        _, codes = self.refused("RECONSTRUCTION_PROPOSAL", {"units": ["nowhere"]}, "PROPOSED")
+        self.assertEqual(codes, ("REF_TARGET",))
+        _, codes = self.refused("REVIEW", {"subject": "guide", "scope_id": "sha256:" + "0" * 64,
+                                           "rev": "sha256:" + "0" * 64}, "PASS")
+        self.assertEqual(codes, ("REF_TARGET",), "a revision that never existed")
+
+    def test_a_target_that_exists_is_accepted(self) -> None:
+        from .test_phase_f_step4b import derive_state
+
+        subject, scope, rev = derive_state(self).subject_triple("guide")
+        decision, codes = self.refused("RECONSTRUCTION_PROPOSAL", {"units": ["guide"]}, "PROPOSED")
+        self.assertEqual((decision.decision, codes), ("ACCEPT", None))
+
+    def test_a_legacy_import_meets_the_acceptance_rules(self) -> None:
+        from .test_phase_f_step4b import derive_state
+
+        subject, scope, rev = derive_state(self).subject_triple("guide")
+        _, codes = self.refused("LEGACY_ACCEPTANCE", {"subject": "guide.intro", "scope_id": scope, "rev": rev},
+                                "IMPORTED", legacy=["x"])
+        self.assertIn("AUTH_TARGET_PART", codes)
+        _, codes = self.refused("LEGACY_ACCEPTANCE", {"subject": "nowhere", "scope_id": scope, "rev": rev},
+                                "IMPORTED", legacy=["x"])
+        self.assertIn("AUTH_TARGET_NOT_EFFECTIVE", codes)
+        _, codes = self.refused("LEGACY_ACCEPTANCE", {"subject": subject, "scope_id": scope, "rev": rev},
+                                "IMPORTED", legacy=["x"])
+        self.assertEqual(codes, ("AUTH_VERSION",), "this fixture's guide is NATIVE: no legacy protocol governs it")
+
+    def test_an_external_import_is_not_yet_accepted(self) -> None:
+        decision, _ = self.refused("EXTERNAL_ACCEPTANCE", {"external": "some-body"}, "IMPORTED")
+        self.assertIn("SCHEMA_UNSUPPORTED", decision.reasons)
+
+
 class Adoption(RequestFixture):
     """Step 10's repair, rehearsed: a foreign declaration change absorbed, then adopted by a human ``ABSORB``."""
 
