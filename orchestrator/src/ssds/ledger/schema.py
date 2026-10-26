@@ -123,6 +123,8 @@ TARGET_TYPES: dict[str, Check] = {
     "external": shape({"external": is_token}),
     "analyzer": shape({"analyzer": is_token, "inputs": list_of(UNIT_REV)}),
     "content_ref": shape({"digest": is_digest}),
+    # a quarantined delta: the absorption entry that first observed the key's value, and the key (SD-69, F21)
+    "delta": shape({"absorption": is_digest, "key": list_of(is_token)}),
     "custody": shape({"runner": is_token}),
     "loss": shape({"loss": is_digest}),
     "none": lambda v: v is None,
@@ -161,8 +163,11 @@ KINDS: dict[str, KindSpec] = {
     "IMMATERIALITY": _k("support", "records", "IMMATERIAL"),
     "PLAN_ACCEPTANCE": _k("support", "units", "ACCEPTED REJECTED", {"objective": UNIT_REV, "items": list_of(UNIT_REV)},
                           ("objective", "items")),
-    "INTAKE_CLASSIFICATION": _k("support", "units|content_ref", "PROPOSED", {"kind": is_token}),
-    "INTAKE_DISPOSITION": _k("support", "units|content_ref", "ADOPT ABSORB REALIGN QUARANTINE REJECT"),
+    # SD-69: catalogue §3.4's targets with a delta beside content_ref (units dropped) and §18.3's dispositions
+    "INTAKE_CLASSIFICATION": _k("support", "delta|content_ref", "PROPOSED", {"kind": is_token}),
+    "INTAKE_DISPOSITION": _k("support", "delta|content_ref",
+                             "ABSORB RECONCILE SPLIT ARCHIVE RETAIN_AS_EVIDENCE MARK_GENERATED QUARANTINE REJECT "
+                             "DISPOSABLE", {"paths": list_of(is_token)}),
     "LEGACY_ACCEPTANCE": _k("support", "triple", "IMPORTED", {"legacy": list_of(is_token)}),
     "EXTERNAL_ACCEPTANCE": _k("support", "external", "IMPORTED"),
     "RECONSTRUCTION_PROPOSAL": _k("support", "units", "PROPOSED PROVISIONAL UNKNOWN"),
@@ -259,7 +264,7 @@ _ENVELOPE_REQUIRED: dict[str, Check] = {
     "ruleset": shape({"system": is_token, "policy": is_digest, "analyzers": is_digest}),
     "actor": lambda v: isinstance(v, str) and bool(ACTOR_RE.match(v)),
     "actor_class": lambda v: isinstance(v, str) and v in ACTOR_CLASSES,
-    "frame": lambda v: v == "ADMITTED" or shape({"transformation": is_digest})(v),
+    "frame": lambda v: v == "ADMITTED" or _frame_ok(v),
     "target": lambda v: True,  # checked per kind
     "basis": lambda v: isinstance(v, list),
     "outcome": lambda v: v is None or isinstance(v, str),
@@ -285,7 +290,7 @@ _BASIS_TARGET = {
     "execution": is_json_object,
     "record": RECORD_REF,
     "standing": RECORD_REF,
-    "identity": lambda v: RECORD_REF(v) or TRIPLE(v) or UNIT_REV(v),
+    "identity": lambda v: RECORD_REF(v) or TRIPLE(v) or UNIT_REV(v) or TARGET_TYPES["delta"](v),
 }
 
 
@@ -299,6 +304,20 @@ def _basis_entry_ok(entry: Any) -> bool:
     if not (isinstance(cls, str) and (cls in CONSUMPTION_CLASSES or (cls.startswith("CONSUMER:") and is_token(cls)))):
         return False
     return entry.get("role") in (None, "BEFORE", "OUTPUT", "CONTEXT")
+
+
+_REBASE_FRAME = ("base", "candidate", "adopts", "rebases")
+
+
+def _frame_ok(v: Any) -> bool:
+    """A frame names its transformation, and a rebase frame also carries ``(B', C', A')`` and the transformation it
+    rebases, all four together (catalogue §8.3 step 2; SD-69 Q-F6 (iii))."""
+
+    extra = set(v) - {"transformation"} if isinstance(v, dict) else set()
+    if extra and extra != set(_REBASE_FRAME):
+        return False
+    return shape({"transformation": is_digest}, {"base": is_commit, "candidate": is_commit,
+                                                 "adopts": list_of(is_json_object), "rebases": is_digest})(v)
 
 
 def record_id(record: Mapping[str, Any]) -> str:
