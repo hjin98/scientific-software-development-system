@@ -35,8 +35,8 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
              (2026-10-25); the old ledger's retirement statement needs step 7.
-NEXT ACTION: step 4b-ii is closed (PASS at c98bb647); plan revision 7 passed; step 4c-i is built
-             and under same-family review; then 4c-ii. A10 is accepted (SD-66);
+NEXT ACTION: steps 4b-ii and 4c-i are closed (PASS at c98bb647 and 1a3c262d); plan revision 8
+             is repaired; next 4c-ii. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are Q-F7.
@@ -703,6 +703,8 @@ Kept: the near-equivalent survivors F14 and F21-F25, reachable only through kind
 `submits` now lives beside `transformation_id` in the ledger schema: total, requiring exactly `{key, value}` elements. History, frames, `State`, the workflow and Admission's producing context all read it. Tests cover a forged first result, which now authors nothing, and a malformed `adopts`, which submits nothing and crashes nothing. Kept: S4, the base view's structure, is reachable only through a concurrent declaration change.
 
 **Narrow re-check of dcae3e90.** No SERIOUS CHALLENGE. B3 and the History and producing-context parts of B1 are closed, and S2's refusal is unweakened: its cases are two submitting results. NO-PASS on one blocker, repaired: `Judgments._binding`, `binding_conflicts`, `_key_of` and `_base_position` still read the first result naming `id(X)`, so a forged bare-id result fixed a review's judged scope `J` (and so its reach) and set derivation's §7.1 check, disagreeing with Admission's. They now read `Judgments._submitting`, the results that `submits`. A test shows `J` and `binding_conflicts` unchanged by a forged result. The reviewer's grep found every other reader of a result's transformation gated by the enactment or `submitting_result`.
+
+**Narrow re-check of 1a3c262d.** No SERIOUS CHALLENGE. **PASS:** `_submitting` is the only route in `Judgments`, and the forged-result probes leave `J`, `binding_conflicts`, `makers` and the maker's own review unchanged. **Step 4c-i is closed.**
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
