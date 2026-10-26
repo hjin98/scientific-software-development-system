@@ -38,7 +38,8 @@ DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `s
 NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f7fd7b); revision 17
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
-             43e85277); 5a is closed (PASS at 3d125c63); 5b (per-record legality) is next. A10 is accepted (SD-66);
+             43e85277); 5a is closed (PASS at 3d125c63); 5b-i (step 7's obligation checks, F36) is built and
+             under same-family review; 5b-ii (answered, revision assessments first, Phase E refusals) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -302,6 +303,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F33** *A rebased record's roles (step 5e).* §7.6: a frame-`X` record "counts for `X'` only where every entry holds there". "There" is `D_n[X']`, so each entry's §7.3 role is computed from `X'` (`B'`, `C'`), the frame it is evaluated in. Catalogue §7.6's "in its role, in `D_n[X']`" could also mean the role from `X`. Traced over before-image, output, context and both-sides entries, the two readings agree (plan check of c88c3bbb).
 - **F34** *"Exists at the current head" and the delegated codes (step 5).* The bound obligation "exists at the current head" when the head derives it: a dropped part's obligation does not, matching §13.7's "rejected at step 7", since `Items.parts` holds only required parts. §8.4 delegates the `OBLIGATION_*` members. 5a names one per step 7 check (an obligation not derived at the head, a second result for one task, a duplicate discharge, an unmet discharge predicate, plus `OBLIGATION_REENACTED`, `OBLIGATION_ANSWERED` and `OBLIGATION_REVIEW_OPEN`, which the catalogue names), as Stage S notes like SD-68.
 - **F35** *Which rejection refuses an integration (step 5a).* `Items.refused` ends a pending candidate on any REJECT naming `X`, and the item takes a new iteration (RR-7). A rejection for a binding fault, an unbuilt check (`SCHEMA_UNSUPPORTED`), a base or a moved head says nothing of the candidate. Naming `X` there would end sound work, and would let a request bound by anyone condemn another task's candidate. So a REJECT names `X` only when the request authenticated and every reason judges the candidate itself: `STRUCT_*`, `RELATION_*`, `CONFORMANCE_*`, `AUTH_WRITE_SCOPE`, `AUTH_PROTECTED`, `CYCLE_*`, `STALE_RETAINED`, `OBLIGATION_REENACTED` or `REGRESSION` (`checks.on_merits`). Any other rejection leaves the candidate pending. A freeze (`FREEZE_*`) is the head's state and lifts when its challenge is resolved. A missing enactment acceptance (`ENACTMENT_MISSING`) is the review route's, recorded in `X`'s frame (§11.5 (2)). Neither is the candidate's (review 87b4fa8 B1).
+- **F36** *A contract revision that is not current (step 5b).* A result names the item revision whose contract it worked under (`binding.item`, §13.7). Catalogue §8.3 step 7 refuses a result bound to "a non-current contract revision". §13.4 lets some amendments keep a contract's meaning, but whether a result survives one is the revalidation's to judge, not Admission's. So "current" reads as the item's revision at the head: any other revision, or an item no longer declared, is `OBLIGATION_CONTRACT_STALE`. This fails closed. Admitting a result whose contract only tightened is a Stage S note.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -1184,3 +1186,17 @@ Its answers confirm:
 N1 places `NOT_SETTLED` for salvaged adverse human decisions with step 6.
 
 **Narrow re-check of 3d125c63.** No SERIOUS CHALLENGE. **PASS:** the freeze and enactment codes are out of the merit set, with a case each, and N1 is placed. **Step 5a is closed.**
+
+**Step 5b-i built** (5b in two halves: 5b-i the obligation checks, 5b-ii the answered and assessment-first checks and Phase E's refusals).
+- **Admission.** `admission/legality.py`'s `Legality`, over the head's workflow:
+  - Request-level checks, after the authorization loop:
+    - `OBLIGATION_NOT_DERIVED`: the envelope's obligation is not derived at the head (F34);
+    - `OBLIGATION_CLAIM_UNSUPPORTED`: a task-bound request claims a discharge without its result;
+    - `OBLIGATION_RESULT_DUPLICATE`: a second result for one task, at the head or in the request;
+    - `OBLIGATION_DISCHARGED`: a claim of an obligation already discharged, which step 2's `REF_OBLIGATION` already catches for subject obligations, which drop out once discharged.
+  - Per-record checks, joining each authorization round as step 6's do: a result bound to a discharged obligation (`OBLIGATION_DISCHARGED`), or naming an item revision not current (`OBLIGATION_CONTRACT_STALE`, F36).
+  - `authorized` now takes a tuple of per-record checks (`Currency`, `Legality`).
+- **Tests.** `test_phase_f_step5b.py`:
+  - each code on derivation histories, with the discharge state driven where only item obligations stay indexed;
+  - through the engine: a report request claiming a discharge, and a stale contract refusing a result in the loop.
+- **Mutants.** 13: all are killed, the loop's wiring by the added engine case.

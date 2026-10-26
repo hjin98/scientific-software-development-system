@@ -34,6 +34,7 @@ from .checks import (content_identity, on_merits, over_bounds, producing_context
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems
 from .currency import Currency
+from .legality import Legality
 from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
@@ -388,8 +389,11 @@ class Admission:
                 base = Workflow.historical(support.s.h, position) if "REF_BASE" not in reasons \
                     and isinstance(position, int) and 0 <= position <= s.n else None
                 before = passing
+                legality = Legality(support)
                 passing, more, ok, alone, last = self.authorized(request, passing, chain, entries, base, auth, change,
-                                                                 Currency(support, change))
+                                                                 (Currency(support, change), legality))
+                if ok:  # step 7's request-level checks, over what passed (Phase F step 5b)
+                    reasons |= legality.request_codes(request, passing)
                 refused += more + alone
                 if change is not None:
                     # a rejection admits never-lost records at the head (§8.3 step 6), so their own step-3 and step-5
@@ -448,10 +452,11 @@ class Admission:
         return out
 
     def authorized(self, request: Mapping[str, Any], passing: list[dict], chain, entries, base, auth, change=None,
-                   currency: Any = None):
+                   checks: tuple = ()):
         """Authorize the records in the trial extension of their own request (reading F10), in the state after the
-        request's own transformation when ``change`` is its frame (reading F27), with step 6's ``currency`` codes
-        joining each round's refusals (reading F10; step 4e-ii), removing each refused
+        request's own transformation when ``change`` is its frame (reading F27), with the per-record ``checks`` of
+        steps 6-7 (``codes(record, trial)``) joining each round's refusals (reading F10; steps 4e-ii, 5b), removing
+        each refused
         record and rebuilding the trial until none is refused (at most once per record). Returns the records
         still passing, the refusals, whether the envelope's obligation and role hold, the records refused alone, and
         the final trial, which step 5's request-level check reads (``None`` when no record passes)."""
@@ -470,10 +475,10 @@ class Admission:
             if not result.ok:
                 return passing, refused, False, alone, last
             refusals = dict(result.refused)
-            for record in passing if currency is not None else ():
-                stale = currency.codes(record, last)
-                if stale:
-                    refusals[record["id"]] = tuple(sorted(set(refusals.get(record["id"], ())) | stale))
+            for record in passing:
+                more = set().union(*(check.codes(record, last) for check in checks)) if checks else set()
+                if more:
+                    refusals[record["id"]] = tuple(sorted(set(refusals.get(record["id"], ())) | more))
             if not refusals and not result.alone:
                 break
             gone = set(refusals) | {rid for rid, _ in result.alone}
