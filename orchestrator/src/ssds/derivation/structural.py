@@ -284,10 +284,13 @@ def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, t
     from .frames import Frame, Transformation
 
     pairs = set()
-    for element in elements if isinstance(elements, list) else []:
+    elements = elements if isinstance(elements, list) else []
+    for element in elements:
         if not isinstance(element, dict) or set(element) != {"absorption", "key", "value"} \
                 or not isinstance(element["key"], list) or len(element["key"]) != 2:
             return {"REF_ADOPTION"}
+        if (element["absorption"], tuple(element["key"])) in pairs:
+            return {"REF_ADOPTION"}  # A is a set: one element per delta (review 193b654 N3)
         key = tuple(element["key"])
         current = state.current_delta(key)
         if current is None or current[0] != element["absorption"] \

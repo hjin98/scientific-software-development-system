@@ -276,7 +276,10 @@ class State:
             return None
         value = observed.get(key)
         p = self.n
-        while p > 0 and (manifest_decl(self.h.view(p - 1)) or {}).get(key) == value:
+        while p > 0:
+            before = manifest_decl(self.h.view(p - 1))
+            if before is None or before.get(key) != value:
+                break  # an unparsed manifest ends the run as a different value does (review 193b654 N1)
             p -= 1
         entry = self.h.chain.entries[p]
         if entry.entry.get("entry_kind") != "ABSORPTION":

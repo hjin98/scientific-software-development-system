@@ -35,8 +35,8 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
              (2026-10-25); the old ledger's retirement statement needs step 7.
-NEXT ACTION: steps 4b-ii, 4c-i and 4c-ii are closed (PASS at c98bb647, 1a3c262d and
-             c5508035); 4c-iii's last repair and 4c-iv are built and under same-family review; then 4d. A10 is accepted (SD-66);
+NEXT ACTION: steps 4b-ii and 4c-i to 4c-iii are closed (PASS at c98bb647, 1a3c262d, c5508035
+             and 193b6548); 4c-iv's repair is under narrow re-check; then 4d. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -262,7 +262,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   - **For Stage S and the next Manual amendment batch.** Catalogue §1.5's formula (`content(u) = H(cid(t_i))`; `sem` over every unit inside `scope(u)`) does not single out the outermost owner, and Manual §1.5 leaves "its content" undefined for it: a candidate clarification, as F1 records its own.
 - **F20** *The freeze's regions (step 4c-ii; review 2aadf33 B6).* §8.3 step 4 (b) freezes "the signature, scope, regions or membership" of a subject whose current revision carries an unresolved blocking challenge or is `REVOKED`. Its regions are read as the two structures resolve them on one tree: the subject is compared on the merged tree under `Σ_n` and under `Σ_{n+1}` (its declarations, its terms' resolution status, its region, and the bytes it and its members own), so only a declaration can move them (re-check ad8daeb RB1). Bytes, the files under a prefix, and anchor lines are content: an edit of them makes a new revision, which is how a challenge's resolution proceeds, and the freeze concerns structure ("whether it would lose or gain units"). So a file added under a frozen prefix-scoped subject, or an anchor moved within it, is not frozen, being the same on both sides. A rescoping, a change of kind, mode or declarations, a term coming to resolve or not, any unit joining or leaving (nested subjects included), a unit declared to overlap it, an `ignore` entry over its files, and a stranger nested in it taking its bytes are all frozen. So is a re-partition inside it: moving bytes between its own parts changes what its members own, though a byte-preserving refinement keeps its `scope_id` and tenure (§19.3). This fails closed. This is narrower than §1.2's region difference, which the write set uses across two trees: there, existing bytes entering or leaving under the pinned alignment also count, so an anchor move or a file moved out of a prefix would freeze. Under either reading the freeze lets content move between subjects, so this is no decision change. The narrower reading goes to Stage S as a candidate clarification of "regions" in §8.3 step 4 (b).
 - **F21** *A quarantined delta's identity (step 4c-iv).* Catalogue §4 gives an `INTAKE_DISPOSITION` "`identity` on the absorption entry and delta key", and SD-69 its `delta` target `{absorption, key}`.
-  - **Which absorption.** A delta is the observed value of one declaration key that differs from `Σ` (§1.6). Its `absorption` is the digest of the absorption entry whose observed head first showed that value: the latest absorption at or before `n` at which `decl(T)[k]` became its current value. Before it, the value differed or the key matched `Σ`. A later foreign change to the same key's value is a new delta under a new absorption. A realignment ends the delta (the key leaves `Q`). So a delta's identity is a function of the ledger alone, and the `INTAKE` obligation derived for a quarantined key is keyed by it.
+  - **Which absorption.** A delta is the observed value of one declaration key that differs from `Σ` (§1.6). Its `absorption` is the digest of the absorption entry whose observed head first showed that value: the latest absorption at or before `n` at which `decl(T)[k]` became its current value. Before it, the value differed or the key matched `Σ`. A later foreign change to the same key's value is a new delta under a new absorption, and so is the same value returning after an observed manifest that did not parse: an unparsed manifest ends a run as a different value does, for a present value and a deletion alike (review 193b654 N1). A realignment ends the delta (the key leaves `Q`). So a delta's identity is a function of the ledger alone, and the `INTAKE` obligation derived for a quarantined key is keyed by it.
   - **Element value.** The value in `A`'s interim element `{absorption, key, value}` is `decl(T)[k]` at that absorption, so it also names exactly one delta (revision 13).
   - **Targets, as SD-69 enumerates them.** Both intake kinds take `delta` (`{absorption, key}`) or `content_ref`, with `units` dropped. The `identity` basis gains `delta`. Outcomes: the §18.3 vocabulary for dispositions; classification keeps its advisory `PROPOSED`. Catalogue §3.4 gives `INTAKE_CLASSIFICATION` "observed path set or quarantined delta", which has no `content_ref`; whether it takes a `paths` target instead is Q-F8. `INTAKE_CLASSIFICATION` stays unadmitted in Phase F (`SCHEMA_UNSUPPORTED`, intake beyond SD-69's adoption being Phase G's), so the shape is moot until then.
   - **An adoption names the current delta.** §18.4's "at some position" rule concerns the targets of dispositions that judge (contrary dispositions, adjudications), never adoption. An adopting `ABSORB` must name its key's current delta at the head: the key in `Q_n`, with F21's identity at `n`. Otherwise a superseded delta's `ABSORB` would enact a later value no disposition judged (check c50eb56c B1).
@@ -929,6 +929,19 @@ E10 is equivalent.
   - An adoption with a candidate fails closed.
 - **Not yet built.** The entry that carries the adoptions as `ADOPTED` deltas is step 9's commit. Every request still ends `SCHEMA_UNSUPPORTED`.
 - **Mutants.** All nine on 4c-iv are killed.
+
+**193b6548: re-check of 4c-iii's RB1 and same-family review of 4c-iv.** No SERIOUS CHALLENGE. **4c-iii: PASS; step 4c-iii is closed.** 4c-iv: NO-PASS on three blockers, repaired:
+- **B1, an `ABSORB` refused at step 3 still counted.** Adoption is now judged after step 3, on what passed.
+- **B2, `ABSORB`s with no `adopted_deltas` escaped the equality check.** Adoption is judged whenever either side is non-empty, and the candidate rule reads either.
+- **B3, a rebase-frame record passed steps 1-3.** It is refused `REF_TRANSFORMATION` at step 2 until step 5, as §6 says.
+
+Its notes:
+- N1: an unparsed manifest ends a delta's run uniformly (F21 amended).
+- N3: duplicate `adopted_deltas` are `REF_ADOPTION`.
+- N4: the element-value guard is tested alone. The structural owner's value check is equivalent, because R4 covers it.
+- F12: the `identity` basis's `delta` target is tested.
+- N2 is deferred and recorded here. The `INTAKE` obligation stays keyed by its declaration key (`s3`); Admission reads the delta through `State.current_delta`, which requires the key in `Q` and so its derived obligation. Keying the obligation by delta is for Phase G's intake routing.
+- The reviewer could not read `~/.ssds`. The author's read through the program (2026-10-25: both ledgers hold only genesis) stands, and is repeated before step 10.
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 

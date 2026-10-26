@@ -1441,3 +1441,121 @@ class IntakeAtAdmission(AdmissionRequests):
                 req = f.request([], base_position=len(f.entries()) - 1, adopted_deltas=[element], **extra)
                 req["binding"] = {"human": {"actor": f.human(), "signature": sshsig(f.private, request_message(req))}}
                 self.assertIn(code, f.admit(req).reasons)
+
+
+class AdoptionReviewCases(AdmissionRequests):
+    """Review 193b654 B1-B3 and N1, N3, N4, F12."""
+
+    def spy(self, records, adopted, refuse=()):
+        """Admit with ``adoptable`` true and step 3 refusing ``refuse``; return what ``adoption_codes`` was given."""
+
+        from unittest import mock
+
+        from ssds.admission.authorize import Authorization
+        from ssds.admission.request import request_message
+
+        from ._fixtures import sshsig
+
+        seen = []
+
+        def codes(state, head, elements, named):
+            seen.append((elements, named))
+            return set()
+
+        def authorize(request, recs, trial, base):
+            gone = tuple((r["id"], ("AUTH_ACTOR",)) for r in recs if r["id"] in refuse)
+            return Authorization(True, frozenset(), gone, ())
+
+        f = self.f
+        req = f.request(records, base_position=len(f.entries()) - 1, adopted_deltas=adopted)
+        req["binding"] = {"human": {"actor": f.human(), "signature": sshsig(f.private, request_message(req))}}
+        with mock.patch("ssds.admission.engine.adoptable", lambda support, record: True), \
+                mock.patch("ssds.admission.engine.adoption_codes", codes), \
+                mock.patch("ssds.admission.engine.authorize", authorize):
+            f.admit(req)
+        return seen
+
+    def absorb(self):
+        return with_id({**record("INTAKE_DISPOSITION", target={"absorption": "sha256:" + "4" * 64,
+                                                               "key": ["guide", "kind"]}, outcome="ABSORB"),
+                        "actor": self.f.human()})
+
+    def test_an_absorb_refused_at_step_three_names_nothing(self) -> None:
+        rec = self.absorb()
+        element = {"absorption": "sha256:" + "4" * 64, "key": ["guide", "kind"], "value": "D3"}
+        self.assertEqual(self.spy([rec], [element], refuse={rec["id"]}), [([element], set())])
+
+    def test_an_absorb_without_adopted_deltas_is_still_judged(self) -> None:
+        rec = self.absorb()
+        seen = self.spy([rec], [])
+        self.assertEqual(seen, [([], {("sha256:" + "4" * 64, ("guide", "kind"))})])
+
+    def test_a_rebase_frame_is_refused_until_step_five(self) -> None:
+        cand = self.candidate({"guide.md": "# Guide\n\n## Introduction\n\nHello again.\n\n## Usage\n\nRun it.\n"})
+        result = self.submitting(cand)
+        x = result["target"]["transformation"]
+        frame = {"transformation": x, "base": self.f.baseline, "candidate": cand, "adopts": [],
+                 "rebases": "sha256:" + "6" * 64}
+        # an acceptance is never salvaged, so only step 2 can list its refusal
+        rebased = with_id({**record("ACCEPTANCE", target={"subject": "guide", "scope_id": "sha256:" + "0" * 64,
+                                                          "rev": "sha256:" + "0" * 64}, outcome="PASS", frame=frame),
+                           "actor": self.f.human()})
+        self.assertEqual(dict(self.admit([result, rebased]).refused).get(rebased["id"]), ("REF_TRANSFORMATION",))
+
+
+class AdoptionGuards(unittest.TestCase):
+    """Review 193b654 N1, N3, N4 and F12."""
+
+    def test_an_unparsed_manifest_ends_a_delta_run(self) -> None:
+        sc = RecordsOnlyAdoption().quarantined()
+        first = sc.derive().s.current_delta(("doc", "scope"))[0]
+        sc.manifest = "[[unit\n"
+        sc.absorb({})
+        sc.manifest = RecordsOnlyAdoption.WIDE
+        sc.absorb({})
+        again = sc.derive().s.current_delta(("doc", "scope"))
+        self.assertIsNotNone(again)
+        self.assertNotEqual(again[0], first, "the value returns after an unparsed manifest: a new delta")
+
+    def test_an_unparsed_manifest_ends_a_deletion_run_too(self) -> None:
+        """Review 193b654 N1: a deleted key (value ``None``) is split by an unparsed manifest as a present one is."""
+
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        without_doc = LAYERED.replace('''    [[unit]]
+    id = "doc"
+    kind = "D3"
+    scope = [{ path = "doc.md" }]
+''', "")
+        sc.manifest = without_doc
+        sc.absorb({})
+        first = sc.derive().s.current_delta(("doc", "scope"))
+        self.assertIsNotNone(first)
+        sc.manifest = "[[unit\n"
+        sc.absorb({})
+        sc.manifest = without_doc
+        sc.absorb({})
+        self.assertNotEqual(sc.derive().s.current_delta(("doc", "scope"))[0], first[0])
+
+    def test_duplicates_and_each_value_guard_alone(self) -> None:
+        from ssds.derivation import adoption_codes
+
+        case = RecordsOnlyAdoption()
+        sc = case.quarantined()
+        element = case.element(sc)
+        named = {(element["absorption"], ("doc", "scope"))}
+        d = sc.derive()
+        self.assertEqual(adoption_codes(d.s, sc.head, [element, dict(element)], named), {"REF_ADOPTION"}, "a set")
+        wrong = dict(element, value=[{"path": "doc.md"}])
+        self.assertEqual(adoption_codes(d.s, sc.head, [wrong], named), {"REF_ADOPTION"},
+                         "the element's value is the delta's, checked before any frame is built")
+        x = Transformation("sha256:" + "c" * 64, sc.head, sc.head, ((("doc", "scope"), wrong["value"]),))
+        self.assertIn("STRUCT_REVALIDATE", codes(Frame(d.s.h, d.s.n, x, None)),
+                      "and the structural owner's own guard, alone")
+
+    def test_the_identity_basis_names_a_delta(self) -> None:
+        from ssds.ledger.read import record_violations
+
+        rec = with_id(record("FINDING", target={"units": ["doc"]}, fields={"materiality": "ROUTINE"},
+                             basis=[{"mode": "identity", "target": {"absorption": "sha256:" + "4" * 64,
+                                                                     "key": ["doc", "scope"]}, "class": "EXACT"}]))
+        self.assertEqual(record_violations(rec), [])

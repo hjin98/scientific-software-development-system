@@ -309,8 +309,10 @@ class Admission:
                     target = record["target"] if isinstance(record["target"], Mapping) else {}
                     if named is not None and named not in fixed or record["kind"] == "TASK_RESULT" and \
                             ("base" in target or "candidate" in target) and not submits(target) or \
-                            named is not None and record["frame"] == "ADMITTED":
-                        # §7.5: a record about a transformation declares its frame (review 23b487a N2)
+                            named is not None and record["frame"] == "ADMITTED" or \
+                            isinstance(record["frame"], Mapping) and set(record["frame"]) != {"transformation"}:
+                        # §7.5: a record about a transformation declares its frame (review 23b487a N2); a rebase
+                        # frame is step 5's (§6; review 193b654 B3)
                         own.append("REF_TRANSFORMATION")  # names no transformation a result fixes (4c-iii)
                     elif record["kind"] == "TASK_RESULT" and (record["target"].get("adopts") or []):
                         own.append("SCHEMA_UNSUPPORTED")  # adoption with a candidate stays unsupported (revision 15)
@@ -352,14 +354,11 @@ class Admission:
             passing = [r for r in passing if r["id"] not in covered]
         if auth is not None and (auth.ok or auth.reissue):  # step 3's authorization (steps 4b-i, 4b-ii)
             withheld = None
-            if request.get("adopted_deltas") and request.get("candidates") or len(request.get("candidates") or []) > 1:
+            adopting = bool(request.get("adopted_deltas")) or any(_absorbs(r) for r in passing)
+            if adopting and request.get("candidates") or len(request.get("candidates") or []) > 1:
                 reasons.add("SCHEMA_UNSUPPORTED")  # adoption with a candidate; one integration per request
                 withheld = "SCHEMA_UNSUPPORTED"
             else:
-                if request.get("adopted_deltas"):  # a records-only adoption (4c-iv; SD-69)
-                    named = {(r["target"]["absorption"], tuple(r["target"]["key"])) for r in passing
-                             if r["kind"] == "INTAKE_DISPOSITION" and r["outcome"] == "ABSORB"}
-                    reasons |= adoption_codes(support.s, self.expected_head(entries), request["adopted_deltas"], named)
                 if request.get("candidates"):  # an integrating request (§11.5): steps 3-4 on its frame (4c-iii)
                     reasons |= integration_codes(request["candidates"][0], support, request.get("binding"))
                 position = request.get("base_position")
@@ -370,6 +369,10 @@ class Admission:
                 if not ok:
                     reasons.add("AUTH_ENVELOPE")
                     withheld = "REF_BASE" if base is None else "AUTH_ENVELOPE"
+                if adopting:  # a records-only adoption (4c-iv; SD-69), judged on what passed step 3 (review 193b654)
+                    named = {(r["target"]["absorption"], tuple(r["target"]["key"])) for r in passing if _absorbs(r)}
+                    reasons |= adoption_codes(support.s, self.expected_head(entries), request.get("adopted_deltas"),
+                                              named)
             if withheld is not None:  # no record passes step 3: each never-lost one is recorded as refused (step 6)
                 refused += [(r["id"], (withheld,)) for r in passing if never_lost(r)]
                 passing = [r for r in passing if not never_lost(r)]
@@ -433,6 +436,13 @@ class Admission:
             alone += list(result.alone)
             passing = [r for r in passing if r["id"] not in gone]
         return passing, refused, True, alone
+
+
+def _absorbs(record: Mapping[str, Any]) -> bool:
+    """An ``ABSORB`` disposition of a quarantined delta: an adoption (§18.4)."""
+
+    return record.get("kind") == "INTAKE_DISPOSITION" and record.get("outcome") == "ABSORB" \
+        and "delta" in target_type(record)
 
 
 def target_type(record: Mapping[str, Any]) -> set[str]:
