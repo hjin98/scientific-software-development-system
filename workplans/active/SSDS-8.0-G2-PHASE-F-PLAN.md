@@ -35,8 +35,8 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
              (2026-10-25); the old ledger's retirement statement needs step 7.
-NEXT ACTION: steps 4b-ii and 4c (4c-i to 4c-iv) are closed (last PASS at d54a8d7e); 4d,
-             dependency well-formedness, is built and under same-family review. A10 is accepted (SD-66);
+NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f7fd7b); next 4e,
+             currency and the integrating trial. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -295,7 +295,7 @@ Until steps 5-8 (4c-iii; review 23b487a N1), these fail closed:
 - plan units in an integration's write set, even for a planner role (§12.3);
 - more than one candidate per request.
 
-Until 4e builds the integrating trial, an integrating request's own records, and the never-lost records salvage keeps from it, get step 5's per-record checks in `Σ_n`, not in the frame's `Σ_{n+1}` (review 2981f738 N2). A record whose own subject differs in the frame can therefore keep a `validity` entry the frame would call its own; such a record is adverse and vetoes, so nothing reads its basis toward currency.
+Until 4e builds the integrating trial, an integrating request's own records, and the never-lost records salvage keeps from it, get step 5's per-record checks in `Σ_n`, not in the frame's `Σ_{n+1}` (review 2981f738 N2). A record whose own subject differs in the frame can therefore keep a `validity` entry the frame would call its own; such a record is adverse, vetoing whatever its basis, or a runner observation, which rarely carries a `validity` entry.
 
 Until step 5 builds the rebase that SD-69's Q-F6 (iii) correction allows, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii).
 
@@ -1022,3 +1022,5 @@ The first review's non-blocking findings were taken up as well: citations and `L
 - N4: `adoption_codes` reuses the head's `Support`. Indexing acceptances, gate decisions and equivalences by subject or unit, and memoizing `binds_tenure`, wait until a real-sized ledger shows the cost (step 10).
 - N5: a salvaged never-lost record can close a static cycle (F25).
 - F24's item 2 as built is narrower than its text, and fails closed (F24).
+
+**Narrow re-check of 85f7fd7b (the 2981f738 notes).** No SERIOUS CHALLENGE. **PASS:** N1-N5 and the F24 statement are adequately taken up, and the gate-edge mutant is killed. Its wording note on §6 is taken up: a salvaged never-lost record may be a runner observation, not only an adverse record. **Step 4d is closed.**
