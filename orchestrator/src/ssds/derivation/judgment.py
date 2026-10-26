@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import Any
 
+from ssds.ledger.read import submits
+
 from .frames import Frame, Transformation, transformation_of
 from .outcomes import ADVERSE, PASSING, adverse, covers, passing
 from .state import UNKNOWN, State, target_key, triple_key
@@ -465,12 +467,17 @@ class Judgments:
             return False
         return self._transformation_work(target["transformation"], head)[0] == self.judged_content(rid)
 
+    def _submitting(self, transformation: str) -> list[str]:
+        """The results that submit ``X`` (§7.1, ``submits``), in ledger order: a result naming ``id(X)`` without
+        submitting it fixes no binding, scope or base (review dcae3e9)."""
+
+        return [r for r in self.s.of_kind("TASK_RESULT")
+                if self.s.record(r)["target"].get("transformation") == transformation
+                and submits(self.s.record(r)["target"])]
+
     def _binding(self, transformation: str) -> dict[str, Any]:
-        for result in self.s.of_kind("TASK_RESULT"):
-            record = self.s.record(result)
-            if record["target"].get("transformation") == transformation:
-                return dict(record["binding"] or {})
-        return {}
+        found = self._submitting(transformation)
+        return dict(self.s.record(found[0])["binding"] or {}) if found else {}
 
     def _makers(self, transformation: str) -> list[str]:
         return self.s._makers(transformation)
@@ -479,11 +486,9 @@ class Judgments:
         """Two producing contexts for one ``(B, C, A)``: a later result under another scope or key (§7.1 row)."""
 
         contexts = set()
-        for result in self.s.of_kind("TASK_RESULT"):
-            record = self.s.record(result)
-            if record["target"].get("transformation") == transformation:
-                binding = record["binding"] or {}
-                contexts.add((tuple(sorted(binding.get("write_scope") or ())), binding.get("item_key")))
+        for result in self._submitting(transformation):
+            binding = self.s.record(result)["binding"] or {}
+            contexts.add((tuple(sorted(binding.get("write_scope") or ())), binding.get("item_key")))
         return len(contexts) > 1
 
     def _key_of(self, position: int) -> str | None:
@@ -505,8 +510,7 @@ class Judgments:
         return out
 
     def _base_position(self, x: Transformation) -> int | None:
-        submitted = min((self.s.position_of(r) for r in self.s.of_kind("TASK_RESULT")
-                         if self.s.record(r)["target"].get("transformation") == x.id), default=self.s.n)
+        submitted = min((self.s.position_of(r) for r in self._submitting(x.id)), default=self.s.n)
         candidates = [k for k in range(min(submitted, self.s.n) + 1) if self.s.h.head(k) == x.base]
         return max(candidates) if candidates else None
 

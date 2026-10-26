@@ -220,6 +220,28 @@ class FirstSubmittingResult(unittest.TestCase):
         self.assertEqual(d.s.h.makers(x, d.s.n), [maker])
         self.assertTrue(d.j.nonind(review["id"]), "A5: no actor reviews its own work")
 
+    def test_a_forged_first_result_fixes_no_judged_scope(self) -> None:
+        """Re-check dcae3e9: the binding that fixes a review's judged scope ``J`` (write scope, item key) and the
+        §7.1 producing-context check read only results that submit ``X``."""
+
+        def judged(forge: bool):
+            sc = accepted_plan()
+            x = transformation_id(sc.head, sc.add_tree(tree(dict(sc.files, **SOLVED), sc.manifest)))
+            if forge:
+                evil = agent("evil")
+                sc.admit(with_id({**record("TASK_RESULT", target={"task": "task-evil", "transformation": x},
+                                           outcome="COMPLETE", actor=evil, actor_class="AGENT", fields={"slots": {}}),
+                                  "binding": dict(fresh(evil, "task-evil"), write_scope=["records"])}))
+            submit(sc, SOLVED)
+            review = judgment("REVIEW", {"transformation": x}, "PASS")
+            sc.admit(review)
+            d = sc.derive()
+            return sorted(d.j.judged_content(review["id"])), d.j.binding_conflicts(x)
+
+        self.assertEqual(judged(True), judged(False))
+        self.assertEqual(judged(False)[1], False)
+        self.assertTrue(judged(False)[0], "the review judges the candidate's change")
+
     def test_malformed_adopted_elements_submit_nothing_and_never_crash(self) -> None:
         """Review 64a0330 B3: derivation is total over schema-valid ``adopts``; Admission's producing context too."""
 
