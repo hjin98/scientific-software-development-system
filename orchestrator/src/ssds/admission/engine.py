@@ -29,24 +29,24 @@ from ssds.ledger.read import (LedgerEntry, entry_violations, read_chain, record_
 
 from .authenticate import authenticate, stored_attestations
 from .authorize import authorize
-from .checks import (content_identity, over_bounds, producing_context, record_problems, referenced_objects,
+from .checks import (content_identity, on_merits, over_bounds, producing_context, record_problems, referenced_objects,
                      referenced_records, referenced_revisions, request_problems, transformation_named, verified_objects)
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems
 from .currency import Currency
-from .request import REPORT_KINDS, never_lost, request_id
+from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
 UNREALIZED_STEPS = ("authorization", "structure", "legality", "regression")
 
 
 def salvageable(record: Mapping[str, Any]) -> bool:
-    """A never-lost record is salvaged only when every check it owes is built (Phase F plan §3.1): a report, whose
-    supersession step 3 now authorizes. Every other never-lost record (an adverse judgment, a failing assessment,
-    a challenge-tier record) still owes checks of steps 4-5 not built yet, so it is refused by identity as
-    unsupported (plan review b10018de B1: a salvaged peer judgment ended another's standing one)."""
+    """A never-lost record is salvaged only when every check it owes is built (Phase F plan §3.1, step 5a): a
+    report, a challenge or an adverse judgment, whose own step-3 and step-5 checks now exist (steps 4b-4d; step 6
+    exempts them). A failing assessment and a runner's observation owe step 9's realization checks, so they are
+    still refused by identity as unsupported (plan review b10018de B1)."""
 
-    return record.get("kind") in REPORT_KINDS  # a report's supersession is authorized at step 3 (step 4b-i)
+    return record.get("kind") not in ("EVIDENCE_ASSESSMENT", *RUNNER_OBSERVATIONS)
 
 
 def blocking(refused: Iterable[tuple[str, tuple[str, ...]]], alone: Iterable[tuple[str, tuple[str, ...]]]) -> list:
@@ -160,7 +160,7 @@ class Admission:
         if obs != expected:
             raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
 
-        reasons, refused, passing, auth, alone, salvage = self.validate(request, chain, entries)
+        reasons, refused, passing, auth, alone, salvage, integrating = self.validate(request, chain, entries)
         decision = "REJECT" if reasons or blocking(refused, alone) else "ACCEPT"
         if decision == "ACCEPT":
             admitted = passing
@@ -204,7 +204,9 @@ class Admission:
                     refused.append((record["id"], ("AUTH_ENVELOPE",)))
             objects.update(auth.objects)
         head = entries[-1]
-        entry = self.admission_entry(head, obs, rid, decision, reasons, admitted, refused, expected)
+        refused_x = integrating if decision == "REJECT" and auth is not None and auth.ok and on_merits(reasons) \
+            else None  # a refusal of the candidate itself routes a new iteration (F35); nothing else does
+        entry = self.admission_entry(head, obs, rid, decision, reasons, admitted, refused, expected, refused_x)
         problems = entry_violations(entry) + [p for r in admitted for p in record_violations(r)]
         if problems:  # nothing that would break the chain is ever appended
             raise EntryInvalid(f"the entry for {rid} would not verify: {problems}")
@@ -221,7 +223,8 @@ class Admission:
         return lifecycle_message(self.ledger_id, head.entry["position"] + 1, head.digest, record)
 
     def admission_entry(self, head: LedgerEntry, obs: str, rid: str, decision: str, reasons: Iterable[str],
-                        admitted: list[dict], refused: Iterable[tuple[str, tuple[str, ...]]], expected: str) -> dict:
+                        admitted: list[dict], refused: Iterable[tuple[str, tuple[str, ...]]], expected: str,
+                        integrates: str | None = None) -> dict:
         """The ``ADMISSION`` entry that records a decision after ``head``: what is appended, and what a trial
         extension derives over (reading F10)."""
 
@@ -230,7 +233,7 @@ class Admission:
                 "obs": obs, "absorption": None, "lifecycle": None, "records": list(admitted),
                 "admission": {"request_id": rid, "decision": decision, "reasons": sorted(reasons),
                               "base_commit": expected, "admitted_commit": expected, "adopted_deltas": [],
-                              "integrates": None,
+                              "integrates": integrates,
                               "refused": [{"record_id": r, "reasons": list(why)} for r, why in refused]}}
 
     def trial(self, chain, entry: Mapping[str, Any], objects: Mapping[str, bytes] | None = None, frame=None):
@@ -284,17 +287,19 @@ class Admission:
         checks, in order, the authentication, the refusals that leave the decision to the rest of the request
         (an ineligible adjudication), and, when the records were judged after the request's own transformation, the
         never-lost records' reading at the head instead: what passes and what is refused there, which a rejection
-        salvages from (``None`` otherwise). Every record is checked whatever the request's own faults."""
+        salvages from (``None`` otherwise), and the transformation an integrating request names. Every record is
+        checked whatever the request's own faults."""
 
         reasons = set(request_problems(request))
         if over_bounds(request):
-            return reasons | {"SCHEMA_BOUND"}, [], [], None, [], None  # no per-record work beyond the bounds (§25.4)
+            return reasons | {"SCHEMA_BOUND"}, [], [], None, [], None, None  # no per-record work beyond the bounds
         records = request.get("records") if isinstance(request, Mapping) else None
         records = records if isinstance(records, list) else []
         refused: list[tuple[str, tuple[str, ...]]] = []
         alone: list[tuple[str, tuple[str, ...]]] = []  # refused alone: the decision rests on the rest
         passing: list[dict] = []
         salvage = None
+        integrating = None  # the X an integrating request names, recorded on a rejection on its merits (F35)
         support = derive(chain, self.trees) if records or not reasons else None
         s = support.s if support is not None else None
         if s is not None:
@@ -374,6 +379,8 @@ class Admission:
                 if request.get("candidates"):  # an integrating request (§11.5): steps 3-4 on its frame (4c-iii)
                     reasons |= integration_codes(request["candidates"][0], support, request.get("binding"))
                     change = integration_frame(request["candidates"][0], support)
+                    found = submitted_with(request["candidates"][0], support.s)
+                    integrating = found[0] if len(found) == 1 else None
                 elif adopting:
                     change = adoption_frame(support.s, self.expected_head(entries), request.get("adopted_deltas"))
                 change = change if isinstance(change, Frame) and change.exists else None
@@ -406,7 +413,7 @@ class Admission:
                 salvage = None
         if not reasons and not blocking(refused, alone):
             reasons.add("SCHEMA_UNSUPPORTED")  # steps 4-8 are not realized yet: fail closed (§8.3 step 1)
-        return reasons, refused, passing, auth, alone, salvage
+        return reasons, refused, passing, auth, alone, salvage, integrating
 
     def _fixed_transformations(self, s: Any, records: list) -> dict[str, set[tuple[str, str]]]:
         """Each transformation this request's records name that an admitted or co-submitted result fixes (§7.1),
@@ -506,13 +513,18 @@ def adoptable(support: Any, record: Mapping[str, Any]) -> bool:
                    for r in s.of_kind("INTAKE_DISPOSITION"))
 
 
+def submitted_with(candidate: str, s: Any) -> list[str]:
+    """The transformations an admitted result submits with candidate ``C``."""
+
+    return sorted(x for x in s.submissions if (t := transformation_of(s, x)) is not None and t.candidate == candidate)
+
+
 def integration_frame(candidate: str, support: Any) -> Any:
     """The frame of the transformation an admitted result submits with candidate ``C``, built at the head, or the
     code refusing it: none or more than one such ``X``, an enactment already integrated, or a merge conflict."""
 
     s = support.s
-    found = sorted(x for x in s.submissions
-                   if (t := transformation_of(s, x)) is not None and t.candidate == candidate)
+    found = submitted_with(candidate, s)
     if len(found) != 1:
         return "REF_TRANSFORMATION"  # none, or more than one (a rebase frame is unsupported, Q-F6 (iii))
     x = found[0]

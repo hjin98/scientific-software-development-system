@@ -357,8 +357,7 @@ class Requests(RequestFixture):
         counter = self.challenge_of({"record": c["id"]})
         refused = dict(self.admit(self.human_request([c, counter])).refused)
         self.assertEqual(refused.get(counter["id"]), ("DEP_COUNTER_CHALLENGE", "DEP_TARGET_ORDER"))
-        self.assertEqual(refused.get(c["id"]), ("SCHEMA_UNSUPPORTED",),
-                         "its target passes step 5; a never-lost record still fails closed at steps 6-8")
+        self.assertNotIn(c["id"], refused, "its target passes step 5, so the rejection salvages it (step 5a)")
 
     def test_a_mutual_acceptance_request_is_stale_at_an_empty_head(self) -> None:
         """Each acceptance relies on a subject no acceptance at the head makes valid, so step 6 refuses both before

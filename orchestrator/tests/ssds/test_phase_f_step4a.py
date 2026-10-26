@@ -47,11 +47,13 @@ class FailClosedSalvage(RequestFixture):
         target = {"subject": subject, "scope_id": scope, "rev": rev}
         req, (first,) = self.bound([record("REVIEW", target=target, outcome="NO_PASS")])
         one = self.admit(req)
-        self.assertEqual((one.admitted, one.refused), ((), ((first["id"], ("SCHEMA_UNSUPPORTED",)),)))
+        # an adverse judgment's own checks exist since step 4 (step 5a), so the rejection salvages it
+        self.assertEqual((one.admitted, one.refused), ((first["id"],), ()))
         req, (second,) = self.bound([record("REVIEW", target=target, outcome="NO_PASS", supersedes=[first["id"]])])
         two = self.admit(req)
-        self.assertEqual(two.admitted, ())
-        self.assertNotIn(first["id"], self.state().records)
+        # and B1's concern is step 3's: another task's judgment never supersedes it
+        self.assertEqual((two.admitted, dict(two.refused).get(second["id"])), ((), ("AUTH_SUPERSEDES",)))
+        self.assertIn(first["id"], self.state().records)
         self.assertNotIn(second["id"], self.state().records)
 
     def test_only_reports_with_an_authorized_supersession_are_salvaged(self) -> None:

@@ -38,7 +38,7 @@ DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `s
 NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f7fd7b); revision 17
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
-             43e85277); 5a is next. A10 is accepted (SD-66);
+             43e85277); 5a is built (reading F35) and under same-family review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -301,6 +301,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F32** *"References to those admitted records" (step 5d).* §11.5 (3)'s integrating request is "the candidate plus references to those admitted records", and step 8 accepts a request that "carries or references" a prospective acceptance. The request schema has no reference field. The references are read from the ledger: the current review judgments of `X`, and the current prospective acceptances in `X`'s frame, are those derivation finds there. A request-schema field would be a D3 change, and nothing needs one.
 - **F33** *A rebased record's roles (step 5e).* §7.6: a frame-`X` record "counts for `X'` only where every entry holds there". "There" is `D_n[X']`, so each entry's §7.3 role is computed from `X'` (`B'`, `C'`), the frame it is evaluated in. Catalogue §7.6's "in its role, in `D_n[X']`" could also mean the role from `X`. Traced over before-image, output, context and both-sides entries, the two readings agree (plan check of c88c3bbb).
 - **F34** *"Exists at the current head" and the delegated codes (step 5).* The bound obligation "exists at the current head" when the head derives it: a dropped part's obligation does not, matching §13.7's "rejected at step 7", since `Items.parts` holds only required parts. §8.4 delegates the `OBLIGATION_*` members. 5a names one per step 7 check (an obligation not derived at the head, a second result for one task, a duplicate discharge, an unmet discharge predicate, plus `OBLIGATION_REENACTED`, `OBLIGATION_ANSWERED` and `OBLIGATION_REVIEW_OPEN`, which the catalogue names), as Stage S notes like SD-68.
+- **F35** *Which rejection refuses an integration (step 5a).* `Items.refused` ends a pending candidate on any REJECT naming `X`, and the item takes a new iteration (RR-7). A rejection for a binding fault, an unbuilt check (`SCHEMA_UNSUPPORTED`), a base or a moved head says nothing of the candidate. Naming `X` there would end sound work, and would let a request bound by anyone condemn another task's candidate. So a REJECT names `X` only when the request authenticated and every reason judges the candidate itself: `STRUCT_*`, `RELATION_*`, `FREEZE_*`, `CONFORMANCE_*`, `ENACTMENT_MISSING`, `AUTH_WRITE_SCOPE`, `AUTH_PROTECTED`, `CYCLE_*`, `STALE_RETAINED`, `OBLIGATION_REENACTED` or `REGRESSION` (`checks.on_merits`). Any other rejection leaves the candidate pending.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -1151,3 +1152,22 @@ Its notes are taken up:
 - F30 and F33 record their notes.
 
 **Narrow re-check of 43e85277.** No SERIOUS CHALLENGE. **PASS:** Q-F9's options now cover every request whose acceptance depends on a task result's conformance, and the notes are taken up as stated. Revision 18 stands.
+
+**Step 5a built.**
+- **Codes.** `REASONS` gains the step 7-8 codes:
+  - the delegated `OBLIGATION_*` members (`NOT_DERIVED`, `RESULT_DUPLICATE`, `DISCHARGED`, `CONTRACT_STALE`, `PREDICATE_UNMET`, `CLAIM_UNSUPPORTED`; F34, Stage S notes);
+  - the catalogue's `OBLIGATION_REENACTED`, `OBLIGATION_ANSWERED`, `OBLIGATION_REVIEW_OPEN`, `STALE_RETAINED`, `CONFORMANCE_RESULT`, `NOT_SETTLED`, `REGRESSION` and `HEAD_MOVED`.
+- **Decision model.**
+  - The record-alone class `CONFORMANCE_RESULT` needs already exists: the engine's `alone` refusals (an ineligible adjudication's), which leave the decision to the rest of the request. 5c reuses it.
+  - A REJECT names `X` only on the candidate's merits (F35).
+  - `History`'s fold reads `integrates` on ACCEPT only, and the entry shape already admits it on a REJECT.
+- **Salvage.** Widened to every never-lost record but a failing assessment and a runner's observation, which wait for step 9.
+- **Tests.** `test_phase_f_step5a.py`:
+  - the codes are closed members;
+  - `on_merits`;
+  - a REJECT naming `X` refuses without integrating;
+  - the engine names `X` on the merits only: an unbuilt check and a bad binding leave it pending;
+  - salvageable kinds, and an adverse judgment salvaged through the engine.
+
+  4d's counter-challenge case now salvages its target challenge. 4a's B1 case now salvages the first adverse review, and step 3 refuses another task's superseding one (`AUTH_SUPERSEDES`), which was plan review b10018de B1's concern.
+- **Mutants.** Seven: six are killed. Dropping the `auth.ok` guard is equivalent: an unauthenticated request never reaches step 3's integration checks, so its reasons are never all merit codes. The guard stays as a defence.

@@ -13,7 +13,7 @@ import json
 import math
 import re
 from collections import Counter
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
@@ -40,7 +40,27 @@ REASONS = frozenset({
     # step 5's checks other than cycles (SD-68), realized by Phase F step 4d
     "DEP_TARGET_ORDER", "DEP_TARGET_KIND", "DEP_COUNTER_CHALLENGE", "DEP_OWN_SUBJECT", "DEP_CONSUMER",
     "CYCLE_SUPPORT", "CYCLE_WARRANT", "STALE_BASIS",  # CYCLE_WARRANT is not emitted until Stage S defines it (reading F25)
+    # step 7, legality (Phase F step 5; the delegated OBLIGATION_* members named by reading F34, Stage S notes)
+    "OBLIGATION_NOT_DERIVED", "OBLIGATION_RESULT_DUPLICATE", "OBLIGATION_DISCHARGED", "OBLIGATION_CONTRACT_STALE",
+    "OBLIGATION_PREDICATE_UNMET", "OBLIGATION_CLAIM_UNSUPPORTED", "OBLIGATION_REENACTED", "OBLIGATION_ANSWERED",
+    "OBLIGATION_REVIEW_OPEN", "STALE_RETAINED", "CONFORMANCE_RESULT", "NOT_SETTLED",
+    # step 8 and step 9
+    "REGRESSION", "HEAD_MOVED",
 })
+
+#: The codes that refuse an integration on its candidate's merits (reading F35): a rejection carrying only these
+#: names ``X``, so the item takes a new iteration (``Items.refused``). A rejection for anything else (a binding, an
+#: unbuilt check, a moved head) leaves the candidate pending.
+MERIT_PREFIXES = ("STRUCT_", "RELATION_", "FREEZE_", "CONFORMANCE_")
+MERIT_CODES = frozenset({"ENACTMENT_MISSING", "AUTH_WRITE_SCOPE", "AUTH_PROTECTED", "CYCLE_SUPPORT", "CYCLE_WARRANT",
+                         "STALE_RETAINED", "OBLIGATION_REENACTED", "REGRESSION"})
+
+
+def on_merits(reasons: Iterable[str]) -> bool:
+    """Whether a rejection's reasons all judge the candidate itself (reading F35)."""
+
+    reasons = set(reasons)
+    return bool(reasons) and all(r in MERIT_CODES or r.startswith(MERIT_PREFIXES) for r in reasons)
 
 #: Input bounds at the Admission boundary (Manual §25.4; the values are delegated, proposed defaults).
 MAX_RECORDS = 256
