@@ -43,7 +43,7 @@ REASONS = frozenset({
     # step 7, legality (Phase F step 5; the delegated OBLIGATION_* members named by reading F34, Stage S notes)
     "OBLIGATION_NOT_DERIVED", "OBLIGATION_RESULT_DUPLICATE", "OBLIGATION_DISCHARGED", "OBLIGATION_CONTRACT_STALE",
     "OBLIGATION_PREDICATE_UNMET", "OBLIGATION_CLAIM_UNSUPPORTED", "OBLIGATION_REENACTED", "OBLIGATION_ANSWERED",
-    "OBLIGATION_REVIEW_OPEN", "STALE_RETAINED", "CONFORMANCE_RESULT", "NOT_SETTLED",
+    "OBLIGATION_REVIEW_OPEN", "OBLIGATION_PARTITION_INVALID", "STALE_RETAINED", "CONFORMANCE_RESULT", "NOT_SETTLED",
     # step 8 and step 9
     "REGRESSION", "HEAD_MOVED",
 })
@@ -275,7 +275,9 @@ def referenced_records(record: Mapping[str, Any]) -> set[str]:
         for key in ("record", "realization"):
             if isinstance(target.get(key), str) and target[key].startswith("sha256:"):
                 out.add(target[key])
-        if isinstance(target.get("records"), list):
+        # a coordination decision names the decision obligations it answers there (reading E32), which step 7
+        # checks against the head's derived obligations (Phase F 5b-iii), so they are no record references
+        if isinstance(target.get("records"), list) and record.get("kind") != "COORDINATION_DECISION":
             out.update(r for r in target["records"] if isinstance(r, str) and r.startswith("sha256:"))
     for entry in record.get("basis") or []:
         if entry.get("mode") in ("record", "standing") or (entry.get("mode") == "identity"

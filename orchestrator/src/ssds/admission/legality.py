@@ -18,7 +18,13 @@ Admission decides here and derivation supplies every fact, read at the current h
   needs a revision-assessment record for ``(s, r)`` already admitted that counts there (in the run, standing), and
   a ``standing`` entry on it (``OBLIGATION_REVIEW_OPEN``; step 5b-ii).
 
-The last two read the record's frame as step 6 locates it (``Currency.locate``).
+The last two read the record's frame as step 6 locates it (``Currency.locate``). Phase E's deferred refusals
+(step 5b-iii; Phase E plan §6):
+- a ``COORDINATION_DECISION`` answers decision obligations the head derives: each name in ``target.records``
+  is an admitted record or such an obligation, and its bound obligation is derived (``OBLIGATION_NOT_DERIVED``),
+  so an answer to a dropped part's decision, or to one never derived, cannot revive work;
+- a ``PARTITION`` answer names a lint-valid split for the holder whose decision it answers, read in the trial
+  where its parts object exists (``OBLIGATION_PARTITION_INVALID``, reading E32).
 """
 
 from __future__ import annotations
@@ -42,7 +48,8 @@ class Legality:
         self.w = Workflow(head)
         self._derived = {o.id for o in self.w.obligations}
         self.locate = locate  # step 6's frame locator: (support, frame) for a record, or None
-        self._workflows: dict[int, Any] = {}
+        self._workflows: dict[int, Any] = {}  # the frame supports step 6 keeps alive, by identity
+        self._trial: tuple[Any, Any] | None = None
 
     def request_codes(self, request: Mapping[str, Any], records: list[Mapping[str, Any]]) -> set[str]:
         """The request-level codes, over the records still passing."""
@@ -75,6 +82,8 @@ class Legality:
         if never_lost(record):
             return set()
         codes = self._frame_codes(record, trial) if passing(dict(record)) and self.locate is not None else set()
+        if record["kind"] == "COORDINATION_DECISION":
+            codes |= self._decision_codes(record, trial)
         if record["kind"] != "TASK_RESULT":
             return codes
         binding = record.get("binding") if isinstance(record.get("binding"), Mapping) else {}
@@ -87,6 +96,28 @@ class Legality:
             if item["unit"] not in view.structure.units or view.rev(item["unit"]) != item.get("rev"):
                 codes.add("OBLIGATION_CONTRACT_STALE")  # F36: the item revision it was issued for is not current
         return codes
+
+    def _decision_codes(self, record: Mapping[str, Any], trial: Any) -> set[str]:
+        target = record["target"] if isinstance(record["target"], Mapping) else {}
+        binding = record.get("binding") if isinstance(record.get("binding"), Mapping) else {}
+        named = [n for n in target.get("records") or [] if isinstance(n, str)]
+        records = self.head.s.records
+        if any(n not in records and n not in self._derived for n in named) \
+                or (binding.get("obligation") and binding["obligation"] not in self._derived):
+            return {"OBLIGATION_NOT_DERIVED"}  # Phase E plan §6: an answer to a decision no longer derived
+        if record.get("outcome") != "PARTITION" or trial is None:
+            return set()
+        if self._trial is None or self._trial[0] is not trial:
+            self._trial = (trial, Workflow(trial))  # one slot per round: a rebuilt trial is never served stale
+        tried = self._trial[1].items
+        for name in named:
+            holder = self.w.items.holder_of_decision(name)
+            if holder is None:
+                continue
+            there = tried.of(holder.obligation.id)
+            if there is None or not there.valid_partition(record["id"]):
+                return {"OBLIGATION_PARTITION_INVALID"}  # an invalid partition answers nothing (reading E32)
+        return set()
 
     def _workflow(self, support: Any) -> Any:
         if support is self.head:

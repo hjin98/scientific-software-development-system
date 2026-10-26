@@ -39,7 +39,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
              43e85277); 5a is closed (PASS at 3d125c63); 5b-i and 5b-ii are closed (PASS at ccaca714 and 82304212);
-             5b-iii (Phase E's refusals) is next. A10 is accepted (SD-66);
+             5b-iii (Phase E's refusals) is built and under same-family review; 5c is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1240,3 +1240,18 @@ Its notes are taken up:
 - N2 is recorded, not applied. The supersession exemption follows the catalogue's words ("a supersession step 3 authorizes … is not refused"). An author superseding their own earlier judgment on the target while another's adverse answer stands is bounded, since that answer still vetoes.
 - N3: `paths` targets get a path validator before Phase G admits intake records (§6).
 - N4: the frame workflow cache is a real get-or-create.
+
+**Step 5b-iii built.**
+- **A pre-existing defect, repaired.** A `COORDINATION_DECISION` names the decision obligations it answers in `target.records` (Phase E reading E31). Obligation identities have a record's form, so step 2 refused every decision answer `REF_RECORD`, and no decision could pass Admission. For this kind only, step 2 no longer reads those names as record references; step 7 checks them instead.
+- **Admission.** `Legality` adds, for a `COORDINATION_DECISION`:
+  - `OBLIGATION_NOT_DERIVED` when a name is neither an admitted record (catalogue §3.4: "report(s) or item") nor an obligation the head derives, or when its bound obligation is not derived. This refuses answers to a dropped part's decision, or to one never derived (Phase E plan §6).
+  - `OBLIGATION_PARTITION_INVALID` for a `PARTITION` whose split fails partition lint for the holder whose decision it answers. It is read in the trial, where its parts object exists (reading E32).
+  - The trial's workflow is cached one slot per round, holding the trial itself, so a rebuilt trial is never served stale.
+- **Derivation.** `Items.holder_of_decision` and `ItemObligation.valid_partition` expose the owners.
+- **Tests.** `test_phase_f_step5b_iii.py`:
+  - step 2's reading; a valid partition and an overlapping one; a partition without its parts object;
+  - an answer to a decision never derived, and to one already answered; a bound obligation not derived;
+  - a non-partition answer not linted; a decision naming an admitted report;
+  - each round reading its own trial;
+  - through the engine: a decision naming a derived obligation passes step 2, and a stray name is refused.
+- **Mutants.** Eight: all are killed, one by a case added after a first run.

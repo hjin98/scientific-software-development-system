@@ -457,6 +457,11 @@ class ItemObligation:
                         frontier.extend(self.part_obligation(spec, i) for i in range(len(spec.parts)))
         return tuple(sorted(found, key=lambda p: (p.position, p.decision)))
 
+    def valid_partition(self, rid: str) -> bool:
+        """Whether a ``PARTITION`` answer on this holder's decisions names a lint-valid split (reading E32)."""
+
+        return self._valid_partition(rid) is not None
+
     def _valid_partition(self, rid: str) -> Partition | None:
         """The lint-valid split a ``PARTITION`` answer on this holder's decisions names: over the item's
         obligations, or for a part over that part's (a re-partition, reading E32), recording what it replaces."""
@@ -979,6 +984,16 @@ class Items:
 
     def by_id(self, plan: str, item_id: str) -> ItemObligation | None:
         return next((o for o in self.all if o.plan == plan and o.item.id == item_id), None)
+
+    def holder_of_decision(self, decision_id: str) -> ItemObligation | None:
+        """The item or part whose route or record-keyed decision this is (Admission's step 7, Phase F 5b-iii)."""
+
+        for item in self.all:
+            for holder in (item, *item.parts):
+                decisions = (*holder.route.decisions, *holder._record_decisions(answered=True, identities=True))
+                if any(o.id == decision_id for o in decisions):
+                    return holder
+        return None
 
     def of(self, obligation_id: str) -> ItemObligation | None:
         """The item or part obligation with this identity."""
