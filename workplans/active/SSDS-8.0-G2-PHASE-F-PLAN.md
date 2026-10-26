@@ -1458,3 +1458,20 @@ Its notes are taken up: N1, the halt message names "another host key", not anoth
   The probe's cases are tests, and six mutants are killed.
 
 Its answers confirm the rest of the gate, the trial and committed entries agreeing, the cascade, and the adoption path. Its note N1 is answered by Phase E's E31: a records-only `AMEND` with no plan change in the same request is settled at once.
+
+**Narrow re-check of c9c937d6 (6c's B1 repair).** No SERIOUS CHALLENGE. NO-PASS: the repair closed the probe's cases, but other shapes still reached ACCEPT:
+- a `HUMAN_DECISION` on an obligation no one derives;
+- an `EQUIVALENCE` with made-up `from` and `to`;
+- observation kinds recorded by a human (`EXTERNAL_CONSULTATION`, `ANALYZER_OUTPUT`, `AVAILABILITY`, `CUSTODY_ENUMERATION`);
+- inconclusively, an `integrated` `REVIEW` and a `GATE_DECISION`'s gate and core.
+
+Repaired by turning the gate into an allowlist, so nothing unchecked can reach ACCEPT. Phase F accepts only these kinds, each in target shapes whose every reference a built check verifies (`engine._ACCEPTED`):
+- reports, on units or records;
+- `CHALLENGE`, on a record or a triple;
+- `ADJUDICATION`, `WITHDRAWAL`, `NON_AUTHORSHIP_ATTESTATION` and `MATERIALITY_RECLASSIFICATION`, on a record;
+- `COORDINATION_DECISION`, on records or units;
+- `ACCEPTANCE`, `LEGACY_ACCEPTANCE` and `REVIEW`, on a triple;
+- `EQUIVALENCE`;
+- an `ABSORB` of a delta.
+
+Everything else fails closed until its checks exist. That includes a risk override, whose continuation names subjects and items in its fields. `REF_TARGET` now also reads an equivalence's `from` and `to` and a challenge's `locus`. Cases cover each reported shape, and five mutants are killed.

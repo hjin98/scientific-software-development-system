@@ -672,19 +672,42 @@ def adoptable(support: Any, record: Mapping[str, Any]) -> bool:
                    for r in s.of_kind("INTAKE_DISPOSITION"))
 
 
-#: Kinds Phase F does not yet accept: a designated runner's evidence and its assessments (step 9).
-_STEP_NINE = frozenset({"EVIDENCE_ASSESSMENT", "REALIZATION", "CHECK_EXECUTION"})
+#: What Phase F accepts: each kind, with the target shapes whose every reference a built check verifies (step 2's
+#: REF_RECORD and REF_TARGET, step 3's acceptance rules, 4c-iv's delta, 5b-iii's decision names). Every other kind
+#: or shape fails closed until its checks exist: a TASK_RESULT (SD-70), a runner's evidence or its assessment (step
+#: 9), an external, a human decision, an observation, a gate decision, a risk override (whose continuation names
+#: subjects and items in its fields), and the rest (plan step 6c; reviews c80fc6a B1, c9c937d).
+_ACCEPTED = {
+    **{kind: {"units", "records"} for kind in REPORT_KINDS},
+    "CHALLENGE": {"record", "triple"}, "ADJUDICATION": {"record"}, "WITHDRAWAL": {"record"},
+    "NON_AUTHORSHIP_ATTESTATION": {"record"}, "MATERIALITY_RECLASSIFICATION": {"record"},
+    "COORDINATION_DECISION": {"records", "units"}, "ACCEPTANCE": {"triple"}, "LEGACY_ACCEPTANCE": {"triple"},
+    "REVIEW": {"triple"}, "EQUIVALENCE": {"equivalence"}, "INTAKE_DISPOSITION": {"delta"},
+}
+
+
+def _shape(target: Any) -> str | None:
+    """A target's shape, by its keys."""
+
+    if not isinstance(target, Mapping):
+        return None
+    keys = set(target)
+    for shape, needed in (("triple", {"subject", "scope_id", "rev"}), ("equivalence", {"unit", "from", "to"}),
+                          ("delta", {"absorption", "key"}), ("record", {"record"}), ("records", {"records"}),
+                          ("units", {"units"})):
+        if needed <= keys:
+            return shape
+    return None
 
 
 def gated(request: Mapping[str, Any], records: list, support: Any, change: Any) -> bool:
-    """What Phase F does not yet accept, though every built check passed (plan step 6c): a request carrying a
-    ``TASK_RESULT``, or depending on a task result's conformance (candidates, or a claim of an item obligation,
-    whose discharge reads conformance), until A10's D4 (SD-70, SD-71); a runner's evidence or its assessment until
-    step 9; and an adoption while any realization is admitted, a stricter form of SD-72's rule (F42), until step 8."""
+    """What Phase F does not yet accept, though every built check passed (plan step 6c): any record outside
+    ``_ACCEPTED``; a request depending on a task result's conformance (candidates, or a claim of an item obligation,
+    whose discharge reads conformance), until A10's D4 (SD-70, SD-71); and an adoption while any realization is
+    admitted, a stricter form of SD-72's rule (F42), until step 8."""
 
-    kinds = {r.get("kind") for r in records if isinstance(r, Mapping)}
-    if "TASK_RESULT" in kinds or request.get("candidates") or kinds & _STEP_NINE or "EXTERNAL_ACCEPTANCE" in kinds:
-        # an external acceptance's target has no checker yet (review c80fc6a B1)
+    if any(not isinstance(r, Mapping) or _shape(r.get("target")) not in _ACCEPTED.get(r.get("kind"), ())
+           for r in records) or request.get("candidates"):
         return True
     items = Workflow(support).items if support is not None else None
     if any(items is None or items.of(c) is not None for c in request.get("claims") or []):

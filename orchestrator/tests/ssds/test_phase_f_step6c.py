@@ -41,6 +41,17 @@ class Accepting(RequestFixture):
         entry = self.entries()[-1].entry["admission"]
         self.assertEqual((entry["adopted_deltas"], entry["integrates"]), ([], None))
 
+    def test_a_kind_phase_f_does_not_check_is_not_yet_accepted(self) -> None:
+        """Review c9c937d: a human decision on an obligation no one derives, an observation recorded by a human."""
+
+        for kind, target, outcome in (("HUMAN_DECISION", {"obligation": "sha256:" + "6" * 64}, "ACCEPT"),
+                                      ("AVAILABILITY", {"digest": "sha256:" + "6" * 64}, "AVAILABLE")):
+            rec = with_id({**record(kind, target=target, outcome=outcome), "actor": self.human()})
+            decision = self.admit(self.signed_by_human([rec]))
+            with self.subTest(kind=kind):
+                self.assertNotEqual(decision.decision, "ACCEPT")
+                self.assertNotIn(rec["id"], decision.admitted)
+
     def test_a_task_result_or_a_runners_evidence_is_not_yet_accepted(self) -> None:
         result = with_id({**record("TASK_RESULT", target={"task": "t"}, outcome="COMPLETE", fields={"slots": {}}),
                           "actor": self.human()})
@@ -99,11 +110,22 @@ class Targets(RequestFixture):
         self.assertEqual(codes, ("REF_TARGET",), "a revision that never existed")
 
     def test_a_target_that_exists_is_accepted(self) -> None:
+        decision, codes = self.refused("FINDING", {"units": ["guide"]}, None, materiality="ROUTINE")
+        self.assertEqual((decision.decision, codes), ("ACCEPT", None))
+
+    def test_an_equivalence_names_known_revisions_and_a_challenge_a_known_locus(self) -> None:
+        """Review c9c937d: an equivalence's ``from`` and ``to``; a challenge's ``locus``."""
+
         from .test_phase_f_step4b import derive_state
 
         subject, scope, rev = derive_state(self).subject_triple("guide")
-        decision, codes = self.refused("RECONSTRUCTION_PROPOSAL", {"units": ["guide"]}, "PROPOSED")
-        self.assertEqual((decision.decision, codes), ("ACCEPT", None))
+        made_up = "sha256:" + "0" * 64
+        _, codes = self.refused("EQUIVALENCE", {"unit": "guide", "from": made_up, "to": rev, "class": "EDITORIAL"},
+                                "EQUIVALENT")
+        self.assertEqual(codes, ("REF_TARGET",))
+        _, codes = self.refused("CHALLENGE", {"subject": subject, "scope_id": scope, "rev": rev}, None,
+                                blocking=True, serious=False, inquiry="EXPLORATORY", locus="nowhere")
+        self.assertEqual(codes, ("REF_TARGET",))
 
     def test_a_legacy_import_meets_the_acceptance_rules(self) -> None:
         from .test_phase_f_step4b import derive_state
@@ -171,11 +193,19 @@ class Gate(unittest.TestCase):
         items = SimpleNamespace(of=lambda c: object() if c == "item" else None)
         support = SimpleNamespace(s=SimpleNamespace(of_kind=lambda *k: []))
         with mock.patch("ssds.admission.engine.Workflow", lambda s: SimpleNamespace(items=items)):
-            self.assertFalse(gated({}, [{"kind": "FINDING"}], support, None))
-            self.assertTrue(gated({}, [{"kind": "TASK_RESULT"}], support, None))
+            finding_ = {"kind": "FINDING", "target": {"units": ["guide"]}}
+            self.assertFalse(gated({}, [finding_], support, None))
+            self.assertTrue(gated({}, [{"kind": "FINDING"}], support, None), "no target shape: not accepted")
+            self.assertTrue(gated({}, [{"kind": "TASK_RESULT", "target": {"task": "t"}}], support, None))
             self.assertTrue(gated({"candidates": ["c"]}, [], support, None))
-            for kind in ("EVIDENCE_ASSESSMENT", "REALIZATION", "CHECK_EXECUTION"):
-                self.assertTrue(gated({}, [{"kind": kind}], support, None), kind)
+            for kind, target in (("EVIDENCE_ASSESSMENT", {"realization": "r", "obligation": "o"}),
+                                 ("REALIZATION", {"spec": {}, "claim": []}), ("HUMAN_DECISION", {"obligation": "o"}),
+                                 ("AVAILABILITY", {"digest": "d"}), ("CUSTODY_ENUMERATION", {"runner": "r"}),
+                                 ("EXTERNAL_CONSULTATION", {"external": "e"}), ("RISK_OVERRIDE", {"record": "r"}),
+                                 ("GATE_DECISION", {"gate": "g", "subject": {}, "core": "c"}),
+                                 ("REVIEW", {"integrated": "ITEM", "of": "k"}),
+                                 ("RECONSTRUCTION_PROPOSAL", {"units": ["guide"]})):
+                self.assertTrue(gated({}, [{"kind": kind, "target": target}], support, None), kind)
             self.assertTrue(gated({"claims": ["item"]}, [], support, None), "an item obligation reads conformance")
             self.assertFalse(gated({"claims": ["other"]}, [], support, None))
 

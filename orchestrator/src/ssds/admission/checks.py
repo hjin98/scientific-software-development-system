@@ -305,6 +305,12 @@ def target_references(record: Mapping[str, Any]) -> tuple[set[str], set[tuple[st
             units.update(u for u in target[key] if isinstance(u, str))
     if isinstance(target.get("unit"), str):
         units.add(target["unit"])
+        for key in ("from", "to"):  # an equivalence's revisions (review c9c937d)
+            if isinstance(target.get(key), str):
+                pairs.add((target["unit"], target[key]))
+    fields = record.get("fields") if isinstance(record.get("fields"), Mapping) else {}
+    if isinstance(fields.get("locus"), str):
+        units.add(fields["locus"])  # a challenge's locus (review c9c937d)
     triple = target.get("subject") if isinstance(target.get("subject"), Mapping) else target
     if isinstance(triple.get("subject"), str) and isinstance(triple.get("rev"), str):
         pairs.add((triple["subject"], triple["rev"]))
