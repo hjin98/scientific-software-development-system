@@ -42,7 +42,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              5d is closed (PASS at b546a2b8, notes taken up); 5e and 5f
              are deferred (SD-71). Step 5 is closed for Phase F. Revision 19 splits step 6 into 6a-6g (§3.3,
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a is closed (PASS at c06f5be5); 6b (the
-             commit point) is next. A10 is accepted (SD-66);
+             commit point) is built and under same-family review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1394,3 +1394,24 @@ Its notes:
 - N1, taken up: `obs` is validated as a commit identity before any Git call, so an option-shaped value never reaches Git (Manual §25.4). A case pins it.
 - N3, taken up: the conformance hits that wait on an execution or a runner are tagged where conformance makes them (`Hit.waits`), not matched by wording.
 - N2, placed with 6b: a lifecycle admission still halts on a moved head. 6b either gives it the same absorb-then-proceed path or records why its human approval pins the head.
+
+**SD-72 (item 66): Q-F11 (a).** F42's fail-closed rule for adoptions is SD-71's complement.
+
+**Step 6b built.**
+- **Admission** (`engine.py`, the commit point):
+  - `witness_set` reads the genesis witness model: each `FILE` witness at its location, with any other kind answering nothing (F3).
+  - `qualification` runs `qualify` with the retained high-water mark.
+  - `held_head` runs before every decision and every lifecycle admission, and halts unless the ledger is `QUALIFIED` with no provisional entry (§23.4). A provisional entry this host appended first has its checkpoint distribution completed, rebuilt from its deterministic signature (§22.4 crash recovery). A request it decided is then found by its identity. Another host's provisional entry halts. The high-water mark is raised to the held head.
+  - `commit` appends by the compare-and-swap, distributes the checkpoint, and returns only once a quorum holds the entry, raising the high-water mark. Otherwise it halts, leaving the entry provisional for the next start.
+  - A lost compare-and-swap re-reads and revalidates, up to three times before halting (§21.3).
+  - Absorptions, admissions and lifecycle entries all pass `commit`.
+  - A lifecycle admission still halts on a moved head: its human approval names the ledger head it was signed after, which an absorption would move (review c06f5be N2).
+- **Tests.** `test_phase_f_step6b.py`:
+  - the high-water mark raised by a decision;
+  - an unwitnessed head halting with nothing appended;
+  - a rewind as `ROLLBACK` (441cf5c N7);
+  - a crash before the checkpoint recovered by request identity, the head held and retained (8a75346 N2, ledger form);
+  - a lost compare-and-swap revalidated once; a ledger that keeps moving halting;
+  - another host's provisional entry not redistributed;
+  - a high-water mark beyond the ledger as `ROLLBACK`.
+- **Mutants.** Nine: all are killed, one by an assertion added after a first run.

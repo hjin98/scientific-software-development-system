@@ -23,8 +23,9 @@ from ssds.core.api.v1 import canonical_json
 from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflow, adoption_codes, adoption_frame,
                              derive, frame_state, outside_scope, passing, protected_touched, transformation_of, trial,
                              trust_roots)
-from ssds.ledger.append import AppendFailed, append_entry, import_commits, write_checkpoint
-from ssds.ledger.qualification import FileWitness
+from ssds.ledger.append import AppendFailed, AppendRefused, append_entry, import_commits, write_checkpoint
+from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Qualification, WitnessModel,
+                                       checkpoint_body, checkpoint_message, qualify)
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 
@@ -37,6 +38,9 @@ from .lifecycle import lifecycle_message, lifecycle_problems
 from .currency import Currency
 from .legality import Legality, conformance_alone
 from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
+
+#: How many times a writer that loses the ledger's compare-and-swap re-reads and revalidates before it halts.
+_CAS_ATTEMPTS = 3
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
 UNREALIZED_STEPS = ("authorization", "structure", "legality", "regression")
@@ -172,18 +176,92 @@ class Admission:
         problems = entry_violations(entry)
         if problems:
             raise EntryInvalid(f"the absorption of {obs} would not verify: {problems}")
-        appended = append_entry(self.repository, entry, self.key, head.commit, referenced=[obs])
-        write_checkpoint(FileWitness(self.home.witness_root), appended.checkpoint)
+        self.commit(entry, head, referenced=[obs])  # an absorption is an entry: 6b's commit point (plan check N1)
 
     @staticmethod
     def recorded(entries: Iterable[LedgerEntry], rid: str) -> LedgerEntry | None:
         return next((e for e in entries if e.entry["entry_kind"] == "ADMISSION"
                      and e.entry["admission"]["request_id"] == rid), None)
 
+    # -- the commit point (catalogue §21.3, §22.4, §23.3-§23.4; plan step 6b) -------------------------------------
+
+    def witness_set(self, chain) -> tuple[WitnessModel, dict[str, FileWitness]]:
+        """The genesis witness model and the witnesses this host can write: each ``FILE`` witness at its location.
+        Any other kind is unreachable here and answers nothing (fixtures only, F3)."""
+
+        model = WitnessModel.from_json(chain.entries[0].entry["lifecycle"]["fields"]["witnesses"])
+        return model, {w.id: FileWitness(Path(w.location)) for w in model.witnesses if w.kind == "FILE"}
+
+    def qualification(self, chain) -> Qualification:
+        model, files = self.witness_set(chain)
+        reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in model.witnesses}
+        fields = chain.entries[0].entry["lifecycle"]["fields"]
+        host_keys = {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
+        return qualify(chain, reports, model, host_keys, self.home.high_water(self.ledger_id).get())
+
+    def held_head(self):
+        """The chain at a qualified head with no provisional entry: Admission appends nothing when the ledger is
+        ``UNQUALIFIED``, ``ROLLBACK`` or ``FORK`` (§23.4). A provisional entry this host appended has its checkpoint
+        distribution completed first, the crash recovery of §22.4 (its signature is deterministic, so the same
+        checkpoint is rebuilt); a request it decided is then found by its identity."""
+
+        chain = self.chain()
+        held = self.qualification(chain)
+        if held.current and held.provisional is not None:
+            self.distribute(chain.entries[held.provisional])
+            held = self.qualification(chain)
+        if not held.current or held.provisional is not None:
+            raise AdmissionHalted(f"the ledger is {held.state} at {held.head}, provisional {held.provisional} (§23.4)")
+        self.home.high_water(self.ledger_id).set(HighWaterMark(held.head, held.head_digest))
+        return chain
+
+    def distribute(self, appended: LedgerEntry) -> None:
+        """Write ``appended``'s checkpoint to every witness this host reaches; one that fails holds nothing."""
+
+        body = checkpoint_body(self.ledger_id, appended.entry["position"], appended.digest, appended.commit,
+                               appended.entry["host_key_id"])
+        if body["host_key_id"] != self.key.key_id:
+            raise AdmissionHalted("a provisional entry another host appended: its checkpoint is that host's (§22.4)")
+        checkpoint = Checkpoint(**body, signature=self.key.sign(checkpoint_message(body)).hex())
+        _, files = self.witness_set(self.chain())
+        for witness in files.values():
+            try:
+                write_checkpoint(witness, checkpoint)
+            except (OSError, ValueError):
+                continue  # the quorum decides below whether enough witnesses hold it
+
+    def commit(self, entry: Mapping[str, Any], head: LedgerEntry, objects: Mapping[str, bytes] | None = None,
+               referenced: Iterable[str] = ()) -> Any:
+        """Append ``entry`` by the ledger's single-ref compare-and-swap (§21.3; a loss raises ``AppendRefused``),
+        distribute its checkpoint, and report it only once a witness quorum holds it, raising the high-water mark
+        (§22.4: "only then is the request reported admitted"). An entry not yet held stays provisional: Admission
+        halts, and the next start completes its distribution before deciding anything."""
+
+        appended = append_entry(self.repository, entry, self.key, head.commit, objects=objects,
+                                referenced=list(referenced))
+        chain = self.chain()
+        self.distribute(chain.entries[appended.position])
+        held = self.qualification(chain)
+        if not held.current or held.head != appended.position:
+            raise AdmissionHalted(f"entry {appended.position} is appended but not yet held by a witness quorum (§22.4)")
+        self.home.high_water(self.ledger_id).set(HighWaterMark(held.head, held.head_digest))
+        return appended
+
     # -- one request --------------------------------------------------------------------------------------------
 
     def admit(self, request: Any, obs: str) -> Decision:
-        chain = self.chain()
+        """Decide ``request`` at the held head; a writer that loses the ledger's compare-and-swap re-reads and
+        revalidates (§21.3; step 6b), a bounded number of times before it halts."""
+
+        for _ in range(_CAS_ATTEMPTS):
+            try:
+                return self._admit_once(request, obs)
+            except AppendRefused:
+                continue
+        raise AdmissionHalted("the ledger kept moving under this writer (§21.3)")
+
+    def _admit_once(self, request: Any, obs: str) -> Decision:
+        chain = self.held_head()
         entries = chain.entries[: chain.readable_through + 1]
         rid = request_id(request)
         found = self.recorded(entries, rid)
@@ -250,8 +328,7 @@ class Admission:
         problems = entry_violations(entry) + [p for r in admitted for p in record_violations(r)]
         if problems:  # nothing that would break the chain is ever appended
             raise EntryInvalid(f"the entry for {rid} would not verify: {problems}")
-        appended = append_entry(self.repository, entry, self.key, head.commit, objects=objects)
-        write_checkpoint(FileWitness(self.home.witness_root), appended.checkpoint)
+        appended = self.commit(entry, head, objects=objects)
         return Decision(rid, decision, tuple(sorted(reasons)), tuple(r["id"] for r in admitted), tuple(refused),
                         appended.position, appended=True)
 
@@ -287,10 +364,12 @@ class Admission:
         the record, for this ledger at this position after this head, verifies; its key object is well formed for
         its action (:mod:`.lifecycle`). The approval is kept in the record's provenance. Returns the position."""
 
-        chain = self.chain()
+        chain = self.held_head()
         entries = chain.entries[: chain.readable_through + 1]
         expected = self.expected_head(entries)
         if obs != expected:
+            # not absorbed here: the human approval names the ledger head it was signed after, which an absorption
+            # would move; the lifecycle waits until an admission has absorbed obs (review c06f5be N2)
             raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
         roots = trust_roots(entries)
         head = entries[-1]
@@ -318,9 +397,7 @@ class Admission:
         problems = entry_violations(entry) + record_violations(signed)
         if problems:
             raise EntryInvalid(f"the lifecycle entry would not verify: {problems}")
-        appended = append_entry(self.repository, entry, self.key, head.commit)
-        write_checkpoint(FileWitness(self.home.witness_root), appended.checkpoint)
-        return appended.position
+        return self.commit(entry, head).position
 
     def validate(self, request: Any, chain, entries):
         """Steps 1-3: the request-level reasons, the refused records with theirs, the records that passed their own
