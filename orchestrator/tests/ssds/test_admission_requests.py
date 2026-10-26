@@ -265,7 +265,7 @@ def task_result(x: str, scope=("guide",), key: str | None = "sha256:" + "a" * 64
     if base is not None:
         target.update(base=base, candidate=candidate)
     rec = record("TASK_RESULT", target=target, outcome="COMPLETE", actor="agent:t/1", actor_class="AGENT",
-                 fields={"slots": {}})
+                 fields={"slots": {}}, frame={"transformation": x})  # §7.5: it declares the frame it names
     binding = {"task": task, "obligation": "obl", "role": "IMPLEMENTER", "lineage": ["agent:t/1"],
                "lineage_class": "ATTESTED_FRESH", "write_scope": list(scope)}
     if key is not None:

@@ -165,14 +165,22 @@ class Admission:
         elif auth is not None and auth.ok:  # never-lost salvage after the binding authenticated (§8.3 step 6)
             admitted = [r for r in passing if never_lost(r) and salvageable(r)]
             refused += [(r["id"], ("SCHEMA_UNSUPPORTED",)) for r in passing if never_lost(r) and not salvageable(r)]
-            known = set(derive(chain, self.trees).s.records)
+            state = derive(chain, self.trees).s
+            known, fixed_before = set(state.records), set(state.submissions)
             while True:  # a salvaged record names only records that exist: admitted before, or admitted with it
                 ids = {r["id"] for r in admitted}
                 dangling = [r for r in admitted if referenced_records(r) - known - ids]
-                if not dangling:
+                # and only transformations a result fixes there: a co-submitted result refused fixes nothing
+                # (review 23b487a B1)
+                fixed = fixed_before | {r["target"]["transformation"] for r in admitted
+                                        if r["kind"] == "TASK_RESULT" and submits(r["target"])}
+                unfixed = [r for r in admitted if r not in dangling
+                           and transformation_named(r) is not None and transformation_named(r) not in fixed]
+                if not dangling and not unfixed:
                     break
-                admitted = [r for r in admitted if r not in dangling]
+                admitted = [r for r in admitted if r not in dangling and r not in unfixed]
                 refused += [(r["id"], ("REF_RECORD",)) for r in dangling]
+                refused += [(r["id"], ("REF_TRANSFORMATION",)) for r in unfixed]
         else:
             admitted = []
         good = verified_objects(request.get("objects") if isinstance(request, Mapping) else None)[0]
@@ -300,7 +308,9 @@ class Admission:
                     named = transformation_named(record)
                     target = record["target"] if isinstance(record["target"], Mapping) else {}
                     if named is not None and named not in fixed or record["kind"] == "TASK_RESULT" and \
-                            ("base" in target or "candidate" in target) and not submits(target):
+                            ("base" in target or "candidate" in target) and not submits(target) or \
+                            named is not None and record["frame"] == "ADMITTED":
+                        # §7.5: a record about a transformation declares its frame (review 23b487a N2)
                         own.append("REF_TRANSFORMATION")  # names no transformation a result fixes (4c-iii)
                     elif record["kind"] == "TASK_RESULT" and (record["target"].get("adopts") or []):
                         own.append("SCHEMA_UNSUPPORTED")  # adoption by ABSORB is step 4c-iv's (reading F16)
@@ -360,9 +370,10 @@ class Admission:
         return reasons, refused, passing, auth, alone
 
     def _fixed_transformations(self, s: Any, records: list) -> dict[str, set[tuple[str, str]]]:
-        """Each transformation an admitted or co-submitted result fixes (§7.1), with the revisions its frame at the
-        head holds (``B``, ``C`` and ``M_n(X)``, each under the frame's structure). A result fixes ``X`` only when
-        it submits it: ``id(X)`` is §7.1's identity of what it names, ``B`` an admitted head and ``C`` readable."""
+        """Each transformation this request's records name that an admitted or co-submitted result fixes (§7.1),
+        with the revisions its frame at the head holds (``B``, ``C`` and ``M_n(X)``, each under the frame's
+        structure). A result fixes ``X`` only when it submits it: ``id(X)`` is §7.1's identity of what it names,
+        ``B`` an admitted head and ``C`` readable."""
 
         heads = {s.h.head(k) for k in range(s.n + 1)}
         found: dict[str, Any] = {}
@@ -373,8 +384,11 @@ class Admission:
         for record in records:
             if isinstance(record, Mapping) and record.get("kind") == "TASK_RESULT" and submits(record.get("target")):
                 found.setdefault(record["target"]["transformation"], record["target"])
+        named = {transformation_named(r) for r in records if isinstance(r, Mapping)} - {None}
         out: dict[str, set[tuple[str, str]]] = {}
         for x, target in found.items():
+            if x not in named:
+                continue  # only the transformations this request names are judged: frames built lazily (review 23b487a)
             if target["base"] not in heads:
                 continue
             try:
@@ -414,9 +428,9 @@ class Admission:
 
 def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
     """Steps 3-4 of an integrating request for ``C`` (Phase F 4c-iii), on the frame of the transformation an
-    admitted result submits with that candidate: its write set within the bound contract's write scope and
-    clear of plan units and unnamed verification rules (``AUTH_WRITE_SCOPE``); no protected surface touched
-    when an agent's envelope binds it (``AUTH_PROTECTED``); §8.3 step 4's structure on the merged tree; and
+    admitted result submits with that candidate, bound to that result's producing task (else fail closed): its
+    write set within the bound contract's write scope and clear of plan units and unnamed verification rules
+    (``AUTH_WRITE_SCOPE``); no protected surface touched when an agent made the candidate (``AUTH_PROTECTED``); §8.3 step 4's structure on the merged tree; and
     §7.6's enactment condition for every promotion or restoration (``ENACTMENT_MISSING``)."""
 
     s = support.s
@@ -430,8 +444,17 @@ def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
     frame = Frame(s.h, s.n, transformation_of(s, x), s.enactment(x))
     if frame.merged is None:
         return {"STRUCT_MERGE_CONFLICT"}  # no frame, so nothing integrates (§7.4)
-    codes = {f.code for f in frame.structural.findings}
     workflow = Workflow(support)
+    result = s.record(workflow.submitting_result(x))
+    envelope = binding.get("envelope") if isinstance(binding, Mapping) else None
+    human = binding.get("human") if isinstance(binding, Mapping) else None
+    producing = (isinstance(envelope, Mapping) and envelope.get("task_id") == s.enactment(x)) or (
+        isinstance(human, Mapping) and human.get("actor") == result["actor"])
+    if not producing:
+        # §11.5 (3): the integration request is bound to the producing task; any other binding fails closed
+        # until steps 7-8 own the claimed obligation (review 23b487a B2)
+        return {"SCHEMA_UNSUPPORTED"}
+    codes = {f.code for f in frame.structural.findings}
     contract = workflow.conformance(workflow.submitting_result(x)).contract[0]
     if contract is None or outside_scope(frame, contract.write_scope):
         codes.add("AUTH_WRITE_SCOPE")
@@ -441,9 +464,10 @@ def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
         if any(k == "PLAN" for k in kinds.values()) or any(
                 k == "EVIDENCE_SPEC" and u not in contract.evidence_specs for u, k in kinds.items()):
             codes.add("AUTH_WRITE_SCOPE")  # plan units and unnamed verification rules (§12.3)
-    if isinstance(binding, Mapping) and "envelope" in binding \
-            and protected_touched(frame, s.policy, s.h.policy_path):
-        codes.add("AUTH_PROTECTED")  # agents cannot modify a protected surface (§25.3)
+    agent_made = result["actor_class"] == "AGENT" or any(
+        str(a).startswith("agent:") for a in (result.get("binding") or {}).get("lineage") or [])
+    if agent_made and protected_touched(frame, s.policy, s.h.policy_path):
+        codes.add("AUTH_PROTECTED")  # agents cannot modify a protected surface, however it is integrated (§25.3)
     if any(not support.prospectively_accepted(x, uid) for uid in frame.structural.tenure_starts):
         codes.add("ENACTMENT_MISSING")
     return codes

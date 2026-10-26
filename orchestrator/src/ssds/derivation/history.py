@@ -217,6 +217,16 @@ class History:
     def sigma(self, position: int) -> Mapping[tuple[str, str], Any]:
         return self._sigmas[position]
 
+    def former_subjects(self, position: int) -> frozenset[str]:
+        """Every unit that was an effective subject at some position before ``position``: folded once per history,
+        so a restoration is read in constant time (review 23b487a)."""
+
+        cache = self.__dict__.setdefault("_former_subjects", [frozenset()])
+        while len(cache) <= position:
+            k = len(cache) - 1
+            cache.append(cache[k] | {u for u, unit in Structure(dict(self.sigma(k))).units.items() if unit.subject})
+        return cache[position]
+
     def modes(self, position: int) -> Mapping[str, Mapping[str, Any]]:
         return self._modes[position]
 

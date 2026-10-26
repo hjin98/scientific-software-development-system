@@ -173,16 +173,19 @@ class StructuralCheck:
     def tenure_starts(self) -> tuple[str, ...]:
         """The subjects integrating ``X`` would promote (a part made a subject) or restore (a subject returning
         after its tenure ended), whose tenure §7.6's enactment condition binds to a prospective acceptance (§19.4).
+        A subject declared under a new name counts by its ``renamed_from`` lineage too (§1.11; review 23b487a B3).
         A newly declared subject is neither."""
 
         head = self.frame.head_view.structure
-        earlier = {u for k in range(self.frame.n) for u, unit in Structure(dict(self.h.sigma(k))).units.items()
-                   if unit.subject}
+        earlier = self.h.former_subjects(self.frame.n)
         out = []
         for uid, unit in sorted(self.structure.units.items()):
             if not unit.subject or (uid in head.units and head.units[uid].subject):
                 continue
-            if uid in head.units or uid in earlier:
+            sources = {uid, *unit.renamed_from}
+            if any(src in head.units and head.units[src].subject for src in sources - {uid}):
+                continue  # an ordinary rename of a subject at the head starts nothing §7.6 binds
+            if any(src in head.units or src in earlier for src in sources):
                 out.append(uid)
         return tuple(out)
 

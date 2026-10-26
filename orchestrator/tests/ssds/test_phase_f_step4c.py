@@ -995,6 +995,40 @@ class FrameRecordsAtAdmission(unittest.TestCase):
         self.assertEqual(dict(self.admit([self.submitting(cand), stale]).refused).get(stale["id"]),
                          ("AUTH_TARGET_NOT_CURRENT",))
 
+    def test_a_salvaged_record_never_names_a_frame_its_refused_result_fixed(self) -> None:
+        """Review 23b487a B1: a co-submitted result refused at step 2 fixes nothing, so a never-lost record in its
+        frame is refused with it, never salvaged into a ledger where no result fixes ``X``."""
+
+        cand = self.candidate({"guide.md": "# Guide\n\n## Introduction\n\nHello again.\n\n## Usage\n\nRun it.\n"})
+        result = self.submitting(cand)
+        broken = with_id({**result, "refs": [{"store": "LEDGER", "digest": "sha256:" + "9" * 64}]})
+        x = result["target"]["transformation"]
+        framed = with_id({**record("FINDING", target={"units": ["guide"]}, fields={"materiality": "MATERIAL"},
+                                   frame={"transformation": x}), "actor": self.f.human()})
+        decision = self.admit([broken, framed])
+        self.assertEqual(decision.admitted, ())
+        self.assertIn((framed["id"], ("REF_TRANSFORMATION",)), decision.refused)
+
+    def test_a_record_about_a_transformation_declares_its_frame(self) -> None:
+        """Review 23b487a N2, §7.5: a review or result about ``X`` in the admitted frame is refused."""
+
+        cand = self.candidate({"guide.md": "# Guide\n\n## Introduction\n\nHello again.\n\n## Usage\n\nRun it.\n"})
+        result = self.submitting(cand)
+        admitted = with_id({**result, "frame": "ADMITTED"})
+        self.assertEqual(dict(self.admit([admitted]).refused).get(admitted["id"]), ("REF_TRANSFORMATION",))
+
+    def test_one_candidate_per_integrating_request(self) -> None:
+        """Review 23b487a C20: more than one candidate fails closed."""
+
+        from ssds.admission.request import request_message
+
+        from ._fixtures import sshsig
+
+        f = self.f
+        req = f.request([], base_position=len(f.entries()) - 1, candidates=[f.baseline, f.baseline])
+        req["binding"] = {"human": {"actor": f.human(), "signature": sshsig(f.private, request_message(req))}}
+        self.assertIn("SCHEMA_UNSUPPORTED", f.admit(req).reasons)
+
     def test_a_subject_the_frame_creates_is_effective_there(self) -> None:
         from ssds.content import read_tree
 
@@ -1026,11 +1060,17 @@ class IntegratingRequest(unittest.TestCase):
     """Step 4c-iii (b): an integrating request's steps 3-4 on the frame of the transformation an admitted result
     submits with its candidate (catalogue §8.3 steps 3-4, §7.6, §11.5, §25.3)."""
 
-    def codes(self, sc, candidate: str, agent_bound: bool = True) -> set[str]:
+    def codes(self, sc, candidate: str, agent_bound: bool = True, binding=None) -> set[str]:
+        """The integrating request's codes, bound by default to the producing task (§11.5 (3))."""
+
         from ssds.admission.engine import integration_codes
 
-        binding = {"envelope": {}} if agent_bound else {"human": {}}
-        return integration_codes(candidate, sc.derive(), binding)
+        support = sc.derive()
+        if binding is None:
+            tasks = {support.s.enactment(x) for x in support.s.submissions
+                     if transformation_of(support.s, x).candidate == candidate}
+            binding = {"envelope": {"task_id": next(iter(tasks), None)}}
+        return integration_codes(candidate, support, binding)
 
     def test_a_clean_integration_raises_nothing(self) -> None:
         sc = accepted_plan()
@@ -1047,9 +1087,36 @@ class IntegratingRequest(unittest.TestCase):
         self.assertIn("AUTH_WRITE_SCOPE", self.codes(sc, cand))
         policy = accepted_plan()
         _, cand2, _ = submit(policy, {**SOLVED, ".ssds/policy.toml": "schema = 1\n# edited\n"})
-        self.assertIn("AUTH_PROTECTED", self.codes(policy, cand2), "an agent's envelope")
-        self.assertNotIn("AUTH_PROTECTED", self.codes(policy, cand2, agent_bound=False),
+        self.assertIn("AUTH_PROTECTED", self.codes(policy, cand2), "an agent made the edit")
+        self.assertEqual(self.codes(policy, cand2, binding={"human": {"actor": OWNER}}), {"SCHEMA_UNSUPPORTED"},
+                         "an integration not bound to the producing task fails closed (review 23b487a B2)")
+        self.assertEqual(self.codes(policy, cand2, binding={"envelope": {"task_id": "task-other"}}),
+                         {"SCHEMA_UNSUPPORTED"})
+        human = accepted_plan()
+        base = human.head
+        cand3 = human.add_tree(tree(dict(human.files, **SOLVED, **{".ssds/policy.toml": "schema = 1\n# edited\n"}),
+                                    human.manifest))
+        x = transformation_id(base, cand3)
+        made = with_id({**record("TASK_RESULT", target={"task": "task-h", "candidate": cand3, "transformation": x,
+                                                         "base": base},
+                                  outcome="COMPLETE", actor=OWNER, frame={"transformation": x},
+                                  fields={"slots": {}}), "binding": None})
+        human.admit(made)
+        self.assertNotIn("AUTH_PROTECTED", self.codes(human, cand3, binding={"human": {"actor": OWNER}}),
                          "a human's edit of policy content enacts nothing (§25.3)")
+
+    def test_plan_units_and_unnamed_verification_rules(self) -> None:
+        """Review 23b487a C08, C09: §12.3 keeps plan units and verification rules outside the write scope."""
+
+        from .test_conformance import SECONDARY
+        from .test_lint import item_block
+
+        for scope, files in (('["src/", "specs/"]', {"specs/conv.toml": "changed = 1\n"}),
+                             ('["src/", "plans/"]', {"plans/work.md": "# changed\n"})):
+            with self.subTest(scope=scope):
+                sc = accepted_plan(item_block(secondary=SECONDARY, write_scope=scope, affected=scope))
+                _, cand, _ = submit(sc, {**SOLVED, **files})
+                self.assertIn("AUTH_WRITE_SCOPE", self.codes(sc, cand))
 
     def test_structure_on_the_merged_tree(self) -> None:
         sc = accepted_plan()
@@ -1099,7 +1166,69 @@ class IntegratingRequest(unittest.TestCase):
                 records = made(x, triple)
                 if records:
                     sc.admit(*records)
-                self.assertEqual("ENACTMENT_MISSING" in self.codes(sc, cand, agent_bound=False), missing)
+                self.assertEqual("ENACTMENT_MISSING" in self.codes(sc, cand), missing)
+
+    def test_a_rename_cannot_launder_a_promotion_or_restoration(self) -> None:
+        """Review 23b487a B3: a subject declared under a new name counts by its ``renamed_from`` lineage."""
+
+        sc = Scenario(NESTED, NESTED_FILES)
+        renamed = self.PROMOTED.replace('id = "p"', 'id = "p2"\n    renamed_from = ["p"]').replace(
+            'part_of = "p"', 'part_of = "p2"')
+        _, cand, _ = submit_x(sc, {}, agent("maker"), "task-r", manifest=renamed)
+        self.assertIn("ENACTMENT_MISSING", self.codes(sc, cand), "a part promoted under a new name")
+        units = NESTED + '''
+    [[unit]]
+    id = "q"
+    kind = "D3"
+    scope = [{ file = "theory.md" }]
+'''
+        back = Scenario(units, NESTED_FILES)
+        y, cy, _ = submit_x(back, {}, agent("maker"), "task-drop", manifest=NESTED)
+        integrate(back, y, cy)
+        restored = units.replace('id = "q"', 'id = "q2"\n    renamed_from = ["q"]')
+        _, again, _ = submit_x(back, {}, agent("maker"), "task-back", manifest=restored)
+        self.assertIn("ENACTMENT_MISSING", self.codes(back, again), "a subject restored under a new name")
+        ordinary = Scenario(units, NESTED_FILES)
+        plain = units.replace('id = "q"', 'id = "q3"\n    renamed_from = ["q"]')
+        _, moved, _ = submit_x(ordinary, {}, agent("maker"), "task-mv", manifest=plain)
+        self.assertNotIn("ENACTMENT_MISSING", self.codes(ordinary, moved), "an ordinary rename of a subject")
+
+    def test_which_transformation_and_which_acceptance(self) -> None:
+        """Review 23b487a C06, C07, C14, C16: one transformation per candidate, never one already integrated; an
+        acceptance of another enactment or another triple does not count."""
+
+        from ._scenario import content
+
+        sc, x, cand, triple = self.promoting()
+        twice = Scenario(NESTED, NESTED_FILES)
+        first_base = twice.head
+        candidate = twice.add_tree(tree({**NESTED_FILES, "pkg/a.py": "a = 9\n"}, NESTED))
+        twice.absorb({"pkg/sub/u.py": "u = 2\n"})
+        for task, base in (("task-1", first_base), ("task-2", twice.head)):  # one candidate, two bases: two X
+            xid = transformation_id(base, candidate)
+            twice.admit(with_id({**record("TASK_RESULT", target={"task": task, "candidate": candidate,
+                                                                  "transformation": xid, "base": base},
+                                         outcome="COMPLETE", actor=agent("maker"), actor_class="AGENT",
+                                         frame={"transformation": xid}, fields={"slots": {}}),
+                                 "binding": fresh(agent("maker"), task)}))
+        self.assertEqual(self.codes(twice, candidate, binding={"envelope": {"task_id": "task-1"}}),
+                         {"REF_TRANSFORMATION"}, "which transformation is ambiguous")
+        done = Scenario(NESTED, NESTED_FILES)
+        xd, cd, _ = submit_x(done, {"pkg/a.py": "a = 2\n"}, agent("maker"), "task-d")
+        integrate(done, xd, cd)
+        self.assertEqual(self.codes(done, cd), {"SCHEMA_UNSUPPORTED"}, "one enactment, one integration")
+        other = Scenario(NESTED, NESTED_FILES)
+        xo, co, _ = submit_x(other, {}, agent("maker"), "task-o", manifest=self.PROMOTED)
+        xe, ce, _ = submit_x(other, {"pkg/a.py": "a = 3\n"}, agent("maker"), "task-e", manifest=self.PROMOTED)
+        frame_e = frame_of(other.derive().s, transformation_of(other.derive().s, xe))
+        te = {"subject": "p", "scope_id": frame_e.view.scope_id("p"), "rev": frame_e.view.rev("p")}
+        other.admit(*attested(judgment("ACCEPTANCE", te, "PASS", actor=OWNER, basis=[content("p", te["rev"])],
+                                       frame={"transformation": xe})))
+        self.assertIn("ENACTMENT_MISSING", self.codes(other, co), "an acceptance of another enactment")
+        wrong = dict(triple, rev="sha256:" + "1" * 64)
+        sc.admit(*attested(judgment("ACCEPTANCE", wrong, "PASS", actor=OWNER, basis=[content("p", triple["rev"])],
+                                    frame={"transformation": x})))
+        self.assertIn("ENACTMENT_MISSING", self.codes(sc, cand), "an acceptance of another triple")
 
     def test_an_acceptance_of_another_proposed_structure_does_not_count(self) -> None:
         """§7.6 condition 2: same enactment, but ``Δ_Σ(X) ≠ Δ_Σ(X_0)``."""
@@ -1120,7 +1249,7 @@ class IntegratingRequest(unittest.TestCase):
     scope = [{ file = "theory.md" }]
 '''
         _, cand1, _ = submit_x(sc, {}, agent("maker"), "task-p", manifest=wider)
-        self.assertIn("ENACTMENT_MISSING", self.codes(sc, cand1, agent_bound=False))
+        self.assertIn("ENACTMENT_MISSING", self.codes(sc, cand1))
 
     def test_a_restoration_needs_its_prospective_acceptance(self) -> None:
         """§19.4: a subject removed earlier and declared again starts a new tenure."""
@@ -1135,7 +1264,7 @@ class IntegratingRequest(unittest.TestCase):
         y, cy, _ = submit_x(sc, {}, agent("maker"), "task-drop", manifest=NESTED)
         integrate(sc, y, cy)
         _, back, _ = submit_x(sc, {}, agent("maker"), "task-back", manifest=units)
-        self.assertIn("ENACTMENT_MISSING", self.codes(sc, back, agent_bound=False))
+        self.assertIn("ENACTMENT_MISSING", self.codes(sc, back))
         _, fresh_unit, _ = submit_x(sc, {}, agent("maker"), "task-new",
                                     manifest=units.replace('id = "q"', 'id = "q2"'))
-        self.assertNotIn("ENACTMENT_MISSING", self.codes(sc, fresh_unit, agent_bound=False), "a new subject is neither")
+        self.assertNotIn("ENACTMENT_MISSING", self.codes(sc, fresh_unit), "a new subject is neither")
