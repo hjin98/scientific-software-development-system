@@ -1417,9 +1417,24 @@ class IntakeAtAdmission(AdmissionRequests):
         return with_id({**record(kind, target=target, outcome=outcome, fields={"kind": "D3"} if kind == "INTAKE_CLASSIFICATION" else {}),
                         "actor": self.f.human()})
 
+    def test_a_classification_names_paths_or_a_delta(self) -> None:
+        """SD-70 (Q-F8 (a)): catalogue §3.4's "observed path set or quarantined delta"; no content reference."""
+
+        from ssds.ledger.schema import record_violations
+
+        delta = {"absorption": "sha256:" + "4" * 64, "key": ["guide", "kind"]}
+        for target, ok in (({"paths": ["guide.md"]}, True), (delta, True), ({"digest": "sha256:" + "5" * 64}, False)):
+            with self.subTest(target=target):
+                rec = self.intake("INTAKE_CLASSIFICATION", "PROPOSED", target)
+                self.assertEqual(not record_violations(rec), ok, record_violations(rec))
+        paths = self.intake("INTAKE_DISPOSITION", "ABSORB", {"paths": ["guide.md"]})
+        self.assertTrue(record_violations(paths), "a disposition keeps SD-69's delta or content_ref")
+
     def test_intake_beyond_adoption_and_an_adoption_of_no_delta(self) -> None:
         delta = {"absorption": "sha256:" + "4" * 64, "key": ["guide", "kind"]}
         cases = {"a classification": (self.intake("INTAKE_CLASSIFICATION", "PROPOSED", delta), "SCHEMA_UNSUPPORTED"),
+                 "a classification of paths": (self.intake("INTAKE_CLASSIFICATION", "PROPOSED", {"paths": ["guide.md"]}),
+                                               "SCHEMA_UNSUPPORTED"),
                  "a rejection": (self.intake("INTAKE_DISPOSITION", "REJECT", delta), "SCHEMA_UNSUPPORTED"),
                  "content absorbed": (self.intake("INTAKE_DISPOSITION", "ABSORB", {"digest": "sha256:" + "5" * 64}),
                                       "SCHEMA_UNSUPPORTED"),

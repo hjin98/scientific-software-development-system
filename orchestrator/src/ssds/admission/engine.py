@@ -497,11 +497,13 @@ def _absorbs(record: Mapping[str, Any]) -> bool:
 
 
 def target_type(record: Mapping[str, Any]) -> set[str]:
-    """The target shape a record uses: ``delta`` or ``content_ref`` for an intake record."""
+    """The target shape a record uses: ``delta``, ``content_ref`` or ``paths`` for an intake record."""
 
     target = record.get("target")
     if isinstance(target, Mapping) and {"absorption", "key"} <= set(target):
         return {"delta"}
+    if isinstance(target, Mapping) and "paths" in target:
+        return {"paths"}
     return {"content_ref"} if isinstance(target, Mapping) and "digest" in target else set()
 
 

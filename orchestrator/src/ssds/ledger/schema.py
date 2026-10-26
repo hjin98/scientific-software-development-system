@@ -125,6 +125,8 @@ TARGET_TYPES: dict[str, Check] = {
     "content_ref": shape({"digest": is_digest}),
     # a quarantined delta: the absorption entry that first observed the key's value, and the key (SD-69, F21)
     "delta": shape({"absorption": is_digest, "key": list_of(is_token)}),
+    # an observed path set, a classification's other target (catalogue §3.4; SD-70)
+    "paths": shape({"paths": list_of(is_token)}),
     "custody": shape({"runner": is_token}),
     "loss": shape({"loss": is_digest}),
     "none": lambda v: v is None,
@@ -163,8 +165,9 @@ KINDS: dict[str, KindSpec] = {
     "IMMATERIALITY": _k("support", "records", "IMMATERIAL"),
     "PLAN_ACCEPTANCE": _k("support", "units", "ACCEPTED REJECTED", {"objective": UNIT_REV, "items": list_of(UNIT_REV)},
                           ("objective", "items")),
-    # SD-69: catalogue §3.4's targets with a delta beside content_ref (units dropped) and §18.3's dispositions
-    "INTAKE_CLASSIFICATION": _k("support", "delta|content_ref", "PROPOSED", {"kind": is_token}),
+    # SD-69: catalogue §3.4's targets with a delta beside content_ref (units dropped) and §18.3's dispositions;
+    # SD-70: a classification names an observed path set or a quarantined delta, as §3.4 says
+    "INTAKE_CLASSIFICATION": _k("support", "paths|delta", "PROPOSED", {"kind": is_token}),
     "INTAKE_DISPOSITION": _k("support", "delta|content_ref",
                              "ABSORB RECONCILE SPLIT ARCHIVE RETAIN_AS_EVIDENCE MARK_GENERATED QUARANTINE REJECT "
                              "DISPOSABLE", {"paths": list_of(is_token)}),
