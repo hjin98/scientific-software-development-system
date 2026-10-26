@@ -35,8 +35,8 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
              in the envelope). Steps 4-8 fail closed (SCHEMA_UNSUPPORTED) until built.
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
              (2026-10-25); the old ledger's retirement statement needs step 7.
-NEXT ACTION: steps 4b-ii and 4c-i to 4c-iii are closed (PASS at c98bb647, 1a3c262d, c5508035
-             and 193b6548); 4c-iv's repair is under narrow re-check; then 4d. A10 is accepted (SD-66);
+NEXT ACTION: steps 4b-ii and 4c (4c-i to 4c-iv) are closed (last PASS at d54a8d7e); next 4d,
+             dependency well-formedness. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -942,6 +942,8 @@ Its notes:
 - F12: the `identity` basis's `delta` target is tested.
 - N2 is deferred and recorded here. The `INTAKE` obligation stays keyed by its declaration key (`s3`); Admission reads the delta through `State.current_delta`, which requires the key in `Q` and so its derived obligation. Keying the obligation by delta is for Phase G's intake routing.
 - The reviewer could not read `~/.ssds`. The author's read through the program (2026-10-25: both ledgers hold only genesis) stands, and is repeated before step 10.
+
+**Narrow re-check of d54a8d7e (the 4c-iv repairs).** No SERIOUS CHALLENGE. **PASS:** B1-B3, N1 and N3 are verified by the earlier probes, and four new mutants are killed. **Step 4c-iv, and with it step 4c, is closed.** On 2026-10-26, after the schema correction, the author re-read both real ledgers through the program (`read_chain`). `ssdp-shadow` and `ssdp-shadow-2` each hold only their genesis entry, read without a halt, so no intake record exists for the correction to make unreadable.
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
