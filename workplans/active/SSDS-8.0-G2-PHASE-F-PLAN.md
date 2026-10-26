@@ -36,8 +36,8 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
              (2026-10-25); the old ledger's retirement statement needs step 7.
 NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f7fd7b); revision 17
-             details 4e (readings F26-F28; plan check PASS); 4e-i's B1 repair passed; 4e-ii's two blockers
-             are repaired and under narrow re-check. A10 is accepted (SD-66);
+             details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
+             Next: step 5's detail (legality and regression) as a plan revision. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1096,6 +1096,8 @@ Its notes are taken up in F27: N1 (the request's own `X` read at `n+1`, equivale
 
 **Same-family re-check and review of 8408e055.** No SERIOUS CHALLENGE. **cab6179a B1: PASS.** 4e-ii: NO-PASS on two blockers, repaired:
 - **B1, a wrongly equivalent mutant.** A support-tier record may hold a `record` entry on an admitted record that is no node, such as a report. Derivation reads that entry `F`, so the default matters. A case now pins it, and the mutant is killed.
-- **B2, the frame cache outlived its fixing result.** One `Currency` serves every round, but it cached `D_n[X]` by `X`'s name. So a frame record survived the round after its co-submitted fixing result was refused. `X` is now resolved from each round's trial before the cache is read, with no fixing result meaning no frame. The cache is keyed on `X` and its enactment, and a two-round case pins it. Keying on the name alone is an equivalent mutant: the per-round check carries the repair, and the enactment matters only to head frame records of `X`, which cannot exist while no head result fixes it. The step 6 row now also drops, at commit, every record naming a transformation whose only fixing result was dropped.
+- **B2, the frame cache outlived its fixing result.** One `Currency` serves every round, but it cached `D_n[X]` by `X`'s name. So a frame record survived the round after its co-submitted fixing result was refused. `X` is now resolved from each round's trial before the cache is read, with no fixing result meaning no frame. The cache is keyed on `X` and its enactment, and a two-round case pins it. Keying on the name alone is an equivalent mutant: the per-round check carries the repair. The enactment could change between rounds only in a contrived request with two results submitting one `X` under different tasks, the first refused; it governs which head records of the same enactment act in `X`'s frame (§5.2). The step 6 row now also drops, at commit, every record naming a transformation whose only fixing result was dropped.
 
 Its answers confirm the frame selection, every entry mode on head values, the union of codes within a round, and the non-existent-frame rule.
+
+**Narrow re-check of 2d737acf (the 8408e055 4e-ii blockers).** No SERIOUS CHALLENGE. **PASS:** B1 and B2 are repaired, and the cache probe now gives `STALE_BASIS` in round 2. The name-keyed mutant is accepted as equivalent in practice, with the record's wording corrected: the enactment governs which head records of the same enactment act in `X`'s frame. **Step 4e is closed, and with it step 4 (4a-4e).**
