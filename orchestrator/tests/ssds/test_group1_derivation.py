@@ -12,7 +12,20 @@ from ssds.content import TreeView, decl_to_json
 from ssds.derivation.history import History, manifest_decl
 from ssds.derivation.s0 import StructureFacts
 
-from ._fixtures import admission_body, chain_of, commit_id, genesis_body, structure_of, tree, view
+from ._fixtures import admission_body, chain_of, commit_id, genesis_body, structure_of, view
+from ._fixtures import manifest as _manifest, tree as _tree
+
+
+# Group 1's cases are written over manifests without the reserved leaves of §1.8: they check the content and
+# derivation primitives, uncovered region included, not frames or Admission (plan reading F18, fixtures).
+
+
+def tree(files, manifest_text=None, reserved=False):
+    return _tree(files, manifest_text, reserved)
+
+
+def manifest(text, reserved=False):
+    return _manifest(text, reserved)
 
 
 def facts(t) -> StructureFacts:

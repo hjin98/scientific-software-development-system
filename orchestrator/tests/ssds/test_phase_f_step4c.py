@@ -14,7 +14,7 @@ from ssds.derivation.conformance import CLEAN
 from ssds.derivation.frames import Frame, Transformation, frame_of, transformation_of
 from ssds.ledger.read import transformation_id, with_id
 
-from ._fixtures import record, tree
+from ._fixtures import manifest, record, tree
 from ._scenario import OWNER, Scenario, agent, fresh, integrate, judgment
 from ._scenario import submit as submit_x
 from .test_conformance import accepted_plan, conformance, submit
@@ -128,9 +128,11 @@ class FrameWriteSet(unittest.TestCase):
     subject = true
     kind = "D3"''')
         frame = frame_for(sc, promoted, NESTED_FILES)
-        self.assertTrue(frame.exists)
         # u's governing subject moves from s1 (LEGACY) to p, which takes genesis's "*" mode: only its mode differs
         self.assertIn("u", frame.write_set)
+        # and such a move needs its MODE_TRANSITION, so the frame does not exist (§19.1; 4c-ii)
+        self.assertIn("STRUCT_MODE_MIXED", {f.code for f in frame.structural.findings})
+        self.assertFalse(frame.exists)
 
     def test_an_effect_arising_only_where_the_candidate_meets_the_head(self) -> None:
         doc = '''
@@ -149,8 +151,8 @@ class FrameWriteSet(unittest.TestCase):
         d = sc.derive()
         frame = frame_of(d.s, transformation_of(d.s, x))
         self.assertIn("doc", frame.write_set, "more.md is doc's only on the head, where C's edit meets it")
-        self.assertEqual(Frame(d.s.h, d.s.position_of(_result_of(d, x)), transformation_of(d.s, x), None).write_set,
-                         {}, "at its own base the edit owned by nothing reaches no unit")
+        self.assertEqual(set(Frame(d.s.h, d.s.position_of(_result_of(d, x)), transformation_of(d.s, x), None).write_set),
+                         {"ssds.unclassified"}, "at its own base the edit reaches only the outermost owner (§1.8)")
 
     def test_a_historical_state_reads_the_frame_at_its_own_head(self) -> None:
         sc = Scenario('''
@@ -310,6 +312,174 @@ class TransformationIdentity(unittest.TestCase):
                          "frame": {"transformation": forged}})
         sc.admit(bogus)
         self.assertIsNone(transformation_of(sc.derive().s, forged))
+
+
+LAYERED = '''
+    [[unit]]
+    id = "theory"
+    kind = "D1"
+    scope = [{ path = "theory.md" }]
+    [[unit]]
+    id = "doc"
+    kind = "D3"
+    scope = [{ path = "doc.md" }]
+    [[unit]]
+    id = "code"
+    kind = "D4"
+    scope = [{ prefix = "src/" }]
+'''
+LAYERED_FILES = {"theory.md": "# Theory\n", "doc.md": "# Doc\n", "src/a.py": "a = 1\n"}
+
+
+def codes(frame: Frame) -> set[str]:
+    return {f.code for f in frame.structural.findings}
+
+
+class StructuralOwner(unittest.TestCase):
+    """Step 4c-ii: §8.3 step 4 (a)-(c) at one owner, which ``Frame.exists`` and Admission read (catalogue §7.4)."""
+
+    def test_a_clean_change_exists(self) -> None:
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        frame = frame_for(sc, LAYERED, {**LAYERED_FILES, "doc.md": "# Doc\nmore\n"})
+        self.assertEqual(frame.structural.findings, ())
+        self.assertTrue(frame.exists)
+        self.assertEqual(frame.structural.sigma, dict(sc.derive().s.h.sigma(sc.derive().s.n)))
+
+    def quarantined(self):
+        """``doc``'s scope changed by an absorbed (foreign) commit: the key is in ``Q_n``, ``Σ`` unchanged."""
+
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        foreign = LAYERED.replace('scope = [{ path = "doc.md" }]', 'scope = [{ path = "doc.md" }, { path = "more.md" }]')
+        sc.manifest = foreign
+        sc.absorb({"more.md": "m\n"})
+        return sc, foreign
+
+    def test_per_key_classes_against_the_quarantine(self) -> None:
+        sc, foreign = self.quarantined()
+        files = {**LAYERED_FILES, "more.md": "m\n"}
+        key = ("doc", "scope")
+        carried = frame_for(sc, foreign, {**files, "src/a.py": "a = 2\n"})  # C was built over T_n: it keeps the value
+        self.assertEqual(carried.structural.classes.get(key), "CARRIED")
+        realigned = frame_for(sc, LAYERED, files)
+        self.assertEqual(realigned.structural.classes.get(key), "REALIGNED")
+        third = LAYERED.replace('scope = [{ path = "doc.md" }]', 'scope = [{ path = "more.md" }]')
+        changed = frame_for(sc, third, files)
+        self.assertEqual(changed.structural.classes.get(key), "REVALIDATE")
+        self.assertIn("STRUCT_REVALIDATE", codes(changed))
+        self.assertFalse(changed.exists)
+
+    def test_a_quarantined_value_authored_by_c_routes_to_revalidation(self) -> None:
+        """Plan revision 7 R4: the frame would show ``C``'s value while integration carries ``Σ_n``'s (§7.2)."""
+
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        foreign = LAYERED.replace('scope = [{ path = "doc.md" }]', 'scope = [{ path = "doc.md" }, { path = "more.md" }]')
+        d = sc.derive()
+        base = sc.head
+        candidate = sc.add_tree(tree({**LAYERED_FILES, "more.md": "m\n"}, foreign))  # C authors the widening
+        sc.manifest = foreign
+        sc.absorb({"more.md": "m\n"})  # the same value arrives foreign, quarantined
+        d = sc.derive()
+        frame = Frame(d.s.h, d.s.n, Transformation(transformation_id(base, candidate), base, candidate), None)
+        self.assertEqual(frame.structural.classes.get(("doc", "scope")), "CARRIED")
+        self.assertIn("STRUCT_REVALIDATE", codes(frame))
+        self.assertFalse(frame.exists)
+
+    def test_well_formedness_codes(self) -> None:
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        overlap = LAYERED + '''
+    [[unit]]
+    id = "doc2"
+    kind = "D3"
+    scope = [{ path = "doc.md" }]
+'''
+        self.assertIn("STRUCT_SIBLING_OVERLAP", codes(frame_for(sc, overlap, LAYERED_FILES)))
+        missing = LAYERED + '''
+    [[unit]]
+    id = "ghost"
+    kind = "D3"
+    scope = [{ file = "ghost.md" }]
+'''
+        self.assertIn("STRUCT_TERM_UNRESOLVED", codes(frame_for(sc, missing, LAYERED_FILES)))
+        rekinded = LAYERED.replace('id = "doc"\n    kind = "D3"', 'id = "doc"\n    kind = "D2"')
+        self.assertIn("SCHEMA_UNSUPPORTED", codes(frame_for(sc, rekinded, LAYERED_FILES)), "F16 (ii): no release")
+        unparsed = frame_for(sc, "[[unit\n", LAYERED_FILES)
+        self.assertFalse(unparsed.exists, "a manifest that does not parse merges by no key: no frame (§7.2)")
+
+    def test_adoption_fails_closed(self) -> None:
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        d = sc.derive()
+        x = Transformation("sha256:" + "a" * 64, sc.head, sc.head, ((("doc", "kind"), "D3"),))
+        self.assertIn("SCHEMA_UNSUPPORTED", codes(Frame(d.s.h, d.s.n, x, None)), "F16 (i): no disposition names a key")
+
+    def test_the_reserved_leaves(self) -> None:
+        from ._fixtures import RESERVED_LEAVES
+
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        d = sc.derive()
+        for leaf in ("ssds.manifest", "ssds.policy", "ssds.unclassified"):
+            with self.subTest(dropped=leaf):
+                kept = "".join(b for u, b in RESERVED_LEAVES.items() if u != leaf)
+                candidate = sc.add_tree(tree({**LAYERED_FILES, ".ssds/manifest.toml": manifest(LAYERED + kept, reserved=False)}))
+                frame = Frame(d.s.h, d.s.n, Transformation(transformation_id(sc.head, candidate), sc.head, candidate), None)
+                self.assertIn(("STRUCT_RESERVED_LEAF", leaf), {(f.code, f.unit) for f in frame.structural.findings})
+                self.assertFalse(frame.exists)
+        narrowed = sc.add_tree(tree({**LAYERED_FILES, ".ssds/manifest.toml": manifest(
+            LAYERED + RESERVED_LEAVES["ssds.manifest"] + RESERVED_LEAVES["ssds.policy"]
+            + RESERVED_LEAVES["ssds.unclassified"].replace('prefix = ""', 'prefix = "docs/"'), reserved=False)}))
+        frame = Frame(d.s.h, d.s.n, Transformation(transformation_id(sc.head, narrowed), sc.head, narrowed), None)
+        self.assertIn("STRUCT_RESERVED_LEAF", codes(frame))
+
+    def test_the_freeze_at_source_and_destination(self) -> None:
+        from ._scenario import challenge
+
+        sc = Scenario(NESTED, NESTED_FILES)
+        sc.admit(challenge(sc.triple("s1")))  # an unresolved blocking challenge on s1's current triple
+        rescoped = NESTED.replace('scope = [{ prefix = "pkg/" }]', 'scope = [{ prefix = "pkg/" }, { path = "theory.md" }]')
+        self.assertIn("FREEZE_SOURCE", codes(frame_for(sc, rescoped, NESTED_FILES)))
+        grown = NESTED + '''
+    [[unit]]
+    id = "q"
+    part_of = "s1"
+    subject = false
+    scope = [{ file = "pkg/a.py" }]
+'''
+        frame = frame_for(sc, grown, NESTED_FILES)
+        self.assertIn("FREEZE_DESTINATION", codes(frame))
+        self.assertFalse(frame.exists)
+        content_only = frame_for(sc, NESTED, {**NESTED_FILES, "pkg/a.py": "a = 2\n"})
+        self.assertFalse(codes(content_only) & {"FREEZE_SOURCE", "FREEZE_DESTINATION"}, "an edit is content")
+
+    def test_semantic_defects_are_read_causally(self) -> None:
+        """Reading F15: a defect an affected subject has in the frame and not at the head, keyed by code, unit and
+        detail; a foreign one it already has neither refuses the request nor ends the frame."""
+
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        ascending = "# Theory\n<!-- ssds:rel DEPENDS_ON code -->\n"
+        added = frame_for(sc, LAYERED, {**LAYERED_FILES, "theory.md": ascending})
+        self.assertIn("RELATION_LAYER", codes(added))
+        self.assertFalse(added.exists)
+        sc.absorb({"theory.md": ascending})  # the same defect arrives foreign: S2's, not the request's
+        unrelated = frame_for(sc, LAYERED, {**sc.files, "theory.md": ascending + "more\n"})
+        self.assertNotIn("RELATION_LAYER", codes(unrelated))
+        self.assertTrue(unrelated.exists)
+        second = frame_for(sc, LAYERED, {**sc.files, "theory.md": ascending + "<!-- ssds:rel DEPENDS_ON doc -->\n"})
+        self.assertIn("RELATION_LAYER", codes(second), "a second same-code defect is new")
+
+    def test_a_defect_on_a_subject_the_request_does_not_affect_is_s2s(self) -> None:
+        """§2.5: only an affected subject's new defect refuses; removing the object of an unchanged subject's
+        relation leaves that subject ill-formed in S2."""
+
+        files = {**LAYERED_FILES, "src/a.py": "a = 1\n# ssds:rel DEPENDS_ON theory\n"}
+        sc = Scenario(LAYERED, files)
+        without = LAYERED.replace('''    [[unit]]
+    id = "theory"
+    kind = "D1"
+    scope = [{ path = "theory.md" }]
+''', "")
+        frame = frame_for(sc, without, files)
+        self.assertNotIn("theory", frame.structural.view.structure.units)
+        self.assertNotIn("code", frame.write_set)
+        self.assertFalse({f.unit for f in frame.structural.findings} & {"code"}, frame.structural.findings)
 
 
 if __name__ == "__main__":

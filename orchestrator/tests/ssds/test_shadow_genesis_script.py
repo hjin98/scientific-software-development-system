@@ -43,6 +43,16 @@ kind = "D4"
 scope = [{ prefix = "orchestrator/src/" }]
 
 [[unit]]
+id = "ssds.manifest"
+kind = "MANIFEST"
+scope = [{ file = ".ssds/manifest.toml" }]
+
+[[unit]]
+id = "ssds.policy"
+kind = "POLICY"
+scope = [{ file = ".ssds/policy.toml" }]
+
+[[unit]]
 id = "ssds.unclassified"
 kind = "UNCLASSIFIED"
 scope = [{ prefix = "" }]
@@ -56,7 +66,8 @@ class ShadowGenesisScript(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         root = Path(self._tmp.name)
         self.repo = init_repo(root / "repo")
-        for path, text in {".ssds/manifest.toml": MANIFEST, "PROTOCOL-RELEASE-STATE.yaml": RELEASE_STATE,
+        for path, text in {".ssds/manifest.toml": MANIFEST, ".ssds/policy.toml": "schema = 1\n",
+                           "PROTOCOL-RELEASE-STATE.yaml": RELEASE_STATE,
                            "source/roles/a.md": "# A\n", "source/README.md": "# Source\n", "manual.md": "# Manual\n",
                            "orchestrator/src/tool.py": "import os\n"}.items():
             (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
@@ -92,7 +103,7 @@ class ShadowGenesisScript(unittest.TestCase):
         self.assertTrue(derivation["current_assertion"], derivation["assertion_withheld"])
         self.assertEqual({s: v["mode"] for s, v in derivation["subjects"].items()},
                          {"ssdp.protocol": "LEGACY", "ssds8.manual": "LEGACY", "orchestrator.program": "UNGOVERNED",
-                          "ssds.unclassified": "UNGOVERNED"})
+                          "ssds.manifest": "UNGOVERNED", "ssds.policy": "UNGOVERNED", "ssds.unclassified": "UNGOVERNED"})
         self.assertEqual(derivation["subjects"]["ssdp.protocol"]["parts"], ["ssdp.protocol.roles"])
         self.assertEqual(self.run_script("derive").returncode, 0)
         self.assertEqual((git(self.repo, "for-each-ref"), git(self.repo, "status", "--porcelain", "--ignored")), before,

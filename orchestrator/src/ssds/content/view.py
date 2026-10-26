@@ -172,9 +172,16 @@ class TreeView:
 
     @property
     def regions(self) -> dict[str, Region | None]:
-        """Each unit's region after the dynamic partition tests (§1.4 rule 3)."""
+        """Each unit's region after the dynamic partition tests (§1.4 rule 3). The outermost owner's is exactly the
+        bytes it owns, those no other unit's region contains (Manual §1.8; plan reading F19): every reader of a
+        region, from write-scope containment to ``owners``, sees it so."""
 
-        return self._partition_tests[0]
+        final = self._partition_tests[0]
+        if final.get(UNCLASSIFIED) in (None, ABSENT):
+            return final
+        owned = tuple(Span(path, seg.start, seg.end) for path, segments in sorted(self.ownership.items())
+                      for seg in segments if seg.owner == UNCLASSIFIED)
+        return {**final, UNCLASSIFIED: _merge(owned)}
 
     @cached_property
     def integrity_findings(self) -> tuple[IntegrityFinding, ...]:
@@ -189,7 +196,7 @@ class TreeView:
     def ownership(self) -> dict[str, tuple[Segment, ...]]:
         """Governed path -> owner segments, by innermost ownership, residual and uncovered."""
 
-        regions = {u: r for u, r in self.regions.items() if r is not ABSENT}
+        regions = {u: r for u, r in self._partition_tests[0].items() if r is not ABSENT}
         depth = {u: len(self.structure.ancestors(u)) for u in regions}
         size = {u: _bytes_of(r) for u, r in regions.items()}  # type: ignore[arg-type]
         by_path: dict[str, list[tuple[str, Span]]] = {}
@@ -265,6 +272,12 @@ class TreeView:
         return _hash(b"ssds.cid.v1", term.kind.encode(), args, entry.mode.encode(), b"RESOLVED", body)
 
     def content(self, uid: str) -> str:
+        if uid == UNCLASSIFIED:
+            # the outermost owner's content is the bytes it owns, never every governed byte its empty prefix
+            # resolves to (Manual §1.8, §1.4 rule 3; plan reading F19)
+            owned = self.owned.get(UNCLASSIFIED, {})
+            parts = [_jcs([path, mode, data.hex()]) for path, (mode, data) in sorted(owned.items())]
+            return _hash(b"ssds.content.v1", b"ssds.unclassified.owned", *parts)
         unit = self.structure.units[uid]
         cids = [self.cid(t, r).encode() for t, r in zip(unit.scope, self.term_resolutions[uid])]
         return _hash(b"ssds.content.v1", *cids)
@@ -274,6 +287,8 @@ class TreeView:
 
         region = self.regions.get(uid)
         found = {uid}
+        if uid == UNCLASSIFIED:
+            return (uid,)  # it contains no unit: it owns only what no other unit contains (reading F19)
         for other in self.structure.units:
             if other == uid:
                 continue

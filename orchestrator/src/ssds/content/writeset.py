@@ -24,7 +24,7 @@ from difflib import SequenceMatcher
 
 from .lines import split_lines
 from .resolve import Region
-from .structure import RESIDUAL_SUFFIX, Structure
+from .structure import RESIDUAL_SUFFIX, UNCLASSIFIED, Structure
 from .view import TreeView
 
 
@@ -33,7 +33,10 @@ def _owned(view: TreeView, uid: str) -> tuple[dict[str, tuple[str, bytes]], dict
     for path, (mode, data) in view.owned.get(uid + RESIDUAL_SUFFIX, {}).items():
         previous = mine.get(path, (mode, b""))
         mine[path] = (mode, previous[1] + data)
-    files = {span.path for region in view.term_resolutions.get(uid, ()) if region for span in region}
+    if uid == UNCLASSIFIED:
+        files = set(mine)  # the outermost owner holds only the files it owns bytes of (plan reading F19)
+    else:
+        files = {span.path for region in view.term_resolutions.get(uid, ()) if region for span in region}
     modes = {path: view.tree[path].mode for path in files}
     return mine, modes
 
@@ -116,7 +119,10 @@ def _differs(head: TreeView, merged: TreeView, uid: str, a: Structure, b: Struct
         return True
     if _signature(head, uid, head_mode) != _signature(merged, uid, merged_mode):
         return True
-    old_terms, new_terms = head.term_resolutions[uid], merged.term_resolutions[uid]
+    if uid == UNCLASSIFIED:  # its region is the bytes it owns, never its empty prefix's resolution (reading F19)
+        old_terms, new_terms = (head.regions.get(uid),), (merged.regions.get(uid),)
+    else:
+        old_terms, new_terms = head.term_resolutions[uid], merged.term_resolutions[uid]
     if any(_region_differs(head, o, merged, n) for o, n in zip(old_terms, new_terms)):
         return True
     return (head.regions.get(uid) is None) != (merged.regions.get(uid) is None)

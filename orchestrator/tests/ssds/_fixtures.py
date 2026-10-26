@@ -22,16 +22,52 @@ GIT_ENV = {
 }
 
 
-def manifest(text: str) -> bytes:
-    return ("schema = 1\n" + textwrap.dedent(text)).encode("utf-8")
+RESERVED_LEAVES = {
+    "ssds.manifest": '''
+[[unit]]
+id = "ssds.manifest"
+kind = "MANIFEST"
+scope = [{ file = ".ssds/manifest.toml" }]
+''',
+    "ssds.policy": '''
+[[unit]]
+id = "ssds.policy"
+kind = "POLICY"
+scope = [{ file = ".ssds/policy.toml" }]
+''',
+    "ssds.unclassified": '''
+[[unit]]
+id = "ssds.unclassified"
+kind = "UNCLASSIFIED"
+scope = [{ prefix = "" }]
+''',
+}
 
 
-def tree(files: dict[str, bytes | str | Entry], manifest_text: str | None = None) -> Tree:
+def manifest(text: str, reserved: bool = True) -> bytes:
+    """A manifest declaring ``text``'s units and, unless it declares them itself, the reserved leaves of Manual
+    §1.8, so that fixture inputs conform to §1.8 and §1.9 (plan reading F18). ``reserved=False`` builds a
+    manifest without them, for the cases that check the leaves themselves."""
+
+    body = textwrap.dedent(text)
+    if reserved:
+        body += "".join(block for uid, block in RESERVED_LEAVES.items() if f'id = "{uid}"' not in body)
+    return ("schema = 1\n" + body).encode("utf-8")
+
+
+#: The ledger JSON form of a structure declaring only the reserved leaves of Manual §1.8 (plan reading F18).
+GENESIS_STRUCTURE = {"units": {
+    "ssds.manifest": {"kind": "MANIFEST", "role": "leaf", "scope": [{"file": ".ssds/manifest.toml"}], "subject": True},
+    "ssds.policy": {"kind": "POLICY", "role": "leaf", "scope": [{"file": ".ssds/policy.toml"}], "subject": True},
+    "ssds.unclassified": {"kind": "UNCLASSIFIED", "role": "leaf", "scope": [{"prefix": ""}], "subject": True}},
+    "governed": {}}
+
+def tree(files: dict[str, bytes | str | Entry], manifest_text: str | None = None, reserved: bool = True) -> Tree:
     entries: dict[str, Entry | bytes] = {}
     for path, value in files.items():
         entries[path] = value.encode("utf-8") if isinstance(value, str) else value
     if manifest_text is not None:
-        entries[DEFAULT_MANIFEST_PATH] = manifest(manifest_text)
+        entries[DEFAULT_MANIFEST_PATH] = manifest(manifest_text, reserved)
     return Tree(entries)
 
 
@@ -116,9 +152,7 @@ def genesis_record(host_key, human_line: str, witness_root: Path, baseline: str,
                         "human_keys": [{"id": human_key_id(human_line), "public_key": human_line}]},
         "witnesses": {"class": "LOCAL_TRUST", "N": 1, "q_a": 1, "r": 1, "f": 0,
                       "witnesses": [{"id": "w1", "kind": "FILE", "location": str(witness_root)}]},
-        "structure": structure or {"units": {"ssds.unclassified": {"kind": "UNCLASSIFIED", "role": "leaf",
-                                                                "scope": [{"prefix": ""}], "subject": True}},
-                                   "governed": {}},  # A9: every genesis declares the outermost owner
+        "structure": structure or GENESIS_STRUCTURE,  # §1.8, A9: every genesis declares the reserved leaves
         "modes": modes or {},
         "baseline_commit": baseline,
         "deployment_class": "LOCAL_TRUST",

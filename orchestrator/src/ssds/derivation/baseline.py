@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ssds.content import UNCLASSIFIED, Manifest, Structure, Tree, TreeView, decl_from_json, decl_to_json, static_errors
+from ssds.content import SYSTEM_UNITS, UNCLASSIFIED, Manifest, Structure, Tree, TreeView, decl_from_json, decl_to_json, static_errors
 
 from .history import manifest_decl
 from .s0 import StructureFacts
@@ -50,17 +50,30 @@ def baseline_structure(tree: Tree, manifest_path: str) -> BaselineStructure:
 
 
 def genesis_structure_problems(structure: Structure | dict) -> tuple[str, ...]:
-    """A genesis structure declares ``ssds.unclassified`` with the empty prefix, so every governed byte has an
-    owner and every change is in some effective unit's write set (Manual §1.8, §1.9 as amended by A9, SD-61).
-    Takes a ``Structure`` or the ledger's JSON form of one."""
+    """A genesis structure declares the reserved leaves of §1.8, ``ssds.unclassified`` with the empty prefix,
+    so every governed byte has an owner and every change is in some effective unit's write set (Manual §1.8,
+    §1.9 as amended by A9, SD-61; plan reading F18). Takes a ``Structure`` or the ledger's JSON form of one."""
 
     if isinstance(structure, dict):
         structure = Structure(decl_from_json(structure))
-    unit = structure.units.get(UNCLASSIFIED)
-    if unit is None or not any(t.kind == "prefix" and t.file == "" for t in unit.scope):
-        return (f"UNCLASSIFIED_MISSING {UNCLASSIFIED}: a genesis declares {UNCLASSIFIED} with the empty prefix, "
-                "the outermost owner of every governed byte no other unit contains (Manual §1.8, A9)",)
-    return ()
+    return tuple(f"RESERVED_LEAF {unit}: {detail}" for unit, detail in reserved_leaf_problems(structure))
 
 
-__all__ = ["BaselineStructure", "baseline_structure", "genesis_structure_problems"]
+def reserved_leaf_problems(structure: Structure) -> list[tuple[str, str]]:
+    """The reserved leaves of §1.8, each declared with its reserved kind, ``ssds.unclassified`` on the empty
+    prefix (Manual §1.8, §1.9, A9; reading F18). The one owner genesis, Admission and frames read."""
+
+    out = []
+    for uid, kind in sorted(SYSTEM_UNITS.items()):
+        unit = structure.units.get(uid)
+        if unit is None:
+            out.append((uid, f"{uid} is not declared (§1.8)"))
+        elif unit.declared_kind != kind:
+            out.append((uid, f"{uid} has kind {kind}"))
+    unclassified = structure.units.get(UNCLASSIFIED)
+    if unclassified is not None and not any(t.kind == "prefix" and t.file == "" for t in unclassified.scope):
+        out.append((UNCLASSIFIED, f"{UNCLASSIFIED} is declared with the empty prefix (A9)"))
+    return out
+
+
+__all__ = ["BaselineStructure", "baseline_structure", "genesis_structure_problems", "reserved_leaf_problems"]

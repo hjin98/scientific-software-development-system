@@ -135,7 +135,8 @@ class StepSixReview(unittest.TestCase):
         self.assertEqual(dependents["widening"], "UNBOUNDED", "missing dependency knowledge never proves independence")
         self.assertEqual([(i["unit"], i["label"]) for i in dependents["items"]], [("tool", "CANDIDATE")])
         d = sc.derive()
-        for unit in ("arch", "impl", "tool"):
+        # every unit, the reserved leaves of §1.8 included, must be judged complete before no dependent is missing
+        for unit in ("arch", "impl", "tool", "ssds.manifest", "ssds.policy", "ssds.unclassified"):
             sc.admit(*attested(judgment("COMPLETENESS", {"scope": [unit], "classes": ["WARRANT"],
                                                "membership": d.s.membership_digest([unit])}, "COMPLETE", actor=HUMAN,
                               basis=[content(unit, sc.rev(unit))])))
@@ -223,7 +224,8 @@ class Commands(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         root = Path(self._tmp.name)
         self.repo = init_repo(root / "repo")
-        for path, text in {".ssds/manifest.toml": MANIFEST, "PROTOCOL-RELEASE-STATE.yaml": RELEASE_STATE,
+        for path, text in {".ssds/manifest.toml": MANIFEST, ".ssds/policy.toml": "schema = 1\n",
+                           "PROTOCOL-RELEASE-STATE.yaml": RELEASE_STATE,
                            "source/roles/a.md": "# A\n", "source/README.md": "# Source\n", "manual.md": "# Manual\n",
                            "orchestrator/src/tool.py": "import os\n"}.items():
             (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
@@ -257,7 +259,7 @@ class Commands(unittest.TestCase):
         self.assertTrue(report["current_assertion"])
         self.assertEqual({s: v["mode"] for s, v in report["subjects"].items()},
                          {"ssdp.protocol": "LEGACY", "ssds8.manual": "LEGACY", "orchestrator.program": "UNGOVERNED",
-                          "ssds.unclassified": "UNGOVERNED"})
+                          "ssds.manifest": "UNGOVERNED", "ssds.policy": "UNGOVERNED", "ssds.unclassified": "UNGOVERNED"})
         self.assertEqual(self.ssds("status")[1], report, "identical state, identical answer")
 
     def test_ask_and_read_answer_at_the_head(self) -> None:

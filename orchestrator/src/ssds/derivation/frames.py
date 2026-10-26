@@ -74,12 +74,21 @@ class Frame:
         return delta
 
     @cached_property
+    def structural(self) -> Any:
+        """Step 4 (a)-(c) of ``X`` at this frame's position: the one structural owner (plan §3.1, 4c-ii)."""
+
+        from .structural import StructuralCheck
+
+        return StructuralCheck(State(self.h, self.n), self)
+
+    @cached_property
     def exists(self) -> bool:
-        """A clean merge and a well-formed structure (§7.4); the enactment condition is Admission's."""
+        """A clean merge and a well-formed ``Δ_Σ(X)``: no finding of the structural owner that ``X`` is
+        responsible for (catalogue §7.4; reading F18). The enactment condition is Admission's."""
 
         if self.merged is None:
             return False
-        return not static_errors(self.structure)
+        return not self.structural.findings
 
     @property
     def head_view(self) -> TreeView:

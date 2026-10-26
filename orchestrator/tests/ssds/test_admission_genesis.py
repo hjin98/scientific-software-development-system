@@ -45,6 +45,16 @@ kind = "D4"
 scope = [{ prefix = "src/" }]
 
 [[unit]]
+id = "ssds.manifest"
+kind = "MANIFEST"
+scope = [{ file = ".ssds/manifest.toml" }]
+
+[[unit]]
+id = "ssds.policy"
+kind = "POLICY"
+scope = [{ file = ".ssds/policy.toml" }]
+
+[[unit]]
 id = "ssds.unclassified"
 kind = "UNCLASSIFIED"
 scope = [{ prefix = "" }]
@@ -68,6 +78,7 @@ class GenesisFixture(unittest.TestCase):
         self.product = init_repo(self.root / "product")
         (self.product / ".ssds").mkdir()
         (self.product / ".ssds" / "manifest.toml").write_text(MANIFEST)
+        (self.product / ".ssds" / "policy.toml").write_text("schema = 1\n")  # ssds.policy's file (§1.8)
         (self.product / "guide.md").write_text(GUIDE)
         (self.product / "src").mkdir()
         (self.product / "src" / "tool.py").write_text("import os\n")
@@ -111,7 +122,8 @@ class Admission(GenesisFixture):
         self.assertTrue(view.current_assertion, view.assertion_withheld)
         self.assertEqual(view.s.mode("guide"), "LEGACY")
         self.assertEqual(view.s.mode("code"), "UNGOVERNED", "a subject without its own mode takes \"*\"")
-        self.assertEqual(sorted(view.s.view.structure.units), ["code", "guide", "guide.intro", "ssds.unclassified"])
+        self.assertEqual(sorted(view.s.view.structure.units), ["code", "guide", "guide.intro", "ssds.manifest", "ssds.policy",
+                                                                   "ssds.unclassified"])
         self.assertFalse(view.s.s0.quarantine, "Σ_0 is the baseline manifest")
 
         self.assertEqual(product_state(self.product), before, "nothing is written to the product repository")
@@ -135,10 +147,15 @@ class Refusals(GenesisFixture):
 
         without = MANIFEST[: MANIFEST.index('\n[[unit]]\nid = "ssds.unclassified"')] + "\n"
         (self.product / ".ssds" / "manifest.toml").write_text(without)
-        self.assertRefused("UNCLASSIFIED_MISSING", baseline_commit=commit(self.product, "no unclassified leaf"))
+        self.assertRefused("RESERVED_LEAF ssds.unclassified", baseline_commit=commit(self.product, "no unclassified leaf"))
         narrowed = MANIFEST.replace('scope = [{ prefix = "" }]', 'scope = [{ prefix = "docs/" }]')
         (self.product / ".ssds" / "manifest.toml").write_text(narrowed)
         self.assertRefused("ssds.unclassified", baseline_commit=commit(self.product, "a narrowed leaf"))
+        for leaf in ("ssds.manifest", "ssds.policy"):  # reading F18: all three of §1.8's leaves
+            start = MANIFEST.index(f'[[unit]]\nid = "{leaf}"')
+            dropped = MANIFEST[:start] + MANIFEST[MANIFEST.index("[[unit]]", start + 1):]
+            (self.product / ".ssds" / "manifest.toml").write_text(dropped)
+            self.assertRefused(f"RESERVED_LEAF {leaf}", baseline_commit=commit(self.product, f"no {leaf}"))
 
     def test_a9_admission_refuses_a_genesis_record_without_the_leaf(self) -> None:
         from ssds.admission.genesis import genesis_violations
@@ -149,7 +166,7 @@ class Refusals(GenesisFixture):
         decl = {k: v for k, v in decl_from_json(record["fields"]["structure"]).items() if k[0] != "ssds.unclassified"}
         record["fields"]["structure"] = decl_to_json(decl)
         record["fields"]["approval"] = {"key_id": "none", "signature": ""}
-        self.assertTrue(any(p.startswith("UNCLASSIFIED_MISSING") for p in genesis_violations(record)))
+        self.assertTrue(any(p.startswith("RESERVED_LEAF ssds.unclassified") for p in genesis_violations(record)))
 
     def assertRefused(self, fragment: str, **overrides) -> None:
         prepared = prepare_genesis(self.spec(**overrides), self.home, self.trees)

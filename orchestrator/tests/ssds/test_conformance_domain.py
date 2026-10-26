@@ -65,7 +65,9 @@ class LayerDirection(unittest.TestCase):
     def test_an_ascending_relation_the_candidate_introduces(self) -> None:
         template = "DOMAIN.layer_direction"
         ascending = "# Numerics\n<!-- ssds:rel DEPENDS_ON src -->\n"
-        self.assertEqual(classes_of(template, {"numerics.md": ascending}), {INCOMPLETE})
+        # since step 4c-ii an ascending relation the candidate adds is a semantic-structure defect of an affected
+        # subject, so its frame does not exist (§7.4, §8.3 4 (c)) and conformance is INCOMPLETE before any template
+        self.assertEqual(classes_of("BOUNDARY.write_scope", {"numerics.md": ascending}), {INCOMPLETE})
         descending = "def step():\n    return 1\n# ssds:rel DEPENDS_ON numerics\n"
         self.assertEqual(classes_of(template, {"src/solver.py": descending}), {CLEAN})
 
