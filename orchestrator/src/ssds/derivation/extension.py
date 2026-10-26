@@ -39,11 +39,25 @@ def trial_chain(chain: Chain, entry: Mapping[str, Any], objects: Mapping[str, by
     return Chain(chain.ledger_id, (*prefix, item))
 
 
-def trial(chain: Chain, trees: TreeSource, entry: Mapping[str, Any],
-          objects: Mapping[str, bytes] | None = None) -> Support:
-    """``D_{n+1}`` with ``entry`` admitted at ``n+1``: the state Admission reads a request's records in."""
+#: The name a structure-changing trial gives the merged tree ``M_n(X)``, which is no commit (reading F27).
+TRIAL_TREE = "trial:merged"
 
+
+def trial(chain: Chain, trees: TreeSource, entry: Mapping[str, Any],
+          objects: Mapping[str, bytes] | None = None, frame: Any = None) -> Support:
+    """``D_{n+1}`` with ``entry`` admitted at ``n+1``: the state Admission reads a request's records in. With the
+    ``frame`` of the request's own transformation, the state after it (reading F27): the entry adopts the frame's
+    structure and, for an integration (a frame with an enactment), integrates ``X`` with ``M_n(X)`` as the admitted
+    tree, even when ``X`` is empty."""
+
+    if frame is not None:
+        admission = dict(entry["admission"], adopted_deltas=frame.entry_deltas())
+        if frame.enactment is not None:  # an integration; a records-only adoption has none and keeps the tree
+            admission.update(admitted_commit=TRIAL_TREE, integrates=frame.x.id)
+            merged, source = frame.merged, trees
+            trees = lambda commit: merged if commit == TRIAL_TREE else source(commit)  # noqa: E731
+        entry = dict(entry, admission=admission)
     return Support(State(History(trial_chain(chain, entry, objects), trees)))
 
 
-__all__ = ["trial", "trial_chain"]
+__all__ = ["TRIAL_TREE", "trial", "trial_chain"]

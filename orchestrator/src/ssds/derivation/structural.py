@@ -271,6 +271,27 @@ class StructuralCheck:
             out.append(Finding(SEMANTIC_STRUCT.get(d.code, d.code), d.unit, d.detail))
         return out
 
+def adoption_frame(state: Any, head: str, elements: Any) -> Any:
+    """The frame of a records-only adoption: ``X = (B, B, A)`` at the head, ``A`` the request's elements; ``None``
+    when an element is not ``{absorption, key, value}`` with a parseable value (``adoption_codes`` refuses it)."""
+
+    from ssds.ledger.read import transformation_id
+
+    from .frames import Frame, Transformation
+
+    if not isinstance(elements, list) or not elements or any(
+            not isinstance(e, dict) or set(e) != {"absorption", "key", "value"} or not isinstance(e["key"], list)
+            or len(e["key"]) != 2 or not all(isinstance(k, str) for k in e["key"]) for e in elements):
+        return None
+    try:
+        for e in elements:
+            value_from_json(e["key"][1], e["value"])
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return None
+    adopts = tuple((tuple(e["key"]), e["value"]) for e in elements)
+    return Frame(state.h, state.n, Transformation(transformation_id(head, head, elements), head, head, adopts), None)
+
+
 def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, tuple[str, ...]]],
                    support: Any = None) -> set[str]:
     """Step 4's checks of a records-only adoption (Phase F 4c-iv; SD-69, readings F21): ``elements`` are the
@@ -280,10 +301,6 @@ def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, t
     structural owner's codes, a promotion or restoration failing closed (no prospective acceptance can travel
     with a records-only request), and step 5's static support graph read in that frame against ``support``, the
     head's (``CYCLE_SUPPORT``; built from ``state`` when not given)."""
-
-    from ssds.ledger.read import transformation_id
-
-    from .frames import Frame, Transformation
 
     pairs = set()
     elements = elements if isinstance(elements, list) else []
@@ -301,9 +318,7 @@ def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, t
         pairs.add((element["absorption"], key))
     if not pairs or pairs != named:
         return {"REF_ADOPTION"}
-    adopts = tuple((tuple(e["key"]), e["value"]) for e in elements)
-    x = Transformation(transformation_id(head, head, elements), head, head, adopts)
-    frame = Frame(state.h, state.n, x, None)
+    frame = adoption_frame(state, head, elements)
     check = frame.structural
     codes = {f.code for f in check.findings}
     if check.tenure_starts:
@@ -317,4 +332,4 @@ def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, t
     return codes
 
 
-__all__ = ["FROZEN", "Finding", "StructuralCheck", "adoption_codes"]
+__all__ = ["FROZEN", "Finding", "StructuralCheck", "adoption_codes", "adoption_frame"]

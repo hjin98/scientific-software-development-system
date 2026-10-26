@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any
 
-from ssds.content import Structure, Tree, TreeView, merge3, value_from_json, write_set
+from ssds.content import Structure, Tree, TreeView, merge3, value_from_json, value_to_json, write_set
 from ssds.ledger.read import submits
 
 from .history import History, manifest_decl
@@ -60,6 +60,16 @@ class Frame:
                 sigma[key] = value
         self.structure = Structure(sigma)
         self.view = TreeView(self.merged if self.merged is not None else self.head_tree, self.structure, manifest)
+
+    def entry_deltas(self) -> list[dict[str, Any]]:
+        """``Σ_n → Σ_{n+1}`` as an admission entry records it (§8.3 step 9; reading F27): every key whose value the
+        frame's structure changes, ``ADOPTED`` for a key ``A`` names and ``AUTHORED`` otherwise."""
+
+        before, after = dict(self.h.sigma(self.n)), self.structure.decl
+        adopted = {key for key, _ in self.x.adopts}
+        return [{"key": list(key), "value": None if after.get(key) is None else value_to_json(key[1], after[key]),
+                 "source": "ADOPTED" if key in adopted else "AUTHORED"}
+                for key in sorted(set(before) | set(after)) if before.get(key) != after.get(key)]
 
     @cached_property
     def structure_delta(self) -> dict[tuple[str, str], Any]:
