@@ -19,8 +19,8 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
-from ssds.derivation import (Frame, Transformation, TreeSource, Workflow, derive, outside_scope, protected_touched,
-                             transformation_of, trial, trust_roots)
+from ssds.derivation import (Frame, Transformation, TreeSource, Workflow, adoption_codes, derive, outside_scope,
+                             protected_touched, transformation_of, trial, trust_roots)
 from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
 from ssds.ledger.read import (LedgerEntry, entry_violations, read_chain, record_id, record_violations, submits,
@@ -313,7 +313,12 @@ class Admission:
                         # §7.5: a record about a transformation declares its frame (review 23b487a N2)
                         own.append("REF_TRANSFORMATION")  # names no transformation a result fixes (4c-iii)
                     elif record["kind"] == "TASK_RESULT" and (record["target"].get("adopts") or []):
-                        own.append("SCHEMA_UNSUPPORTED")  # adoption by ABSORB is step 4c-iv's (reading F16)
+                        own.append("SCHEMA_UNSUPPORTED")  # adoption with a candidate stays unsupported (revision 15)
+                    elif record["kind"] == "INTAKE_CLASSIFICATION" or record["kind"] == "INTAKE_DISPOSITION" and (
+                            record["outcome"] != "ABSORB" or "delta" not in target_type(record)):
+                        own.append("SCHEMA_UNSUPPORTED")  # intake beyond SD-69's adoption is Phase G's (§1)
+                    elif record["kind"] == "INTAKE_DISPOSITION" and not adoptable(support, record):
+                        own.append("REF_DELTA")  # not the key's current delta, or an adverse one stands (F21)
                     elif referenced_revisions(record) - revisions - (fixed[named] if named is not None else set()):
                         own.append("REF_REVISION")  # a frame record's revisions may also be its frame's
                     if referenced_objects(record) - stored - set(good):
@@ -347,10 +352,14 @@ class Admission:
             passing = [r for r in passing if r["id"] not in covered]
         if auth is not None and (auth.ok or auth.reissue):  # step 3's authorization (steps 4b-i, 4b-ii)
             withheld = None
-            if request.get("adopted_deltas") or len(request.get("candidates") or []) > 1:
-                reasons.add("SCHEMA_UNSUPPORTED")  # adoption is 4c-iv's; one integration per request: fail closed
+            if request.get("adopted_deltas") and request.get("candidates") or len(request.get("candidates") or []) > 1:
+                reasons.add("SCHEMA_UNSUPPORTED")  # adoption with a candidate; one integration per request
                 withheld = "SCHEMA_UNSUPPORTED"
             else:
+                if request.get("adopted_deltas"):  # a records-only adoption (4c-iv; SD-69)
+                    named = {(r["target"]["absorption"], tuple(r["target"]["key"])) for r in passing
+                             if r["kind"] == "INTAKE_DISPOSITION" and r["outcome"] == "ABSORB"}
+                    reasons |= adoption_codes(support.s, self.expected_head(entries), request["adopted_deltas"], named)
                 if request.get("candidates"):  # an integrating request (§11.5): steps 3-4 on its frame (4c-iii)
                     reasons |= integration_codes(request["candidates"][0], support, request.get("binding"))
                 position = request.get("base_position")
@@ -424,6 +433,28 @@ class Admission:
             alone += list(result.alone)
             passing = [r for r in passing if r["id"] not in gone]
         return passing, refused, True, alone
+
+
+def target_type(record: Mapping[str, Any]) -> set[str]:
+    """The target shape a record uses: ``delta`` or ``content_ref`` for an intake record."""
+
+    target = record.get("target")
+    if isinstance(target, Mapping) and {"absorption", "key"} <= set(target):
+        return {"delta"}
+    return {"content_ref"} if isinstance(target, Mapping) and "digest" in target else set()
+
+
+def adoptable(support: Any, record: Mapping[str, Any]) -> bool:
+    """An adopting ``ABSORB`` names its key's current delta at the head (reading F21; revision 15), on which no
+    adverse disposition stands (§18.4)."""
+
+    s = support.s
+    target = record["target"]
+    current = s.current_delta(tuple(target["key"]))
+    if current is None or current[0] != target["absorption"]:
+        return False
+    return not any(s.record(r)["target"] == target and s.record(r)["outcome"] != "ABSORB" and support.j.stands(r)
+                   for r in s.of_kind("INTAKE_DISPOSITION"))
 
 
 def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:

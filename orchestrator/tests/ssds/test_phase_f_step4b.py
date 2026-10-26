@@ -302,9 +302,10 @@ class Recheck(RequestFixture):
         self.assertEqual((decision.admitted, dict(decision.refused).get(report["id"])), ((), ("AUTH_ENVELOPE",)))
         issued = self.issue()
         report = self.bind(finding(materiality="MATERIAL"), issued)
-        adopting = self.admit(self.signed(issued, [report], adopted_deltas=[{"key": ["guide", "kind"], "value": "D3"}]))
+        adopting = self.admit(self.signed(issued, [report], adopted_deltas=[{"key": ["guide", "kind"], "value": "D3"}],
+                                          candidates=[self.baseline]))
         self.assertEqual((adopting.admitted, dict(adopting.refused).get(report["id"])), ((), ("SCHEMA_UNSUPPORTED",)),
-                         "an adopting request is 4c-iv's: nothing is salvaged")
+                         "an adoption with a candidate stays unsupported (revision 15): nothing is salvaged")
 
     def test_e10_an_invalid_base_salvages_nothing_and_records_why(self) -> None:
         issued = self.issue()

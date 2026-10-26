@@ -36,7 +36,7 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
              (2026-10-25); the old ledger's retirement statement needs step 7.
 NEXT ACTION: steps 4b-ii, 4c-i and 4c-ii are closed (PASS at c98bb647, 1a3c262d and
-             c5508035); 4c-iii is built and under same-family review; then 4c-iv (SD-69). A10 is accepted (SD-66);
+             c5508035); 4c-iii's last repair and 4c-iv are built and under same-family review; then 4d. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -286,7 +286,9 @@ Until steps 5-8 (4c-iii; review 23b487a N1), these fail closed:
 - an integrating request bound to anything but the producing task of its candidate's submitting result;
 - an integration of a human-produced candidate, which has no contract (`AUTH_WRITE_SCOPE`);
 - plan units in an integration's write set, even for a planner role (§12.3);
-- more than one candidate per request. Until Q-F6 (iii) is settled and step 5 builds the rebase, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii).
+- more than one candidate per request.
+
+Until step 5 builds the rebase that SD-69's Q-F6 (iii) correction allows, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii).
 
 The Phase E items listed in §4 stay as Phase E §6 states them.
 
@@ -909,6 +911,24 @@ Taken up:
 - `AUTH_PROTECTED` does not bind a human adoption of policy declarations.
 
 **Narrow re-check of 113f7832 (revision 15).** No SERIOUS CHALLENGE. **PASS.** Its note is taken up: the 4c-iv row carries the current-delta rule, `REF_DELTA`, `REF_ADOPTION`, the unsupported cases and the superseded-delta test.
+
+**Narrow re-check of 88d9a74d (the 4c-iii repairs).** No SERIOUS CHALLENGE. B1, B2, N1, N2, the cost items and the 4e row are verified. NO-PASS on one remaining case of B3, repaired: a `renamed_from` listing a head subject alongside a part still hid a promotion. A head-subject source now contributes nothing and vetoes no other, and a merge-rename test pins it. Its notes are taken up:
+- tests for a passing but unsalvaged result (it fixes nothing) and for an agent lineage on a human-recorded result (`AUTH_PROTECTED`);
+- §6's rebase sentence split from the list.
+
+E10 is equivalent.
+
+**Step 4c-iv built (after the schema correction, ae002b63).**
+- **Derivation.**
+  - `State.current_delta(key)` is F21's delta: the absorption that began the current observed value's run, and that value.
+  - The structural owner classifies a key a records-only adoption adopts at its observed value as `ADOPTED`, validated as authored. An adopted value that is not the observed delta revalidates, and an adoption with a candidate is `SCHEMA_UNSUPPORTED`.
+  - `adoption_codes` judges a records-only adoption: its elements must be exactly the request's `ABSORB` deltas, each current (`REF_ADOPTION`); then the frame `X = (B, B, A)`'s codes; a promotion or restoration is `SCHEMA_UNSUPPORTED`.
+- **Admission, at step 2.**
+  - `INTAKE_CLASSIFICATION`, non-`ABSORB` dispositions and an `ABSORB` of content are `SCHEMA_UNSUPPORTED`.
+  - An `ABSORB` naming a delta that is not the current one, or one under a standing adverse disposition, is `REF_DELTA` (`adoptable`).
+  - An adoption with a candidate fails closed.
+- **Not yet built.** The entry that carries the adoptions as `ADOPTED` deltas is step 9's commit. Every request still ends `SCHEMA_UNSUPPORTED`.
+- **Mutants.** All nine on 4c-iv are killed.
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 

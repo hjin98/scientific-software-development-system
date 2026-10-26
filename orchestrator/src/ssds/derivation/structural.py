@@ -10,8 +10,10 @@ the enactment condition"; reading F18).
   ``Q_n`` realigns when ``decl(M)[k] = Σ_n[k]``, is carried when ``decl(M)[k] = decl(T_n)[k]``, and otherwise
   routes to revalidation (``STRUCT_REVALIDATE``). Where ``Σ_n ⊕ Δ_Σ(X)`` would differ from ``Σ_{n+1}`` (a key in
   ``Q_n`` that ``C`` authors to a foreign change's value), Manual §7.2 and the catalogue's precedence disagree,
-  and the request is routed to revalidation (plan revision 7, R4). Adoption by ``ABSORB``
-  cannot be expressed in schema 1 (``SCHEMA_UNSUPPORTED``, reading F16).
+  and the request is routed to revalidation (plan revision 7, R4). A key in ``Q_n`` that a records-only
+  adoption (``X = (B, B, A)``) adopts by ``ABSORB`` at its observed value is ``ADOPTED``, validated exactly as if
+  authored (§18.4, SD-69); an adopted value that is not the observed delta routes to revalidation, and an
+  adoption with a candidate is ``SCHEMA_UNSUPPORTED`` (plan revision 15).
 - **Well-formedness, over ``Σ_{n+1}`` on ``M``.** §1.9's static checks (``STRUCT_<code>``); scope conservation is
   their containment and sibling-disjointness checks with the residual part (§1.4 rule 2), so it has no code of
   its own; newly declared or changed file and span terms resolve (``STRUCT_TERM_UNRESOLVED``); the reserved
@@ -34,7 +36,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
 
-from ssds.content import RESIDUAL_SUFFIX, Structure, TreeView, static_errors
+from ssds.content import RESIDUAL_SUFFIX, Structure, TreeView, static_errors, value_from_json
 
 from .baseline import reserved_leaf_problems
 
@@ -76,10 +78,17 @@ class StructuralCheck:
         observed = manifest_decl(head)
         quarantine = self.s.s0.quarantine  # the admitted state's: T_n under Σ_n, as ``head`` is
         merged = self.merged_decl or {}
+        adopted = {key: value_from_json(key[1], value) for key, value in self.frame.x.adopts}
         out, classes = dict(sigma), {}
         for key in sorted(set(sigma) | set(merged) | set(observed or {}) | set(quarantine)):
             value = merged.get(key)
-            if key not in quarantine:
+            if key in quarantine and key in adopted and adopted[key] == value:
+                classes[key] = "ADOPTED"  # adopted by ABSORB: validated exactly as if authored (§18.4)
+                if value is None:
+                    out.pop(key, None)
+                else:
+                    out[key] = value
+            elif key not in quarantine:
                 if value != sigma.get(key):
                     classes[key] = "AUTHORED"
                     if value is None:
@@ -128,8 +137,12 @@ class StructuralCheck:
         if self.merged_decl is None:
             out.append(Finding("STRUCT_MANIFEST_UNPARSED", "ssds.manifest", "the merged manifest does not parse"))
             return tuple(out)
-        if self.frame.x.adopts:
-            out.append(Finding("SCHEMA_UNSUPPORTED", "", "adoption by ABSORB (Q-F6 (i))"))
+        x = self.frame.x
+        if x.adopts and x.base != x.candidate:
+            out.append(Finding("SCHEMA_UNSUPPORTED", "", "adoption with a candidate (revision 15)"))
+        for key, _ in x.adopts:
+            if self.classes.get(tuple(key)) != "ADOPTED":
+                out.append(Finding("STRUCT_REVALIDATE", key[0], f"{key[1]}: an adopted value that is not the observed delta"))
         for key, cls in sorted(self.classes.items()):
             if cls == "REVALIDATE":
                 out.append(Finding("STRUCT_REVALIDATE", key[0], f"{key[1]}: a quarantined key changed to a third value"))
@@ -183,9 +196,10 @@ class StructuralCheck:
             if not unit.subject or (uid in head.units and head.units[uid].subject):
                 continue
             sources = {uid, *unit.renamed_from}
-            if any(src in head.units and head.units[src].subject for src in sources - {uid}):
-                continue  # an ordinary rename of a subject at the head starts nothing §7.6 binds
-            if any(src in head.units or src in earlier for src in sources):
+            # a head part, or a former subject absent at the head, makes it a promotion or restoration; a source
+            # that is a head subject (an ordinary rename) contributes nothing but vetoes no other (re-check 88d9a74)
+            if any((src in head.units and not head.units[src].subject) or (src not in head.units and src in earlier)
+                   for src in sources):
                 out.append(uid)
         return tuple(out)
 
@@ -257,4 +271,38 @@ class StructuralCheck:
             out.append(Finding(SEMANTIC_STRUCT.get(d.code, d.code), d.unit, d.detail))
         return out
 
-__all__ = ["FROZEN", "Finding", "StructuralCheck"]
+def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, tuple[str, ...]]]) -> set[str]:
+    """Step 4's checks of a records-only adoption (Phase F 4c-iv; SD-69, readings F21): ``elements`` are the
+    request's ``adopted_deltas``, ``{absorption, key, value}`` each, and ``named`` the deltas its ``ABSORB``
+    dispositions name. They must be the same deltas, each the key's current delta at its observed value
+    (``REF_ADOPTION``). The adoption is then judged as the frame record of ``X = (B, B, A)`` at the head: the
+    structural owner's codes, and a promotion or restoration failing closed (no prospective acceptance can travel
+    with a records-only request)."""
+
+    from ssds.ledger.read import transformation_id
+
+    from .frames import Frame, Transformation
+
+    pairs = set()
+    for element in elements if isinstance(elements, list) else []:
+        if not isinstance(element, dict) or set(element) != {"absorption", "key", "value"} \
+                or not isinstance(element["key"], list) or len(element["key"]) != 2:
+            return {"REF_ADOPTION"}
+        key = tuple(element["key"])
+        current = state.current_delta(key)
+        if current is None or current[0] != element["absorption"] \
+                or value_from_json(key[1], element["value"]) != current[1]:
+            return {"REF_ADOPTION"}
+        pairs.add((element["absorption"], key))
+    if not pairs or pairs != named:
+        return {"REF_ADOPTION"}
+    adopts = tuple((tuple(e["key"]), e["value"]) for e in elements)
+    x = Transformation(transformation_id(head, head, elements), head, head, adopts)
+    check = Frame(state.h, state.n, x, None).structural
+    codes = {f.code for f in check.findings}
+    if check.tenure_starts:
+        codes.add("SCHEMA_UNSUPPORTED")  # a promoting or restoring adoption (§18.4; revision 13)
+    return codes
+
+
+__all__ = ["FROZEN", "Finding", "StructuralCheck", "adoption_codes"]

@@ -405,11 +405,16 @@ class StructuralOwner(unittest.TestCase):
         unparsed = frame_for(sc, "[[unit\n", LAYERED_FILES)
         self.assertFalse(unparsed.exists, "a manifest that does not parse merges by no key: no frame (§7.2)")
 
-    def test_adoption_fails_closed(self) -> None:
+    def test_adoption_with_a_candidate_or_of_no_delta_fails_closed(self) -> None:
+        """Revision 15: only a records-only adoption (``C = B``) of a quarantined key's observed value."""
+
         sc = Scenario(LAYERED, LAYERED_FILES)
         d = sc.derive()
-        x = Transformation("sha256:" + "a" * 64, sc.head, sc.head, ((("doc", "kind"), "D3"),))
-        self.assertIn("SCHEMA_UNSUPPORTED", codes(Frame(d.s.h, d.s.n, x, None)), "F16 (i): no disposition names a key")
+        other = sc.add_tree(tree({**LAYERED_FILES, "doc.md": "# Doc 2\n"}, LAYERED))
+        with_candidate = Transformation("sha256:" + "a" * 64, sc.head, other, ((("doc", "kind"), "D3"),))
+        self.assertIn("SCHEMA_UNSUPPORTED", codes(Frame(d.s.h, d.s.n, with_candidate, None)))
+        not_quarantined = Transformation("sha256:" + "b" * 64, sc.head, sc.head, ((("doc", "kind"), "D3"),))
+        self.assertIn("STRUCT_REVALIDATE", codes(Frame(d.s.h, d.s.n, not_quarantined, None)))
 
     def test_the_reserved_leaves(self) -> None:
         from ._fixtures import RESERVED_LEAVES
@@ -895,9 +900,8 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class FrameRecordsAtAdmission(unittest.TestCase):
-    """Step 4c-iii (a): records declaring a transformation's frame reach Admission's checks (catalogue §7.5,
-    §8.3 steps 2-3). Every request still ends ``SCHEMA_UNSUPPORTED`` until steps 5-8 are built."""
+class AdmissionRequests(unittest.TestCase):
+    """The real Admission engine on a fixture ledger, with requests bound by the fixture's human."""
 
     def setUp(self) -> None:
         from .test_admission_requests import RequestFixture
@@ -942,6 +946,12 @@ class FrameRecordsAtAdmission(unittest.TestCase):
     def acceptance(self, x: str, subject: str, scope_id: str, rev: str, basis=()) -> dict:
         return with_id({**record("ACCEPTANCE", target={"subject": subject, "scope_id": scope_id, "rev": rev},
                                  outcome="PASS", frame={"transformation": x}, basis=basis), "actor": self.f.human()})
+
+
+
+class FrameRecordsAtAdmission(AdmissionRequests):
+    """Step 4c-iii (a): records declaring a transformation's frame reach Admission's checks (catalogue §7.5,
+    §8.3 steps 2-3). Every request still ends ``SCHEMA_UNSUPPORTED`` until steps 5-8 are built."""
 
     def test_a_frame_no_result_fixes_is_refused(self) -> None:
         cand = self.candidate({"guide.md": "# Guide\n\n## Introduction\n\nHello again.\n\n## Usage\n\nRun it.\n"})
@@ -1006,6 +1016,19 @@ class FrameRecordsAtAdmission(unittest.TestCase):
         framed = with_id({**record("FINDING", target={"units": ["guide"]}, fields={"materiality": "MATERIAL"},
                                    frame={"transformation": x}), "actor": self.f.human()})
         decision = self.admit([broken, framed])
+        self.assertEqual(decision.admitted, ())
+        self.assertIn((framed["id"], ("REF_TRANSFORMATION",)), decision.refused)
+
+    def test_a_passing_result_that_is_not_salvaged_fixes_nothing(self) -> None:
+        """Re-check 88d9a74 E11: salvage reads what it admits, never what merely passed."""
+
+        cand = self.candidate({"guide.md": "# Guide\n\n## Introduction\n\nHello again.\n\n## Usage\n\nRun it.\n"})
+        result = self.submitting(cand)
+        x = result["target"]["transformation"]
+        framed = with_id({**record("FINDING", target={"units": ["guide"]}, fields={"materiality": "MATERIAL"},
+                                   frame={"transformation": x}), "actor": self.f.human()})
+        decision = self.admit([result, framed])
+        self.assertNotIn(result["id"], dict(decision.refused), "the result passed its checks")
         self.assertEqual(decision.admitted, ())
         self.assertIn((framed["id"], ("REF_TRANSFORMATION",)), decision.refused)
 
@@ -1104,6 +1127,18 @@ class IntegratingRequest(unittest.TestCase):
         human.admit(made)
         self.assertNotIn("AUTH_PROTECTED", self.codes(human, cand3, binding={"human": {"actor": OWNER}}),
                          "a human's edit of policy content enacts nothing (§25.3)")
+        lineage = accepted_plan()
+        base = lineage.head
+        cand4 = lineage.add_tree(tree(dict(lineage.files, **SOLVED, **{".ssds/policy.toml": "schema = 1\n# edited\n"}),
+                                      lineage.manifest))
+        x4 = transformation_id(base, cand4)
+        relayed = with_id({**record("TASK_RESULT", target={"task": "task-l", "candidate": cand4, "transformation": x4,
+                                                            "base": base},
+                                    outcome="COMPLETE", actor=OWNER, frame={"transformation": x4}, fields={"slots": {}}),
+                           "binding": dict(fresh(agent("maker"), "task-l"))})
+        lineage.admit(relayed)
+        self.assertIn("AUTH_PROTECTED", self.codes(lineage, cand4, binding={"human": {"actor": OWNER}}),
+                      "an agent's lineage makes the edit an agent's (re-check 88d9a74 E06)")
 
     def test_plan_units_and_unnamed_verification_rules(self) -> None:
         """Review 23b487a C08, C09: §12.3 keeps plan units and verification rules outside the write scope."""
@@ -1192,6 +1227,12 @@ class IntegratingRequest(unittest.TestCase):
         plain = units.replace('id = "q"', 'id = "q3"\n    renamed_from = ["q"]')
         _, moved, _ = submit_x(ordinary, {}, agent("maker"), "task-mv", manifest=plain)
         self.assertNotIn("ENACTMENT_MISSING", self.codes(ordinary, moved), "an ordinary rename of a subject")
+        merged = Scenario(units, NESTED_FILES)
+        both = self.PROMOTED.replace('id = "p"', 'id = "p2"\n    renamed_from = ["q", "p"]').replace(
+            'part_of = "p"', 'part_of = "p2"')
+        _, joined, _ = submit_x(merged, {}, agent("maker"), "task-j", manifest=both)
+        self.assertIn("ENACTMENT_MISSING", self.codes(merged, joined),
+                      "a head subject among the sources vetoes nothing (re-check 88d9a74 RB1)")
 
     def test_which_transformation_and_which_acceptance(self) -> None:
         """Review 23b487a C06, C07, C14, C16: one transformation per candidate, never one already integrated; an
@@ -1268,3 +1309,135 @@ class IntegratingRequest(unittest.TestCase):
         _, fresh_unit, _ = submit_x(sc, {}, agent("maker"), "task-new",
                                     manifest=units.replace('id = "q"', 'id = "q2"'))
         self.assertNotIn("ENACTMENT_MISSING", self.codes(sc, fresh_unit), "a new subject is neither")
+
+
+class RecordsOnlyAdoption(unittest.TestCase):
+    """Step 4c-iv: a records-only adoption by ``ABSORB`` of a quarantined key's current delta (SD-69, reading F21,
+    revisions 13-15)."""
+
+    WIDE = LAYERED.replace('scope = [{ path = "doc.md" }]', 'scope = [{ path = "doc.md" }, { path = "more.md" }]')
+
+    def quarantined(self):
+        """``doc``'s widened scope arrives foreign: the key ``(doc, scope)`` is quarantined, its delta current."""
+
+        sc = Scenario(LAYERED, {**LAYERED_FILES, "more.md": "m\n"})
+        sc.manifest = self.WIDE
+        sc.absorb({})
+        return sc
+
+    def element(self, sc, key=("doc", "scope")):
+        from ssds.content import decl_to_json
+
+        d = sc.derive()
+        absorption, value = d.s.current_delta(key)
+        json_value = decl_to_json({key: value})
+        return {"absorption": absorption, "key": list(key), "value": _decl_value(json_value, key)}
+
+    def test_the_current_delta_is_the_absorption_that_first_showed_it(self) -> None:
+        sc = self.quarantined()
+        d = sc.derive()
+        first = d.s.current_delta(("doc", "scope"))
+        self.assertIsNotNone(first)
+        self.assertEqual(first[0], sc_entry_digest(d, d.s.n))
+        sc.absorb({"theory.md": "# Theory 2\n"})  # an unrelated absorption: the delta stays the same
+        self.assertEqual(sc.derive().s.current_delta(("doc", "scope"))[0], first[0])
+        self.assertIsNone(sc.derive().s.current_delta(("doc", "kind")), "a key that is not quarantined has none")
+
+    def test_an_adoption_of_the_current_delta_is_judged_as_authored(self) -> None:
+        from ssds.derivation import adoption_codes
+
+        sc = self.quarantined()
+        element = self.element(sc)
+        named = {(element["absorption"], ("doc", "scope"))}
+        d = sc.derive()
+        self.assertEqual(adoption_codes(d.s, sc.head, [element], named), set())
+        self.assertEqual(adoption_codes(d.s, sc.head, [element], set()), {"REF_ADOPTION"}, "no ABSORB names it")
+        stale = dict(element, absorption="sha256:" + "0" * 64)
+        self.assertEqual(adoption_codes(d.s, sc.head, [stale], {(stale["absorption"], ("doc", "scope"))}),
+                         {"REF_ADOPTION"}, "not the current delta")
+        x = Transformation(transformation_id(sc.head, sc.head, [element]), sc.head, sc.head,
+                           ((("doc", "scope"), element["value"]),))
+        check = Frame(d.s.h, d.s.n, x, None).structural
+        self.assertEqual(check.classes.get(("doc", "scope")), "ADOPTED")
+        self.assertEqual(check.findings, ())
+
+    def test_a_promoting_adoption_fails_closed(self) -> None:
+        """Revision 13 B3: no prospective acceptance travels with a records-only adoption."""
+
+        from ssds.derivation import adoption_codes
+
+        sc = Scenario(NESTED, NESTED_FILES)
+        sc.manifest = IntegratingRequest.PROMOTED
+        sc.absorb({})  # p made a subject, foreign: quarantined
+        d = sc.derive()
+        elements, named = [], set()
+        for key in (("p", "subject"), ("p", "kind")):
+            absorption, value = d.s.current_delta(key)
+            from ssds.content import decl_to_json
+
+            elements.append({"absorption": absorption, "key": list(key),
+                             "value": _decl_value(decl_to_json({key: value}), key)})
+            named.add((absorption, key))
+        self.assertIn("SCHEMA_UNSUPPORTED", adoption_codes(d.s, sc.head, elements, named))
+
+    def test_a_superseded_delta_and_an_adverse_disposition(self) -> None:
+        """Check c50eb56c B1 and §18.4: an ``ABSORB`` names only the current delta, with no adverse one standing."""
+
+        from ssds.admission.engine import adoptable
+
+        sc = self.quarantined()
+        old = self.element(sc)
+        sc.manifest = self.WIDE.replace('{ path = "more.md" }', '{ path = "more.md" }, { path = "theory.md" }')
+        sc.absorb({})  # the same key takes a later foreign value: a new delta
+        absorb = judgment("INTAKE_DISPOSITION", {"absorption": old["absorption"], "key": ["doc", "scope"]}, "ABSORB")
+        self.assertFalse(adoptable(sc.derive(), absorb), "a superseded delta")
+        current = self.element(sc)
+        target = {"absorption": current["absorption"], "key": ["doc", "scope"]}
+        self.assertTrue(adoptable(sc.derive(), judgment("INTAKE_DISPOSITION", target, "ABSORB")))
+        sc.admit(*attested(judgment("INTAKE_DISPOSITION", target, "REJECT", actor=OWNER)))
+        self.assertFalse(adoptable(sc.derive(), judgment("INTAKE_DISPOSITION", target, "ABSORB")),
+                         "an adverse disposition stands (on a fixture ledger)")
+
+
+def _decl_value(json_structure: dict, key) -> object:
+    """A declaration value in the ledger's JSON form, read from ``decl_to_json``'s structure."""
+
+    unit = json_structure["units"][key[0]]
+    return unit[key[1]]
+
+
+def sc_entry_digest(d, position: int) -> str:
+    return d.s.h.chain.entries[position].digest
+
+
+class IntakeAtAdmission(AdmissionRequests):
+    """Step 4c-iv at Admission: intake beyond SD-69's adoption fails closed; an adoption names a current delta."""
+
+    def intake(self, kind: str, outcome: str, target: dict) -> dict:
+        return with_id({**record(kind, target=target, outcome=outcome, fields={"kind": "D3"} if kind == "INTAKE_CLASSIFICATION" else {}),
+                        "actor": self.f.human()})
+
+    def test_intake_beyond_adoption_and_an_adoption_of_no_delta(self) -> None:
+        delta = {"absorption": "sha256:" + "4" * 64, "key": ["guide", "kind"]}
+        cases = {"a classification": (self.intake("INTAKE_CLASSIFICATION", "PROPOSED", delta), "SCHEMA_UNSUPPORTED"),
+                 "a rejection": (self.intake("INTAKE_DISPOSITION", "REJECT", delta), "SCHEMA_UNSUPPORTED"),
+                 "content absorbed": (self.intake("INTAKE_DISPOSITION", "ABSORB", {"digest": "sha256:" + "5" * 64}),
+                                      "SCHEMA_UNSUPPORTED"),
+                 "no quarantined delta": (self.intake("INTAKE_DISPOSITION", "ABSORB", delta), "REF_DELTA")}
+        for name, (rec, code) in cases.items():
+            with self.subTest(case=name):
+                self.assertEqual(dict(self.admit([rec]).refused).get(rec["id"]), (code,))
+
+    def test_adopted_deltas_without_their_dispositions_and_with_a_candidate(self) -> None:
+        from ssds.admission.request import request_message
+
+        from ._fixtures import sshsig
+
+        f = self.f
+        element = {"absorption": "sha256:" + "4" * 64, "key": ["guide", "kind"], "value": "D3"}
+        for name, extra, code in (("no ABSORB", {}, "REF_ADOPTION"),
+                                  ("with a candidate", {"candidates": [f.baseline]}, "SCHEMA_UNSUPPORTED")):
+            with self.subTest(case=name):
+                req = f.request([], base_position=len(f.entries()) - 1, adopted_deltas=[element], **extra)
+                req["binding"] = {"human": {"actor": f.human(), "signature": sshsig(f.private, request_message(req))}}
+                self.assertIn(code, f.admit(req).reasons)

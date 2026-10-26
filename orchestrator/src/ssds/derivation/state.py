@@ -263,6 +263,26 @@ class State:
     def subject_triple(self, subject: str) -> tuple[str, str, str]:
         return subject, self.view.scope_id(subject), self.cur(subject)
 
+    def current_delta(self, key: tuple[str, str]) -> tuple[str, Any] | None:
+        """The quarantined delta of ``key`` now (reading F21): the digest of the absorption entry whose observed
+        head first showed the key's current observed value, and that value. ``None`` when the key is not
+        quarantined, the observed manifest does not parse, or no absorption began the current value's run.
+        A function of the ledger alone; an adopting ``ABSORB`` must name exactly this (revision 15)."""
+
+        if self.frame is not None or key not in self.s0.quarantine:
+            return None
+        observed = manifest_decl(self.view)
+        if observed is None:
+            return None
+        value = observed.get(key)
+        p = self.n
+        while p > 0 and (manifest_decl(self.h.view(p - 1)) or {}).get(key) == value:
+            p -= 1
+        entry = self.h.chain.entries[p]
+        if entry.entry.get("entry_kind") != "ABSORPTION":
+            return None
+        return entry.digest, value
+
     def tenure(self, subject: str) -> int | None:
         """``τ(s)``: the first position of the current run with an unchanged governance signature."""
 
