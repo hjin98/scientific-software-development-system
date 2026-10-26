@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F9 settled (SD-64, SD-67 to SD-70); Q-F10 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F10 settled (SD-64, SD-67 to SD-71). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -39,8 +39,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
              43e85277); 5a is closed (PASS at 3d125c63); 5a, 5b (5b-i to 5b-iii) and 5c are closed (last PASS at 1acbb8df);
-             5d is closed (PASS at b546a2b8, notes taken up). Q-F10 asks
-             whether 5e (rebase) and 5f (regression) wait for SD-70's gate; step 6 follows. A10 is accepted (SD-66);
+             5d is closed (PASS at b546a2b8, notes taken up); 5e and 5f
+             are deferred (SD-71). Step 5 is closed for Phase F; step 6 (commit, publication, fencing) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -171,8 +171,8 @@ A read-only survey of catalogue §8.3 steps 7-8, Manual §8.3 and the code found
 | **5b** per-record legality | The bound obligation exists at the head (F34); one `TASK_RESULT` per task; `OBLIGATION_ANSWERED` in the record's frame, with step 3's authorized supersessions and passing `GATE_DECISION`s exempt; revision assessments first (`OBLIGATION_REVIEW_OPEN`): an assessment already admitted counts for the triple, and the judgment carries a `standing` entry on it; a mid-task report request carries no `TASK_RESULT` and claims nothing (4b-i's role and route checks are re-read for it, and a claim is refused); Phase E's deferred refusals (answers to decisions no longer derived, including a dropped part's; invalid partitions) | `Workflow.obligations`, `Workflow.answer`, `Runs.counting_premise`, `Items._answers`, `plans.partition_violations` | — (a result or claim bound to an already-discharged obligation or a non-current contract revision is refused under its `OBLIGATION_*` member, F31) |
 | **5c** result conformance | The result-only `HARD` templates (`slots_filled`, `outcome_consistent`, `citations_support`) on the trial, with a result-only owner (F30); `CONFORMANCE_RESULT` refuses every passing judgment and principal decision in the request, and admits the result, adverse judgments and other never-lost records | `derivation/conformance.py` templates | a citation that needs a realization: step 9 |
 | **5d** claims and integration legality | `OBLIGATION_REENACTED` (replacing 4c-iii's placeholder); a claimed discharge undischarged at the head and its predicate holding after the request's own records (on the 4e-i trial); clean conformance of the exact candidate; an integrating request claiming with its current review judgments, derived from the ledger (F32); the judged-content support check (`STALE_RETAINED`, through `Judgments.supports_integration`); 4c-iii's producing-task rule made permanent; lint on a plan unit (F29); the routing of `STRUCT_REVALIDATE` and `STALE_BASIS` refusals | `State.enactment`, `Workflow.discharge`, `Items.predicate`, `Workflow.conformance`, `Judgments.supports_integration`, `PlanFacts.lint` | a predicate with an evidence term, or conformance needing required evidence: step 9. `OVERTAKEN` and fenced re-enactments: step 6 |
-| **5e** rebase (Q-F6 (iii), SD-69) | Step 2's pinned-merge check `tree(C') = merge3(tree(B), tree(B'), tree(C))` and `A' = A`; `X'` and its enactment learned from the records carrying it; §7.6's counting of a frame-`X` record in `D_n[X']` (F33), with `Δ_Σ(X') = Δ_Σ(X)` for structural records; `integration_frame` resolving `C'` | `merge3`, `Frame`, `transformation_of` | `A ≠ ∅` (its element form is Stage S's): `REF_TRANSFORMATION`. Producing `C'` is step 8's machinery |
-| **5f** no collateral regression (step 8) | The affected set (realizations whose execution bases or readings read a unit the request changes), refused as unsupported whenever it is non-empty, and the prerequisite-authority exemption's frame | `Assessments.ev`, `qual`, `Support.prospectively_accepted` | the head-versus-merged comparison and reruns: step 9 |
+| **5e** rebase (Q-F6 (iii), SD-69); **deferred by SD-71** | Step 2's pinned-merge check `tree(C') = merge3(tree(B), tree(B'), tree(C))` and `A' = A`; `X'` and its enactment learned from the records carrying it; §7.6's counting of a frame-`X` record in `D_n[X']` (F33), with `Δ_Σ(X') = Δ_Σ(X)` for structural records; `integration_frame` resolving `C'` | `merge3`, `Frame`, `transformation_of` | `A ≠ ∅` (its element form is Stage S's): `REF_TRANSFORMATION`. Producing `C'` is step 8's machinery |
+| **5f** no collateral regression (step 8); **deferred by SD-71** | The affected set (realizations whose execution bases or readings read a unit the request changes), refused as unsupported whenever it is non-empty, and the prerequisite-authority exemption's frame | `Assessments.ev`, `qual`, `Support.prospectively_accepted` | the head-versus-merged comparison and reruns: step 9 |
 
 Deferred with their owners: `NOT_SETTLED` and the fenced or `OVERTAKEN` re-enactment cases (step 6); evidence reruns, a fall from `T` to `P`, and citations against realizations (step 9); A10's step 7 clauses (Q-F9).
 
@@ -332,7 +332,7 @@ Until step 6 builds the commit, an accepted structure-changing request is unreac
 
 Until heads hold acceptances (steps 6-8), a request-level support cycle among a request's own records is unreachable through the engine. Each record would rely on a subject that no acceptance at the head makes valid, so step 6 refuses it first. `CYCLE_SUPPORT`'s engine reading is therefore tested by driving the trial.
 
-Until step 5 builds the rebase that SD-69's Q-F6 (iii) correction allows, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii).
+Until the phase that lifts SD-70's gate for integrations builds step 5e, the rebase SD-69's Q-F6 (iii) correction allows, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii; SD-71). Until it builds step 5f, step 8's no-collateral-regression check is unbuilt. No integration is accepted meanwhile (SD-70), and the Phase F exit discloses both.
 
 Until step 6 lifts ACCEPT, step 5's checks (§3.2) act only on refusal codes and salvage. Until step 9, a discharge predicate with an evidence term, conformance needing required evidence, a citation against a realization, and step 8's comparison all fail closed (§3.2). A10's step 7 clauses and §16.11 (c)'s occasion templates are unbuilt in Phase F (SD-66). When step 6 lifts ACCEPT, a request carrying a `TASK_RESULT`, or one whose acceptance depends on a task result's conformance, stays `SCHEMA_UNSUPPORTED` until A10's D4 (SD-70, Q-F9 (a)). The exit discloses them.
 
@@ -437,6 +437,8 @@ Clause (f) is part of clean conformance, re-derived "at every revalidation of an
 **Q-F10. Steps 5e and 5f after SD-70.** Step 5e (rebase) and 5f (no collateral regression) judge only integrating requests: a rebase frame records `X'` for an integration, and step 8 compares the head with the merged tree. Under SD-70 (Q-F9 (a)), every integrating request stays `SCHEMA_UNSUPPORTED` until A10's D4, which follows Phase F. Step 8's comparison also needs step 9's runners. Both already fail closed: a rebase frame is `REF_TRANSFORMATION` (§6), and no integration is accepted.
 - **Recommended:** (a) defer 5e and 5f to the phase that lifts SD-70's gate for integrations (A10's D4), keeping both fail-closed rules in §6. Phase F's exit discloses them as unbuilt, and step 6 follows 5d. This spends Phase F's effort where it changes a decision: step 6's commit path, which step 10's records-only operation and `ssdp-shadow-2`'s repair need.
 - **Alternative:** (b) build 5e and 5f in Phase F as planned. They would be tested on derivation histories only, and their decisions would stay unreachable until A10's D4.
+
+**Resolved by SD-71 (item 65):** (a). Steps 5e and 5f are deferred, fail-closed and disclosed at the exit; step 6 follows 5d.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -1308,3 +1310,5 @@ Its notes are taken up:
 Its notes are taken up in code, to be read again in 5e's review:
 - N1: an `INCOMPLETE` that was evaluated (a `DOMAIN` template, a `HARD` check reporting only a signal) is the candidate's own defect, `CONFORMANCE_FAILED`. Only a required execution missing, a runner template not observed, or required evidence unrealized waits. `conformance_codes` is the one place this is decided.
 - N2: `STALE_RETAINED` reads only the passing reviews of `X` that act, unsuperseded, in `X`'s frame, where a frame review's supersession acts. A superseded supporting review no longer masks a current one. Removing the acting filter is an equivalent mutant: a passing review of `X` always declares frame `X` (4c-iii's N2), so it acts there.
+
+**SD-71 (item 65): Q-F10 (a).** Steps 5e and 5f are deferred to the phase that lifts SD-70's gate for integrations. Their fail-closed rules stay in §6, and they are disclosed at the exit. **Step 5 is closed for Phase F**: 5a-5d, with 5e and 5f deferred.
