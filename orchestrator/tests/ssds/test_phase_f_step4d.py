@@ -227,6 +227,19 @@ class StaticCycles(unittest.TestCase):
         self.assertEqual(d.forced, (), "a failing acceptance makes no evaluation edge")
         self.assertEqual(len(d.static_forced), 1, "an acceptance, whatever its value, is a static edge (§5.6)")
 
+    def test_a_gate_decision_on_a_stale_triple_is_a_static_edge(self) -> None:
+        sc = Scenario(THREE, dict(FILES))
+        stale = sc.triple("arch")
+        decision = judgment("GATE_DECISION", {"gate": "design-gate", "subject": stale, "core": "sha256:" + "c" * 64},
+                            "ACCEPT", basis=[content("arch", stale["rev"]), validity("impl", sc.rev("impl"))],
+                            fields={"adequacy": "ADEQUATE", "qualification": "UNQUALIFIED"})
+        sc.absorb({"arch.md": "a2\n"})
+        jb = accept(sc, "impl", actor=HUMAN_B, extra=[validity("arch", sc.rev("arch"))])
+        sc.admit(decision, jb)
+        d = sc.derive()
+        self.assertEqual(d.forced, (), "a decision on a stale triple makes no evaluation edge")
+        self.assertEqual(len(d.static_forced), 1, "every gate decision naming the subject (§5.6 item 2)")
+
     def test_every_equivalence_on_a_named_unit_is_a_static_edge(self) -> None:
         sc = Scenario(THREE, dict(FILES))
         r1 = sc.rev("impl")

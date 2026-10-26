@@ -271,13 +271,15 @@ class StructuralCheck:
             out.append(Finding(SEMANTIC_STRUCT.get(d.code, d.code), d.unit, d.detail))
         return out
 
-def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, tuple[str, ...]]]) -> set[str]:
+def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, tuple[str, ...]]],
+                   support: Any = None) -> set[str]:
     """Step 4's checks of a records-only adoption (Phase F 4c-iv; SD-69, readings F21): ``elements`` are the
     request's ``adopted_deltas``, ``{absorption, key, value}`` each, and ``named`` the deltas its ``ABSORB``
     dispositions name. They must be the same deltas, each the key's current delta at its observed value
     (``REF_ADOPTION``). The adoption is then judged as the frame record of ``X = (B, B, A)`` at the head: the
     structural owner's codes, a promotion or restoration failing closed (no prospective acceptance can travel
-    with a records-only request), and step 5's static support graph read in that frame (``CYCLE_SUPPORT``)."""
+    with a records-only request), and step 5's static support graph read in that frame against ``support``, the
+    head's (``CYCLE_SUPPORT``; built from ``state`` when not given)."""
 
     from ssds.ledger.read import transformation_id
 
@@ -310,7 +312,7 @@ def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, t
         from .state import State
         from .support import Support
 
-        if Support(State(state.h, state.n, frame)).grows_a_cycle(Support(state)):
+        if Support(State(state.h, state.n, frame)).grows_a_cycle(support or Support(state)):
             codes.add("CYCLE_SUPPORT")  # step 5 read in the adoption's frame (F24)
     return codes
 

@@ -374,7 +374,7 @@ class Admission:
                 if adopting:  # a records-only adoption (4c-iv; SD-69), judged on what passed step 3 (review 193b654)
                     named = {(r["target"]["absorption"], tuple(r["target"]["key"])) for r in passing if _absorbs(r)}
                     reasons |= adoption_codes(support.s, self.expected_head(entries), request.get("adopted_deltas"),
-                                              named)
+                                              named, support)
             if withheld is not None:  # no record passes step 3: each never-lost one is recorded as refused (step 6)
                 refused += [(r["id"], (withheld,)) for r in passing if never_lost(r)]
                 passing = [r for r in passing if not never_lost(r)]

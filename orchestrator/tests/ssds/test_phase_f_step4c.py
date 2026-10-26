@@ -1458,7 +1458,7 @@ class AdoptionReviewCases(AdmissionRequests):
 
         seen = []
 
-        def codes(state, head, elements, named):
+        def codes(state, head, elements, named, support=None):
             seen.append((elements, named))
             return set()
 
