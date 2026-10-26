@@ -695,6 +695,37 @@ class OutermostOwnerRevision(unittest.TestCase):
         revs = [view(tree({"README.md": Entry("100644", t.encode())}, units)).rev("ssds.unclassified") for t in (before, after)]
         self.assertNotEqual(*revs)
 
+    def test_a_reorder_past_its_bytes_enters_the_write_set(self) -> None:
+        """Re-check ad8daeb N-a: the write set compares its content in the revision's one form (§1.5)."""
+
+        from ssds.content import Entry
+
+        units = self.UNITS + '''
+    [[unit]]
+    id = "k"
+    kind = "D3"
+    scope = [{ file = "README.md", heading = ["K"] }]
+'''
+        before = "# A\na\n## H\nh\n# B\nb\n## K\nk\n"
+        sc = Scenario(units, {"README.md": before})
+        frame = frame_for(sc, units, {"README.md": Entry("100644", "# A\na\n## K\nk\n# B\nb\n## H\nh\n".encode())})
+        self.assertEqual(set(frame.write_set), {"ssds.unclassified"})
+
+    def test_a_declaration_change_of_the_outermost_owner_alone(self) -> None:
+        """No byte moves: judged as any unit's, so naming it in the scope covers it (re-check ad8daeb W3)."""
+
+        from ssds.derivation.writescope import outside_scope
+
+        from ._fixtures import RESERVED_LEAVES
+
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        restated = LAYERED + RESERVED_LEAVES["ssds.manifest"] + RESERVED_LEAVES["ssds.policy"] + \
+            RESERVED_LEAVES["ssds.unclassified"] + '[unit.semantic]\ndefines = ["thing"]\n'
+        frame = frame_for(sc, restated, LAYERED_FILES)
+        self.assertIn("ssds.unclassified", frame.write_set)
+        self.assertEqual(outside_scope(frame, ["ssds.unclassified", "ssds.manifest"]), [])
+        self.assertIn("ssds.unclassified", outside_scope(frame, ["ssds.manifest"]))
+
     def test_derived_imports_attribute_only_owned_files(self) -> None:
         """Review 2aadf33 N1: the outermost owner imports nothing a declared unit owns."""
 
@@ -716,6 +747,93 @@ class OutermostOwnerRevision(unittest.TestCase):
         v = view(tree({"pkg/a.py": "from pkg import b\n", "pkg/b.py": "x = 1\n"}, units))
         relations = {(r.subject, r.type, r.object) for r in StructureFacts(v, manifest_decl(v)).derived_relations}
         self.assertEqual(relations, {("pa", "IMPORTS", "pb")})
+
+    def test_the_freeze_sees_regions_a_declaration_moves(self) -> None:
+        """Re-check ad8daeb RB1: compared on one tree, a unit overlapping the subject, an ``ignore`` entry and a
+        stranger nested in it change it by declaration alone."""
+
+        from ._scenario import challenge
+
+        doc = '''
+    [[unit]]
+    id = "fz"
+    kind = "D3"
+    scope = [{ file = "doc.md", heading = ["A"] }]
+'''
+        files = {"doc.md": "# A\na1\na2\n# B\nb\n<!-- ssds:begin g -->\nmid\n<!-- ssds:end g -->\n"}
+        sc = Scenario(doc, files)
+        sc.admit(challenge(sc.triple("fz")))
+        stranger = doc + '''
+    [[unit]]
+    id = "g"
+    kind = "D3"
+    scope = [{ file = "doc.md", heading = ["A"] }]
+'''
+        self.assertIn("FREEZE_SOURCE", codes(frame_for(sc, stranger, files)), "a coinciding unit ends its region")
+        prefixed = Scenario(NESTED, NESTED_FILES)
+        prefixed.admit(challenge(prefixed.triple("s1")))
+        ignored = '[governed]\nignore = ["pkg/a.py"]\n' + NESTED
+        self.assertIn("FREEZE_SOURCE", codes(frame_for(prefixed, ignored, NESTED_FILES)), "an ignore entry")
+
+    def test_a_term_ceasing_to_resolve_by_declaration_freezes(self) -> None:
+        """Review ad8daeb N-b (R15): F20's "a term coming to resolve or not"."""
+
+        from ._scenario import challenge
+
+        sc = Scenario(NESTED, NESTED_FILES)
+        sc.admit(challenge(sc.triple("s1")))
+        rescoped = NESTED.replace('scope = [{ file = "pkg/sub/u.py" }]', 'scope = [{ file = "pkg/sub/v.py" }]')
+        self.assertIn("FREEZE_SOURCE", codes(frame_for(sc, rescoped, NESTED_FILES)))
+
+    def test_a_scope_may_name_a_unit_the_request_creates(self) -> None:
+        """Re-check ad8daeb RB2 and its granularity gap: a new unit named in the scope covers its files on the head
+        side, and a write of bytes no other unit owns needs only those bytes in the scope."""
+
+        from ssds.derivation.writescope import outside_scope
+
+        units = LAYERED
+        files = {**LAYERED_FILES, "README.md": "r\n", "notes/n.md": "n\n"}
+        sc = Scenario(units, files)
+        readme = units + '''
+    [[unit]]
+    id = "readme"
+    kind = "D3"
+    scope = [{ path = "README.md" }]
+'''
+        frame = frame_for(sc, readme, files)
+        self.assertTrue(frame.exists)
+        self.assertEqual(outside_scope(frame, ["readme", "ssds.manifest"]), [])
+        self.assertEqual(outside_scope(frame, ["ssds.manifest"]), ["readme", "ssds.unclassified"])
+        added = frame_for(sc, units, {**files, "notes/new.md": "new\n"})
+        self.assertEqual(outside_scope(added, ["notes/"]), [], "README.md, elsewhere, is not in this write")
+        self.assertEqual(outside_scope(added, ["src/"]), ["ssds.unclassified"])
+
+    def test_the_reserved_leaf_conditions_one_by_one(self) -> None:
+        """Review ad8daeb N-b (R08, R09, R07, R10): each condition of a reserved leaf alone."""
+
+        from ssds.derivation.baseline import reserved_leaf_problems
+
+        from ._fixtures import RESERVED_LEAVES, structure_of
+
+        base = RESERVED_LEAVES["ssds.manifest"] + RESERVED_LEAVES["ssds.policy"]
+        leaf = RESERVED_LEAVES["ssds.unclassified"]
+        cases = {"a part": leaf.replace('kind = "UNCLASSIFIED"', 'kind = "UNCLASSIFIED"\npart_of = "host"')
+                 + '\n[[unit]]\nid = "host"\nkind = "D3"\nrole = "composite"\nscope = [{ prefix = "" }]\n',
+                 "not a subject": leaf.replace('kind = "UNCLASSIFIED"', 'kind = "UNCLASSIFIED"\nsubject = false'),
+                 "a composite": leaf.replace('kind = "UNCLASSIFIED"', 'kind = "UNCLASSIFIED"\nrole = "composite"')}
+        for name, text in cases.items():
+            with self.subTest(case=name):
+                problems = reserved_leaf_problems(structure_of(tree({}, base + text, reserved=False)))
+                self.assertIn("ssds.unclassified", {u for u, _ in problems})
+
+    def test_a_unit_with_a_region_on_neither_side_is_outside(self) -> None:
+        """Review ad8daeb N-b (R01)."""
+
+        from ssds.derivation.writescope import _within
+
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        frame = frame_for(sc, LAYERED, LAYERED_FILES)
+        self.assertFalse(_within(frame.head_view, frame.view, "no-such-unit", ["src/"]))
 
 
 def submit_dropping(sc, files: dict[str, str]):

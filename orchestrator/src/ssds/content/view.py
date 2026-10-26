@@ -240,6 +240,23 @@ class TreeView:
         return UNCOVERED
 
     @cached_property
+    def unclassified_owned(self) -> dict[str, tuple[str, bytes]]:
+        """The outermost owner's owned content, the one representation its revision and the write set compare
+        (Manual §1.5; plan reading F19): per file it owns bytes of, ``(mode, JCS of the ordered owner
+        sequence)``, its own pieces carrying their bytes and every other owner only its identity, so moving
+        another unit's bytes past its own is a change and an edit inside another unit is not."""
+
+        out: dict[str, tuple[str, bytes]] = {}
+        for path, segments in sorted(self.ownership.items()):
+            if not any(seg.owner == UNCLASSIFIED for seg in segments):
+                continue
+            entry = self.tree[path]
+            sequence = [normalized(path, entry.data, seg.start, seg.end).hex() if seg.owner == UNCLASSIFIED
+                        else ["owner", seg.owner] for seg in segments]
+            out[path] = (entry.mode, _jcs(sequence))
+        return out
+
+    @cached_property
     def owned(self) -> dict[str, dict[str, tuple[str, bytes]]]:
         """Owner -> {path: (entry mode, normalized owned bytes)} in the §1.5 representation."""
 
@@ -278,14 +295,7 @@ class TreeView:
             # ordered sequence of owners, its own pieces carrying their bytes and every other owner only its
             # identity, so moving another unit's bytes past its own is a change and an edit inside another unit
             # is not (review 2aadf33 B4)
-            parts = []
-            for path, segments in sorted(self.ownership.items()):
-                if not any(seg.owner == UNCLASSIFIED for seg in segments):
-                    continue
-                entry = self.tree[path]
-                sequence = [normalized(path, entry.data, seg.start, seg.end).hex() if seg.owner == UNCLASSIFIED
-                            else ["owner", seg.owner] for seg in segments]
-                parts.append(_jcs([path, entry.mode, sequence]))
+            parts = [_jcs([path, mode, data.decode()]) for path, (mode, data) in sorted(self.unclassified_owned.items())]
             return _hash(b"ssds.content.v1", b"ssds.unclassified.owned", *parts)
         unit = self.structure.units[uid]
         cids = [self.cid(t, r).encode() for t, r in zip(unit.scope, self.term_resolutions[uid])]

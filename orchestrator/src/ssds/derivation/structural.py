@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
 
-from ssds.content import Structure, TreeView, static_errors
+from ssds.content import RESIDUAL_SUFFIX, Structure, TreeView, static_errors
 
 from .baseline import reserved_leaf_problems
 
@@ -168,7 +168,13 @@ class StructuralCheck:
         return self.h.mode(self.frame.n, subject).get("mode", "UNGOVERNED")
 
     def _freeze(self) -> list[Finding]:
-        before, after = self.frame.head_view, self.view
+        """The subject compared on the one merged tree under ``Σ_n`` and under ``Σ_{n+1}``, so only a declaration
+        can move it (reading F20; re-check ad8daeb RB1): a unit overlapping it, an ``ignore`` entry or a stranger
+        nested in it changes its regions or owned bytes there, while an edit, a file added under its prefix or a
+        moved anchor is the same on both sides."""
+
+        before = TreeView(self.frame.merged, self.frame.head_view.structure, self.manifest)
+        after = self.view
         out = []
         for uid, unit in sorted(before.structure.units.items()):
             if not unit.subject:
@@ -179,9 +185,22 @@ class StructuralCheck:
             members_after = self._members(after.structure, uid) if uid in after.structure.units else frozenset()
             if members_after - members_before:
                 out.append(Finding("FREEZE_DESTINATION", uid, f"gains {sorted(members_after - members_before)}"))
-            if members_before - members_after or self._shape(before, uid) != self._shape(after, uid):
-                out.append(Finding("FREEZE_SOURCE", uid, "its signature, scope, region shape or membership changes"))
+            if members_before - members_after or self._shape(before, uid) != self._shape(after, uid) \
+                    or self._held(before, uid) != self._held(after, uid):
+                out.append(Finding("FREEZE_SOURCE", uid, "its signature, scope, regions or membership changes"))
         return out
+
+    @staticmethod
+    def _held(view: TreeView, uid: str) -> tuple[Any, ...] | None:
+        """``uid``'s region and the bytes it and its members own, by owner, in ``view``."""
+
+        structure = view.structure
+        if uid not in structure.units:
+            return None
+        family = {uid} | {u for u in structure.units if structure.is_member_of(u, uid)}
+        owned = sorted((owner, path, mode, data) for owner, files in view.owned.items()
+                       if owner.removesuffix(RESIDUAL_SUFFIX) in family for path, (mode, data) in files.items())
+        return view.regions.get(uid), tuple(owned)
 
     @staticmethod
     def _members(structure: Structure, subject: str) -> frozenset[str]:

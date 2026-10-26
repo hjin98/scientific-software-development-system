@@ -29,14 +29,14 @@ from .view import TreeView
 
 
 def _owned(view: TreeView, uid: str) -> tuple[dict[str, tuple[str, bytes]], dict[str, str]]:
+    if uid == UNCLASSIFIED:  # the one representation its revision compares too (§1.5; re-check ad8daeb N-a)
+        mine = dict(view.unclassified_owned)
+        return mine, {path: mode for path, (mode, _) in mine.items()}
     mine = dict(view.owned.get(uid, {}))
     for path, (mode, data) in view.owned.get(uid + RESIDUAL_SUFFIX, {}).items():
         previous = mine.get(path, (mode, b""))
         mine[path] = (mode, previous[1] + data)
-    if uid == UNCLASSIFIED:
-        files = set(mine)  # the outermost owner holds only the files it owns bytes of (plan reading F19)
-    else:
-        files = {span.path for region in view.term_resolutions.get(uid, ()) if region for span in region}
+    files = {span.path for region in view.term_resolutions.get(uid, ()) if region for span in region}
     modes = {path: view.tree[path].mode for path in files}
     return mine, modes
 

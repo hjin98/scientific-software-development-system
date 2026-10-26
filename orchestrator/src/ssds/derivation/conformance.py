@@ -39,6 +39,7 @@ from ssds import analyzers as py
 from ssds.content import REVIEW, Check, Contract, EvidenceVerifier, Item, TreeView
 
 from .frames import Frame, frame_of, integrating_position, transformation_of
+from . import writescope
 from .library import HEURISTIC, TEMPLATES
 from .plans import contained, intersects, protected_surfaces, required_slots, resolve
 from .state import F
@@ -375,61 +376,18 @@ class Conformance:
         return out
 
     def outside_scope(self, contract: Contract) -> list[str]:  # noqa: D401 - units of the write set
-        """Units in the write set whose bytes lie outside the write scope: the detected boundary breaches."""
+        """Units in the write set whose bytes lie outside the write scope: the detected boundary breaches, read
+        from the frame's one write-scope owner (``writescope``)."""
 
-        if self.merged_view is None:
-            return []
-        out = []
-        for unit in sorted(self.writes):
-            if not self._within_scope(unit, contract):
-                out.append(unit)
-        return out
-
-    def _within_scope(self, unit: str, contract: Contract) -> bool:
-        """A write-set unit lies within the write scope on both sides of the frame, ``T_n`` and ``M_n(X)``, each
-        resolved in its own tree: a byte that leaves the unit is written as surely as one that enters it (a
-        deletion; review 2aadf33 B1). A unit with a region on neither side is outside."""
-
-        sides = 0
-        for view in (self.head_view, self.merged_view):
-            if view is None or unit not in view.structure.units:
-                continue
-            region = view.regions.get(unit)
-            if not region:
-                continue
-            sides += 1
-            scope, _ = resolve(view, contract.write_scope)
-            if not contained(view, [("span", s.path, s.start, s.end) for s in region], scope):
-                return False
-        return sides > 0
+        return writescope.outside_scope(self.frame, contract.write_scope)
 
     def owners(self, path: str) -> tuple[str, ...]:
         """The units whose region lies in ``path``, in the merged tree or else the head; ``<path>`` when none."""
 
-        found: set[str] = set()
-        for view in (self.merged_view, self.head_view):
-            if view is None:
-                continue
-            for uid, region in view.regions.items():
-                if region and any(span.path == path for span in region):
-                    found.add(uid)
-        return tuple(sorted(found)) or (f"<{path}>",)
+        return writescope.owners(self.frame, path)
 
     def uncovered_outside(self, contract: Contract) -> list[str]:
-        """Changed files no unit owns, outside the write scope: a write the effect-keyed write set cannot see
-        when genesis declares no ``ssds.unclassified`` (§1.8). §12.3 limits a write to the write scope, so this
-        fails closed (step 4 review SC-1, put to the stakeholder)."""
-
-        if self.merged_view is None:
-            return []
-        scope, _ = resolve(self.merged_view, contract.write_scope)
-        out = []
-        for path in self.changed_files:
-            if self.owners(path) != (f"<{path}>",) or path == self.s.h.manifest_path:
-                continue
-            if not contained(self.merged_view, [("file", path)], scope):
-                out.append(path)
-        return out
+        return writescope.uncovered_outside(self.frame, contract.write_scope, self.s.h.manifest_path)
 
     def _t_boundary_write_scope(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
         findings: list[Any] = [(f"{u} changed outside the write scope", (u,)) for u in self.outside_scope(contract)]
