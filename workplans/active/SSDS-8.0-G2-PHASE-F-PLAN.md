@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 10 (step 4c in three parts, §3.1); questions Q-F1 to Q-F5 settled (SD-64, SD-67, SD-68); Q-F6 and Q-F7 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 10 (step 4c in three parts, §3.1); questions Q-F1 to Q-F7 settled (SD-64, SD-67 to SD-69). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -39,7 +39,7 @@ NEXT ACTION: steps 4b-ii and 4c-i are closed (PASS at c98bb647 and 1a3c262d); st
              built (2aadf331) with a NO-PASS of eight blockers to repair (§9); then 4c-iii. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
-             its missing reserved leaves are Q-F7.
+             its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
 ```
 
 ## 1. Scope and authority
@@ -271,7 +271,7 @@ Until Phase H, failure points beyond those group 4 names are untested, and §24.
 
 Until an authorized campaign, no live agent submits to Admission.
 
-Until Q-F6 (i) (the stakeholder's) and Q-F6 (ii) (Stage S's) are settled, adoption by `ABSORB` and a change of an existing unit's kind or owning domain are `SCHEMA_UNSUPPORTED` (reading F16). Until Phase G, a cutover an integration carries is too. Until Stage S, a quarantined key that a candidate authors to the value a foreign change put on the observed tree is refused `STRUCT_REVALIDATE` (4c-ii), a stronger rule than Manual §7.2 alone. Until Q-F6 (iii) is settled and step 5 builds the rebase, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii).
+Until the schema-1 correction SD-69 adopts for Q-F6 (i) is built, adoption by `ABSORB` is `SCHEMA_UNSUPPORTED`; until Stage S settles Q-F6 (ii), so is a change of an existing unit's kind or owning domain (reading F16). Until Phase G, a cutover an integration carries is too. Until Stage S, a quarantined key that a candidate authors to the value a foreign change put on the observed tree is refused `STRUCT_REVALIDATE` (4c-ii), a stronger rule than Manual §7.2 alone. Until Q-F6 (iii) is settled and step 5 builds the rebase, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii).
 
 The Phase E items listed in §4 stay as Phase E §6 states them.
 
@@ -320,7 +320,7 @@ Step 3 has two more such refusals (revision 4): an acceptance of a subject revis
 Reading F6 sends a refusal with no code back to Stage S.
 - Recommended: Stage S adds one code per check to §8.4 (for example `DEP_TARGET_ORDER`, `DEP_TARGET_KIND`, `DEP_OWN_SUBJECT`, `DEP_CONSUMER`). Until then a record that would need them fails closed (§3.1, 4d).
 
-**Q-F6. Three structural acts schema 1 cannot express (reading F16).** Neither blocks Phase F, since no agent submits in shadow. Both fail closed until settled.
+**Q-F6. Three structural acts schema 1 cannot express (reading F16; settled by SD-69: (i) and (iii) corrected in place, (ii) to Stage S).** Neither blocks Phase F, since no agent submits in shadow. Both fail closed until settled.
 - **(i) The intake disposition's target and outcomes: a schema-1 transcription defect.** Catalogue §3.4 targets "quarantined delta or observed content" with the §18.3 vocabulary, and its basis names "the absorption entry and delta key". Schema 1 has `units|content_ref`, the outcomes `ADOPT ABSORB REALIGN QUARANTINE REJECT`, and no type that names a declaration key. No ledger holds an `INTAKE_DISPOSITION`: read through the program on 2026-10-25, `ssdp-shadow` and `ssdp-shadow-2` each hold only their genesis entry.
   - Recommended: (a) correct schema 1 in place, as SD-67 did for Q-F4:
     - the target becomes catalogue §3.4's "quarantined delta or observed content": a `delta` target (`{absorption, key}`) beside `content_ref`, with `units` dropped, since §3.4 lists no unit target;
@@ -338,7 +338,7 @@ Reading F6 sends a refusal with no code back to Stage S.
   - Alternative: (b) schema 2 through `SCHEMA_MIGRATION`.
   - Until then a rebase-frame record is refused `REF_TRANSFORMATION`. Machinery rebases (§11.5 step 3) wait with it, so an overtaken candidate takes a new iteration.
 
-**Q-F7. `ssdp-shadow-2`'s genesis lacks two reserved leaves (reading F18).** Manual §1.8 has genesis declare `ssds.manifest`, `ssds.policy` and `ssds.unclassified`. The program refused only a genesis without `ssds.unclassified`, so the genesis signed on 2026-10-25 declares neither of the other two.
+**Q-F7. `ssdp-shadow-2`'s genesis lacks two reserved leaves (reading F18; settled by SD-69: the recommendation, (b) with (d2)).** Manual §1.8 has genesis declare `ssds.manifest`, `ssds.policy` and `ssds.unclassified`. The program refused only a genesis without `ssds.unclassified`, so the genesis signed on 2026-10-25 declares neither of the other two.
 
 From step 4c-ii, Admission checks all three on every admission (§1.9), so a request whose new structure still lacks them is refused. Nothing in Phase F needs one: no agent submits content in shadow, and absorptions are unaffected.
 
@@ -755,6 +755,11 @@ Its notes, open:
 - N7: brittle fixture injection.
 
 Cost: the full suite is +29% (cache `TreeView.regions`; reuse `frame.view` and the head `s0`).
+
+**SD-69 (item 63, 2026-10-26): Q-F6 and Q-F7 settled as recommended.**
+- Q-F6 (i) and (iii) are corrected in schema 1 in place, and (ii) goes to Stage S.
+- `ssdp-shadow-2` is kept for step 10 and repaired in place by adoption once Q-F6 (i) is built.
+- Still open: where the schema-1 correction and the adoption path are built. They are to be planned when 4c-ii's repairs close; the candidate is with 4c-iii, which then admits adoption instead of failing closed. Rebase follows in step 5.
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
