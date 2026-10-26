@@ -38,7 +38,7 @@ DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `s
 NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f7fd7b); revision 17
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
-             43e85277); 5a's review blocker is repaired and under narrow re-check. A10 is accepted (SD-66);
+             43e85277); 5a is closed (PASS at 3d125c63); 5b (per-record legality) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1182,3 +1182,5 @@ Its answers confirm:
 - the `auth.ok` guard's equivalence.
 
 N1 places `NOT_SETTLED` for salvaged adverse human decisions with step 6.
+
+**Narrow re-check of 3d125c63.** No SERIOUS CHALLENGE. **PASS:** the freeze and enactment codes are out of the merit set, with a case each, and N1 is placed. **Step 5a is closed.**
