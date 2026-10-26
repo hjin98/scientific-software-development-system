@@ -36,7 +36,7 @@ DONE SO FAR: step 1 (PERF-E1: each historical position derived once per history)
 DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `ssdp-shadow-2` is admitted
              (2026-10-25); the old ledger's retirement statement needs step 7.
 NEXT ACTION: steps 4b-ii and 4c-i are closed (PASS at c98bb647 and 1a3c262d); step 4c-ii is
-             built (plan revision 10) and under same-family review; then 4c-iii. A10 is accepted (SD-66);
+             built (2aadf331) with a NO-PASS of eight blockers to repair (§9); then 4c-iii. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are Q-F7.
@@ -736,6 +736,25 @@ Kept: the near-equivalent survivors F14 and F21-F25, reachable only through kind
   - Expected values changed only where the leaves are now real units: subject lists, mode maps, a completeness over every unit, the genesis refusal text.
   - A candidate adding an ascending relation now has no frame (§7.4), so the layer-direction template's case reads the frame's absence.
 - **Mutants.** Fourteen on the owner, all killed. The last needed a test that a defect on a subject the request does not affect is S2's.
+
+**Same-family review of step 4c-ii (2aadf331).** No SERIOUS CHALLENGE. **NO-PASS on eight blockers, not yet repaired** (paused 2026-10-25). Probes are in `/tmp/claude-1000/rev/probes/`.
+- **B1, a write-scope fail-open on deletion.** `outside_scope` reads only the merged side. Deleting a file owned only by `ssds.unclassified` (a pre-existing gap for ordinary units too) is CLEAN. Repair: a write-set unit lies within the scope on both sides; `AUTH_WRITE_SCOPE` reads the same owner.
+- **B2, nested subjects missed by the freeze.** `_members` uses `subj`. Repair: `is_member_of`.
+- **B3, parts' defects missed.** A new defect on a part of an affected subject is missed. Repair: also refuse where `subj(d.unit)` is affected.
+- **B4, the outermost owner's revision ignores order.** Moving another unit's span past unclassified bytes changes no revision. Repair: hash each path's ordered owner sequence, with unclassified's bytes.
+- **B5, reserved leaves not checked to be leaves.** A composite `ssds.unclassified` hides its bytes in its residual. Repair: role leaf, no members, no `part_of`; amend F18.
+- **B6, the freeze's region reading.** Path-set changes refuse wrongly, while anchor moves pass. Repair: record a reading (proposed F20: the freeze reads declarations and term resolution status, never bytes or file sets) and implement it consistently.
+- **B7, missing cases.** There are none for STRUCT_ILLEGAL_CYCLE, STRUCT_SINGLE_DEFINER, STRUCT_SDG_MALFORMED or STRUCT_SDG_NOT_LAMINAR, none for PROVISIONAL or REVOKED freezes, none for "a frame that no longer exists derives what a conflict derives", and no layer-direction positive case where its frame exists. Mutants V03 and V04 (unclassified's semantic declarations and modes) also survive.
+- **B8, revision 9 residue.** `frame_findings`, `WHOLE_STRUCTURE`, `Finding.scope` and stale docstrings in structural.py and frames.py.
+
+Its notes, open:
+- N1: `s0` IMPORTS read unclassified's prefix resolution.
+- N3: F19 departs from catalogue §1.5's formula (Stage S tension).
+- N4: an unparsed `T_n` manifest leaves new keys authored.
+- N5: `renamed_from` or delete-and-recreate launders a kind change past F16 (ii).
+- N7: brittle fixture injection.
+
+Cost: the full suite is +29% (cache `TreeView.regions`; reuse `frame.view` and the head `s0`).
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
