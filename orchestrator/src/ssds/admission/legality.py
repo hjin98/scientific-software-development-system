@@ -10,7 +10,15 @@ Admission decides here and derivation supplies every fact, read at the current h
 - a claimed obligation is undischarged at the head: a duplicate discharge is rejected and recorded
   (``OBLIGATION_DISCHARGED``);
 - a ``TASK_RESULT`` bound to an obligation already discharged, or naming a contract revision that is not current,
-  is refused under that classification (F31: ``OBLIGATION_DISCHARGED``, ``OBLIGATION_CONTRACT_STALE``).
+  is refused under that classification (F31: ``OBLIGATION_DISCHARGED``, ``OBLIGATION_CONTRACT_STALE``);
+- once a judgment obligation is answered (§10.3) in the frame a passing judgment is read in, a later passing
+  judgment bound to it there is refused, unless it supersedes (step 3 authorized it) or is a ``GATE_DECISION``
+  (``OBLIGATION_ANSWERED``; step 5b-ii);
+- revision assessments first: a passing ``ACCEPTANCE`` or ``GATE_DECISION ACCEPT`` on a ``NATIVE`` D1/D2 triple
+  needs a revision-assessment record for ``(s, r)`` already admitted that counts there (in the run, standing), and
+  a ``standing`` entry on it (``OBLIGATION_REVIEW_OPEN``; step 5b-ii).
+
+The last two read the record's frame as step 6 locates it (``Currency.locate``).
 """
 
 from __future__ import annotations
@@ -18,7 +26,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from ssds.derivation import Workflow
+from ssds.derivation import F, Workflow, passing
 
 from .request import never_lost
 
@@ -29,10 +37,12 @@ _DISCHARGED = frozenset({"DISCHARGED", "DISCHARGED_PROVISIONAL"})
 class Legality:
     """Step 7 at one head, its workflow built once for the request."""
 
-    def __init__(self, head: Any) -> None:
+    def __init__(self, head: Any, locate: Any = None) -> None:
         self.head = head
         self.w = Workflow(head)
         self._derived = {o.id for o in self.w.obligations}
+        self.locate = locate  # step 6's frame locator: (support, frame) for a record, or None
+        self._workflows: dict[int, Any] = {}
 
     def request_codes(self, request: Mapping[str, Any], records: list[Mapping[str, Any]]) -> set[str]:
         """The request-level codes, over the records still passing."""
@@ -59,12 +69,15 @@ class Legality:
         return codes
 
     def codes(self, record: Mapping[str, Any], trial: Any = None) -> set[str]:
-        """F31's per-record codes, joining the authorization loop's rounds as step 6's do."""
+        """The per-record codes, joining the authorization loop's rounds as step 6's do: F31's for a result, and
+        the answered and assessments-first checks for a passing judgment."""
 
-        if record["kind"] != "TASK_RESULT" or never_lost(record):
+        if never_lost(record):
             return set()
+        codes = self._frame_codes(record, trial) if passing(dict(record)) and self.locate is not None else set()
+        if record["kind"] != "TASK_RESULT":
+            return codes
         binding = record.get("binding") if isinstance(record.get("binding"), Mapping) else {}
-        codes: set[str] = set()
         bound = self.w.binding_index().get(binding.get("obligation", ""))
         if bound is not None and self.w.discharge(bound) in _DISCHARGED:
             codes.add("OBLIGATION_DISCHARGED")
@@ -73,6 +86,34 @@ class Legality:
             view = self.head.s.view
             if item["unit"] not in view.structure.units or view.rev(item["unit"]) != item.get("rev"):
                 codes.add("OBLIGATION_CONTRACT_STALE")  # F36: the item revision it was issued for is not current
+        return codes
+
+    def _frame_codes(self, record: Mapping[str, Any], trial: Any) -> set[str]:
+        """``OBLIGATION_ANSWERED`` and ``OBLIGATION_REVIEW_OPEN`` for a passing judgment, read in its frame."""
+
+        located = self.locate(record, trial)
+        if located is None:
+            return set()  # its frame does not exist: step 6 refuses it
+        support = located[0]
+        s = support.s
+        codes: set[str] = set()
+        w = self._workflows.setdefault(id(support), Workflow(support) if support is not self.head else self.w)
+        binding = record.get("binding") if isinstance(record.get("binding"), Mapping) else {}
+        bound = w.binding_index().get(binding.get("obligation", ""))
+        if bound is not None and record["kind"] != "GATE_DECISION" and not record.get("supersedes") \
+                and w.answer(bound) is not None:
+            codes.add("OBLIGATION_ANSWERED")  # answered there already (§10.3); a supersession step 3 authorized is not
+        target = record["target"] if isinstance(record["target"], Mapping) else {}
+        triple = target.get("subject") if record["kind"] == "GATE_DECISION" else target
+        if record["kind"] in ("ACCEPTANCE", "GATE_DECISION") and isinstance(triple, Mapping):
+            subject, rev = triple.get("subject"), triple.get("rev")
+            if isinstance(subject, str) and subject in s.view.structure.units and s.mode(subject) == "NATIVE" \
+                    and s.view.structure.kind(subject) in ("D1", "D2"):
+                counted = {r for r in s.runs.assessment_records(subject, rev)
+                           if s.runs.in_run(r, subject) and support.base(r) != F}
+                if not any(e.get("mode") == "standing" and isinstance(e.get("target"), Mapping)
+                           and e["target"].get("record") in counted for e in record.get("basis") or []):
+                    codes.add("OBLIGATION_REVIEW_OPEN")  # revision assessments first (§10.2; SD-16, SD-19, SD-22)
         return codes
 
 

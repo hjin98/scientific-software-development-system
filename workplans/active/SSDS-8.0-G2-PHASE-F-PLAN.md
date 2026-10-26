@@ -38,8 +38,8 @@ DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `s
 NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f7fd7b); revision 17
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
-             43e85277); 5a is closed (PASS at 3d125c63); 5b-i (step 7's obligation checks, F36) is closed (PASS at
-             ccaca714); 5b-ii (answered, revision assessments first, Phase E refusals) is next. A10 is accepted (SD-66);
+             43e85277); 5a is closed (PASS at 3d125c63); 5b-i is closed (PASS at ccaca714); 5b-ii (answered,
+             revision assessments first) is built and under same-family review; 5b-iii (Phase E's refusals) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1217,3 +1217,15 @@ Its answers confirm `OBLIGATION_NOT_DERIVED` against the derived set, counting o
 **SD-70 (item 64): Q-F8 (a) and Q-F9 (a).** The stakeholder accepted both recommendations.
 - **Q-F8.** Schema 1's `INTAKE_CLASSIFICATION` target is corrected in place to `paths|delta`. `INTAKE_DISPOSITION` keeps `delta|content_ref`. A case pins both, and classification stays unadmitted.
 - **Q-F9.** Step 6's row and §6 carry the A10 gate.
+
+**Step 5b-ii built** (5b now in three parts: 5b-iii takes Phase E's deferred refusals, which need a new partition-validity owner in derivation).
+- **Admission.** `Legality`'s per-record codes gain two checks for a passing judgment, read in its frame as step 6 locates it (`Currency.locate`):
+  - `OBLIGATION_ANSWERED`: the obligation it is bound to is already answered there (`Workflow.answer`, §10.3). A supersession, which step 3 authorized, and a `GATE_DECISION` are exempt.
+  - `OBLIGATION_REVIEW_OPEN`: a passing `ACCEPTANCE` or `GATE_DECISION ACCEPT` on a `NATIVE` D1/D2 triple has no `standing` entry on a revision-assessment record for `(s, r)` that counts there (in the run, standing).
+- **Derivation.** `passing` is exported.
+- **Tests.** In `test_phase_f_step5b.py`:
+  - answered and not; a supersession and a gate decision exempt; adverse and non-passing records not refused;
+  - an assessment counting, missing, on no assessment, of another revision, not standing (a blocking challenge), and from an earlier run (a revert);
+  - a gate decision's triple; a `LEGACY` subject exempt; a D3 subject exempt;
+  - through the engine: an adverse acceptance salvaged by a rejection answers the obligation, and a bound passing acceptance afterwards is refused.
+- **Mutants.** Nine: all are killed, five by cases added after a first run.

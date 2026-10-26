@@ -13,7 +13,7 @@ from . import queries
 from .baseline import BaselineStructure, baseline_structure, genesis_structure_problems
 from .frames import Frame, Transformation, frame_state, transformation_of
 from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
-from .outcomes import adverse
+from .outcomes import adverse, passing
 from .reports import allowed_outcomes
 from .roles import ROLE_TEMPLATES, role_permits
 from .judgment import supersession_target
@@ -41,7 +41,7 @@ def consequences(chain, trees: TreeSource, position: int | None = None, checkpoi
 
 __all__ = [
     "BaselineStructure", "CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History",
-    "Obligation", "P", "Policy", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "TrustRoots", "Workflow", "adverse", "allowed_outcomes", "queries", "baseline_structure", "consequences", "trust_roots",
+    "Obligation", "P", "Policy", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "TrustRoots", "Workflow", "adverse", "passing", "allowed_outcomes", "queries", "baseline_structure", "consequences", "trust_roots",
     "derive", "trial", "ROLE_TEMPLATES", "role_permits", "supersession_target", "triple_key",
     "Frame", "Transformation", "frame_state", "transformation_of", "outside_scope", "protected_touched",
     "adoption_codes", "adoption_frame",

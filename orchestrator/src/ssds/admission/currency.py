@@ -41,13 +41,13 @@ class Currency:
             return set()
         if not record.get("basis"):
             return set()  # no entry to satisfy
-        located = self._located(record, trial)
+        located = self.locate(record, trial)
         if located is None:
             return {"STALE_BASIS"}  # its frame does not exist (§7.4): no entry is satisfied there
         support, frame = located
         return {"STALE_BASIS"} if support.stale_entries(dict(record), frame) else set()
 
-    def _located(self, record: Mapping[str, Any], trial: Any) -> tuple[Any, Any] | None:
+    def locate(self, record: Mapping[str, Any], trial: Any) -> tuple[Any, Any] | None:
         """The support a record's entries are read on and the frame giving their roles; ``None`` when that frame
         does not exist. ``X`` is built at the head as the trial gives it (the 4e row)."""
 

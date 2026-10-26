@@ -389,9 +389,10 @@ class Admission:
                 base = Workflow.historical(support.s.h, position) if "REF_BASE" not in reasons \
                     and isinstance(position, int) and 0 <= position <= s.n else None
                 before = passing
-                legality = Legality(support)
+                currency = Currency(support, change)
+                legality = Legality(support, currency.locate)
                 passing, more, ok, alone, last = self.authorized(request, passing, chain, entries, base, auth, change,
-                                                                 (Currency(support, change), legality))
+                                                                 (currency, legality))
                 if ok:  # step 7's request-level checks, over what passed (Phase F step 5b)
                     reasons |= legality.request_codes(request, passing)
                 refused += more + alone
