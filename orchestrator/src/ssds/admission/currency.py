@@ -31,7 +31,7 @@ class Currency:
     def __init__(self, head: Any, change: Any = None) -> None:
         self.head = head
         self.change = change
-        self._states: dict[str, Any] = {}
+        self._states: dict[Any, Any] = {}
 
     def codes(self, record: Mapping[str, Any], trial: Any) -> set[str]:
         """``record``'s step 6 code, its transformation read from ``trial``, where a co-submitted result fixes it."""
@@ -56,18 +56,23 @@ class Currency:
         if self.change is None and declared == "ADMITTED":
             return self.head, None
         if self.change is not None:
-            key, frame = "", self.change
-        else:
-            key = declared["transformation"]
-            if s.enactment(key) in s.integrated:
-                frame = self.head.transformation_frame(key)
-                return (self.head, frame) if frame is not None else None
+            key, frame = None, self.change
             if key not in self._states:
-                x = transformation_of(trial.s, key)
-                frame = Frame(s.h, s.n, x, trial.s.enactment(key)) if x is not None else None
-                self._states[key] = Support(State(s.h, s.n, frame)) if frame is not None and frame.exists else None
-        if key not in self._states:
-            self._states[key] = Support(State(s.h, s.n, frame))
+                self._states[key] = Support(State(s.h, s.n, frame))
+        else:
+            transformation = declared["transformation"]
+            if s.enactment(transformation) in s.integrated:
+                frame = self.head.transformation_frame(transformation)
+                return (self.head, frame) if frame is not None else None
+            # X as this round's trial gives it: a fixing result refused in an earlier round fixes nothing now
+            # (review 8408e05 B2), so the cache is keyed on what fixes X, never on its name alone
+            x = transformation_of(trial.s, transformation)
+            if x is None:
+                return None
+            key = (x, trial.s.enactment(transformation))
+            if key not in self._states:
+                frame = Frame(s.h, s.n, x, key[1])
+                self._states[key] = Support(State(s.h, s.n, frame)) if frame.exists else None
         support = self._states[key]
         return (support, support.s.frame) if support is not None else None
 

@@ -196,6 +196,39 @@ class Currency(unittest.TestCase):
         sc.admit(*attested(earlier))
         self.assertEqual(self.codes(sc, self.review(sc, on_record(earlier["id"]))), set())
 
+    def test_a_record_entry_on_an_admitted_record_that_is_no_node_is_stale(self) -> None:
+        """Review 8408e05 B1: a report is admitted but never evaluated, so derivation reads the entry ``F``."""
+
+        from ssds.ledger.read import with_id
+
+        from ._scenario import on_record
+
+        sc = Scenario(THREE, dict(FILES))
+        report = with_id({**record("FINDING", target={"units": ["arch"]}, fields={"materiality": "ROUTINE"}),
+                          "actor": HUMAN})
+        sc.admit(report)
+        rec = self.review(sc, on_record(report["id"]))
+        sc.admit(rec)
+        self.assertEqual(sc.derive().current(rec["id"]), 0, "derivation reads it F")
+        sc.entries.pop()
+        self.assertEqual(self.codes(sc, rec), {"STALE_BASIS"})
+
+    def test_a_frame_whose_fixing_result_is_gone_is_read_again(self) -> None:
+        """Review 8408e05 B2: one ``Currency`` serves every round of the fixed point; a result refused in an earlier
+        round fixes nothing in the next, so the frame record is stale there."""
+
+        from ssds.admission.currency import Currency as Step6
+
+        sc = Scenario(THREE, dict(FILES))
+        before = sc.rev("impl")
+        x, _, result = submit(sc, {"impl.md": "i2\n"}, agent("maker"), "task-1")
+        sc.entries.pop()
+        rec = judgment("REVIEW", {"transformation": x}, "PASS", actor=HUMAN, basis=[content("impl", before)],
+                       frame={"transformation": x})
+        step6 = Step6(sc.derive())
+        self.assertEqual(step6.codes(rec, tried(sc, [result, rec])), set(), "round 1: the result fixes X")
+        self.assertEqual(step6.codes(rec, tried(sc, [rec])), {"STALE_BASIS"}, "round 2: it was refused")
+
     def test_a_standing_entry_on_a_superseded_record_is_stale(self) -> None:
         from ._scenario import attested
 
