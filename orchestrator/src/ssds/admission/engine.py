@@ -20,7 +20,7 @@ from typing import Any
 
 from ssds.core.api.v1 import canonical_json
 from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflow, adoption_codes, adoption_frame,
-                             derive, frame_state, outside_scope, protected_touched, transformation_of, trial,
+                             derive, frame_state, outside_scope, passing, protected_touched, transformation_of, trial,
                              trust_roots)
 from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
@@ -393,8 +393,14 @@ class Admission:
                 legality = Legality(support, currency.locate)
                 passing, more, ok, alone, last = self.authorized(request, passing, chain, entries, base, auth, change,
                                                                  (currency, legality))
-                if ok:  # step 7's request-level checks, over what passed (Phase F step 5b)
-                    reasons |= legality.request_codes(request, passing)
+                if ok:  # step 7's request-level checks, over what passed (Phase F steps 5b, 5d)
+                    after = last
+                    if after is None and request.get("claims"):  # a claim is judged after the request (§8.3 step 7)
+                        head = entries[-1]
+                        expected = self.expected_head(entries)
+                        empty = self.admission_entry(head, expected, request_id(request), "ACCEPT", (), [], (), expected)
+                        after = self.trial(chain, empty, auth.objects, change)
+                    reasons |= legality.request_codes(request, passing, after)
                 refused += more + alone
                 if change is not None:
                     # a rejection admits never-lost records at the head (§8.3 step 6), so their own step-3 and step-5
@@ -538,11 +544,30 @@ def integration_frame(candidate: str, support: Any) -> Any:
         return "REF_TRANSFORMATION"  # none, or more than one (a rebase frame is unsupported, Q-F6 (iii))
     x = found[0]
     if s.enactment(x) in s.integrated:
-        return "SCHEMA_UNSUPPORTED"  # one enactment, one integration is step 7's (step 5)
+        # one enactment, one integration (SD-26; step 5d); OVERTAKEN and fenced integrations are step 6's
+        return "OBLIGATION_REENACTED"
     frame = Frame(s.h, s.n, transformation_of(s, x), s.enactment(x))
     if frame.merged is None:
         return "STRUCT_MERGE_CONFLICT"  # no frame, so nothing integrates (§7.4)
     return frame
+
+
+def review_codes(x: str, support: Any, workflow: Any) -> set[str]:
+    """An integrating request claims together with its current review judgments (§11.5 (3)), read from the
+    ledger (reading F32): ``REVIEW(X)`` discharged at the head (``OBLIGATION_PREDICATE_UNMET`` otherwise), by
+    reviews whose judged content is what the merged state integrates (§5.10 (b); the judged-content check that
+    replaces ``STALE_RETAINED``'s retained units, step 5d)."""
+
+    s = support.s
+    review = next((o for o in workflow.binding_index().values()
+                   if o.kind == "REVIEW" and o.target == {"transformation": x}), None)
+    reviews = [r for r in s.of_kind("REVIEW") if s.record(r)["target"] == {"transformation": x}
+               and passing(s.record(r))]
+    if reviews and not any(support.j.supports_integration(r, s.n) for r in reviews):
+        return {"STALE_RETAINED"}  # what was reviewed is not what integrates
+    if review is None or workflow.discharge(review) not in ("DISCHARGED", "DISCHARGED_PROVISIONAL"):
+        return {"OBLIGATION_PREDICATE_UNMET"}  # no current, qualified, independent passing review yet
+    return set()
 
 
 def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
@@ -565,11 +590,19 @@ def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
     producing = (isinstance(envelope, Mapping) and envelope.get("task_id") == s.enactment(x)) or (
         isinstance(human, Mapping) and human.get("actor") == result["actor"])
     if not producing:
-        # §11.5 (3): the integration request is bound to the producing task; any other binding fails closed
-        # until steps 7-8 own the claimed obligation (review 23b487a B2)
-        return {"SCHEMA_UNSUPPORTED"}
+        return {"AUTH_ENVELOPE"}  # §11.5 (3): an integration request is bound to the producing task (step 5d)
     codes = {f.code for f in frame.structural.findings}
-    contract = workflow.conformance(workflow.submitting_result(x)).contract[0]
+    conformance = workflow.conformance(workflow.submitting_result(x))
+    # the exact candidate's own defect (§8.3 step 7, §14.6; step 5d): a violation, or a discrepancy other than the
+    # outcome being COMPLETE while something is still unmet, unless the result's own templates show it (F30)
+    own = any(h.cls == "VIOLATION" or (h.cls == "DISCREPANCY" and h.template != "FAITHFULNESS.outcome_consistent")
+              for h in conformance.hits) or any(h.cls in ("DISCREPANCY", "INCOMPLETE") for h in conformance.result_only)
+    if own:
+        codes.add("CONFORMANCE_FAILED")
+    elif not conformance.clean:
+        codes.add("CONFORMANCE_INCOMPLETE")  # not yet complete, as unrealized evidence is: the candidate stays pending
+    codes |= review_codes(x, support, workflow)
+    contract = conformance.contract[0]
     if contract is None or outside_scope(frame, contract.write_scope):
         codes.add("AUTH_WRITE_SCOPE")
     else:

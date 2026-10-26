@@ -43,7 +43,8 @@ REASONS = frozenset({
     # step 7, legality (Phase F step 5; the delegated OBLIGATION_* members named by reading F34, Stage S notes)
     "OBLIGATION_NOT_DERIVED", "OBLIGATION_RESULT_DUPLICATE", "OBLIGATION_DISCHARGED", "OBLIGATION_CONTRACT_STALE",
     "OBLIGATION_PREDICATE_UNMET", "OBLIGATION_CLAIM_UNSUPPORTED", "OBLIGATION_REENACTED", "OBLIGATION_ANSWERED",
-    "OBLIGATION_REVIEW_OPEN", "OBLIGATION_PARTITION_INVALID", "STALE_RETAINED", "CONFORMANCE_RESULT", "NOT_SETTLED",
+    "OBLIGATION_REVIEW_OPEN", "OBLIGATION_PARTITION_INVALID", "STALE_RETAINED", "CONFORMANCE_RESULT",
+    "CONFORMANCE_FAILED", "CONFORMANCE_INCOMPLETE", "NOT_SETTLED",
     # step 8 and step 9
     "REGRESSION", "HEAD_MOVED",
 })
@@ -52,9 +53,9 @@ REASONS = frozenset({
 #: names ``X``, so the item takes a new iteration (``Items.refused``). A rejection for anything else leaves the
 #: candidate pending: a binding, an unbuilt check, a moved head, a freeze (the head's state, lifted when its challenge
 #: is resolved) or a missing enactment acceptance (the review route's, recorded in ``X``'s frame; review 87b4fa8 B1).
-MERIT_PREFIXES = ("STRUCT_", "RELATION_", "CONFORMANCE_")
+MERIT_PREFIXES = ("STRUCT_", "RELATION_")
 MERIT_CODES = frozenset({"AUTH_WRITE_SCOPE", "AUTH_PROTECTED", "CYCLE_SUPPORT", "CYCLE_WARRANT", "STALE_RETAINED",
-                         "OBLIGATION_REENACTED", "REGRESSION"})
+                         "OBLIGATION_REENACTED", "REGRESSION", "CONFORMANCE_FAILED"})  # INCOMPLETE waits (step 5d)
 
 
 def on_merits(reasons: Iterable[str]) -> bool:

@@ -1099,8 +1099,20 @@ class IntegratingRequest(unittest.TestCase):
         return integration_codes(candidate, support, binding)
 
     def test_a_clean_integration_raises_nothing(self) -> None:
+        from ssds.derivation import Workflow
+
+        from ._scenario import agent, content, fresh, judgment
+        from .test_conformance import realize
+
         sc = accepted_plan()
-        _, cand, _ = submit(sc, SOLVED)
+        x, cand, _ = submit(sc, SOLVED)
+        self.assertEqual(self.codes(sc, cand), {"CONFORMANCE_INCOMPLETE", "OBLIGATION_PREDICATE_UNMET"},
+                         "evidence unrealized and no review yet: pending, not condemned (step 5d)")
+        realize(sc, cand)
+        (review,) = Workflow(sc.derive()).of_kind("REVIEW")
+        sc.admit(judgment("REVIEW", {"transformation": x}, "PASS", actor=agent("checker"), actor_class="AGENT",
+                          basis=[content("src", sc.view(cand).rev("src"))], frame={"transformation": x},
+                          binding=dict(fresh(agent("checker"), "task-r"), obligation=review.id)))
         self.assertEqual(self.codes(sc, cand), set())
 
     def test_no_result_submits_the_candidate(self) -> None:
@@ -1114,10 +1126,10 @@ class IntegratingRequest(unittest.TestCase):
         policy = accepted_plan()
         _, cand2, _ = submit(policy, {**SOLVED, ".ssds/policy.toml": "schema = 1\n# edited\n"})
         self.assertIn("AUTH_PROTECTED", self.codes(policy, cand2), "an agent made the edit")
-        self.assertEqual(self.codes(policy, cand2, binding={"human": {"actor": OWNER}}), {"SCHEMA_UNSUPPORTED"},
-                         "an integration not bound to the producing task fails closed (review 23b487a B2)")
+        self.assertEqual(self.codes(policy, cand2, binding={"human": {"actor": OWNER}}), {"AUTH_ENVELOPE"},
+                         "an integration is bound to the producing task (review 23b487a B2; step 5d)")
         self.assertEqual(self.codes(policy, cand2, binding={"envelope": {"task_id": "task-other"}}),
-                         {"SCHEMA_UNSUPPORTED"})
+                         {"AUTH_ENVELOPE"})
         human = accepted_plan()
         base = human.head
         cand3 = human.add_tree(tree(dict(human.files, **SOLVED, **{".ssds/policy.toml": "schema = 1\n# edited\n"}),
@@ -1260,7 +1272,7 @@ class IntegratingRequest(unittest.TestCase):
         done = Scenario(NESTED, NESTED_FILES)
         xd, cd, _ = submit_x(done, {"pkg/a.py": "a = 2\n"}, agent("maker"), "task-d")
         integrate(done, xd, cd)
-        self.assertEqual(self.codes(done, cd), {"SCHEMA_UNSUPPORTED"}, "one enactment, one integration")
+        self.assertEqual(self.codes(done, cd), {"OBLIGATION_REENACTED"}, "one enactment, one integration (SD-26)")
         other = Scenario(NESTED, NESTED_FILES)
         xo, co, _ = submit_x(other, {}, agent("maker"), "task-o", manifest=self.PROMOTED)
         xe, ce, _ = submit_x(other, {"pkg/a.py": "a = 3\n"}, agent("maker"), "task-e", manifest=self.PROMOTED)

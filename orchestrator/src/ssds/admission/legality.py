@@ -51,8 +51,9 @@ class Legality:
         self._workflows: dict[int, Any] = {}  # the frame supports step 6 keeps alive, by identity
         self._trial: tuple[Any, Any] | None = None
 
-    def request_codes(self, request: Mapping[str, Any], records: list[Mapping[str, Any]]) -> set[str]:
-        """The request-level codes, over the records still passing."""
+    def request_codes(self, request: Mapping[str, Any], records: list[Mapping[str, Any]], trial: Any = None) -> set[str]:
+        """The request-level codes, over the records still passing; ``trial`` is the state after them, where a
+        claimed obligation's discharge predicate must hold (§8.3 step 7; step 5d)."""
 
         s = self.head.s
         codes: set[str] = set()
@@ -71,8 +72,16 @@ class Legality:
         if len(tasks) != len(set(tasks)) or any(t in admitted for t in tasks):
             codes.add("OBLIGATION_RESULT_DUPLICATE")
         index = self.w.binding_index()
-        if any(c in index and self.w.discharge(index[c]) in _DISCHARGED for c in request.get("claims") or []):
+        claims = request.get("claims") or []
+        if any(c in index and self.w.discharge(index[c]) in _DISCHARGED for c in claims):
             codes.add("OBLIGATION_DISCHARGED")  # a duplicate discharge is rejected and recorded
+        elif claims and trial is not None:
+            # the discharge predicate holds after the request's own records, the integration included (4e-i); a
+            # predicate with an evidence term fails closed until step 9 realizes it (§3.2, 5d)
+            # the obligation is resolved at the head (step 2's REF_OBLIGATION): a discharged one leaves the trial's index
+            after = self._trial_workflow(trial)
+            if any(c not in index or after.discharge(index[c]) not in _DISCHARGED for c in claims):
+                codes.add("OBLIGATION_PREDICATE_UNMET")
         return codes
 
     def codes(self, record: Mapping[str, Any], trial: Any = None) -> set[str]:
@@ -114,9 +123,7 @@ class Legality:
             return {"OBLIGATION_NOT_DERIVED"}  # Phase E plan §6: an answer to a decision no longer derived
         if record.get("outcome") != "PARTITION" or trial is None:
             return set()
-        if self._trial is None or self._trial[0] is not trial:
-            self._trial = (trial, Workflow(trial))  # one slot per round: a rebuilt trial is never served stale
-        tried = self._trial[1].items
+        tried = self._trial_workflow(trial).items
         for name in named:
             holder = self.w.items.holder_of_decision(name)
             if holder is None:
@@ -125,6 +132,11 @@ class Legality:
             if there is None or not there.valid_partition(record["id"]):
                 return {"OBLIGATION_PARTITION_INVALID"}  # an invalid partition answers nothing (reading E32)
         return set()
+
+    def _trial_workflow(self, trial: Any) -> Any:
+        if self._trial is None or self._trial[0] is not trial:
+            self._trial = (trial, Workflow(trial))  # one slot per round: a rebuilt trial is never served stale
+        return self._trial[1]
 
     def _workflow(self, support: Any) -> Any:
         if support is self.head:
