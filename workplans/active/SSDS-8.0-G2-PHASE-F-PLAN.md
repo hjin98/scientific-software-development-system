@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F10 settled (SD-64, SD-67 to SD-71); Q-F11 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F11 settled (SD-64, SD-67 to SD-72). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -479,6 +479,8 @@ Clause (f) is part of clean conformance, re-derived "at every revalidation of an
 **Q-F11. SD-71's premise and adoptions (information; F42).** SD-71 deferred step 5f on the premise that step 8 judges only integrating requests. Catalogue §8.3 step 8 also concerns structural changes, and a records-only `ABSORB` adoption changes `Σ`. Revision 19 closes the gap by failing closed (F42): an adoption is refused while any admitted realization reads a unit in its write set. This is vacuous for `ssdp-shadow-2`, so step 10 is unaffected.
 - **Recommended:** (a) confirm F42's fail-closed rule as SD-71's complement, recorded beside it.
 - **Alternative:** (b) build 5f's step 8 for adoptions in Phase F.
+
+**Resolved by SD-72 (item 66):** (a). F42's fail-closed rule is SD-71's complement.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
