@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 14 details step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 13 (step 4c in four parts, §3.1); questions Q-F1 to Q-F7 settled (SD-64, SD-67 to SD-69). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 14 (step 4c in four parts, §3.1); questions Q-F1 to Q-F7 settled (SD-64, SD-67 to SD-69). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -261,6 +261,10 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   - **Its content, in place.** Per file it owns bytes of, its content is the ordered sequence of owners: its own pieces with their bytes, every other owner by identity only, with the file's mode. Moving another unit's bytes past its own is a change; an edit inside another unit is not (review 2aadf33 B4). Every reader of its region (write set, derived `IMPORTS`, write-scope containment, `owners`, protected surfaces, lint) reads those bytes.
   - **For Stage S and the next Manual amendment batch.** Catalogue §1.5's formula (`content(u) = H(cid(t_i))`; `sem` over every unit inside `scope(u)`) does not single out the outermost owner, and Manual §1.5 leaves "its content" undefined for it: a candidate clarification, as F1 records its own.
 - **F20** *The freeze's regions (step 4c-ii; review 2aadf33 B6).* §8.3 step 4 (b) freezes "the signature, scope, regions or membership" of a subject whose current revision carries an unresolved blocking challenge or is `REVOKED`. Its regions are read as the two structures resolve them on one tree: the subject is compared on the merged tree under `Σ_n` and under `Σ_{n+1}` (its declarations, its terms' resolution status, its region, and the bytes it and its members own), so only a declaration can move them (re-check ad8daeb RB1). Bytes, the files under a prefix, and anchor lines are content: an edit of them makes a new revision, which is how a challenge's resolution proceeds, and the freeze concerns structure ("whether it would lose or gain units"). So a file added under a frozen prefix-scoped subject, or an anchor moved within it, is not frozen, being the same on both sides. A rescoping, a change of kind, mode or declarations, a term coming to resolve or not, any unit joining or leaving (nested subjects included), a unit declared to overlap it, an `ignore` entry over its files, and a stranger nested in it taking its bytes are all frozen. So is a re-partition inside it: moving bytes between its own parts changes what its members own, though a byte-preserving refinement keeps its `scope_id` and tenure (§19.3). This fails closed. This is narrower than §1.2's region difference, which the write set uses across two trees: there, existing bytes entering or leaving under the pinned alignment also count, so an anchor move or a file moved out of a prefix would freeze. Under either reading the freeze lets content move between subjects, so this is no decision change. The narrower reading goes to Stage S as a candidate clarification of "regions" in §8.3 step 4 (b).
+- **F21** *A quarantined delta's identity (step 4c-iv).* Catalogue §4 gives an `INTAKE_DISPOSITION` "`identity` on the absorption entry and delta key", and SD-69 its `delta` target `{absorption, key}`.
+  - **Which absorption.** A delta is the observed value of one declaration key that differs from `Σ` (§1.6). Its `absorption` is the digest of the absorption entry whose observed head first showed that value: the latest absorption at or before `n` at which `decl(T)[k]` became its current value. Before it, the value differed or the key matched `Σ`. A later foreign change to the same key's value is a new delta under a new absorption. A realignment ends the delta (the key leaves `Q`). So a delta's identity is a function of the ledger alone, and the `INTAKE` obligation derived for a quarantined key is keyed by it.
+  - **Element value.** The value in `A`'s interim element `{absorption, key, value}` is `decl(T)[k]` at that absorption, so it also names exactly one delta (revision 13).
+  - **Targets.** `INTAKE_DISPOSITION` takes `delta` (`{absorption, key}`) or `content_ref`. `INTAKE_CLASSIFICATION` takes catalogue §3.4's "observed path set or quarantined delta": a `paths` target (`{paths}`) or `delta`. `units` is dropped from both (SD-69). The `identity` basis gains `delta`. Outcomes: the §18.3 vocabulary for dispositions; classification keeps its advisory `PROPOSED`.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -868,6 +872,21 @@ Tests now cover every surviving mutant:
 - two candidates;
 - renamed promotions and restorations;
 - the refused-result salvage.
+
+**Revision 14: step 4c-iv's detail (reading F21).** Order of work:
+1. **The schema-1 correction (SD-69).** Targets, outcomes and the `identity` basis per F21. A `QUARANTINE` carries a `paths` field. `frame` gains optional `base`, `candidate`, `adopts` and `rebases`, present together, which schema 1 checks and which only step 5's rebase reads. Every fixture building intake records on `units` targets is rebuilt.
+2. **Derivation.**
+   - Each quarantined key's current delta, `(absorption, key)` per F21.
+   - The `INTAKE` obligation keyed by it, discharged by a current `ABSORB` naming it.
+   - A records-only adoption's frame `X = (B, B, A)`, built from the request's adopted deltas with `A`'s interim element form.
+   - The 4c-ii owner classifying an adopted key as authored.
+3. **Admission.**
+   - An `INTAKE_DISPOSITION` other than `ABSORB` is `SCHEMA_UNSUPPORTED`, and never-lost ones are refused by identity.
+   - An `ABSORB` names a delta whose `INTAKE` obligation was derived at some position (else `REF_RECORD`); one under a standing adverse disposition is refused, tested on a fixture ledger.
+   - A request's `adopted_deltas` must be exactly the deltas its `ABSORB` dispositions name, each with its value at its absorption (else `REF_RECORD`).
+   - The request is judged as the frame record of `X = (B, B, A)`: step 4's codes from the 4c-ii owner, with a promoting or restoring adoption failing closed.
+   - The entry it would append carries the adoptions as `ADOPTED` deltas, so `Σ` folds them. That is step 9's commit; until steps 5-8 the request ends `SCHEMA_UNSUPPORTED`, like every other.
+   - The write scope does not bind a human's records-only adoption, which carries no contract. Its authority is the R2 disposition's qualification and independence (§8.3 step 3; re-check c550803 N5).
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
