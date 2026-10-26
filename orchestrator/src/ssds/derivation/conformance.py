@@ -379,13 +379,29 @@ class Conformance:
 
         if self.merged_view is None:
             return []
-        scope, _ = resolve(self.merged_view, contract.write_scope)
         out = []
         for unit in sorted(self.writes):
-            atoms = self._region_atoms(unit)
-            if not atoms or not contained(self.merged_view, atoms, scope):
+            if not self._within_scope(unit, contract):
                 out.append(unit)
         return out
+
+    def _within_scope(self, unit: str, contract: Contract) -> bool:
+        """A write-set unit lies within the write scope on both sides of the frame, ``T_n`` and ``M_n(X)``, each
+        resolved in its own tree: a byte that leaves the unit is written as surely as one that enters it (a
+        deletion; review 2aadf33 B1). A unit with a region on neither side is outside."""
+
+        sides = 0
+        for view in (self.head_view, self.merged_view):
+            if view is None or unit not in view.structure.units:
+                continue
+            region = view.regions.get(unit)
+            if not region:
+                continue
+            sides += 1
+            scope, _ = resolve(view, contract.write_scope)
+            if not contained(view, [("span", s.path, s.start, s.end) for s in region], scope):
+                return False
+        return sides > 0
 
     def owners(self, path: str) -> tuple[str, ...]:
         """The units whose region lies in ``path``, in the merged tree or else the head; ``<path>`` when none."""

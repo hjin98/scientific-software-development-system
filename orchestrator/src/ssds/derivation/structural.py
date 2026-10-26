@@ -3,9 +3,8 @@ Phase F plan §3.1, step 4c-ii, readings F15, F16, F18).
 
 One function of the admitted state at ``n`` and a transformation's frame there returns ``Σ_{n+1}``, the
 classification of each declaration key against the quarantine ``Q_n``, and the step 4 findings. Admission reads
-every finding (``admission``, 4c-iii). ``Frame.exists`` reads the findings ``X`` is responsible for
-(catalogue §7.4: "``Δ_Σ(X)`` is well-formed"): every per-key, freeze, mode, release and semantic finding, and a
-whole-structure finding only where ``Σ_n`` passes the same check (reading F18).
+every finding (``admission``, 4c-iii), and so does ``Frame.exists`` (Manual §7.4: "every structural check except
+the enactment condition"; reading F18).
 
 - **Per key (§8.3 4 (a)).** A key outside ``Q_n`` takes ``decl(M)[k]`` (authored, or unchanged). A key in
   ``Q_n`` realigns when ``decl(M)[k] = Σ_n[k]``, is carried when ``decl(M)[k] = decl(T_n)[k]``, and otherwise
@@ -20,11 +19,12 @@ whole-structure finding only where ``Σ_n`` passes the same check (reading F18).
   (``STRUCT_MODE_MIXED``: a ``MODE_TRANSITION`` never travels with a request); no existing unit's kind or
   owning domain changes (``SCHEMA_UNSUPPORTED``: no record expresses the old owner's release, reading F16).
 - **Freeze (§8.3 4 (b)).** A subject whose current triple in ``D_n`` is ``REVOKED``, ``BLOCKED`` or
-  ``PROVISIONAL`` keeps its signature, scope, region shape and membership: ``FREEZE_SOURCE`` where it changes or
-  loses units, ``FREEZE_DESTINATION`` where it gains them. A region's shape is which paths it covers and whether
-  each term resolves; an edit of bytes inside it is content, not structure.
-- **Semantic structure (§8.3 4 (c), §2.5).** The S0 defects an affected subject has in the frame and not at the
-  head, keyed by code, unit and detail (reading F15): ``RELATION_*`` under their own names, the SDG, cycle and
+  ``PROVISIONAL`` keeps its signature, declarations, regions and membership (every unit inside it by
+  ``part_of``, nested subjects included): ``FREEZE_SOURCE`` where it changes or loses units,
+  ``FREEZE_DESTINATION`` where it gains them. Its regions are compared as their terms' resolution status; bytes,
+  files under a prefix and anchor lines are content, which a challenge's resolution works through (reading F20).
+- **Semantic structure (§8.3 4 (c), §2.5).** The S0 defects an affected subject, or any unit of one, has in the
+  frame and not at the head, keyed by code, unit and detail (reading F15): ``RELATION_*`` under their own names, the SDG, cycle and
   single-definer defects as ``STRUCT_*`` members.
 """
 
@@ -45,8 +45,6 @@ from .state import triple_key
 FROZEN = frozenset({"REVOKED", "BLOCKED", "PROVISIONAL"})
 SEMANTIC_STRUCT = {"SDG_MALFORMED": "STRUCT_SDG_MALFORMED", "SDG_NOT_LAMINAR": "STRUCT_SDG_NOT_LAMINAR",
                    "ILLEGAL_CYCLE": "STRUCT_ILLEGAL_CYCLE", "SINGLE_DEFINER": "STRUCT_SINGLE_DEFINER"}
-#: Findings over the whole structure: they count against a frame only where ``Σ_n`` passes the same check (F18).
-WHOLE_STRUCTURE = "whole"
 
 
 @dataclass(frozen=True)
@@ -54,7 +52,6 @@ class Finding:
     code: str
     unit: str
     detail: str
-    scope: str = "request"  # "request": the request is responsible; WHOLE_STRUCTURE: a check of all of Σ_{n+1}
 
 
 class StructuralCheck:
@@ -77,7 +74,7 @@ class StructuralCheck:
         sigma = dict(self.h.sigma(self.frame.n))
         head = self.frame.head_view
         observed = manifest_decl(head)
-        quarantine = StructureFacts(head, observed).quarantine
+        quarantine = self.s.s0.quarantine  # the admitted state's: T_n under Σ_n, as ``head`` is
         merged = self.merged_decl or {}
         out, classes = dict(sigma), {}
         for key in sorted(set(sigma) | set(merged) | set(observed or {}) | set(quarantine)):
@@ -117,6 +114,8 @@ class StructuralCheck:
     def view(self) -> TreeView:
         """``M_n(X)`` under ``Σ_{n+1}``."""
 
+        if self.sigma == dict(self.frame.structure.decl):
+            return self.frame.view  # the same tree under the same structure: reuse it
         return TreeView(self.frame.merged, self.structure, self.manifest)
 
     # -- the findings ----------------------------------------------------------------------------
@@ -148,14 +147,8 @@ class StructuralCheck:
 
     def _whole_structure(self) -> list[Finding]:
         head = Structure(dict(self.h.sigma(self.frame.n)))
-        before_static = {(e.code, e.unit, e.detail) for e in static_errors(head)}
-        out = [Finding(f"STRUCT_{e.code}", e.unit, e.detail,
-                       WHOLE_STRUCTURE if (e.code, e.unit, e.detail) in before_static else "request")
-               for e in static_errors(self.structure)]
-        before_reserved = set(reserved_leaf_problems(head))
-        out += [Finding("STRUCT_RESERVED_LEAF", unit, detail,
-                        WHOLE_STRUCTURE if (unit, detail) in before_reserved else "request")
-                for unit, detail in reserved_leaf_problems(self.structure)]
+        out = [Finding(f"STRUCT_{e.code}", e.unit, e.detail) for e in static_errors(self.structure)]
+        out += [Finding("STRUCT_RESERVED_LEAF", unit, detail) for unit, detail in reserved_leaf_problems(self.structure)]
         out += [Finding("STRUCT_TERM_UNRESOLVED", unit, "a newly declared or changed term resolves to nothing")
                 for unit in self.view.unresolved_declared_terms(head)]
         return out
@@ -192,20 +185,21 @@ class StructuralCheck:
 
     @staticmethod
     def _members(structure: Structure, subject: str) -> frozenset[str]:
-        return frozenset(u for u in structure.units if u != subject and structure.subj(u) == subject)
+        """Every unit inside ``subject`` by membership, nested subjects included (review 2aadf33 B2)."""
+
+        return frozenset(u for u in structure.units if u != subject and structure.is_member_of(u, subject))
 
     def _shape(self, view: TreeView, uid: str) -> tuple[Any, ...] | None:
         structure = view.structure
         if uid not in structure.units:
             return None
         unit = structure.units[uid]
-        region = view.regions.get(uid) or ()
         resolved = tuple(view.term_region(t) is not None for t in unit.scope)
         return (unit.subject, view.scope_id(uid), structure.kind(uid), self._mode(uid), structure.keys_of(uid),
-                frozenset(span.path for span in region), resolved)
+                resolved)
 
     def _semantic(self) -> list[Finding]:
-        head = StructureFacts(self.frame.head_view, manifest_decl(self.frame.head_view))
+        head = self.s.s0  # the admitted state's S0 facts: T_n under Σ_n
         frame = StructureFacts(self.view, self.merged_decl)
         static = {(e.code, e.unit, e.detail) for e in static_errors(self.structure)}
         before = {(d.code, d.unit, d.detail) for d in head.defects}
@@ -214,19 +208,9 @@ class StructuralCheck:
         out = []
         for d in frame.defects:
             key = (d.code, d.unit, d.detail)
-            if key in static or key in before or d.unit not in affected:
+            if key in static or key in before or (d.unit not in affected and self.structure.subj(d.unit) not in affected):
                 continue
             out.append(Finding(SEMANTIC_STRUCT.get(d.code, d.code), d.unit, d.detail))
         return out
 
-    # -- the readers ----------------------------------------------------------------------------
-
-    @property
-    def frame_findings(self) -> tuple[Finding, ...]:
-        """What makes ``Δ_Σ(X)`` ill-formed (catalogue §7.4): every finding but a whole-structure one ``Σ_n``
-        already fails (reading F18)."""
-
-        return tuple(f for f in self.findings if f.scope != WHOLE_STRUCTURE)
-
-
-__all__ = ["FROZEN", "Finding", "StructuralCheck", "reserved_leaf_problems"]
+__all__ = ["FROZEN", "Finding", "StructuralCheck"]

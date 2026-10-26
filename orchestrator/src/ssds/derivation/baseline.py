@@ -68,8 +68,12 @@ def reserved_leaf_problems(structure: Structure) -> list[tuple[str, str]]:
         unit = structure.units.get(uid)
         if unit is None:
             out.append((uid, f"{uid} is not declared (§1.8)"))
-        elif unit.declared_kind != kind:
+            continue
+        if unit.declared_kind != kind:
             out.append((uid, f"{uid} has kind {kind}"))
+        # a reserved leaf: a top-level leaf subject with no members, so its bytes stay its own (review 2aadf33 B5)
+        if unit.role != "leaf" or unit.part_of is not None or not unit.subject or structure.members.get(uid):
+            out.append((uid, f"{uid} is a top-level leaf subject with no members (§1.8)"))
     unclassified = structure.units.get(UNCLASSIFIED)
     if unclassified is not None and not any(t.kind == "prefix" and t.file == "" for t in unclassified.scope):
         out.append((UNCLASSIFIED, f"{UNCLASSIFIED} is declared with the empty prefix (A9)"))

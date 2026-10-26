@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any
 
-from ssds.content import Structure, Tree, TreeView, merge3, static_errors, value_from_json, write_set
+from ssds.content import Structure, Tree, TreeView, merge3, value_from_json, write_set
 from ssds.ledger.read import submits
 
 from .history import History, manifest_decl
@@ -83,8 +83,9 @@ class Frame:
 
     @cached_property
     def exists(self) -> bool:
-        """A clean merge and a well-formed ``Δ_Σ(X)``: no finding of the structural owner that ``X`` is
-        responsible for (catalogue §7.4; reading F18). The enactment condition is Admission's."""
+        """A clean merge and a well-formed proposed structure: no finding of the structural owner (Manual §7.4:
+        "every structural check except the enactment condition"; reading F18). The enactment condition is
+        Admission's."""
 
         if self.merged is None:
             return False

@@ -170,7 +170,7 @@ class TreeView:
         final = {u: (ABSENT if u in absent else r) for u, r in initial.items()}
         return final, tuple(sorted(set(findings)))
 
-    @property
+    @cached_property
     def regions(self) -> dict[str, Region | None]:
         """Each unit's region after the dynamic partition tests (§1.4 rule 3). The outermost owner's is exactly the
         bytes it owns, those no other unit's region contains (Manual §1.8; plan reading F19): every reader of a
@@ -274,9 +274,18 @@ class TreeView:
     def content(self, uid: str) -> str:
         if uid == UNCLASSIFIED:
             # the outermost owner's content is the bytes it owns, never every governed byte its empty prefix
-            # resolves to (Manual §1.8, §1.4 rule 3; plan reading F19)
-            owned = self.owned.get(UNCLASSIFIED, {})
-            parts = [_jcs([path, mode, data.hex()]) for path, (mode, data) in sorted(owned.items())]
+            # resolves to (Manual §1.8, §1.4 rule 3; plan reading F19), in place: per file it owns bytes of, the
+            # ordered sequence of owners, its own pieces carrying their bytes and every other owner only its
+            # identity, so moving another unit's bytes past its own is a change and an edit inside another unit
+            # is not (review 2aadf33 B4)
+            parts = []
+            for path, segments in sorted(self.ownership.items()):
+                if not any(seg.owner == UNCLASSIFIED for seg in segments):
+                    continue
+                entry = self.tree[path]
+                sequence = [normalized(path, entry.data, seg.start, seg.end).hex() if seg.owner == UNCLASSIFIED
+                            else ["owner", seg.owner] for seg in segments]
+                parts.append(_jcs([path, entry.mode, sequence]))
             return _hash(b"ssds.content.v1", b"ssds.unclassified.owned", *parts)
         unit = self.structure.units[uid]
         cids = [self.cid(t, r).encode() for t, r in zip(unit.scope, self.term_resolutions[uid])]

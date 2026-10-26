@@ -14,7 +14,7 @@ from functools import cached_property
 from typing import Any
 
 from ssds import analyzers
-from ssds.content import ABSENT, RESIDUAL_SUFFIX, Structure, TreeView, static_errors
+from ssds.content import ABSENT, RESIDUAL_SUFFIX, UNCLASSIFIED, Structure, TreeView, static_errors
 
 from .vocabulary import CHALLENGES_INQUIRY, DOMAIN_LAYERED, LAYER, LAYER_FREE, VOCABULARY
 
@@ -180,6 +180,8 @@ class StructureFacts:
         tree = self.view.tree
         files_of: dict[str, set[str]] = {}
         for uid, resolutions in self.view.term_resolutions.items():
+            if uid == UNCLASSIFIED:  # the outermost owner holds only the files it owns bytes of (reading F19)
+                resolutions = (self.view.regions.get(uid),)
             for region in resolutions:
                 for span in region or ():
                     files_of.setdefault(span.path, set()).add(uid)

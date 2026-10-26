@@ -482,5 +482,259 @@ class StructuralOwner(unittest.TestCase):
         self.assertFalse({f.unit for f in frame.structural.findings} & {"code"}, frame.structural.findings)
 
 
+PARTS3 = '''
+    [[unit]]
+    id = "s"
+    kind = "D2"
+    role = "composite"
+    scope = [{ path = "s.md" }]
+    [[unit]]
+    id = "s.a"
+    subject = false
+    part_of = "s"
+    scope = [{ file = "s.md", heading = ["A"] }]
+    [[unit]]
+    id = "s.b"
+    subject = false
+    part_of = "s"
+    scope = [{ file = "s.md", heading = ["B"] }]
+    [[unit]]
+    id = "s.c"
+    subject = false
+    part_of = "s"
+    scope = [{ file = "s.md", heading = ["C"] }]
+    [[unit]]
+    id = "t"
+    kind = "D2"
+    scope = [{ path = "t.md" }]
+'''
+S_FILES = {"s.md": "# A\nx\n# B\ny\n# C\nz\n", "t.md": "t\n"}
+
+
+class StructuralOwnerCases(unittest.TestCase):
+    """Review 2aadf33 B1-B7: the cases its blockers named, one per defect."""
+
+    def test_semantic_codes_under_struct_names(self) -> None:
+        sc = Scenario(PARTS3, S_FILES)
+        rel = "<!-- ssds:rel {t} {o} -->\n"
+        cycle = {**S_FILES, "s.md": "# A\n" + rel.format(t="DERIVED_FROM", o="s.b") + "x\n# B\n"
+                 + rel.format(t="DERIVED_FROM", o="s.a") + "y\n# C\nz\n"}
+        self.assertIn("STRUCT_ILLEGAL_CYCLE", codes(frame_for(sc, PARTS3, cycle)))
+        defined = {**S_FILES, "s.md": "# A\n<!-- ssds:defines heat -->\nx\n# B\ny\n# C\nz\n",
+                   "t.md": "<!-- ssds:defines heat -->\nt\n"}
+        self.assertIn("STRUCT_SINGLE_DEFINER", codes(frame_for(sc, PARTS3, defined)))
+        across = PARTS3 + '[unit.semantic]\nsdg = [{ id = "g", members = ["s.a", "t"] }]\n'
+        self.assertIn("STRUCT_SDG_MALFORMED", codes(frame_for(sc, across, S_FILES)), "SDG members never separated")
+        crossing = PARTS3 + ('[unit.semantic]\nsdg = [{ id = "g1", members = ["s.a", "s.b"] }, '
+                             '{ id = "g2", members = ["s.b", "s.c"] }]\n')
+        self.assertIn("STRUCT_SDG_NOT_LAMINAR", codes(frame_for(sc, crossing, S_FILES)))
+
+    def test_a_new_defect_on_a_part_of_an_affected_subject(self) -> None:
+        """B3: ``well_formed(s)`` reads every unit of ``s``; editing one part affects ``s``."""
+
+        units = PARTS3.replace('kind = "D2"\n    role = "composite"', 'kind = "D4"\n    role = "composite"')
+        files = {**S_FILES, "s.md": "# A\nx\n# B\n<!-- ssds:rel DEPENDS_ON t -->\ny\n# C\nz\n"}
+        sc = Scenario(units, files)
+        without_t = units[: units.index('    [[unit]]\n    id = "t"')]
+        frame = frame_for(sc, without_t, {**files, "s.md": files["s.md"].replace("x\n", "x2\n")})
+        self.assertIn("s.a", frame.write_set)
+        self.assertIn("s.b", {f.unit for f in frame.structural.findings if f.code.startswith("RELATION_")})
+        self.assertFalse(frame.exists)
+
+    def test_the_freeze_counts_nested_subjects_and_every_unresolved_state(self) -> None:
+        """B2: a subject nested by ``part_of`` is a member; B7: ``PROVISIONAL`` and ``REVOKED`` freeze too."""
+
+        from ._scenario import adjudication, challenge
+
+        files = {**NESTED_FILES, "pkg/b.py": "b = 1\n"}
+        nested = NESTED + '''
+    [[unit]]
+    id = "n"
+    part_of = "s1"
+    kind = "D3"
+    scope = [{ file = "pkg/b.py" }]
+'''
+        for state in ("BLOCKED", "PROVISIONAL", "REVOKED"):
+            with self.subTest(state=state):
+                sc = Scenario(NESTED, files)
+                c = challenge(sc.triple("s1"))
+                sc.admit(c)
+                if state == "PROVISIONAL":
+                    sc.admit(judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER,
+                                      fields={"continuation": {"subjects": ["s1"], "items": [], "kinds": []}}))
+                if state == "REVOKED":
+                    sc.admit(adjudication(c["id"], "UPHELD"))
+                d = sc.derive()
+                self.assertEqual(d.s.status1("triple:s1:" + sc.triple("s1")["scope_id"] + ":" + sc.triple("s1")["rev"]),
+                                 state)
+                self.assertIn("FREEZE_DESTINATION", codes(frame_for(sc, nested, files)))
+
+    def test_the_freeze_reads_resolution_status_never_files_or_bytes(self) -> None:
+        """Reading F20: a file added under a frozen prefix is content, as an edit is."""
+
+        from ._scenario import challenge
+
+        sc = Scenario(NESTED, NESTED_FILES)
+        sc.admit(challenge(sc.triple("s1")))
+        added = frame_for(sc, NESTED, {**NESTED_FILES, "pkg/new.py": "n = 1\n"})
+        self.assertFalse(codes(added) & {"FREEZE_SOURCE", "FREEZE_DESTINATION"})
+
+    def test_a_reserved_leaf_is_a_top_level_leaf(self) -> None:
+        """B5: a composite ``ssds.unclassified`` would hide its bytes in its residual."""
+
+        from ssds.derivation.baseline import reserved_leaf_problems
+
+        from ._fixtures import RESERVED_LEAVES, structure_of
+
+        composite = (RESERVED_LEAVES["ssds.manifest"] + RESERVED_LEAVES["ssds.policy"]
+                     + RESERVED_LEAVES["ssds.unclassified"].replace('kind = "UNCLASSIFIED"',
+                                                                     'kind = "UNCLASSIFIED"\nrole = "composite"')
+                     + '\n[[unit]]\nid = "docs"\npart_of = "ssds.unclassified"\nsubject = false\nscope = [{ prefix = "docs/" }]\n')
+        problems = reserved_leaf_problems(structure_of(tree({}, composite, reserved=False)))
+        self.assertIn("ssds.unclassified", {u for u, _ in problems})
+
+    def test_a_deletion_is_a_write_on_the_head_side(self) -> None:
+        """B1: a unit whose bytes leave lies within the scope only if its head region does, for the outermost
+        owner and for an ordinary unit."""
+
+        from .test_conformance import SECONDARY
+        from .test_lint import item_block
+
+        for scope, extra, gone in (('["src/", "notes/"]', {"README.md": "r\n", "notes/n.md": "n\n"}, "README.md"),
+                                   ('["src/solver.py"]', {}, "src/io.py")):
+            with self.subTest(deleted=gone):
+                sc = accepted_plan(item_block(secondary=SECONDARY, write_scope=scope, affected='["src/"]'))
+                if extra:
+                    sc.absorb(extra)
+                files = dict(sc.files, **SOLVED)
+                files.pop(gone)
+                x, cand, result = submit_dropping(sc, files)
+                _, c = conformance(sc, result)
+                self.assertTrue(c.frame.exists)
+                self.assertTrue(c.outside_scope(c.contract[0]), f"deleting {gone} is outside {scope}")
+
+    def test_a_frame_that_does_not_exist_derives_what_a_conflict_derives(self) -> None:
+        from ssds.derivation.conformance import INCOMPLETE
+
+        sc = accepted_plan()
+        ascending = {"numerics.md": "# Numerics\n<!-- ssds:rel DEPENDS_ON src -->\n"}
+        _, _, structural = submit(sc, ascending)
+        conflicted = accepted_plan()
+        _, _, mine = submit(conflicted, {"records.md": "# Mine\n"}, task="task-a")
+        conflicted.integrate({"records.md": "# Theirs\n"}, agent("other"), "task-b")
+        for flow, result in ((sc, structural), (conflicted, mine)):
+            _, c = conformance(flow, result)
+            self.assertFalse(c.frame.exists)
+            self.assertIn(("BOUNDARY.write_scope", INCOMPLETE, "the candidate's frame does not exist"),
+                          {(h.template, h.cls, h.finding) for h in c.hits})
+
+    def test_the_layer_template_still_judges_where_the_frame_exists(self) -> None:
+        """B7: an ascending relation already on the head (absorbed) and introduced by ``C`` against ``B`` leaves
+        the frame in place (the defect is not new there) and the template reports the candidate's breach."""
+
+        from ssds.derivation.conformance import INCOMPLETE
+
+        from .test_conformance import SECONDARY, realize
+        from .test_lint import item_block
+
+        secondary = SECONDARY[:-2] + ', { check = "DOMAIN.layer_direction" } ]'
+        sc = accepted_plan(item_block(secondary=secondary, write_scope='["src/", "numerics.md"]',
+                                      affected='["src/", "numerics.md"]'))
+        ascending = {"numerics.md": "# Numerics\n<!-- ssds:rel DEPENDS_ON src -->\n"}
+        _, cand, result = submit(sc, ascending)
+        realize(sc, cand)
+        sc.absorb(ascending)  # the same change reaches the head foreign
+        _, c = conformance(sc, result)
+        self.assertTrue(c.frame.exists)
+        self.assertIn(INCOMPLETE, {h.cls for h in c.hits if h.template == "DOMAIN.layer_direction"})
+
+
+class OutermostOwnerRevision(unittest.TestCase):
+    """Reading F19 and review 2aadf33 B4, V03, V04: ``ssds.unclassified``'s revision is the bytes it owns, in
+    place, with their modes, and no other unit's content or declarations."""
+
+    UNITS = '''
+    [[unit]]
+    id = "h"
+    kind = "D3"
+    scope = [{ file = "README.md", heading = ["H"] }]
+'''
+    TEXT = "# A\na\n## H\nh\n# B\nb\n"
+
+    def rev(self, text: str, mode: str = "100644") -> str:
+        from ssds.content import Entry
+
+        from ._fixtures import view
+
+        return view(tree({"README.md": Entry(mode, text.encode())}, self.UNITS)).rev("ssds.unclassified")
+
+    def test_order_modes_and_other_units(self) -> None:
+        base = self.rev(self.TEXT)
+        self.assertNotEqual(self.rev("# A\na\n# B\nb\n## H\nh\n"), base, "another unit moved past its bytes")
+        self.assertEqual(self.rev(self.TEXT.replace("h\n", "h edited\n")), base, "an edit inside another unit")
+        self.assertEqual(self.rev(self.TEXT.replace("h\n", "<!-- ssds:rel DEPENDS_ON h -->\nh\n")), base,
+                         "another unit's semantic declarations")
+        self.assertNotEqual(self.rev(self.TEXT, mode="100755"), base, "the mode of a file it owns bytes of")
+        self.assertNotEqual(self.rev(self.TEXT.replace("a\n", "a2\n")), base, "its own bytes")
+
+    def test_two_other_units_swapped_between_its_pieces(self) -> None:
+        """Its own pieces stay apart and unchanged; only which owner sits between them changes."""
+
+        from ssds.content import Entry
+
+        from ._fixtures import view
+
+        units = self.UNITS + '''
+    [[unit]]
+    id = "k"
+    kind = "D3"
+    scope = [{ file = "README.md", heading = ["K"] }]
+'''
+        before = "# A\na\n## H\nh\n# B\nb\n## K\nk\n"
+        after = "# A\na\n## K\nk\n# B\nb\n## H\nh\n"
+        revs = [view(tree({"README.md": Entry("100644", t.encode())}, units)).rev("ssds.unclassified") for t in (before, after)]
+        self.assertNotEqual(*revs)
+
+    def test_derived_imports_attribute_only_owned_files(self) -> None:
+        """Review 2aadf33 N1: the outermost owner imports nothing a declared unit owns."""
+
+        from ssds.derivation.history import manifest_decl
+        from ssds.derivation.s0 import StructureFacts
+
+        from ._fixtures import view
+
+        units = '''
+    [[unit]]
+    id = "pa"
+    kind = "D4"
+    scope = [{ path = "pkg/a.py" }]
+    [[unit]]
+    id = "pb"
+    kind = "D4"
+    scope = [{ path = "pkg/b.py" }]
+'''
+        v = view(tree({"pkg/a.py": "from pkg import b\n", "pkg/b.py": "x = 1\n"}, units))
+        relations = {(r.subject, r.type, r.object) for r in StructureFacts(v, manifest_decl(v)).derived_relations}
+        self.assertEqual(relations, {("pa", "IMPORTS", "pb")})
+
+
+def submit_dropping(sc, files: dict[str, str]):
+    """``test_conformance.submit`` for a candidate tree given whole, so that it can delete files."""
+
+    from .test_conformance import SLOTS
+
+    base = sc.head
+    cand = sc.add_tree(tree(files, sc.manifest))
+    x = transformation_id(base, cand)
+    result = record("TASK_RESULT", target={"task": "task-1", "candidate": cand, "transformation": x, "base": base},
+                    outcome="PARTIAL", actor=agent("maker"), actor_class="AGENT", frame={"transformation": x},
+                    fields={"slots": SLOTS})
+    result["binding"] = dict(fresh(agent("maker"), "task-1"), obligation="obl-item",
+                             item={"unit": "plan.work.item", "rev": sc.rev("plan.work.item")})
+    result = with_id(result)
+    sc.admit(result)
+    return x, cand, result
+
+
 if __name__ == "__main__":
     unittest.main()
