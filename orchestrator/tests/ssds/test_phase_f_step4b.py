@@ -876,8 +876,8 @@ class RefusedAlone(RequestFixture):
 
         with mock.patch("ssds.admission.engine.authorize", fake):
             decision = self.admit(self.signed(issued, [kept, ineligible]))
-        self.assertEqual(decision.reasons, ("SCHEMA_UNSUPPORTED",), "no request-level reason; steps 5-8 fail closed")
-        self.assertEqual(decision.decision, "REJECT")
+        self.assertEqual((decision.decision, decision.reasons), ("ACCEPT", ()),
+                         "no request-level reason: the rest of the request is accepted (step 6c)")
         self.assertIn((ineligible["id"], ("AUTH_ACTOR",)), decision.refused)
         self.assertEqual(decision.admitted, (kept["id"],), "the rest of the request is judged without it")
 

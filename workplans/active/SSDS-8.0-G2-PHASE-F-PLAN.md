@@ -42,7 +42,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              5d is closed (PASS at b546a2b8, notes taken up); 5e and 5f
              are deferred (SD-71). Step 5 is closed for Phase F. Revision 19 splits step 6 into 6a-6g (§3.3,
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a and 6b are closed (PASS at c06f5be5 and
-             e78d0cf7); 6c (accepting, with SD-70's and SD-72's gates) is next. A10 is accepted (SD-66);
+             e78d0cf7); 6c (accepting) is built and under same-family review. Admission now accepts records-only
+             requests and a records-only ABSORB adoption. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1425,3 +1426,21 @@ Its notes:
 - recovery under a rotated key halting, fail-closed.
 
 Its notes are taken up: N1, the halt message names "another host key", not another host; N2, `distribute` reuses the chain already read.
+
+**Step 6c built.**
+- **Admission.** The final fail-closed rule becomes `gated`. A request passing every built check is accepted, except:
+  - a request carrying a `TASK_RESULT` or candidates, or claiming an item obligation, whose discharge reads conformance (SD-70, SD-71);
+  - one carrying a runner's evidence or an evidence assessment (step 9);
+  - an adoption while any realization is admitted, a stricter form of SD-72's rule (F42) until step 8.
+- **Commit.**
+  - On ACCEPT, step 9's drop cascade (`cascade`, shared with salvage) refuses what names a dropped record or transformation, and the request is then rejected and salvaged (F40).
+  - An accepted adoption's entry carries its frame's `ADOPTED` deltas and never `integrates`.
+  - `UNREALIZED_STEPS` is `("regression",)`.
+- **Consequence.** Records-only requests are now accepted. Five earlier cases that expected a fail-closed rejection now expect acceptance.
+- **Tests.** `test_phase_f_step6c.py`:
+  - a records-only request accepted and derived;
+  - a `TASK_RESULT` not yet accepted;
+  - a dropped reference rejecting the request;
+  - **step 10's repair rehearsed end to end**: a foreign declaration change absorbed, then adopted by a human `ABSORB` with `adopted_deltas`, accepted with the `ADOPTED` delta and no integration, `Σ` updated and the key no longer quarantined;
+  - the gate, case by case; an adoption waiting while a realization is admitted.
+- **Mutants.** Nine: all are killed.

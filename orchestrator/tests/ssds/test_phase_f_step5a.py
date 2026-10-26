@@ -123,7 +123,7 @@ class Salvage(unittest.TestCase):
         req = fixture.request([adverse], base_position=len(fixture.entries()) - 1)
         req["binding"] = {"human": {"actor": fixture.human(), "signature": sshsig(fixture.private, request_message(req))}}
         decision = fixture.admit(req)
-        self.assertEqual(decision.decision, "REJECT", "every request still ends unsupported until step 6")
+        self.assertEqual(decision.decision, "ACCEPT", "a records-only adverse judgment is accepted since step 6c")
         self.assertIn(adverse["id"], decision.admitted)
 
 

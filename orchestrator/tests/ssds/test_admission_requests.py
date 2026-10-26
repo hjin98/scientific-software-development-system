@@ -219,7 +219,7 @@ class References(RequestFixture):
         second = self.bind(record("FINDING", target={"records": [first["id"]]}, fields={"materiality": "ROUTINE"}), issued)
         decision = self.admit(self.signed(issued, [first, second]))
         self.assertEqual(decision.refused, ())
-        self.assertEqual(decision.reasons, ("SCHEMA_UNSUPPORTED",), "steps 3-8 are not realized: fail closed")
+        self.assertEqual((decision.decision, decision.reasons), ("ACCEPT", ()), "accepted since step 6c")
 
     def test_an_unknown_revision_and_a_claimed_unknown_obligation_are_refused(self) -> None:
         stale = record("FINDING", target={"units": ["guide"]}, fields={"materiality": "ROUTINE"},
@@ -540,7 +540,8 @@ class Envelopes(RequestFixture):
     def test_a_harness_binding_proves_attested_fresh_lineage(self) -> None:
         req, (report,) = self.bound([finding()])
         decision = self.admit(req)
-        self.assertEqual((decision.reasons, decision.admitted), (("SCHEMA_UNSUPPORTED",), (report["id"],)))
+        self.assertEqual((decision.decision, decision.reasons, decision.admitted), ("ACCEPT", (), (report["id"],)),
+                         "a records-only request passing every built check is accepted (step 6c)")
         entry = self.entries()[-1]
         self.assertIn(report["binding"]["envelope"], entry.objects, "the binding is stored for replay (§12.2)")
 

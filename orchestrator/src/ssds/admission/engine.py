@@ -43,7 +43,7 @@ from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
 _CAS_ATTEMPTS = 3
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
-UNREALIZED_STEPS = ("authorization", "structure", "legality", "regression")
+UNREALIZED_STEPS = ("regression",)  # step 8, deferred by SD-71 and SD-72
 
 
 def salvageable(record: Mapping[str, Any]) -> bool:
@@ -281,6 +281,14 @@ class Admission:
         reasons, refused, passing, auth, alone, salvage, integrating = self.validate(request, chain, entries)
         decision = "REJECT" if reasons or blocking(refused, alone) else "ACCEPT"
         if decision == "ACCEPT":
+            # step 9 first drops what names a record or transformation a later step dropped: an ordinary refusal,
+            # so the request is rejected and its never-lost records salvaged (reading F40; review 2981f738 N1)
+            kept, drops = self.cascade(passing, chain)
+            if drops:
+                refused += drops
+                passing = kept
+                decision = "REJECT"
+        if decision == "ACCEPT":
             admitted = passing
         elif auth is not None and auth.ok:  # never-lost salvage after the binding authenticated (§8.3 step 6)
             if salvage is not None:  # judged at the head, where the rejecting entry admits them (F27)
@@ -290,22 +298,8 @@ class Admission:
                 passing = [r for r in passing if not never_lost(r)] + list(kept)
             admitted = [r for r in passing if never_lost(r) and salvageable(r)]
             refused += [(r["id"], ("SCHEMA_UNSUPPORTED",)) for r in passing if never_lost(r) and not salvageable(r)]
-            state = derive(chain, self.trees).s
-            known, fixed_before = set(state.records), set(state.submissions)
-            while True:  # a salvaged record names only records that exist: admitted before, or admitted with it
-                ids = {r["id"] for r in admitted}
-                dangling = [r for r in admitted if referenced_records(r) - known - ids]
-                # and only transformations a result fixes there: a co-submitted result refused fixes nothing
-                # (review 23b487a B1)
-                fixed = fixed_before | {r["target"]["transformation"] for r in admitted
-                                        if r["kind"] == "TASK_RESULT" and submits(r["target"])}
-                unfixed = [r for r in admitted if r not in dangling
-                           and transformation_named(r) is not None and transformation_named(r) not in fixed]
-                if not dangling and not unfixed:
-                    break
-                admitted = [r for r in admitted if r not in dangling and r not in unfixed]
-                refused += [(r["id"], ("REF_RECORD",)) for r in dangling]
-                refused += [(r["id"], ("REF_TRANSFORMATION",)) for r in unfixed]
+            admitted, drops = self.cascade(admitted, chain)
+            refused += drops
         else:
             admitted = []
         good = verified_objects(request.get("objects") if isinstance(request, Mapping) else None)[0]
@@ -325,6 +319,11 @@ class Admission:
         refused_x = integrating if decision == "REJECT" and auth is not None and auth.ok and on_merits(reasons) \
             else None  # a refusal of the candidate itself routes a new iteration (F35); nothing else does
         entry = self.admission_entry(head, obs, rid, decision, reasons, admitted, refused, expected, refused_x)
+        if decision == "ACCEPT" and request.get("adopted_deltas"):
+            # the committed entry is the trial's: a records-only adoption carries its frame's deltas and never
+            # integrates (6c; reading F27; plan check of 97d9824 N2)
+            frame = adoption_frame(derive(chain, self.trees).s, expected, request["adopted_deltas"])
+            entry["admission"]["adopted_deltas"] = frame.entry_deltas()
         problems = entry_violations(entry) + [p for r in admitted for p in record_violations(r)]
         if problems:  # nothing that would break the chain is ever appended
             raise EntryInvalid(f"the entry for {rid} would not verify: {problems}")
@@ -416,6 +415,7 @@ class Admission:
         alone: list[tuple[str, tuple[str, ...]]] = []  # refused alone: the decision rests on the rest
         passing: list[dict] = []
         salvage = None
+        change = None  # the frame of the request's own transformation, when it exists (reading F27)
         integrating = None  # the X an integrating request names, recorded on a rejection on its merits (F35)
         support = derive(chain, self.trees) if records or not reasons else None
         s = support.s if support is not None else None
@@ -492,7 +492,6 @@ class Admission:
                 reasons.add("SCHEMA_UNSUPPORTED")  # adoption with a candidate; one integration per request
                 withheld = "SCHEMA_UNSUPPORTED"
             else:
-                change = None  # the frame of the request's own transformation, when it exists (reading F27)
                 if request.get("candidates"):  # an integrating request (§11.5): steps 3-4 on its frame (4c-iii)
                     reasons |= integration_codes(request["candidates"][0], support, request.get("binding"))
                     change = integration_frame(request["candidates"][0], support)
@@ -538,9 +537,31 @@ class Admission:
                 passing = [r for r in passing if not never_lost(r)]
                 auth = replace(auth, ok=False)
                 salvage = None
-        if not reasons and not blocking(refused, alone):
-            reasons.add("SCHEMA_UNSUPPORTED")  # steps 4-8 are not realized yet: fail closed (§8.3 step 1)
+        if not reasons and not blocking(refused, alone) and gated(request, records, support, change):
+            reasons.add("SCHEMA_UNSUPPORTED")  # what Phase F does not yet accept: fail closed (§8.3 step 1; 6c)
         return reasons, refused, passing, auth, alone, salvage, integrating
+
+    def cascade(self, records: list[dict], chain) -> tuple[list[dict], list[tuple[str, tuple[str, ...]]]]:
+        """Records that name only records existing (admitted before, or kept with them) and only transformations a
+        result fixes there (a co-submitted result refused fixes nothing; review 23b487a B1), to a fixed point; the
+        rest refused ``REF_RECORD`` or ``REF_TRANSFORMATION`` (§8.3 steps 2, 6 and 9; reading F40)."""
+
+        state = derive(chain, self.trees).s
+        known, fixed_before = set(state.records), set(state.submissions)
+        kept: list[dict] = list(records)
+        drops: list[tuple[str, tuple[str, ...]]] = []
+        while True:
+            ids = {r["id"] for r in kept}
+            dangling = [r for r in kept if referenced_records(r) - known - ids]
+            fixed = fixed_before | {r["target"]["transformation"] for r in kept
+                                    if r["kind"] == "TASK_RESULT" and submits(r["target"])}
+            unfixed = [r for r in kept if r not in dangling
+                       and transformation_named(r) is not None and transformation_named(r) not in fixed]
+            if not dangling and not unfixed:
+                return kept, drops
+            kept = [r for r in kept if r not in dangling and r not in unfixed]
+            drops += [(r["id"], ("REF_RECORD",)) for r in dangling]
+            drops += [(r["id"], ("REF_TRANSFORMATION",)) for r in unfixed]
 
     def _fixed_transformations(self, s: Any, records: list) -> dict[str, set[tuple[str, str]]]:
         """Each transformation this request's records name that an admitted or co-submitted result fixes (§7.1),
@@ -642,6 +663,26 @@ def adoptable(support: Any, record: Mapping[str, Any]) -> bool:
         return False
     return not any(s.record(r)["target"] == target and s.record(r)["outcome"] != "ABSORB" and support.j.stands(r)
                    for r in s.of_kind("INTAKE_DISPOSITION"))
+
+
+#: Kinds Phase F does not yet accept: a designated runner's evidence and its assessments (step 9).
+_STEP_NINE = frozenset({"EVIDENCE_ASSESSMENT", "REALIZATION", "CHECK_EXECUTION"})
+
+
+def gated(request: Mapping[str, Any], records: list, support: Any, change: Any) -> bool:
+    """What Phase F does not yet accept, though every built check passed (plan step 6c): a request carrying a
+    ``TASK_RESULT``, or depending on a task result's conformance (candidates, or a claim of an item obligation,
+    whose discharge reads conformance), until A10's D4 (SD-70, SD-71); a runner's evidence or its assessment until
+    step 9; and an adoption while any realization is admitted, a stricter form of SD-72's rule (F42), until step 8."""
+
+    kinds = {r.get("kind") for r in records if isinstance(r, Mapping)}
+    if "TASK_RESULT" in kinds or request.get("candidates") or kinds & _STEP_NINE:
+        return True
+    items = Workflow(support).items if support is not None else None
+    if any(items is None or items.of(c) is not None for c in request.get("claims") or []):
+        return True
+    adopting = isinstance(change, Frame) and change.enactment is None
+    return bool(adopting and support.s.of_kind("REALIZATION"))
 
 
 def submitted_with(candidate: str, s: Any) -> list[str]:

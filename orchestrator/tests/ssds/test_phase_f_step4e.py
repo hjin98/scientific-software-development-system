@@ -349,6 +349,8 @@ class EngineWiring(unittest.TestCase):
     def fake(exists: bool):
         frame = mock.create_autospec(Frame, instance=True)
         frame.exists = exists
+        frame.entry_deltas.return_value = []
+        frame.enactment = None
         return frame
 
     def test_an_integrating_request_passes_its_frame(self) -> None:
