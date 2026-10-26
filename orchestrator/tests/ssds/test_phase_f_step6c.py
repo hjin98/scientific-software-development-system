@@ -127,6 +127,27 @@ class Targets(RequestFixture):
                                 blocking=True, serious=False, inquiry="EXPLORATORY", locus="nowhere")
         self.assertEqual(codes, ("REF_TARGET",))
 
+    def test_a_triple_is_checked_whole_and_a_reclassification_names_a_report(self) -> None:
+        """Review 4263380 B1: a triple's ``scope_id`` too, so no challenge binds a triple before it exists."""
+
+        from .test_phase_f_step4b import derive_state
+
+        subject, scope, rev = derive_state(self).subject_triple("guide")
+        _, codes = self.refused("CHALLENGE", {"subject": subject, "scope_id": "sha256:" + "0" * 64, "rev": rev}, None,
+                                blocking=True, serious=False, inquiry="EXPLORATORY")
+        self.assertEqual(codes, ("REF_TARGET",))
+        decision, codes = self.refused("CHALLENGE", {"subject": subject, "scope_id": scope, "rev": rev}, None,
+                                       blocking=True, serious=False, inquiry="EXPLORATORY")
+        self.assertEqual(codes, None, "the triple that exists")
+        challenge_id = decision.admitted[0]
+        _, codes = self.refused("MATERIALITY_RECLASSIFICATION", {"record": challenge_id}, "ROUTINE")
+        self.assertNotIn("REF_TARGET", codes or ())
+        attestation = with_id({**record("NON_AUTHORSHIP_ATTESTATION", target={"record": challenge_id},
+                                        outcome="NOT_AUTHOR"), "actor": self.human()})
+        self.assertIn(attestation["id"], self.admit(self.signed_by_human([attestation])).admitted)
+        _, codes = self.refused("MATERIALITY_RECLASSIFICATION", {"record": attestation["id"]}, "ROUTINE")
+        self.assertEqual(codes, ("REF_TARGET",), "an attestation is neither a report nor a challenge")
+
     def test_a_legacy_import_meets_the_acceptance_rules(self) -> None:
         from .test_phase_f_step4b import derive_state
 

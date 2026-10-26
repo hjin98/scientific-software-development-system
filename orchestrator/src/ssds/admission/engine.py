@@ -423,6 +423,15 @@ class Admission:
         if s is not None:
             known = set(s.records)
             revisions = {(u, s.h.view(k).rev(u)) for k in range(s.n + 1) for u in s.h.view(k).structure.units}
+            seen_triples: list[set[tuple[str, str, str]]] = []
+
+            def triples() -> set[tuple[str, str, str]]:
+                """Every subject triple an admitted position held: computed once, on demand."""
+
+                if not seen_triples:
+                    seen_triples.append({(u, s.h.view(k).scope_id(u), s.h.view(k).rev(u)) for k in range(s.n + 1)
+                                         for u, unit in s.h.view(k).structure.units.items() if unit.subject})
+                return seen_triples[0]
             stored = {d for e in entries for d in e.objects}
             good = verified_objects(request.get("objects") if isinstance(request, Mapping) else None)[0]
             admitted_contexts = {}
@@ -460,11 +469,14 @@ class Admission:
                     if referenced_objects(record) - stored - set(good):
                         own.append("REF_OBJECT")
                     if record["frame"] == "ADMITTED":  # a frame record's target is its frame's (§7.5)
-                        units, pairs = target_references(record)
+                        units, pairs, named_triples = target_references(record)
                         if record["kind"] in ("ACCEPTANCE", "LEGACY_ACCEPTANCE"):
-                            pairs = set()  # step 3's own codes judge an acceptance's triple (SD-68)
-                        if units - set(s.view.structure.units) or pairs - revisions:
+                            named_triples = set()  # step 3's own codes judge an acceptance's triple (SD-68)
+                        if units - set(s.view.structure.units) or pairs - revisions or named_triples - triples():
                             own.append("REF_TARGET")  # the target exists (§8.3 step 2; review c80fc6a B1)
+                        if record["kind"] == "MATERIALITY_RECLASSIFICATION" and target.get("record") in known \
+                                and s.record(target["record"])["kind"] not in (*REPORT_KINDS, "CHALLENGE"):
+                            own.append("REF_TARGET")  # it reclassifies a report or a challenge (§15.2)
                     context = producing_context(record)
                     if context is not None:
                         earlier = admitted_contexts.get(context[0], set()) | {

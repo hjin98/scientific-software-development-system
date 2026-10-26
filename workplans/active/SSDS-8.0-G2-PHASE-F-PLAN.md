@@ -1475,3 +1475,12 @@ Repaired by turning the gate into an allowlist, so nothing unchecked can reach A
 - an `ABSORB` of a delta.
 
 Everything else fails closed until its checks exist. That includes a risk override, whose continuation names subjects and items in its fields. `REF_TARGET` now also reads an equivalence's `from` and `to` and a challenge's `locus`. Cases cover each reported shape, and five mutants are killed.
+
+**Narrow re-check of 4263380e (the allowlist).** No SERIOUS CHALLENGE. The allowlist design is confirmed: every allowlisted kind and shape was traced field by field. NO-PASS on one small blocker, repaired:
+- **B1, a challenge's or review's triple was checked without its `scope_id`.** A blocking challenge recorded in advance on a triple that never existed would bind it once a later rescoping produced it. `REF_TARGET` now checks the whole `(subject, scope_id, rev)` against every triple an admitted position held. An acceptance's triple stays with step 3.
+
+Its notes:
+- a materiality reclassification must name a report or a challenge (§15.2; `REF_TARGET`), taken up;
+- a `COORDINATION_DECISION`'s `fields.tasks` and an `EQUIVALENCE`'s `class` are inert, read by no derivation (an unknown class covers nothing), and left as Stage S notes on closed vocabularies.
+
+Cases pin both repairs, and two mutants are killed.

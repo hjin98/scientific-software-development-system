@@ -290,16 +290,18 @@ def referenced_records(record: Mapping[str, Any]) -> set[str]:
     return out
 
 
-def target_references(record: Mapping[str, Any]) -> tuple[set[str], set[tuple[str, str]]]:
-    """The units a record's target names, and the ``(unit, revision)`` pairs: a triple's subject and revision, an
-    ``(item unit, rev)``, a gate decision's triple. Step 2 checks they exist (Manual §8.3 step 2: "every identity,
-    revision, … target … exists"; review c80fc6a B1)."""
+def target_references(record: Mapping[str, Any]) -> tuple[set[str], set[tuple[str, str]], set[tuple[str, ...]]]:
+    """The units a record's target names, the ``(unit, revision)`` pairs (an equivalence's revisions, an item or
+    spec revision), and the full ``(subject, scope_id, rev)`` triples (a triple target, a gate decision's). Step 2
+    checks each existed (Manual §8.3 step 2: "every identity, revision, … target … exists and matches"; reviews
+    c80fc6a B1, 4263380 B1: a triple's ``scope_id`` too, so no challenge binds a triple before it exists)."""
 
     target = record.get("target")
     if not isinstance(target, Mapping):
-        return set(), set()
+        return set(), set(), set()
     units: set[str] = set()
     pairs: set[tuple[str, str]] = set()
+    triples: set[tuple[str, ...]] = set()
     for key in ("units", "scope"):
         if isinstance(target.get(key), list):
             units.update(u for u in target[key] if isinstance(u, str))
@@ -312,13 +314,13 @@ def target_references(record: Mapping[str, Any]) -> tuple[set[str], set[tuple[st
     if isinstance(fields.get("locus"), str):
         units.add(fields["locus"])  # a challenge's locus (review c9c937d)
     triple = target.get("subject") if isinstance(target.get("subject"), Mapping) else target
-    if isinstance(triple.get("subject"), str) and isinstance(triple.get("rev"), str):
-        pairs.add((triple["subject"], triple["rev"]))
+    if all(isinstance(triple.get(k), str) for k in ("subject", "scope_id", "rev")):
+        triples.add((triple["subject"], triple["scope_id"], triple["rev"]))
     for key in ("spec", "objective"):
         named = target.get(key)
         if isinstance(named, Mapping) and isinstance(named.get("unit"), str) and isinstance(named.get("rev"), str):
             pairs.add((named["unit"], named["rev"]))
-    return units, pairs
+    return units, pairs, triples
 
 
 def referenced_revisions(record: Mapping[str, Any]) -> set[tuple[str, str]]:
