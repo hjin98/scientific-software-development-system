@@ -11,6 +11,7 @@ and equals derivation from scratch; storing it is its caller's.
 
 from . import queries
 from .baseline import BaselineStructure, baseline_structure, genesis_structure_problems
+from .frames import Frame, Transformation, frame_state, transformation_of
 from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
 from .outcomes import adverse
 from .reports import allowed_outcomes
@@ -21,6 +22,7 @@ from .s3 import Consequences, Finding, Obligation
 from .state import F, P, Policy, T, State, triple_key
 from .support import Support
 from .extension import trial
+from .writescope import outside_scope, protected_touched
 from .workflow import Workflow
 
 
@@ -40,4 +42,5 @@ __all__ = [
     "BaselineStructure", "CheckpointInvalid", "Consequences", "DERIVATION_VERSION", "F", "Finding", "History",
     "Obligation", "P", "Policy", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "TrustRoots", "Workflow", "adverse", "allowed_outcomes", "queries", "baseline_structure", "consequences", "trust_roots",
     "derive", "trial", "ROLE_TEMPLATES", "role_permits", "supersession_target", "triple_key",
+    "Frame", "Transformation", "frame_state", "transformation_of", "outside_scope", "protected_touched",
 ]

@@ -156,6 +156,11 @@ class StructuralCheck:
     def _release_and_modes(self) -> list[Finding]:
         before, after = self.frame.head_view.structure, self.structure
         out = []
+        for uid in sorted(set(after.units) - set(before.units)):
+            for source in after.units[uid].renamed_from:  # a rename carrying another kind escapes the release (F16)
+                if source in before.units and (before.kind(source) != after.kind(uid)
+                                               or before.domain(source) != after.domain(uid)):
+                    out.append(Finding("SCHEMA_UNSUPPORTED", uid, f"renamed from {source} with another kind or domain"))
         for uid in sorted(set(before.units) & set(after.units)):
             if before.kind(uid) != after.kind(uid) or before.domain(uid) != after.domain(uid):
                 out.append(Finding("SCHEMA_UNSUPPORTED", uid, "a kind or domain change needs the old owner's release (Q-F6 (ii))"))
@@ -163,6 +168,23 @@ class StructuralCheck:
             if old and new and self._mode(old) != self._mode(new):
                 out.append(Finding("STRUCT_MODE_MIXED", uid, f"its subject moves from {old} to {new} across modes"))
         return out
+
+    @cached_property
+    def tenure_starts(self) -> tuple[str, ...]:
+        """The subjects integrating ``X`` would promote (a part made a subject) or restore (a subject returning
+        after its tenure ended), whose tenure §7.6's enactment condition binds to a prospective acceptance (§19.4).
+        A newly declared subject is neither."""
+
+        head = self.frame.head_view.structure
+        earlier = {u for k in range(self.frame.n) for u, unit in Structure(dict(self.h.sigma(k))).units.items()
+                   if unit.subject}
+        out = []
+        for uid, unit in sorted(self.structure.units.items()):
+            if not unit.subject or (uid in head.units and head.units[uid].subject):
+                continue
+            if uid in head.units or uid in earlier:
+                out.append(uid)
+        return tuple(out)
 
     def _mode(self, subject: str) -> str:
         return self.h.mode(self.frame.n, subject).get("mode", "UNGOVERNED")

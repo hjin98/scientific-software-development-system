@@ -90,7 +90,8 @@ class EnvelopeAndRole(RequestFixture):
         framed = self.bind(record("ACCEPTANCE", target={"subject": subject, "scope_id": scope, "rev": rev}, outcome="PASS",
                                   frame={"transformation": "sha256:" + "7" * 64}), issued)
         decision = self.admit(self.signed(issued, [framed]))
-        self.assertEqual(dict(decision.refused).get(framed["id"]), ("SCHEMA_UNSUPPORTED",), "frame records are 4c's")
+        self.assertEqual(dict(decision.refused).get(framed["id"]), ("REF_TRANSFORMATION",),
+                         "a frame no result fixes (4c-iii)")
         adjudicating = self.issue()
         challenged = self.bind(finding(materiality="MATERIAL"), adjudicating)
         self.admit(self.signed(adjudicating, [challenged]))
@@ -100,8 +101,7 @@ class EnvelopeAndRole(RequestFixture):
         candidate = self.issue()
         rec = self.bind(finding(), candidate)
         with_candidate = self.admit(self.signed(candidate, [rec], candidates=["0" * 40]))
-        self.assertIn("SCHEMA_UNSUPPORTED", with_candidate.reasons)
-        self.assertEqual(with_candidate.admitted, (), "a content request is step 4c's: nothing is salvaged")
+        self.assertIn("REF_TRANSFORMATION", with_candidate.reasons, "no admitted result submits that candidate (4c-iii)")
 
 
 def derive_state(fixture):
@@ -302,8 +302,9 @@ class Recheck(RequestFixture):
         self.assertEqual((decision.admitted, dict(decision.refused).get(report["id"])), ((), ("AUTH_ENVELOPE",)))
         issued = self.issue()
         report = self.bind(finding(materiality="MATERIAL"), issued)
-        content = self.admit(self.signed(issued, [report], candidates=["0" * 40]))
-        self.assertEqual((content.admitted, dict(content.refused).get(report["id"])), ((), ("SCHEMA_UNSUPPORTED",)))
+        adopting = self.admit(self.signed(issued, [report], adopted_deltas=[{"key": ["guide", "kind"], "value": "D3"}]))
+        self.assertEqual((adopting.admitted, dict(adopting.refused).get(report["id"])), ((), ("SCHEMA_UNSUPPORTED",)),
+                         "an adopting request is 4c-iv's: nothing is salvaged")
 
     def test_e10_an_invalid_base_salvages_nothing_and_records_why(self) -> None:
         issued = self.issue()

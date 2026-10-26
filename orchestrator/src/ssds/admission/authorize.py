@@ -15,8 +15,11 @@ An ``ADJUDICATION`` is admitted only if eligible: independent of its chain's roo
 than its chain's (catalogue §5.10 (e), §12.4); an ineligible one is refused alone (``AUTH_ACTOR``), the rest of the
 request judged as if it were absent (step 4b-ii).
 
-Not built yet, so refused as ``SCHEMA_UNSUPPORTED`` (fail closed, plan §3.1): records declaring a candidate's frame
-(step 4c), an adjudication of anything but a challenge (step 4d), discriminating readings (step 9), product-scope
+A record declaring a transformation's frame is judged there: an acceptance against the frame's own structure and
+triples (prospective tenure, step 4c-iii).
+
+Not built yet, so refused as ``SCHEMA_UNSUPPORTED`` (fail closed, plan §3.1): an adjudication of anything but a
+challenge (step 4d), discriminating readings (step 9), product-scope
 acceptance, and lifecycle-tier records, which reach the ledger only through the human-gated lifecycle path.
 """
 
@@ -26,7 +29,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from ssds.derivation import ROLE_TEMPLATES, role_permits, supersession_target, triple_key
+from ssds.derivation import ROLE_TEMPLATES, Support, frame_state, role_permits, supersession_target, triple_key
 from ssds.ledger.read import LIFECYCLE_TIER, SUPPORT_TIER
 
 from .request import REPORT_KINDS
@@ -90,9 +93,9 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
         or trial.s.position_of(challenged) >= trial.s.position_of(record["id"])
         or trial.s.record(challenged)["kind"] != "CHALLENGE")
     resubmission = isinstance(record.get("provenance"), dict) and "reissue_of" in record["provenance"]
-    if record["frame"] != "ADMITTED" or kind == "PRODUCT_SCOPE_ACCEPTANCE" or adjudicating or resubmission \
+    if kind == "PRODUCT_SCOPE_ACCEPTANCE" or adjudicating or resubmission \
             or (kind == "EVIDENCE_ASSESSMENT" and (record.get("fields") or {}).get("mode") == "DISCRIMINATING"):
-        # not built: frames (4c); an adjudication's target kind (step 5, 4d); discriminating readings (step 9);
+        # not built: an adjudication's target kind (step 5, 4d); discriminating readings (step 9);
         # the product-scope authority policy designates (§3.5; plan review 8a41539 B4); a re-issue's resubmission,
         # which only step 8's Dispatcher makes, under the re-issued task's envelope (review 8d274c4 B2)
         codes.add("SCHEMA_UNSUPPORTED")
@@ -100,7 +103,7 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
     if not trial.qualified(record, trial.j.domain_of(record)):
         codes.add("AUTH_ACTOR")
     if kind == "ACCEPTANCE":
-        codes |= _acceptance_target(record, trial)
+        codes |= _acceptance_target(record, _in_frame(record, trial))
     if any(not _supersession_authorized(record, x, envelope, trial, base, obligation)
            for x in record.get("supersedes") or []):
         codes.add("AUTH_SUPERSEDES")
@@ -122,7 +125,21 @@ def _supersession_unbuilt(superseded: str, trial: Any) -> bool:
                                                 and supersession_target(x) is None)  # a conditional target
 
 
+def _in_frame(record: dict, trial: Any) -> Any:
+    """The trial in the record's declared frame: the admitted trial, or ``X``'s frame state in it, read at the
+    frame's own structure and triples (prospective tenure, catalogue §7.4-§7.5; 4c-iii). ``None`` when ``X``'s
+    frame does not exist, so nothing in it is effective."""
+
+    frame = record["frame"]
+    if frame == "ADMITTED":
+        return trial
+    state = frame_state(trial.s.h, trial.s.n, frame["transformation"], trial.s)
+    return Support(state) if state is not None else None
+
+
 def _acceptance_target(record: dict, trial: Any) -> set[str]:
+    if trial is None:
+        return {"AUTH_TARGET_NOT_EFFECTIVE"}  # its frame does not exist (§7.4)
     s = trial.s
     target = record["target"]
     subject = target.get("subject")

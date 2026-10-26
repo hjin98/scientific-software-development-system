@@ -41,7 +41,7 @@ from ssds.content import REVIEW, Check, Contract, EvidenceVerifier, Item, TreeVi
 from .frames import Frame, frame_of, integrating_position, transformation_of
 from . import writescope
 from .library import HEURISTIC, TEMPLATES
-from .plans import contained, intersects, protected_surfaces, required_slots, resolve
+from .plans import required_slots, resolve
 from .state import F
 
 VIOLATION, INCOMPLETE, DISCREPANCY, SIGNAL, CLEAN = "VIOLATION", "INCOMPLETE", "DISCREPANCY", "SIGNAL", "CLEAN"
@@ -220,14 +220,6 @@ class Conformance:
 
         return self.frame.write_set if self.frame is not None else {}
 
-    def _region_atoms(self, unit: str) -> list[tuple[Any, ...]]:
-        for view in (self.merged_view, self.head_view):
-            if view is not None and unit in view.structure.units:
-                region = view.regions.get(unit)
-                if region:
-                    return [("span", s.path, s.start, s.end) for s in region]
-        return []
-
     @cached_property
     def slots(self) -> dict[str, Any]:
         return dict((self.record.get("fields") or {}).get("slots") or {})
@@ -404,20 +396,10 @@ class Conformance:
         return findings
 
     def _t_boundary_protected_surfaces(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
-        """Any touch of a protected surface (§25.3), by changed path as well as by unit (B8)."""
+        """Any touch of a protected surface (§25.3), by changed path as well as by unit (B8): the frame's one
+        owner (``writescope``)."""
 
-        view = self.merged_view
-        if view is None:
-            return []
-        protected = protected_surfaces(view, self.s.policy, self.s.h.policy_path)
-        findings: list[Any] = [(f"{u} is a protected surface", (u,)) for u in sorted(self.writes)
-                               if any(intersects(view, protected, a[1], a[2], a[3]) for a in self._region_atoms(u))]
-        for path, (before, after) in self.changed_files.items():
-            length = max(len(before or b""), len(after or b""))
-            if any(intersects(view, [atom], path, 0, max(length, 1)) for atom in protected
-                   if atom[0] in ("prefix", "file")):
-                findings.append((f"{path} is a protected surface", self.owners(path)))
-        return findings
+        return list(writescope.protected_touched(self.frame, self.s.policy, self.s.h.policy_path))
 
     def _t_boundary_generated_untouched(self, params: dict, contract: Contract, item: Item | None) -> list[Any]:
         return [(f"{u} is GENERATED and was edited by hand", (u,)) for u, k in sorted(self._kinds().items()) if k == "GENERATED"]

@@ -258,6 +258,38 @@ class Support:
             return k == tenure  # the first such admission is bind(j)
         return False
 
+    def prospectively_accepted(self, transformation: str, subject: str) -> bool:
+        """§7.6's enactment condition before the integrating admission: some prospective acceptance would count
+        for the tenure that integrating ``X`` starts for ``subject``. That is, a passing ``ACCEPTANCE`` made in a
+        frame of ``X``'s own enactment, with the same proposed structure, naming ``subject``'s triple in
+        ``D_n[X]``, current there (its basis holding, acting, independent), and counted for no earlier tenure
+        (``X``'s enactment has integrated nothing). ``binds_tenure``'s conditions 1-4, read at the head that
+        the integration would follow (Phase F 4c-iii)."""
+
+        s = self.s
+        enactment = s.enactment(transformation)
+        if enactment is None or enactment in s.integrated:
+            return False
+        framed = frame_state(s.h, s.n, transformation, s)
+        if framed is None:
+            return False
+        triple = {"subject": subject, "scope_id": framed.view.scope_id(subject), "rev": framed.cur(subject)} \
+            if subject in framed.view.structure.units else None
+        support = Support(framed)
+        for rid in s.of_kind("ACCEPTANCE"):
+            record = s.record(rid)
+            if record["frame"] == "ADMITTED" or record["outcome"] != "PASS" or record["target"] != triple:
+                continue
+            made_in = record["frame"]["transformation"]
+            x0 = transformation_of(s, made_in)
+            if x0 is None or s.enactment(made_in) != enactment:
+                continue
+            if Frame(s.h, s.position_of(rid), x0, enactment).structure_delta != framed.frame.structure_delta:
+                continue
+            if support.current(rid) != 0:
+                return True
+        return False
+
     def qualified(self, record: dict[str, Any], domain: str | None) -> bool:
         kind = record["kind"]
         if (kind in HUMAN_FLOOR or (kind == "ACCEPTANCE" and domain in ("D1", "D2"))) and record["actor_class"] != "HUMAN":

@@ -28,10 +28,15 @@ REASONS = frozenset({
     "SCHEMA_REQUEST", "SCHEMA_RECORD", "SCHEMA_BOUND", "SCHEMA_OBJECT", "SCHEMA_UNSUPPORTED", "SECRET_DETECTED",
     # step 2
     "REF_BASE", "REF_RECORD", "REF_REVISION", "REF_OBJECT", "REF_OBLIGATION", "REF_DUPLICATE",
-    "REF_PRODUCING_CONTEXT",
+    "REF_PRODUCING_CONTEXT", "REF_TRANSFORMATION",
     # step 3: authentication and authorization (Phase F steps 3-4)
     "AUTH_ENVELOPE", "AUTH_ACTOR", "AUTH_VERSION", "AUTH_ROLE_KIND", "AUTH_TARGET_PART", "AUTH_TARGET_REVOKED",
     "AUTH_ILL_FORMED", "AUTH_TARGET_NOT_CURRENT", "AUTH_TARGET_NOT_EFFECTIVE", "AUTH_SUPERSEDES",
+    "AUTH_WRITE_SCOPE", "AUTH_PROTECTED",
+    # step 4, structure (Phase F step 4c): STRUCT_<code> for each §1.9 static check and STRUCT_TERM_UNRESOLVED,
+    # STRUCT_RESERVED_LEAF, STRUCT_MODE_MIXED, STRUCT_REVALIDATE, STRUCT_SDG_*, STRUCT_ILLEGAL_CYCLE,
+    # STRUCT_SINGLE_DEFINER and STRUCT_MANIFEST_UNPARSED (reading F15); RELATION_<code> for each S0 relation defect
+    "STRUCT_MERGE_CONFLICT", "FREEZE_SOURCE", "FREEZE_DESTINATION", "ENACTMENT_MISSING",
     # step 5's checks other than cycles (SD-68), realized by Phase F step 4d
     "DEP_TARGET_ORDER", "DEP_TARGET_KIND", "DEP_COUNTER_CHALLENGE", "DEP_OWN_SUBJECT", "DEP_CONSUMER",
 })
@@ -278,6 +283,20 @@ def referenced_objects(record: Mapping[str, Any]) -> set[str]:
     return {r["digest"] for r in record.get("refs") or [] if isinstance(r, Mapping) and r.get("store") == "LEDGER"}
 
 
+def transformation_named(record: Mapping[str, Any]) -> str | None:
+    """The transformation a record names: the frame it declares, or the target of a work judgment or task result
+    (catalogue §7.5, §8.3 step 2). A step 2 reference, which a result must have fixed (Phase F 4c-iii)."""
+
+    frame = record.get("frame")
+    if isinstance(frame, Mapping) and isinstance(frame.get("transformation"), str):
+        return frame["transformation"]
+    target = record.get("target")
+    if record.get("kind") in ("REVIEW", "CONFORMANCE", "TASK_RESULT") and isinstance(target, Mapping) \
+            and isinstance(target.get("transformation"), str):
+        return target["transformation"]
+    return None
+
+
 def producing_context(record: Mapping[str, Any]) -> tuple[str, tuple[str, ...], Any] | None:
     """A task result's transformation and producing context (write scope, work key), §7.1; None otherwise."""
 
@@ -291,5 +310,5 @@ def producing_context(record: Mapping[str, Any]) -> tuple[str, tuple[str, ...], 
     return x, tuple(sorted(binding.get("write_scope") or ())), binding.get("item_key")
 
 
-__all__ = ["REASONS", "content_identity", "producing_context", "record_problems", "referenced_objects",
+__all__ = ["REASONS", "content_identity", "producing_context", "transformation_named", "record_problems", "referenced_objects",
            "referenced_records", "referenced_revisions", "request_problems", "secret_detected", "verified_objects"]

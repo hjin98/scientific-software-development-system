@@ -255,16 +255,15 @@ class SalvageAndQueue(RequestFixture):
 
 
 
-SUBMITTED_BASE, SUBMITTED_CANDIDATE = "1" * 40, "2" * 40
-SUBMITTED = transformation_id(SUBMITTED_BASE, SUBMITTED_CANDIDATE)
+def task_result(x: str, scope=("guide",), key: str | None = "sha256:" + "a" * 64, task="t-1",
+                base: str | None = None, candidate: str | None = None) -> dict:
+    """A task result for ``x``; with ``base`` and ``candidate``, one that submits it (§7.1; review 64a0330)."""
 
-
-def task_result(x: str, scope=("guide",), key: str | None = "sha256:" + "a" * 64, task="t-1") -> dict:
     from ssds.ledger.read import with_id
 
     target = {"task": task, "transformation": x}
-    if x == SUBMITTED:  # a result that submits X carries B and C under §7.1's identity (review 64a0330)
-        target.update(base=SUBMITTED_BASE, candidate=SUBMITTED_CANDIDATE)
+    if base is not None:
+        target.update(base=base, candidate=candidate)
     rec = record("TASK_RESULT", target=target, outcome="COMPLETE", actor="agent:t/1", actor_class="AGENT",
                  fields={"slots": {}})
     binding = {"task": task, "obligation": "obl", "role": "IMPLEMENTER", "lineage": ["agent:t/1"],
@@ -369,13 +368,19 @@ class StepTwoReview(RequestFixture):
         self.assertEqual(self.admit(self.request([finding()], base_position=-1)).reasons, unbound("REF_BASE"))
 
     def test_b8_the_s2_binding_cases_and_duplicates(self) -> None:
-        x = SUBMITTED
-        joins = self.admit(self.request([task_result(x), task_result(x, task="t-2")]))
+        # a transformation the fixture ledger can fix: its base an admitted head, its candidate readable (4c-iii)
+        b = c = self.baseline
+        x = transformation_id(b, c)
+
+        def result(**kwargs):
+            return task_result(x, base=b, candidate=c, **kwargs)
+
+        joins = self.admit(self.request([result(), result(task="t-2")]))
         self.assertEqual(joins.refused, (), "S2 same_context_joins")
-        for name, other in (("different_scope_refused", task_result(x, scope=("code",), task="t-2")),
-                            ("different_key_refused", task_result(x, key="sha256:" + "c" * 64, task="t-2"))):
+        for name, other in (("different_scope_refused", result(scope=("code",), task="t-2")),
+                            ("different_key_refused", result(key="sha256:" + "c" * 64, task="t-2"))):
             with self.subTest(case=name):
-                self.assertEqual(self.admit(self.request([task_result(x), other])).refused,
+                self.assertEqual(self.admit(self.request([result(), other])).refused,
                                  ((other["id"], ("REF_PRODUCING_CONTEXT",)),))
         twice = finding(materiality="CRITICAL")
         self.assertEqual(self.admit(self.request([twice, twice])).refused, ((twice["id"], ("REF_DUPLICATE",)),))

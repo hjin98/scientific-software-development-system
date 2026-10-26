@@ -23,7 +23,7 @@ from typing import Any
 
 from ssds.content import UNCLASSIFIED, TreeView
 
-from .plans import contained, resolve
+from .plans import contained, intersects, protected_surfaces, resolve
 
 Atom = tuple[Any, ...]
 
@@ -115,4 +115,31 @@ def uncovered_outside(frame: Any, entries: Any, manifest_path: str) -> list[str]
     return out
 
 
-__all__ = ["outside_scope", "owners", "scope_on", "uncovered_outside"]
+def _region_atoms(frame: Any, unit: str) -> list[Atom]:
+    for view in (frame.view, frame.head_view):
+        if unit in view.structure.units:
+            region = view.regions.get(unit)
+            if region:
+                return [("span", s.path, s.start, s.end) for s in region]
+    return []
+
+
+def protected_touched(frame: Any, policy: Any, policy_path: str | None) -> list[tuple[str, tuple[str, ...]]]:
+    """Every touch of a protected surface in the tree (§25.3, reading F14), by write-set unit and by changed path:
+    the one owner conformance's template and Admission's ``AUTH_PROTECTED`` read (Phase F 4c-iii)."""
+
+    if frame is None or frame.merged is None:
+        return []
+    view = frame.view
+    protected = protected_surfaces(view, policy, policy_path)
+    found: list[tuple[str, tuple[str, ...]]] = [
+        (f"{u} is a protected surface", (u,)) for u in sorted(frame.write_set)
+        if any(intersects(view, protected, a[1], a[2], a[3]) for a in _region_atoms(frame, u))]
+    for path, (before, after) in frame.changed_files.items():
+        length = max(len(before or b""), len(after or b""))
+        if any(intersects(view, [atom], path, 0, max(length, 1)) for atom in protected if atom[0] in ("prefix", "file")):
+            found.append((f"{path} is a protected surface", owners(frame, path)))
+    return found
+
+
+__all__ = ["outside_scope", "owners", "protected_touched", "scope_on", "uncovered_outside"]

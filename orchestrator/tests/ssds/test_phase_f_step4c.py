@@ -12,10 +12,10 @@ import unittest
 from ssds.derivation import State, Workflow
 from ssds.derivation.conformance import CLEAN
 from ssds.derivation.frames import Frame, Transformation, frame_of, transformation_of
-from ssds.ledger.read import transformation_id, with_id
+from ssds.ledger.read import read_chain, transformation_id, with_id
 
 from ._fixtures import manifest, record, tree
-from ._scenario import OWNER, Scenario, agent, fresh, integrate, judgment
+from ._scenario import OWNER, Scenario, agent, attested, fresh, integrate, judgment
 from ._scenario import submit as submit_x
 from .test_conformance import accepted_plan, conformance, submit
 
@@ -514,6 +514,15 @@ S_FILES = {"s.md": "# A\nx\n# B\ny\n# C\nz\n", "t.md": "t\n"}
 class StructuralOwnerCases(unittest.TestCase):
     """Review 2aadf33 B1-B7: the cases its blockers named, one per defect."""
 
+    def test_a_rename_carrying_another_kind_fails_closed(self) -> None:
+        """F16: a rename escapes the release check unless its source's kind is compared (4c-iii)."""
+
+        sc = Scenario(LAYERED, LAYERED_FILES)
+        renamed = LAYERED.replace('id = "doc"\n    kind = "D3"', 'id = "doc2"\n    kind = "D2"\n    renamed_from = ["doc"]')
+        self.assertIn("SCHEMA_UNSUPPORTED", codes(frame_for(sc, renamed, LAYERED_FILES)))
+        kept = LAYERED.replace('id = "doc"\n    kind = "D3"', 'id = "doc2"\n    kind = "D3"\n    renamed_from = ["doc"]')
+        self.assertNotIn("SCHEMA_UNSUPPORTED", codes(frame_for(sc, kept, LAYERED_FILES)))
+
     def test_semantic_codes_under_struct_names(self) -> None:
         sc = Scenario(PARTS3, S_FILES)
         rel = "<!-- ssds:rel {t} {o} -->\n"
@@ -884,3 +893,249 @@ def submit_dropping(sc, files: dict[str, str]):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FrameRecordsAtAdmission(unittest.TestCase):
+    """Step 4c-iii (a): records declaring a transformation's frame reach Admission's checks (catalogue §7.5,
+    §8.3 steps 2-3). Every request still ends ``SCHEMA_UNSUPPORTED`` until steps 5-8 are built."""
+
+    def setUp(self) -> None:
+        from .test_admission_requests import RequestFixture
+
+        class _F(RequestFixture):
+            def runTest(self):  # noqa: N802 - a fixture holder, not a test
+                pass
+
+        self.f = _F()
+        self.f.setUp()
+        self.addCleanup(self.f.doCleanups)
+
+    def candidate(self, files: dict[str, str]) -> str:
+        from ._fixtures import commit, git
+
+        f = self.f
+        for path, text in files.items():
+            (f.product / path).parent.mkdir(parents=True, exist_ok=True)
+            (f.product / path).write_text(text)
+        made = commit(f.product, "candidate")
+        git(f.product, "checkout", "--quiet", f.baseline, "--", ".")
+        return made
+
+    def submitting(self, candidate: str, base: str | None = None) -> dict:
+        from .test_admission_requests import task_result
+
+        base = base or self.f.baseline
+        x = transformation_id(base, candidate)
+        return with_id({**task_result(x, base=base, candidate=candidate), "actor": self.f.human(),
+                        "actor_class": "HUMAN", "binding": None, "frame": {"transformation": x}})
+
+    def admit(self, records: list[dict]):
+        from ssds.admission.request import request_message
+
+        from ._fixtures import sshsig
+
+        f = self.f
+        req = f.request(records, base_position=len(f.entries()) - 1)
+        req["binding"] = {"human": {"actor": f.human(), "signature": sshsig(f.private, request_message(req))}}
+        return f.admit(req)
+
+    def acceptance(self, x: str, subject: str, scope_id: str, rev: str, basis=()) -> dict:
+        return with_id({**record("ACCEPTANCE", target={"subject": subject, "scope_id": scope_id, "rev": rev},
+                                 outcome="PASS", frame={"transformation": x}, basis=basis), "actor": self.f.human()})
+
+    def test_a_frame_no_result_fixes_is_refused(self) -> None:
+        cand = self.candidate({"guide.md": "# Guide\n\n## Introduction\n\nHello again.\n\n## Usage\n\nRun it.\n"})
+        good = self.submitting(cand)
+        cases = {
+            "an unknown frame": self.acceptance("sha256:" + "7" * 64, "guide", "sha256:" + "0" * 64, "sha256:" + "0" * 64),
+            "a base no admission holds": self.submitting(cand, base=cand),
+            "an unreadable candidate": self.submitting("e" * 40),
+            "an identity of other commits": with_id({**good, "target": {**good["target"], "candidate": self.f.baseline}}),
+        }
+        for name, rec in cases.items():
+            with self.subTest(case=name):
+                self.assertEqual(dict(self.admit([rec]).refused).get(rec["id"]), ("REF_TRANSFORMATION",))
+        forged = with_id({**good, "target": {**good["target"], "candidate": self.f.baseline, "task": "t-forged"}})
+        self.assertEqual(dict(self.admit([good, forged]).refused).get(forged["id"]), ("REF_TRANSFORMATION",),
+                         "even beside the result that fixes X, a result naming it with other commits submits nothing")
+        adopts = [{"key": ["guide", "kind"], "value": "D3"}]
+        x = transformation_id(self.f.baseline, cand, adopts)
+        adopting = with_id({**good, "target": {**good["target"], "adopts": adopts, "transformation": x},
+                            "frame": {"transformation": x}})
+        self.assertIn("SCHEMA_UNSUPPORTED", dict(self.admit([adopting]).refused).get(adopting["id"]) or ())
+
+    def test_a_frame_record_is_judged_in_its_frame(self) -> None:
+        """Prospective tenure: an acceptance in ``X``'s frame names the frame's triple of a subject ``X`` changes,
+        and the admitted triple is no longer current there (catalogue §7.4-§7.5)."""
+
+        from ssds.derivation import Workflow, derive
+
+        changed = "# Guide\n\n## Introduction\n\nHello again.\n\n## Usage\n\nRun it.\n"
+        cand = self.candidate({"guide.md": changed})
+        result = self.submitting(cand)
+        x = result["target"]["transformation"]
+        f = self.f
+        support = derive(read_chain(f.home.ledger_repository("demo"), "demo"), f.trees)
+        admitted = support.s.subject_triple("guide")
+        from ssds.content import read_tree
+
+        from ._fixtures import view as tree_view
+
+        frame_rev = tree_view(read_tree(f.product, cand)).rev("guide")
+        from ._scenario import content
+
+        in_frame = self.acceptance(x, "guide", admitted[1], frame_rev, basis=[content("guide", frame_rev)])
+        decision = self.admit([result, in_frame])
+        self.assertNotIn(in_frame["id"], dict(decision.refused), "its frame's revision is a known reference")
+        admitted_only = with_id({**in_frame, "frame": "ADMITTED"})
+        self.assertIn("REF_REVISION", dict(self.admit([self.submitting(cand), admitted_only]).refused).get(admitted_only["id"]),
+                      "in the admitted frame the candidate's revision is no reference")
+        self.assertEqual(decision.reasons, ("SCHEMA_UNSUPPORTED",))
+        stale = self.acceptance(x, "guide", admitted[1], admitted[2])
+        self.assertEqual(dict(self.admit([self.submitting(cand), stale]).refused).get(stale["id"]),
+                         ("AUTH_TARGET_NOT_CURRENT",))
+
+    def test_a_subject_the_frame_creates_is_effective_there(self) -> None:
+        from ssds.content import read_tree
+
+        from ._fixtures import view as tree_view
+        from .test_admission_genesis import MANIFEST
+
+        f = self.f
+        notes = MANIFEST + '\n[[unit]]\nid = "notes"\nkind = "D3"\nscope = [{ path = "notes.md" }]\n'
+        cand = self.candidate({".ssds/manifest.toml": notes, "notes.md": "n\n"})
+        result = self.submitting(cand)
+        x = result["target"]["transformation"]
+        v = tree_view(read_tree(f.product, cand))
+        triple = ("notes", v.scope_id("notes"), v.rev("notes"))
+        prospective = self.acceptance(x, *triple)
+        decision = self.admit([result, prospective])
+        self.assertNotIn(prospective["id"], dict(decision.refused), "prospective tenure (§7.4)")
+        admitted = with_id({**prospective, "frame": "ADMITTED"})
+        self.assertEqual(dict(self.admit([self.submitting(cand), admitted]).refused).get(admitted["id"]),
+                         ("AUTH_TARGET_NOT_EFFECTIVE",), "not effective in the admitted state")
+        broken = self.candidate({".ssds/manifest.toml": notes + '\n[[unit]]\nid = "dup"\nkind = "D3"\nscope = [{ path = "notes.md" }]\n',
+                                 "notes.md": "n\n"})
+        nowhere = self.submitting(broken)
+        in_no_frame = self.acceptance(nowhere["target"]["transformation"], *triple)
+        self.assertEqual(dict(self.admit([nowhere, in_no_frame]).refused).get(in_no_frame["id"]),
+                         ("AUTH_TARGET_NOT_EFFECTIVE",), "a frame that does not exist holds nothing effective")
+
+
+class IntegratingRequest(unittest.TestCase):
+    """Step 4c-iii (b): an integrating request's steps 3-4 on the frame of the transformation an admitted result
+    submits with its candidate (catalogue §8.3 steps 3-4, §7.6, §11.5, §25.3)."""
+
+    def codes(self, sc, candidate: str, agent_bound: bool = True) -> set[str]:
+        from ssds.admission.engine import integration_codes
+
+        binding = {"envelope": {}} if agent_bound else {"human": {}}
+        return integration_codes(candidate, sc.derive(), binding)
+
+    def test_a_clean_integration_raises_nothing(self) -> None:
+        sc = accepted_plan()
+        _, cand, _ = submit(sc, SOLVED)
+        self.assertEqual(self.codes(sc, cand), set())
+
+    def test_no_result_submits_the_candidate(self) -> None:
+        sc = accepted_plan()
+        self.assertEqual(self.codes(sc, "e" * 40), {"REF_TRANSFORMATION"})
+
+    def test_write_scope_and_protected_surfaces(self) -> None:
+        sc = accepted_plan()
+        _, cand, _ = submit(sc, {**SOLVED, "records.md": "# Records changed\n"})
+        self.assertIn("AUTH_WRITE_SCOPE", self.codes(sc, cand))
+        policy = accepted_plan()
+        _, cand2, _ = submit(policy, {**SOLVED, ".ssds/policy.toml": "schema = 1\n# edited\n"})
+        self.assertIn("AUTH_PROTECTED", self.codes(policy, cand2), "an agent's envelope")
+        self.assertNotIn("AUTH_PROTECTED", self.codes(policy, cand2, agent_bound=False),
+                         "a human's edit of policy content enacts nothing (§25.3)")
+
+    def test_structure_on_the_merged_tree(self) -> None:
+        sc = accepted_plan()
+        _, cand, _ = submit(sc, {"numerics.md": "# Numerics\n<!-- ssds:rel DEPENDS_ON src -->\n"})
+        self.assertIn("RELATION_LAYER", self.codes(sc, cand))
+        conflicted = accepted_plan()
+        _, mine, _ = submit(conflicted, {"records.md": "# Mine\n"})
+        conflicted.integrate({"records.md": "# Theirs\n"}, agent("other"), "task-b")
+        self.assertEqual(self.codes(conflicted, mine), {"STRUCT_MERGE_CONFLICT"})
+
+    PROMOTED = NESTED.replace('''id = "p"
+    part_of = "s1"
+    role = "composite"
+    subject = false''', '''id = "p"
+    part_of = "s1"
+    role = "composite"
+    subject = true
+    kind = "D3"''')
+
+    def promoting(self):
+        sc = Scenario(NESTED, NESTED_FILES)
+        x, cand, _ = submit_x(sc, {}, agent("maker"), "task-p", manifest=self.PROMOTED)
+        frame = frame_of(sc.derive().s, transformation_of(sc.derive().s, x))
+        return sc, x, cand, {"subject": "p", "scope_id": frame.view.scope_id("p"), "rev": frame.view.rev("p")}
+
+    def test_a_promotion_needs_its_prospective_acceptance(self) -> None:
+        """§7.6, §19.4: a part made a subject starts a tenure, bound to a current passing acceptance made in the
+        frame; neither a failing one nor the maker's own (non-independent, so not current) counts."""
+
+        from ._scenario import content
+
+        maker = agent("maker")
+        cases = {
+            "none": (lambda x, t: [], True),
+            "failing": (lambda x, t: attested(judgment("ACCEPTANCE", t, "FAIL", actor=OWNER, basis=[content("p", t["rev"])],
+                                                       frame={"transformation": x})), True),
+            "the maker's own": (lambda x, t: [judgment("ACCEPTANCE", t, "PASS", actor=maker, actor_class="AGENT",
+                                                       binding=fresh(maker, "task-p"), basis=[content("p", t["rev"])],
+                                                       frame={"transformation": x})], True),
+            "an independent pass": (lambda x, t: attested(judgment("ACCEPTANCE", t, "PASS", actor=OWNER,
+                                                                   basis=[content("p", t["rev"])],
+                                                                   frame={"transformation": x})), False),
+        }
+        for name, (made, missing) in cases.items():
+            with self.subTest(acceptance=name):
+                sc, x, cand, triple = self.promoting()
+                records = made(x, triple)
+                if records:
+                    sc.admit(*records)
+                self.assertEqual("ENACTMENT_MISSING" in self.codes(sc, cand, agent_bound=False), missing)
+
+    def test_an_acceptance_of_another_proposed_structure_does_not_count(self) -> None:
+        """§7.6 condition 2: same enactment, but ``Δ_Σ(X) ≠ Δ_Σ(X_0)``."""
+
+        from ._scenario import content
+
+        sc = Scenario(NESTED, NESTED_FILES)
+        promoted = self.PROMOTED
+        x0, _, _ = submit_x(sc, {}, agent("maker"), "task-p", manifest=promoted)
+        frame0 = frame_of(sc.derive().s, transformation_of(sc.derive().s, x0))
+        triple = {"subject": "p", "scope_id": frame0.view.scope_id("p"), "rev": frame0.view.rev("p")}
+        sc.admit(*attested(judgment("ACCEPTANCE", triple, "PASS", actor=OWNER, basis=[content("p", triple["rev"])],
+                                    frame={"transformation": x0})))
+        wider = promoted + '''
+    [[unit]]
+    id = "extra"
+    kind = "D3"
+    scope = [{ file = "theory.md" }]
+'''
+        _, cand1, _ = submit_x(sc, {}, agent("maker"), "task-p", manifest=wider)
+        self.assertIn("ENACTMENT_MISSING", self.codes(sc, cand1, agent_bound=False))
+
+    def test_a_restoration_needs_its_prospective_acceptance(self) -> None:
+        """§19.4: a subject removed earlier and declared again starts a new tenure."""
+
+        units = NESTED + '''
+    [[unit]]
+    id = "q"
+    kind = "D3"
+    scope = [{ file = "theory.md" }]
+'''
+        sc = Scenario(units, NESTED_FILES)
+        y, cy, _ = submit_x(sc, {}, agent("maker"), "task-drop", manifest=NESTED)
+        integrate(sc, y, cy)
+        _, back, _ = submit_x(sc, {}, agent("maker"), "task-back", manifest=units)
+        self.assertIn("ENACTMENT_MISSING", self.codes(sc, back, agent_bound=False))
+        _, fresh_unit, _ = submit_x(sc, {}, agent("maker"), "task-new",
+                                    manifest=units.replace('id = "q"', 'id = "q2"'))
+        self.assertNotIn("ENACTMENT_MISSING", self.codes(sc, fresh_unit, agent_bound=False), "a new subject is neither")
