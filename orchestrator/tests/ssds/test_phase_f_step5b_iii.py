@@ -111,6 +111,71 @@ class Decisions(unittest.TestCase):
         self.assertEqual(step7(self.f, amend), set())
 
 
+class Repartition(unittest.TestCase):
+    """Review 1fc9ced B1: §13.7's re-partition of a part, whose holder the trial no longer requires."""
+
+    def setUp(self) -> None:
+        f = PartFlow()
+        f.spend(f.item().obligation)
+        f.partition(f.budget_decision(f.item()), [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])])
+        f.work_part(f.item().parts[0], {"records.md": "# Records done\n"})
+        f.spend(f.item().parts[1].obligation, "notes/a.md")
+        self.f = f
+        self.decision = f.budget_decision(f.item().parts[1])
+
+    def test_a_valid_repartition_passes(self) -> None:
+        rec, objects = partition(self.f, self.decision.id, [(["o2"], ["notes.a"]), (["o3"], ["notes.b"])])
+        self.assertEqual(step7(self.f, rec, objects), set())
+
+    def test_an_invalid_repartition_is_refused(self) -> None:
+        rec, objects = partition(self.f, self.decision.id, [(["o2"], ["notes.a"]), (["o2", "o3"], ["notes.b"])])
+        self.assertEqual(step7(self.f, rec, objects), {"OBLIGATION_PARTITION_INVALID"})
+        beyond, objects = partition(self.f, self.decision.id, [(["o1", "o2"], ["notes.a"]), (["o3"], ["notes.b"])])
+        self.assertEqual(step7(self.f, beyond, objects), {"OBLIGATION_PARTITION_INVALID"}, "a's obligation is not b's")
+
+
+class NamedRecords(unittest.TestCase):
+    """Review 1fc9ced N1, N2."""
+
+    def setUp(self) -> None:
+        self.f = PartFlow()
+        self.f.spend(self.f.item().obligation)
+        self.decision = self.f.budget_decision(self.f.item())
+
+    def resolve(self, names, supersedes=(), obligation=None) -> dict:
+        rec, _ = partition(self.f, self.decision.id, [])
+        return with_id({**rec, "outcome": "RESOLVE_LOCAL", "refs": [], "target": {"records": list(names)},
+                        "supersedes": list(supersedes), "binding": {**rec["binding"], "obligation": obligation}})
+
+    def test_a_co_submitted_report_may_be_named(self) -> None:
+        from ._scenario import HUMAN
+
+        sc = self.f.sc
+        report = with_id({**record("FINDING", target={"units": ["records"]}, fields={"materiality": "ROUTINE"}),
+                          "actor": HUMAN})
+        rec = self.resolve([report["id"]])
+        head = sc.derive()
+        entry = admission_body(sc.position, sc.head, sc.head, records=[report, rec])
+        tried = trial(chain_of("demo", sc.entries, sc.objects), sc.trees.__getitem__, entry)
+        self.assertEqual(Legality(head, Currency(head).locate).codes(rec, tried), set())
+
+    def test_a_named_record_must_be_a_report(self) -> None:
+        from ._scenario import HUMAN, judgment
+
+        review = judgment("REVIEW", self.f.sc.triple("records"), "PASS", actor=HUMAN)
+        self.f.sc.admit(review)
+        self.assertEqual(step7(self.f, self.resolve([review["id"]])), {"REF_RECORD"})
+
+    def test_a_supersession_may_name_an_answered_decision(self) -> None:
+        good, objects = partition(self.f, self.decision.id, [(["o1"], ["records"]), (["o2", "o3"], ["notes.a", "notes.b"])])
+        self.f.sc.objects[self.f.sc.position] = objects
+        self.f.sc.admit(good)
+        late = self.resolve([self.decision.id], obligation=self.decision.id)
+        self.assertEqual(step7(self.f, late), {"OBLIGATION_NOT_DERIVED"}, "answered: no longer derived")
+        correction = self.resolve([self.decision.id], supersedes=[good["id"]], obligation=self.decision.id)
+        self.assertEqual(step7(self.f, correction), set(), "the principal's authorized correction")
+
+
 class Engine(unittest.TestCase):
     def test_a_decision_naming_an_obligation_passes_step_two(self) -> None:
         from ssds.admission.request import request_message

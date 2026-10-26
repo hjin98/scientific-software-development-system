@@ -34,7 +34,7 @@ from typing import Any
 
 from ssds.derivation import F, Workflow, passing
 
-from .request import never_lost
+from .request import REPORT_KINDS, never_lost
 
 #: The discharge states in which a further discharge is a duplicate (§10.4).
 _DISCHARGED = frozenset({"DISCHARGED", "DISCHARGED_PROVISIONAL"})
@@ -101,9 +101,16 @@ class Legality:
         target = record["target"] if isinstance(record["target"], Mapping) else {}
         binding = record.get("binding") if isinstance(record.get("binding"), Mapping) else {}
         named = [n for n in target.get("records") or [] if isinstance(n, str)]
-        records = self.head.s.records
-        if any(n not in records and n not in self._derived for n in named) \
-                or (binding.get("obligation") and binding["obligation"] not in self._derived):
+        state = trial.s if trial is not None else self.head.s  # a co-submitted report may be named (review 1fc9ced N1)
+        reports = {n for n in named if n in state.records and state.record(n)["kind"] in REPORT_KINDS}
+        if any(n in state.records for n in named if n not in reports):
+            return {"REF_RECORD"}  # a decision's target is "report(s) or item" (catalogue §3.4)
+        # an authorized supersession may name what the decision it supersedes named, answered since (review N2)
+        earlier = {n for x in record.get("supersedes") or [] if x in self.head.s.records
+                   for n in (self.head.s.record(x)["target"] or {}).get("records") or []}
+        allowed = self._derived | earlier
+        if any(n not in reports and n not in allowed for n in named) \
+                or (binding.get("obligation") and binding["obligation"] not in allowed):
             return {"OBLIGATION_NOT_DERIVED"}  # Phase E plan §6: an answer to a decision no longer derived
         if record.get("outcome") != "PARTITION" or trial is None:
             return set()
@@ -114,7 +121,7 @@ class Legality:
             holder = self.w.items.holder_of_decision(name)
             if holder is None:
                 continue
-            there = tried.of(holder.obligation.id)
+            there = tried.holder(holder.obligation.id)
             if there is None or not there.valid_partition(record["id"]):
                 return {"OBLIGATION_PARTITION_INVALID"}  # an invalid partition answers nothing (reading E32)
         return set()
@@ -164,4 +171,25 @@ def _task(result: Mapping[str, Any]) -> Any:
     return binding.get("task") or result["target"].get("task")
 
 
-__all__ = ["Legality"]
+#: The kinds §8.3 step 7 calls principal decision records, refused with passing judgments (``CONFORMANCE_RESULT``).
+PRINCIPAL_DECISIONS = frozenset({"COORDINATION_DECISION", "MATERIALITY_RECLASSIFICATION"})
+
+
+def conformance_alone(records: list[Mapping[str, Any]], trial: Any) -> list[tuple[str, tuple[str, ...]]]:
+    """Catalogue §8.3 step 7 (Phase F step 5c, reading F30): when a co-submitted ``TASK_RESULT``'s result-only
+    ``HARD`` templates yield ``INCOMPLETE`` or ``DISCREPANCY``, every passing judgment and every principal decision
+    record in the request is refused alone (``CONFORMANCE_RESULT``); the result, adverse judgments and the other
+    never-lost records stand, so the iteration counts."""
+
+    results = [r["id"] for r in records if r["kind"] == "TASK_RESULT"]
+    if trial is None or not results:
+        return []
+    w = Workflow(trial)
+    failing = any(h.cls in ("INCOMPLETE", "DISCREPANCY") for rid in results for h in w.conformance(rid).result_only)
+    if not failing:
+        return []
+    return [(r["id"], ("CONFORMANCE_RESULT",)) for r in records
+            if not never_lost(r) and (passing(dict(r)) or r["kind"] in PRINCIPAL_DECISIONS)]
+
+
+__all__ = ["Legality", "PRINCIPAL_DECISIONS", "conformance_alone"]

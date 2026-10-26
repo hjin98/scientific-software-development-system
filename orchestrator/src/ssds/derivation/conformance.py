@@ -265,6 +265,24 @@ class Conformance:
                 hits.extend(self._evaluate(WHOLE, Check(template), contract, item))
         return tuple(sorted(set(hits)))
 
+    @cached_property
+    def result_only(self) -> tuple[Hit, ...]:
+        """Catalogue §8.3 step 7's ``HARD`` templates that read only the result and its contract, evaluated at
+        admission (Phase F reading F30): ``slots_filled``; ``outcome_consistent``, whose "unmet" counts only what
+        those decide (required evidence is met only after a runner runs, §11.5 (1)); and ``citations_support``.
+        The full templates still run in ``hits``, which a claimed discharge reads."""
+
+        contract, item, problem = self.contract
+        if contract is None:
+            return (Hit(WHOLE, "OBLIGATION.slots_filled", INCOMPLETE, problem),)
+        hits = list(self._evaluate(WHOLE, Check(RESULT_LEVEL[0]), contract, item))
+        if self.record["outcome"] == "COMPLETE" and any(h.cls == INCOMPLETE for h in hits):
+            hits.append(Hit(WHOLE, "FAITHFULNESS.outcome_consistent", DISCREPANCY, "COMPLETE with an unmet obligation"))
+        else:
+            hits.append(Hit(WHOLE, "FAITHFULNESS.outcome_consistent", CLEAN, ""))
+        hits += self._citations()
+        return tuple(sorted(set(hits)))
+
     def _writes_tests(self, contract: Contract) -> bool:
         """The item's write scope holds a D4 or evidence-specification unit (§13.3)."""
 

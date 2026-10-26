@@ -39,7 +39,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
              43e85277); 5a is closed (PASS at 3d125c63); 5b-i and 5b-ii are closed (PASS at ccaca714 and 82304212);
-             5b-iii (Phase E's refusals) is built and under same-family review; 5c is next. A10 is accepted (SD-66);
+             5b-iii's blocker is repaired and 5c is built, both under same-family review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1255,3 +1255,20 @@ Its notes are taken up:
   - each round reading its own trial;
   - through the engine: a decision naming a derived obligation passes step 2, and a stray name is refused.
 - **Mutants.** Eight: all are killed, one by a case added after a first run.
+
+**Same-family review of 1fc9ced8 (5b-iii).** No SERIOUS CHALLENGE. NO-PASS on one blocker, repaired:
+- **B1, every re-partition refused.** A `PARTITION` re-partitioning a part (§13.7's own example) was judged on the part's holder looked up in the trial, where the part is no longer required and so not found. `Items.holder` now also finds a part a re-partition replaced, rebuilt from the item's partitions. §13.7's example is a case, valid and invalid.
+
+Its notes are taken up:
+- N1: a decision may name a co-submitted report, read from the trial. A named record must be a report, per catalogue §3.4's "report(s) or item" (`REF_RECORD` otherwise).
+- N2: an authorized supersession may name, or bind to, what the decision it supersedes named, though that decision has since been answered.
+
+**Step 5c built.**
+- **Derivation.** `Conformance.result_only` evaluates catalogue §8.3 step 7's three result-only `HARD` templates (F30). `outcome_consistent` counts only `slots_filled`'s unmet obligations, and `citations_support` reads the result's claims. The full templates still run in `hits`.
+- **Admission.** `legality.conformance_alone`: when a co-submitted result's result-only templates yield `INCOMPLETE` or `DISCREPANCY`, every passing judgment and principal decision record (`COORDINATION_DECISION`, `MATERIALITY_RECLASSIFICATION`) is refused alone (`CONFORMANCE_RESULT`). The result, adverse judgments and other never-lost records stand. It runs in the authorization loop once a round has no other refusal, so the rest of the request is judged without the records it refused.
+- **Reach.** Under SD-70, a request carrying a `TASK_RESULT` is not accepted in Phase F, so 5c decides refusal codes only. Two 4c cases whose co-submitted result names no contract now expect `CONFORMANCE_RESULT` on their frame acceptance. They still fail if a step 3 code appears.
+- **Tests.** `test_phase_f_step5c.py`:
+  - unmet evidence is not a result-only discrepancy; an empty slot fails, `COMPLETE` and `PARTIAL`; a citation of no record fails;
+  - the refusal set; a clean result refuses nothing; no result, no check;
+  - an engine case pinning `CONFORMANCE_RESULT` on a passing frame acceptance beside a contract-less result.
+- **Mutants.** Ten across 5c and the 5b-iii repairs: all are killed.

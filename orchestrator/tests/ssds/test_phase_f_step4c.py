@@ -996,7 +996,9 @@ class FrameRecordsAtAdmission(AdmissionRequests):
 
         in_frame = self.acceptance(x, "guide", admitted[1], frame_rev, basis=[content("guide", frame_rev)])
         decision = self.admit([result, in_frame])
-        self.assertNotIn(in_frame["id"], dict(decision.refused), "its frame's revision is a known reference")
+        # its frame's revision is a known reference; the co-submitted result's own result-only templates fail, so
+        # step 7 refuses the passing acceptance alone (CONFORMANCE_RESULT, Phase F step 5c) and nothing else
+        self.assertIn(dict(decision.refused).get(in_frame["id"]), (None, ("CONFORMANCE_RESULT",)))
         admitted_only = with_id({**in_frame, "frame": "ADMITTED"})
         self.assertIn("REF_REVISION", dict(self.admit([self.submitting(cand), admitted_only]).refused).get(admitted_only["id"]),
                       "in the admitted frame the candidate's revision is no reference")
@@ -1067,7 +1069,8 @@ class FrameRecordsAtAdmission(AdmissionRequests):
         triple = ("notes", v.scope_id("notes"), v.rev("notes"))
         prospective = self.acceptance(x, *triple)
         decision = self.admit([result, prospective])
-        self.assertNotIn(prospective["id"], dict(decision.refused), "prospective tenure (§7.4)")
+        # prospective tenure (§7.4); only step 7's CONFORMANCE_RESULT, from the co-submitted result (step 5c)
+        self.assertIn(dict(decision.refused).get(prospective["id"]), (None, ("CONFORMANCE_RESULT",)))
         admitted = with_id({**prospective, "frame": "ADMITTED"})
         self.assertEqual(dict(self.admit([self.submitting(cand), admitted]).refused).get(admitted["id"]),
                          ("AUTH_TARGET_NOT_EFFECTIVE",), "not effective in the admitted state")

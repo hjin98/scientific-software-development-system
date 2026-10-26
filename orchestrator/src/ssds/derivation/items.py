@@ -995,6 +995,21 @@ class Items:
                     return holder
         return None
 
+    def holder(self, obligation_id: str) -> ItemObligation | None:
+        """The item or part obligation with this identity, a part a re-partition replaced included (§13.7: it
+        is never required again, but a ``PARTITION`` answering its decision is judged on it; review 1fc9ced B1)."""
+
+        found = self.of(obligation_id)
+        if found is not None:
+            return found
+        for item in self.all:
+            for spec in item.partitions:
+                for index in range(len(spec.parts)):
+                    part = item.part_obligation(spec, index)
+                    if part.obligation.id == obligation_id:
+                        return part
+        return None
+
     def of(self, obligation_id: str) -> ItemObligation | None:
         """The item or part obligation with this identity."""
 

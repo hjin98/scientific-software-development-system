@@ -34,7 +34,7 @@ from .checks import (content_identity, on_merits, over_bounds, producing_context
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems
 from .currency import Currency
-from .legality import Legality
+from .legality import Legality, conformance_alone
 from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
@@ -480,11 +480,12 @@ class Admission:
                 more = set().union(*(check.codes(record, last) for check in checks)) if checks else set()
                 if more:
                     refusals[record["id"]] = tuple(sorted(set(refusals.get(record["id"], ())) | more))
-            if not refusals and not result.alone:
+            later = [] if refusals or result.alone else conformance_alone(passing, last)  # step 7, 5c
+            if not refusals and not result.alone and not later:
                 break
-            gone = set(refusals) | {rid for rid, _ in result.alone}
+            gone = set(refusals) | {rid for rid, _ in result.alone + tuple(later)}
             refused += list(refusals.items())
-            alone += list(result.alone)
+            alone += list(result.alone) + later
             passing = [r for r in passing if r["id"] not in gone]
             last = None
         return passing, refused, True, alone, last
