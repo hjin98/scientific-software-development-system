@@ -97,7 +97,7 @@ class EnvelopeAndRole(RequestFixture):
         self.admit(self.signed(adjudicating, [challenged]))
         ruling = self.bind(record("ADJUDICATION", target={"record": challenged["id"]}, outcome="UPHELD"), adjudicating)
         self.assertEqual(dict(self.admit(self.signed(adjudicating, [ruling])).refused).get(ruling["id"]),
-                         ("SCHEMA_UNSUPPORTED",), "adjudication eligibility is step 4b-ii's")
+                         ("DEP_TARGET_KIND",), "an adjudication targets a challenge (§3.4; step 4d)")
         candidate = self.issue()
         rec = self.bind(finding(), candidate)
         with_candidate = self.admit(self.signed(candidate, [rec], candidates=["0" * 40]))
@@ -883,7 +883,7 @@ class RefusedAlone(RequestFixture):
 
 
 class SameRequestChallenge(RequestFixture):
-    def test_n3_an_adjudication_of_a_co_submitted_challenge_fails_closed(self) -> None:
+    def test_n3_an_adjudication_of_a_co_submitted_challenge_is_dep_target_order(self) -> None:
         from ssds.admission.request import request_message
 
         from ._fixtures import sshsig
@@ -896,8 +896,8 @@ class SameRequestChallenge(RequestFixture):
         req = self.request([c, a], base_position=len(self.entries()) - 1)
         req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
         refused = dict(self.admit(req).refused)
-        self.assertEqual(refused.get(a["id"]), ("SCHEMA_UNSUPPORTED",),
-                         "its target is not strictly earlier: step 5's rule, 4d's, fails closed (review 8d274c4 N3)")
+        self.assertEqual(refused.get(a["id"]), ("DEP_TARGET_ORDER",),
+                         "its target is not strictly earlier (§8.5; step 4d, review 8d274c4 N3)")
 
 
 class Reissue(RequestFixture):

@@ -105,6 +105,52 @@ class Support:
             values[node] = self._evaluate(node, values.__getitem__)
         return values, tuple(forced)
 
+    def static_deps(self, node: Node) -> set[Node]:
+        """§5.6's static support graph (reading F24): the evaluation graph's edges, plus every equivalence judgment
+        on a unit an entry names and every acceptance or gate decision naming the subject, whatever its value. An
+        acceptance from an ended tenure is left out: it can never count again (§1.6, §19.4)."""
+
+        s = self.s
+        out = set(self.deps(node))
+        kind, key = node
+        if kind == "current":
+            for entry in s.record(key)["basis"]:
+                target = entry["target"]
+                units = [target.get("unit")] if entry["mode"] in ("content", "validity") else \
+                    [u.get("unit") for u in target.get("units", [])] if entry["mode"] == "execution" else []
+                for unit in units:
+                    out.update(("current", q) for q in s.of_kind("EQUIVALENCE") if s.record(q)["target"]["unit"] == unit)
+            return out
+        tenure = s.tenure(key)
+        for rid in s.of_kind(*{k for kinds in ACCEPTANCE_KINDS.values() for k in kinds}):
+            target = s.record(rid)["target"]
+            if target.get("subject") != key:
+                continue
+            record = s.record(rid)
+            pending = record["frame"] != "ADMITTED" and s.enactment(record["frame"]["transformation"]) not in s.integrated
+            if tenure is not None and s.position_of(rid) < tenure and not pending \
+                    and not self.binds_tenure(rid, key, tenure):
+                continue  # an ended tenure's acceptance; one in a pending frame may yet count (check 87e908d)
+            out.add(("current", rid))
+        out.update(("current", rid) for rid in s.of_kind("GATE_DECISION")
+                   if (_triple_of(s.record(rid)["target"]["subject"]) or ("",))[0] == key)
+        return out
+
+    @cached_property
+    def static_forced(self) -> tuple[frozenset[Node], ...]:
+        """The non-trivial components of the static graph: what Admission keeps from appearing or growing
+        (§8.3 step 5, ``CYCLE_SUPPORT``). S2's forcing and ``SUPPORT_CYCLE`` read the evaluation graph."""
+
+        graph = {node: self.static_deps(node) for node in self.nodes}
+        edges = {(a, b) for a, targets in graph.items() for b in targets if b in graph}
+        return tuple(c for c in strongly_connected(graph, edges) if nontrivial(c, edges))
+
+    def grows_a_cycle(self, before: Support) -> bool:
+        """§8.3 step 5 (reading F24): this state's static graph has a non-trivial component that is no subset of
+        one ``before`` has, so a cycle appears or one grows. A cycle absorbed content made, in both, is neither."""
+
+        return any(not any(component <= c for c in before.static_forced) for component in self.static_forced)
+
     @property
     def values(self) -> dict[Node, int]:
         return self._solution[0]

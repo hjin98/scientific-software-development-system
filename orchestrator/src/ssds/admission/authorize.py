@@ -18,9 +18,12 @@ request judged as if it were absent (step 4b-ii).
 A record declaring a transformation's frame is judged there: an acceptance against the frame's own structure and
 triples (prospective tenure, step 4c-iii).
 
-Not built yet, so refused as ``SCHEMA_UNSUPPORTED`` (fail closed, plan §3.1): an adjudication of anything but a
-challenge (step 4d), discriminating readings (step 9), product-scope
-acceptance, and lifecycle-tier records, which reach the ledger only through the human-gated lifecycle path.
+Step 5's per-record checks (``dependency``, step 4d) run in the same loop, so a refusal of either removes the
+record before the trial is rebuilt.
+
+Not built yet, so refused as ``SCHEMA_UNSUPPORTED`` (fail closed, plan §3.1): discriminating readings (step 9),
+product-scope acceptance, and lifecycle-tier records, which reach the ledger only through the human-gated lifecycle
+path.
 """
 
 from __future__ import annotations
@@ -32,6 +35,7 @@ from typing import Any
 from ssds.derivation import ROLE_TEMPLATES, Support, frame_state, role_permits, supersession_target, triple_key
 from ssds.ledger.read import LIFECYCLE_TIER, SUPPORT_TIER
 
+from .dependency import dependency_codes
 from .request import REPORT_KINDS
 
 #: Support-tier kinds only the principal of the same plan supersedes, by a record of the same kind (§12.5).
@@ -59,7 +63,8 @@ def authorize(request: Mapping[str, Any], records: list[dict], trial: Any, base:
             return Authorization(False, frozenset({"AUTH_ENVELOPE"}))
     refused, alone = [], []
     for record in records:
-        codes = _record_codes(record, envelope, trial, base, obligation)
+        # step 5's per-record checks share this fixed point (step 4d): a refusal of either removes the record
+        codes = _record_codes(record, envelope, trial, base, obligation) | dependency_codes(record, trial)
         if codes:
             refused.append((record["id"], tuple(sorted(codes))))
         elif record["kind"] == "ADJUDICATION" and not _adjudication_eligible(record, trial):
@@ -84,18 +89,10 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
     codes: set[str] = set()
     if envelope is not None and not role_permits(envelope["role"], kind, record.get("outcome")):
         codes.add("AUTH_ROLE_KIND")
-    target = record["target"] if isinstance(record["target"], dict) else {}
-    challenged = target.get("record")
-    # an adjudication of anything but a challenge admitted before this request: the target rules of step 5 (strictly
-    # earlier, of a permitted kind) are 4d's, so a challenge in the same request fails closed (review 8d274c4 N3)
-    adjudicating = kind == "ADJUDICATION" and (
-        challenged not in trial.s.records or record["id"] not in trial.s.records
-        or trial.s.position_of(challenged) >= trial.s.position_of(record["id"])
-        or trial.s.record(challenged)["kind"] != "CHALLENGE")
     resubmission = isinstance(record.get("provenance"), dict) and "reissue_of" in record["provenance"]
-    if kind == "PRODUCT_SCOPE_ACCEPTANCE" or adjudicating or resubmission \
+    if kind == "PRODUCT_SCOPE_ACCEPTANCE" or resubmission \
             or (kind == "EVIDENCE_ASSESSMENT" and (record.get("fields") or {}).get("mode") == "DISCRIMINATING"):
-        # not built: an adjudication's target kind (step 5, 4d); discriminating readings (step 9);
+        # not built: discriminating readings (step 9);
         # the product-scope authority policy designates (§3.5; plan review 8a41539 B4); a re-issue's resubmission,
         # which only step 8's Dispatcher makes, under the re-issued task's envelope (review 8d274c4 B2)
         codes.add("SCHEMA_UNSUPPORTED")

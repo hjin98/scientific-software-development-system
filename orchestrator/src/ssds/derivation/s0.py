@@ -283,8 +283,11 @@ class StructureFacts:
                 out.extend(Defect("SINGLE_DEFINER", o, name) for o in owners)
         return tuple(sorted(set(out)))
 
-    def _cycle_defects(self) -> list[Defect]:
-        """Every cycle lies inside one SDG and uses only SIMULTANEOUS edges (§2.4)."""
+    @cached_property
+    def warrant_edges(self) -> tuple[frozenset[tuple[str, str]], dict[tuple[str, str], set[str]]]:
+        """§2.4's relation set ``E``: every authored relation but ``CHALLENGES`` and every derived relation whose
+        cycle class is not ``NEUTRAL``, with each edge's cycle classes. The one set the cycle legality check and
+        the consumer predicate read."""
 
         edges: set[tuple[str, str]] = set()
         cycle_class: dict[tuple[str, str], set[str]] = {}
@@ -296,6 +299,30 @@ class StructureFacts:
                 continue
             edges.add((rel.subject, rel.object))
             cycle_class.setdefault((rel.subject, rel.object), set()).add(spec.cycle)
+        return frozenset(edges), cycle_class
+
+    def consumers(self, unit: str) -> frozenset[str]:
+        """The consumers of ``unit`` (reading F23): every unit from which ``E`` reaches it, and every unit of such a
+        unit's subject, since a ``validity`` entry relies on ``valid(subj)``."""
+
+        edges, _ = self.warrant_edges
+        reverse: dict[str, set[str]] = {}
+        for a, b in edges:
+            reverse.setdefault(b, set()).add(a)
+        found, pending = set(), [unit]
+        while pending:
+            for v in reverse.get(pending.pop(), ()):
+                if v not in found:
+                    found.add(v)
+                    pending.append(v)
+        subjects = {self.structure.subj(v) for v in found if v in self.structure.units} - {None}
+        found |= {u for u in self.structure.units if self.structure.subj(u) in subjects}
+        return frozenset(found)
+
+    def _cycle_defects(self) -> list[Defect]:
+        """Every cycle lies inside one SDG and uses only SIMULTANEOUS edges (§2.4)."""
+
+        edges, cycle_class = self.warrant_edges
         out = []
         groups = [m for _, _, m in self.sdgs]
         for component in strongly_connected(self.structure.units, edges):

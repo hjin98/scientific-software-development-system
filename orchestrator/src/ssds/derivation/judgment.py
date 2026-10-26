@@ -276,6 +276,13 @@ class Judgments:
                     pending.append(self.s.record(r))
         return sorted(units)
 
+    def own_subjects(self, record: dict[str, Any]) -> frozenset[str]:
+        """A record's own subjects (reading F22): the subjects of every unit it judges. It never holds a ``validity``
+        entry on one (catalogue §4.1, §8.5; ``DEP_OWN_SUBJECT``)."""
+
+        structure = self.s.view.structure
+        return frozenset(structure.subj(u) for u in self.judged_units(record) if u in structure.units) - {None}
+
     def _own_units(self, record: dict[str, Any]) -> tuple[set[str], list[Any]]:
         """The units ``record`` itself names, and the records its target names."""
 

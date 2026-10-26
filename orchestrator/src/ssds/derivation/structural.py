@@ -276,8 +276,8 @@ def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, t
     request's ``adopted_deltas``, ``{absorption, key, value}`` each, and ``named`` the deltas its ``ABSORB``
     dispositions name. They must be the same deltas, each the key's current delta at its observed value
     (``REF_ADOPTION``). The adoption is then judged as the frame record of ``X = (B, B, A)`` at the head: the
-    structural owner's codes, and a promotion or restoration failing closed (no prospective acceptance can travel
-    with a records-only request)."""
+    structural owner's codes, a promotion or restoration failing closed (no prospective acceptance can travel
+    with a records-only request), and step 5's static support graph read in that frame (``CYCLE_SUPPORT``)."""
 
     from ssds.ledger.read import transformation_id
 
@@ -301,10 +301,17 @@ def adoption_codes(state: Any, head: str, elements: Any, named: set[tuple[str, t
         return {"REF_ADOPTION"}
     adopts = tuple((tuple(e["key"]), e["value"]) for e in elements)
     x = Transformation(transformation_id(head, head, elements), head, head, adopts)
-    check = Frame(state.h, state.n, x, None).structural
+    frame = Frame(state.h, state.n, x, None)
+    check = frame.structural
     codes = {f.code for f in check.findings}
     if check.tenure_starts:
         codes.add("SCHEMA_UNSUPPORTED")  # a promoting or restoring adoption (§18.4; revision 13)
+    if frame.exists:
+        from .state import State
+        from .support import Support
+
+        if Support(State(state.h, state.n, frame)).grows_a_cycle(Support(state)):
+            codes.add("CYCLE_SUPPORT")  # step 5 read in the adoption's frame (F24)
     return codes
 
 

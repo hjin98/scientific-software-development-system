@@ -19,8 +19,8 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
-from ssds.derivation import (Frame, Transformation, TreeSource, Workflow, adoption_codes, derive, outside_scope,
-                             protected_touched, transformation_of, trial, trust_roots)
+from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflow, adoption_codes, derive,
+                             frame_state, outside_scope, protected_touched, transformation_of, trial, trust_roots)
 from ssds.ledger.append import append_entry, write_checkpoint
 from ssds.ledger.qualification import FileWitness
 from ssds.ledger.read import (LedgerEntry, entry_violations, read_chain, record_id, record_violations, submits,
@@ -35,7 +35,7 @@ from .lifecycle import lifecycle_message, lifecycle_problems
 from .request import REPORT_KINDS, never_lost, request_id
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
-UNREALIZED_STEPS = ("authorization", "structure", "dependency", "currency", "legality", "regression")
+UNREALIZED_STEPS = ("authorization", "structure", "currency", "legality", "regression")
 
 
 def salvageable(record: Mapping[str, Any]) -> bool:
@@ -364,8 +364,10 @@ class Admission:
                 position = request.get("base_position")
                 base = Workflow.historical(support.s.h, position) if "REF_BASE" not in reasons \
                     and isinstance(position, int) and 0 <= position <= s.n else None
-                passing, more, ok, alone = self.authorized(request, passing, chain, entries, base, auth)
+                passing, more, ok, alone, last = self.authorized(request, passing, chain, entries, base, auth)
                 refused += more + alone
+                if last is not None and last.grows_a_cycle(support):
+                    reasons.add("CYCLE_SUPPORT")  # step 5: the static support graph gains or grows a cycle (F24)
                 if not ok:
                     reasons.add("AUTH_ENVELOPE")
                     withheld = "REF_BASE" if base is None else "AUTH_ENVELOPE"
@@ -416,26 +418,30 @@ class Admission:
     def authorized(self, request: Mapping[str, Any], passing: list[dict], chain, entries, base, auth):
         """Authorize the records in the trial extension of their own request (reading F10), removing each refused
         record and rebuilding the trial until none is refused (at most once per record). Returns the records
-        still passing, the refusals, and whether the envelope's obligation and role hold."""
+        still passing, the refusals, whether the envelope's obligation and role hold, the records refused alone, and
+        the final trial, which step 5's request-level check reads (``None`` when no record passes)."""
 
         refused: list[tuple[str, tuple[str, ...]]] = []
         alone: list[tuple[str, tuple[str, ...]]] = []
         head = entries[-1]
         expected = self.expected_head(entries)
         good = verified_objects(request.get("objects"))[0]
+        last = None
         while passing:
             entry = self.admission_entry(head, expected, request_id(request), "ACCEPT", (), passing, (), expected)
             objects = {d: good[d] for r in passing for d in referenced_objects(r) if d in good} | auth.objects
-            result = authorize(request, passing, self.trial(chain, entry, objects), base)
+            last = self.trial(chain, entry, objects)
+            result = authorize(request, passing, last, base)
             if not result.ok:
-                return passing, refused, False, alone
+                return passing, refused, False, alone, last
             if not result.refused and not result.alone:
                 break
             gone = {rid for rid, _ in result.refused + result.alone}
             refused += list(result.refused)
             alone += list(result.alone)
             passing = [r for r in passing if r["id"] not in gone]
-        return passing, refused, True, alone
+            last = None
+        return passing, refused, True, alone, last
 
 
 def _absorbs(record: Mapping[str, Any]) -> bool:
@@ -472,7 +478,8 @@ def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
     admitted result submits with that candidate, bound to that result's producing task (else fail closed): its
     write set within the bound contract's write scope and clear of plan units and unnamed verification rules
     (``AUTH_WRITE_SCOPE``); no protected surface touched when an agent made the candidate (``AUTH_PROTECTED``); §8.3 step 4's structure on the merged tree; and
-    §7.6's enactment condition for every promotion or restoration (``ENACTMENT_MISSING``)."""
+    §7.6's enactment condition for every promotion or restoration (``ENACTMENT_MISSING``); and step 5's static
+    support graph read in the frame, where changed structure re-routes it (``CYCLE_SUPPORT``, reading F24)."""
 
     s = support.s
     found = sorted(x for x in s.submissions
@@ -511,6 +518,9 @@ def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
         codes.add("AUTH_PROTECTED")  # agents cannot modify a protected surface, however it is integrated (§25.3)
     if any(not support.prospectively_accepted(x, uid) for uid in frame.structural.tenure_starts):
         codes.add("ENACTMENT_MISSING")
+    framed = frame_state(s.h, s.n, x, s)
+    if framed is not None and Support(framed).grows_a_cycle(support):
+        codes.add("CYCLE_SUPPORT")  # step 5 read in the frame, where its changes re-route validity (F24)
     return codes
 
 __all__ = ["Admission", "AdmissionHalted", "Decision", "EntryInvalid", "UNREALIZED_STEPS", "integration_codes"]
