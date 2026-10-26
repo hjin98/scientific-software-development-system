@@ -133,8 +133,9 @@ class Waiting(unittest.TestCase):
             return Hit("WHOLE", template, INCOMPLETE, finding)
 
         self.assertTrue(_waits(hit("OBLIGATION.required_evidence", "required evidence e is not realized")))
-        self.assertTrue(_waits(hit("RUNNER.x", "a required execution is missing for the exact candidate")))
-        self.assertTrue(_waits(hit("RUNNER.x", "not evaluated by this derivation and not observed by a runner")))
+        self.assertTrue(_waits(Hit("WHOLE", "RUNNER.x", INCOMPLETE, "any wording", waits=True)), "tagged where made")
+        self.assertFalse(_waits(hit("RUNNER.x", "a required execution is missing for the exact candidate")),
+                         "never by its wording (review c06f5be N3)")
         self.assertFalse(_waits(hit("DOMAIN.layer_direction", "a layer imports upward")))
         self.assertFalse(_waits(hit("TEST_INTEGRITY.x", "a HARD check reported only a signal")))
         self.assertFalse(_waits(hit("OBLIGATION.required_artifact", "artifact a is missing")))

@@ -41,7 +41,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              43e85277); 5a is closed (PASS at 3d125c63); 5a, 5b (5b-i to 5b-iii) and 5c are closed (last PASS at 1acbb8df);
              5d is closed (PASS at b546a2b8, notes taken up); 5e and 5f
              are deferred (SD-71). Step 5 is closed for Phase F. Revision 19 splits step 6 into 6a-6g (§3.3,
-             readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a is built and under same-family review. A10 is accepted (SD-66);
+             readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a is closed (PASS at c06f5be5); 6b (the
+             commit point) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1380,3 +1381,14 @@ Its notes are taken up:
   - a pending effect not absorbed;
   - `expected_head` over genesis, absorptions, a fence and a rejection.
 - **Mutants.** Seven: six are killed. Removing the explicit no-product check is equivalent: the import then fails and still halts with nothing appended.
+
+**Same-family review of c06f5be5 (6a) and d34a432e (5d's notes).** No SERIOUS CHALLENGE. **PASS**, with no blockers. **Step 6a is closed**, and 5d's notes are confirmed repaired. Its answers confirm:
+- the absorb-then-revalidate order, with `base_position` undisturbed;
+- F39's predicate: a pending effect exists only at the head entry;
+- not checking ancestry (§8.6 absorbs any movement; 6c and 6d classify it);
+- the entry shape and the fold.
+
+Its notes:
+- N1, taken up: `obs` is validated as a commit identity before any Git call, so an option-shaped value never reaches Git (Manual §25.4). A case pins it.
+- N3, taken up: the conformance hits that wait on an execution or a runner are tagged where conformance makes them (`Hit.waits`), not matched by wording.
+- N2, placed with 6b: a lifecycle admission still halts on a moved head. 6b either gives it the same absorb-then-proceed path or records why its human approval pins the head.

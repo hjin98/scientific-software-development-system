@@ -25,8 +25,8 @@ from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflo
                              trust_roots)
 from ssds.ledger.append import AppendFailed, append_entry, import_commits, write_checkpoint
 from ssds.ledger.qualification import FileWitness
-from ssds.ledger.read import (LedgerEntry, entry_violations, read_chain, record_id, record_violations, submits,
-                              verify_sshsig, with_id)
+from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
+                              submits, verify_sshsig, with_id)
 
 from .authenticate import authenticate, stored_attestations
 from .authorize import authorize
@@ -155,6 +155,8 @@ class Admission:
 
         head = entries[-1]
         body = head.entry
+        if not is_commit(obs):  # validated before any Git call (Manual §25.4; review c06f5be N1)
+            raise AdmissionHalted(f"the observed head {obs!r} is no commit identity")
         if self.product is None:
             raise AdmissionHalted(f"the observed head {obs} is not the expected head and no product repository is read")
         if body["entry_kind"] == "ADMISSION" and body["admission"]["decision"] == "ACCEPT" \
@@ -589,12 +591,11 @@ def integration_frame(candidate: str, support: Any) -> Any:
     return frame
 
 
-#: The conformance findings that wait on an execution or a runner, not on the candidate (§14.3, §17.5; step 5d).
-_WAITING = ("a required execution is missing", "not evaluated by this derivation and not observed by a runner")
-
-
 def _waits(hit: Any) -> bool:
-    return hit.template == "OBLIGATION.required_evidence" or hit.finding.startswith(_WAITING)
+    """A conformance hit that waits on an execution or a runner, not on the candidate (§14.3, §17.5; step 5d):
+    tagged where conformance makes it (review c06f5be N3), or unrealized required evidence."""
+
+    return hit.waits or hit.template == "OBLIGATION.required_evidence"
 
 
 def conformance_codes(conformance: Any) -> set[str]:

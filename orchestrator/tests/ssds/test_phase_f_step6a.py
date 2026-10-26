@@ -65,6 +65,16 @@ class Absorption(RequestFixture):
             admission.admit(self.human_request([with_id({**finding(), "actor": self.human()})]), "f" * 40)
         self.assertEqual(len(self.entries()), before)
 
+    def test_an_observed_head_is_validated_before_any_git_call(self) -> None:
+        """Review c06f5be N1: an option-shaped ``obs`` never reaches Git."""
+
+        admission = Admission(self.home, "demo", self.trees, product=self.product)
+        before = len(self.entries())
+        for obs in ("--upload-pack=touch /tmp/x", "HEAD", "abc"):
+            with self.subTest(obs=obs), self.assertRaises(AdmissionHalted):
+                admission.absorb(self.entries(), obs)
+        self.assertEqual(len(self.entries()), before)
+
     def test_an_unmoved_head_appends_no_absorption(self) -> None:
         admission = Admission(self.home, "demo", self.trees, product=self.product)
         before = len(self.entries())

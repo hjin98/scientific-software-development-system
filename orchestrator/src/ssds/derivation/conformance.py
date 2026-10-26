@@ -95,6 +95,7 @@ class Hit:
     finding: str
     observations: tuple[str, ...] = ()
     units: tuple[str, ...] = ()  # the units a boundary or test-integrity breach touched
+    waits: bool = False  # it waits on an execution or a runner, not on the candidate (Admission's step 7, 5d)
 
 
 def system_slots(w: Any, bound: Any) -> tuple[str, ...]:
@@ -328,7 +329,8 @@ class Conformance:
                 return [self._observed(obligation, template, failing)]
             if spec is not None and spec.force == HEURISTIC:
                 return []  # a signal this derivation does not compute raises nothing
-            return [Hit(obligation, template, INCOMPLETE, "not evaluated by this derivation and not observed by a runner")]
+            return [Hit(obligation, template, INCOMPLETE, "not evaluated by this derivation and not observed by a runner",
+                        waits=True)]
         findings = method(params, contract, item)
         if not findings:
             return [Hit(obligation, template, CLEAN, "")]
@@ -365,7 +367,8 @@ class Conformance:
 
         found = self._observations(obligation, template)
         if not found:
-            return Hit(obligation, template, INCOMPLETE, "a required execution is missing for the exact candidate")
+            return Hit(obligation, template, INCOMPLETE, "a required execution is missing for the exact candidate",
+                       waits=True)
         hard = TEMPLATES.get(template) is None or TEMPLATES[template].force != HEURISTIC
         outcomes = {self.s.record(r)["outcome"] for r in found}
         if "VIOLATION" in outcomes:
