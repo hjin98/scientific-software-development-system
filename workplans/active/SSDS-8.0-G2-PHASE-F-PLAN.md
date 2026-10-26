@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 14 details step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 14 (step 4c in four parts, §3.1); questions Q-F1 to Q-F7 settled (SD-64, SD-67 to SD-69). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 15 (step 4c in four parts, §3.1); questions Q-F1 to Q-F7 settled (SD-64, SD-67 to SD-69); Q-F8 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -264,7 +264,8 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F21** *A quarantined delta's identity (step 4c-iv).* Catalogue §4 gives an `INTAKE_DISPOSITION` "`identity` on the absorption entry and delta key", and SD-69 its `delta` target `{absorption, key}`.
   - **Which absorption.** A delta is the observed value of one declaration key that differs from `Σ` (§1.6). Its `absorption` is the digest of the absorption entry whose observed head first showed that value: the latest absorption at or before `n` at which `decl(T)[k]` became its current value. Before it, the value differed or the key matched `Σ`. A later foreign change to the same key's value is a new delta under a new absorption. A realignment ends the delta (the key leaves `Q`). So a delta's identity is a function of the ledger alone, and the `INTAKE` obligation derived for a quarantined key is keyed by it.
   - **Element value.** The value in `A`'s interim element `{absorption, key, value}` is `decl(T)[k]` at that absorption, so it also names exactly one delta (revision 13).
-  - **Targets.** `INTAKE_DISPOSITION` takes `delta` (`{absorption, key}`) or `content_ref`. `INTAKE_CLASSIFICATION` takes catalogue §3.4's "observed path set or quarantined delta": a `paths` target (`{paths}`) or `delta`. `units` is dropped from both (SD-69). The `identity` basis gains `delta`. Outcomes: the §18.3 vocabulary for dispositions; classification keeps its advisory `PROPOSED`.
+  - **Targets, as SD-69 enumerates them.** Both intake kinds take `delta` (`{absorption, key}`) or `content_ref`, with `units` dropped. The `identity` basis gains `delta`. Outcomes: the §18.3 vocabulary for dispositions; classification keeps its advisory `PROPOSED`. Catalogue §3.4 gives `INTAKE_CLASSIFICATION` "observed path set or quarantined delta", which has no `content_ref`; whether it takes a `paths` target instead is Q-F8. `INTAKE_CLASSIFICATION` stays unadmitted in Phase F (`SCHEMA_UNSUPPORTED`, intake beyond SD-69's adoption being Phase G's), so the shape is moot until then.
+  - **An adoption names the current delta.** §18.4's "at some position" rule concerns the targets of dispositions that judge (contrary dispositions, adjudications), never adoption. An adopting `ABSORB` must name its key's current delta at the head: the key in `Q_n`, with F21's identity at `n`. Otherwise a superseded delta's `ABSORB` would enact a later value no disposition judged (check c50eb56c B1).
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -369,6 +370,12 @@ The ledger can also be repaired in place, by any admitted structural change that
 - **(c) Read §1.9 as requiring only §1.8's refusal clause.** It contradicts §1.8's first sentence, so it would be a Manual amendment.
 
 Recommended: **(b) with (d2)**. Keep `ssdp-shadow-2` for step 10, and correct the genesis check now (4c-ii). Once Q-F6 (i) is settled and adoption is built, repair the ledger in place by (d2); re-found under (b) only if that is not available before a campaign.
+
+**Q-F8. `INTAKE_CLASSIFICATION`'s target (a clarification of SD-69).** SD-69's row gives both intake kinds "a `delta` target … beside `content_ref`". Catalogue §3.4 gives `INTAKE_CLASSIFICATION` "observed path set or quarantined delta", a path set rather than a content reference; Q-F6 (i) had said classification would be corrected to §3.4 in the same change.
+- **Recommended:** (a) a `paths` target (`{paths}`) or `delta`, as §3.4 says.
+- **Alternative:** (b) keep SD-69's literal `delta|content_ref`, and send the difference to Stage S.
+
+Nothing in Phase F depends on it: classification stays unadmitted until Phase G. The schema-1 correction in 4c-iv follows SD-69 literally until this is answered.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -882,11 +889,24 @@ Tests now cover every surviving mutant:
    - The 4c-ii owner classifying an adopted key as authored.
 3. **Admission.**
    - An `INTAKE_DISPOSITION` other than `ABSORB` is `SCHEMA_UNSUPPORTED`, and never-lost ones are refused by identity.
-   - An `ABSORB` names a delta whose `INTAKE` obligation was derived at some position (else `REF_RECORD`); one under a standing adverse disposition is refused, tested on a fixture ledger.
-   - A request's `adopted_deltas` must be exactly the deltas its `ABSORB` dispositions name, each with its value at its absorption (else `REF_RECORD`).
+   - An adopting `ABSORB` names its key's current delta at the head (F21; else `REF_DELTA`, a delegated `REF_*` member: a delta is no record). One under a standing adverse disposition is refused, tested on a fixture ledger, and so is a superseded delta's.
+   - A request's `adopted_deltas` must be exactly the deltas its `ABSORB` dispositions name, each with its value at its absorption (else `REF_ADOPTION`).
+   - Only a records-only adoption (`C = B`) is lifted. An adoption with a candidate, and a result with a non-empty `adopts`, stay `SCHEMA_UNSUPPORTED`; otherwise 4c-ii's per-key classification would meet adopted keys that `C` also changes. `INTAKE_CLASSIFICATION` stays `SCHEMA_UNSUPPORTED` (Phase G).
    - The request is judged as the frame record of `X = (B, B, A)`: step 4's codes from the 4c-ii owner, with a promoting or restoring adoption failing closed.
    - The entry it would append carries the adoptions as `ADOPTED` deltas, so `Σ` folds them. That is step 9's commit; until steps 5-8 the request ends `SCHEMA_UNSUPPORTED`, like every other.
-   - The write scope does not bind a human's records-only adoption, which carries no contract. Its authority is the R2 disposition's qualification and independence (§8.3 step 3; re-check c550803 N5).
+   - The write scope does not bind a human's records-only adoption, which carries no contract (re-check c550803 N5). Its authority is the disposition's qualification (§3.5) and §18.4's R2 requirement for a governance-affecting delta. Independence is classified, not required (§8.3 step 3), which is why step 10's repair can be disclosed as non-independent. A machinery adoption (`intake.neutral_auto`, step 8) will need its own scope rule when built.
+   - §25.3's protection binds agents, so a human R2 adoption of `ssds.policy`'s declarations is permitted, and `AUTH_PROTECTED` does not apply to it.
+
+**Narrow check of c50eb56c (revision 14).** No SERIOUS CHALLENGE. F21's identity is sound and a function of the ledger alone: a key enters `Q`, or takes a new quarantined value, only at an absorption. NO-PASS on two blockers, repaired in revision 15:
+- **B1, a superseded delta's `ABSORB`.** It would enact a later value. An adoption now names the current delta.
+- **B2, the classification target.** It departed from SD-69's row. The row is followed literally, classification stays unadmitted, and `paths` is put to the stakeholder as Q-F8.
+
+Taken up:
+- the codes `REF_DELTA` and `REF_ADOPTION` replace `REF_RECORD`;
+- adoption with a candidate stays unsupported;
+- the authority of a records-only adoption is worded as qualification plus §18.4's R2, with independence classified;
+- a machinery adoption's scope rule is left to step 8;
+- `AUTH_PROTECTED` does not bind a human adoption of policy declarations.
 
 Separately, a test now pins §11.2's requirement that only a current plan acceptance makes an item issuable (the re-check of d0f10442's M30). And `G2-S4-FINDING-INDEX.md` now dispositions A10's Review findings, so `run_models.py --seeds` passes again.
 
