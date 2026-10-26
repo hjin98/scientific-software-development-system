@@ -3,9 +3,10 @@
 
 Admission decides here and derivation supplies every fact, read at the current head:
 - the bound obligation exists there: the head derives it (``OBLIGATION_NOT_DERIVED``, F34);
-- a request bound to a task claims a discharge only with that task's result: a mid-task report request carries
-  none and claims nothing (``OBLIGATION_CLAIM_UNSUPPORTED``);
-- one ``TASK_RESULT`` per task, over the head and the request (``OBLIGATION_RESULT_DUPLICATE``);
+- a request bound to a task claims a discharge only with that task's result, or as its integration request (§11.5
+  (3)): a mid-task report request carries none and claims nothing (``OBLIGATION_CLAIM_UNSUPPORTED``);
+- one ``TASK_RESULT`` per task, the task its authenticated binding names, over the head and the request
+  (``OBLIGATION_RESULT_DUPLICATE``);
 - a claimed obligation is undischarged at the head: a duplicate discharge is rejected and recorded
   (``OBLIGATION_DISCHARGED``);
 - a ``TASK_RESULT`` bound to an obligation already discharged, or naming a contract revision that is not current,
@@ -44,10 +45,12 @@ class Legality:
         if isinstance(envelope, Mapping):
             if envelope.get("obligation_id") not in self._derived:
                 codes.add("OBLIGATION_NOT_DERIVED")  # it exists at the base (step 3) but no longer here
-            if request.get("claims") and not results:
-                codes.add("OBLIGATION_CLAIM_UNSUPPORTED")  # a mid-task report request claims nothing
-        tasks = [r["target"].get("task") for r in results]
-        admitted = {s.record(rid)["target"].get("task") for rid in s.of_kind("TASK_RESULT")}
+            if request.get("claims") and not results and not request.get("candidates"):
+                # a mid-task report request claims nothing; an integration request claims with its producing task's
+                # admitted result and carries no new judgment (§11.5 (3); review fed5d82 B2)
+                codes.add("OBLIGATION_CLAIM_UNSUPPORTED")
+        tasks = [_task(r) for r in results]
+        admitted = {_task(s.record(rid)) for rid in s.of_kind("TASK_RESULT")}
         if len(tasks) != len(set(tasks)) or any(t in admitted for t in tasks):
             codes.add("OBLIGATION_RESULT_DUPLICATE")
         index = self.w.binding_index()
@@ -71,6 +74,13 @@ class Legality:
             if item["unit"] not in view.structure.units or view.rev(item["unit"]) != item.get("rev"):
                 codes.add("OBLIGATION_CONTRACT_STALE")  # F36: the item revision it was issued for is not current
         return codes
+
+
+def _task(result: Mapping[str, Any]) -> Any:
+    """The task a result ends: its authenticated binding's, else (a human's) its target's (review fed5d82 B1)."""
+
+    binding = result.get("binding") if isinstance(result.get("binding"), Mapping) else {}
+    return binding.get("task") or result["target"].get("task")
 
 
 __all__ = ["Legality"]

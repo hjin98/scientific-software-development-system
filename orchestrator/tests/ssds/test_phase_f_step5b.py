@@ -51,6 +51,8 @@ class RequestLevel(unittest.TestCase):
         self.assertEqual(legality.request_codes(enveloped(o.id, [o.id]), [result("task-1")]), set())
         self.assertEqual(legality.request_codes({"binding": {"human": {}}, "claims": [o.id]}, []), set(),
                          "a human's request is no task's")
+        self.assertEqual(legality.request_codes({**enveloped(o.id, [o.id]), "candidates": ["0" * 40]}, []), set(),
+                         "an integration request claims with its admitted result (§11.5 (3))")
 
     def test_one_result_per_task(self) -> None:
         legality = Legality(self.sc.derive())
@@ -61,6 +63,9 @@ class RequestLevel(unittest.TestCase):
         legality = Legality(self.sc.derive())
         self.assertEqual(legality.request_codes({}, [result("task-1")]), {"OBLIGATION_RESULT_DUPLICATE"})
         self.assertEqual(legality.request_codes({}, [result("task-9")]), set())
+        bound = {**result("task-9"), "binding": {"task": "task-1"}}
+        self.assertEqual(legality.request_codes({}, [bound]), {"OBLIGATION_RESULT_DUPLICATE"},
+                         "the bound task, not the target's (review fed5d82 B1)")
 
     def test_a_duplicate_discharge_is_rejected(self) -> None:
         o = make("ACCEPT", self.sc.triple("arch"), holder="HUMAN")
@@ -117,7 +122,7 @@ class Engine(unittest.TestCase):
         self.assertNotIn("OBLIGATION_CLAIM_UNSUPPORTED", plain.reasons)
 
 
-    def test_a_stale_contract_refuses_the_result_in_the_authorization_loop(self) -> None:
+    def test_a_contract_the_envelope_does_not_name_is_refused(self) -> None:
         from .test_admission_requests import RequestFixture
 
         fixture = RequestFixture("setUp")
@@ -129,7 +134,42 @@ class Engine(unittest.TestCase):
                              issued)
         stale = with_id({**bound, "binding": {**bound["binding"], "item": {"unit": "guide", "rev": "sha256:" + "0" * 64}}})
         decision = fixture.admit(fixture.signed(issued, [stale]))
-        self.assertEqual(dict(decision.refused).get(stale["id"]), ("OBLIGATION_CONTRACT_STALE",))
+        self.assertEqual(dict(decision.refused).get(stale["id"]), ("AUTH_ENVELOPE",),
+                         "the envelope names no contract revision (review fed5d82 B3)")
+
+
+    def test_a_result_is_bound_to_its_envelopes_contract_and_task(self) -> None:
+        """Review fed5d82 B1, B3: the contract revision and the task a result names are the envelope's."""
+
+        from .test_admission_requests import RequestFixture
+
+        fixture = RequestFixture("setUp")
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        from .test_phase_f_step4b import derive_state
+
+        rev = derive_state(fixture).subject_triple("guide")[2]
+        stale = {"unit": "guide", "rev": "sha256:" + "0" * 64}
+        head = len(fixture.entries()) - 1
+        issued = fixture.issuer.issue(task_id=f"task-{head}-C", obligation_id=fixture.obligation(), role="REVIEWER",
+                                      contract_revision=stale, governs={"mode": "LEGACY", "protocol": "7.2.1"},
+                                      route="HARNESS", issued_at_position=head)
+        task = issued.envelope["task_id"]
+
+        def bound(item, target_task=task):
+            rec = fixture.bind(record("TASK_RESULT", target={"task": target_task}, outcome="COMPLETE",
+                                      fields={"slots": {}}), issued)
+            return with_id({**rec, "binding": {**rec["binding"], "item": item}})
+
+        claimed_current = bound({"unit": "guide", "rev": rev})
+        self.assertEqual(dict(fixture.admit(fixture.signed(issued, [claimed_current])).refused).get(
+            claimed_current["id"]), ("AUTH_ENVELOPE",), "a self-declared current revision")
+        honest = bound(stale)
+        self.assertEqual(dict(fixture.admit(fixture.signed(issued, [honest])).refused).get(honest["id"]),
+                         ("OBLIGATION_CONTRACT_STALE",))
+        elsewhere = bound(stale, "task-other")
+        self.assertIn("AUTH_ENVELOPE", dict(fixture.admit(fixture.signed(issued, [elsewhere])).refused).get(
+            elsewhere["id"]), "another task's result")
 
 
 if __name__ == "__main__":

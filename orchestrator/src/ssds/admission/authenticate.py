@@ -197,6 +197,13 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         if (rb.get("envelope"), rb.get("task"), rb.get("obligation"), rb.get("role"), rb.get("lineage_class")) != \
                 (digest, envelope["task_id"], envelope["obligation_id"], envelope["role"], lineage):
             own.append("AUTH_ENVELOPE")
+        if rb.get("item") != envelope.get("contract_revision"):
+            # the contract revision a record works under is the envelope's, never self-declared: conformance and
+            # step 7's currency read it (§12.2; review fed5d82 B3)
+            own.append("AUTH_ENVELOPE")
+        if record.get("kind") == "TASK_RESULT" and isinstance(record.get("target"), Mapping) \
+                and record["target"].get("task") != envelope["task_id"]:
+            own.append("AUTH_ENVELOPE")  # a result is its own task's: enactment and step 7 read it (review fed5d82 B1)
         if (rb.get("lineage") or []) != lineage_list:
             # exactly what the binding proves: derivation reads a producing record's lineage as authorship, so a
             # superset would plant authors (plan review 6e0fa9e NB-2); none under UNKNOWN (reading F11)
