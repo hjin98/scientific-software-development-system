@@ -474,8 +474,10 @@ class Admission:
                             named_triples = set()  # step 3's own codes judge an acceptance's triple (SD-68)
                         if units - set(s.view.structure.units) or pairs - revisions or named_triples - triples():
                             own.append("REF_TARGET")  # the target exists (§8.3 step 2; review c80fc6a B1)
-                        if record["kind"] == "MATERIALITY_RECLASSIFICATION" and target.get("record") in known \
-                                and s.record(target["record"])["kind"] not in (*REPORT_KINDS, "CHALLENGE"):
+                        aimed = s.record(target["record"]) if target.get("record") in known else next(
+                            (p for p in passing if p["id"] == target.get("record")), None)
+                        if record["kind"] == "MATERIALITY_RECLASSIFICATION" and aimed is not None \
+                                and aimed["kind"] not in (*REPORT_KINDS, "CHALLENGE"):
                             own.append("REF_TARGET")  # it reclassifies a report or a challenge (§15.2)
                     context = producing_context(record)
                     if context is not None:

@@ -42,8 +42,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              5d is closed (PASS at b546a2b8, notes taken up); 5e and 5f
              are deferred (SD-71). Step 5 is closed for Phase F. Revision 19 splits step 6 into 6a-6g (§3.3,
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a and 6b are closed (PASS at c06f5be5 and
-             e78d0cf7); 6c (accepting) is built; its review blocker (unchecked targets) is repaired and under
-             re-check. Admission now accepts records-only requests and a records-only ABSORB adoption. A10 is accepted (SD-66);
+             e78d0cf7); 6c (accepting) is closed (PASS at ab0b790d). Admission now accepts records-only
+             requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1484,3 +1484,7 @@ Its notes:
 - a `COORDINATION_DECISION`'s `fields.tasks` and an `EQUIVALENCE`'s `class` are inert, read by no derivation (an unknown class covers nothing), and left as Stage S notes on closed vocabularies.
 
 Cases pin both repairs, and two mutants are killed.
+
+**Narrow re-check of ab0b790d.** No SERIOUS CHALLENGE. **PASS:** triples are checked whole, past triples stay targetable (§1.6, §19.4), and acceptances stay with step 3. **Step 6c is closed.** Its notes:
+- N1, taken up: a reclassification's kind check also reads a co-submitted target;
+- N2, recorded with step 10's cost items: `revisions` and the new triple set walk every admitted position each request. On a long ledger, fold both once per `History`, as `former_subjects` is.
