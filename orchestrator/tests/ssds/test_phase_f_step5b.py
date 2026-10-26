@@ -160,6 +160,24 @@ class Answered(unittest.TestCase):
                             "binding": {"obligation": self.o.id}})
         self.assertEqual(step7(self.sc, override), set(), "neither passing nor never-lost")
 
+    def test_an_admitted_record_is_answered_at_the_head_in_a_request_carrying_x(self) -> None:
+        """Review 8230421 N1: "the frame a passing judgment declares", not step 6's frame for the request."""
+
+        from ssds.admission.currency import Currency
+
+        from ._scenario import agent as agent_, submit as submit_
+        from .test_phase_f_step4e import frame_of_candidate, tried
+
+        self.sc.admit(*attested(self.adverse))
+        x, _, _ = submit_(self.sc, {"impl.md": "i2\n"}, agent_("maker"), "task-1")
+        head = self.sc.derive()
+        frame = frame_of_candidate(self.sc, x)
+        rec = self.bound()
+        locate = Currency(head, frame).locate
+        with mock.patch.object(Legality, "_workflow", autospec=True, side_effect=Legality._workflow) as built:
+            self.assertEqual(Legality(head, locate).codes(rec, tried(self.sc, [rec])), {"OBLIGATION_ANSWERED"})
+        self.assertIs(built.call_args.args[1], head, "read at the head")
+
     def test_an_adverse_judgment_is_never_refused(self) -> None:
         self.sc.admit(*attested(self.adverse))
         self.assertEqual(step7(self.sc, self.bound(outcome="FAIL")), set())

@@ -38,8 +38,8 @@ DEPENDS:     Q-F1 to Q-F3 settled by SD-64. The stakeholder-signed genesis of `s
 NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f7fd7b); revision 17
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
-             43e85277); 5a is closed (PASS at 3d125c63); 5b-i is closed (PASS at ccaca714); 5b-ii (answered,
-             revision assessments first) is built and under same-family review; 5b-iii (Phase E's refusals) is next. A10 is accepted (SD-66);
+             43e85277); 5a is closed (PASS at 3d125c63); 5b-i and 5b-ii are closed (PASS at ccaca714 and 82304212);
+             5b-iii (Phase E's refusals) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -312,7 +312,7 @@ Until the stakeholder settles Q-F1 and Q-F2, steps 10-11 do not run, and the exi
 
 Until Q-F3, real-runner execution is limited to fixtures that hold no secret.
 
-Until Phase G, a change of unknown provenance on the real shadow ledger is absorbed and goes no further than its §18 intake obligations, which are derived but not routed beyond `INTAKE`. The exception is SD-69's: step 10's human `ABSORB` adoption of the two reserved leaves (F1).
+Until Phase G admits intake records, an `INTAKE_*` record's `paths` target uses the token grammar; Phase G gives it a validated, repository-contained relative path (Manual §25.4; review 8230421 N3). Until Phase G, a change of unknown provenance on the real shadow ledger is absorbed and goes no further than its §18 intake obligations, which are derived but not routed beyond `INTAKE`. The exception is SD-69's: step 10's human `ABSORB` adoption of the two reserved leaves (F1).
 
 Until Phase H, failure points beyond those group 4 names are untested, and §24.2's replacement-lineage re-encoding is not built.
 
@@ -1229,3 +1229,14 @@ Its answers confirm `OBLIGATION_NOT_DERIVED` against the derived set, counting o
   - a gate decision's triple; a `LEGACY` subject exempt; a D3 subject exempt;
   - through the engine: an adverse acceptance salvaged by a rejection answers the obligation, and a bound passing acceptance afterwards is refused.
 - **Mutants.** Nine: all are killed, five by cases added after a first run.
+
+**Same-family review of 82304212 (5b-ii) and ed5af2fe (SD-70).** No SERIOUS CHALLENGE. **PASS**, with no blockers. **Step 5b-ii is closed.** Its answers confirm:
+- "answered" as any answer (§10.3);
+- `REVIEW_OPEN`'s reading for a prospective acceptance, a co-submitted assessment and each condition;
+- SD-70's schema change.
+
+Its notes are taken up:
+- N1: `OBLIGATION_ANSWERED` now reads the frame the judgment declares, so an `ADMITTED` record of a request carrying `X` is read at the head, not in `D_n[X]`. That closes a fail-open in principle: an obligation only the head derives, missing from the frame's index. A case pins it.
+- N2 is recorded, not applied. The supersession exemption follows the catalogue's words ("a supersession step 3 authorizes … is not refused"). An author superseding their own earlier judgment on the target while another's adverse answer stands is bounded, since that answer still vetoes.
+- N3: `paths` targets get a path validator before Phase G admits intake records (§6).
+- N4: the frame workflow cache is a real get-or-create.

@@ -88,6 +88,13 @@ class Legality:
                 codes.add("OBLIGATION_CONTRACT_STALE")  # F36: the item revision it was issued for is not current
         return codes
 
+    def _workflow(self, support: Any) -> Any:
+        if support is self.head:
+            return self.w
+        if id(support) not in self._workflows:
+            self._workflows[id(support)] = Workflow(support)
+        return self._workflows[id(support)]
+
     def _frame_codes(self, record: Mapping[str, Any], trial: Any) -> set[str]:
         """``OBLIGATION_ANSWERED`` and ``OBLIGATION_REVIEW_OPEN`` for a passing judgment, read in its frame."""
 
@@ -97,7 +104,9 @@ class Legality:
         support = located[0]
         s = support.s
         codes: set[str] = set()
-        w = self._workflows.setdefault(id(support), Workflow(support) if support is not self.head else self.w)
+        # answered "in the frame a passing judgment declares": an ADMITTED record's is the head, even in a request
+        # carrying X, where step 6 reads D_n[X] (review 8230421 N1)
+        w = self._workflow(self.head if record["frame"] == "ADMITTED" else support)
         binding = record.get("binding") if isinstance(record.get("binding"), Mapping) else {}
         bound = w.binding_index().get(binding.get("obligation", ""))
         if bound is not None and record["kind"] != "GATE_DECISION" and not record.get("supersedes") \
