@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F9 settled (SD-64, SD-67 to SD-70). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F9 settled (SD-64, SD-67 to SD-70); Q-F10 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -39,8 +39,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
              43e85277); 5a is closed (PASS at 3d125c63); 5a, 5b (5b-i to 5b-iii) and 5c are closed (last PASS at 1acbb8df);
-             5d is closed (PASS at b546a2b8, notes taken up); 5e (rebase)
-             and 5f (regression) follow. A10 is accepted (SD-66);
+             5d is closed (PASS at b546a2b8, notes taken up). Q-F10 asks
+             whether 5e (rebase) and 5f (regression) wait for SD-70's gate; step 6 follows. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -433,6 +433,10 @@ Clause (f) is part of clean conformance, re-derived "at every revalidation of an
 - **Alternative:** (b) fail closed only on a result carrying a PEM slot or a `PEM_UNAVAILABLE` answer, and accept the rest. The exit then discloses that occasions which fire from content (a detected revert or restoration, say) go unchecked. Absent publications do not make the clauses vacuous: clause (g) reads what a result states, and occasions fire from content.
 
 **Resolved by SD-70 (item 64):** (a). Step 6 keeps these requests `SCHEMA_UNSUPPORTED` until A10's D4.
+
+**Q-F10. Steps 5e and 5f after SD-70.** Step 5e (rebase) and 5f (no collateral regression) judge only integrating requests: a rebase frame records `X'` for an integration, and step 8 compares the head with the merged tree. Under SD-70 (Q-F9 (a)), every integrating request stays `SCHEMA_UNSUPPORTED` until A10's D4, which follows Phase F. Step 8's comparison also needs step 9's runners. Both already fail closed: a rebase frame is `REF_TRANSFORMATION` (§6), and no integration is accepted.
+- **Recommended:** (a) defer 5e and 5f to the phase that lifts SD-70's gate for integrations (A10's D4), keeping both fail-closed rules in §6. Phase F's exit discloses them as unbuilt, and step 6 follows 5d. This spends Phase F's effort where it changes a decision: step 6's commit path, which step 10's records-only operation and `ssdp-shadow-2`'s repair need.
+- **Alternative:** (b) build 5e and 5f in Phase F as planned. They would be tested on derivation histories only, and their decisions would stay unreachable until A10's D4.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
