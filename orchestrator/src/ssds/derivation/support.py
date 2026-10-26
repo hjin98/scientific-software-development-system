@@ -183,7 +183,11 @@ class Support:
             return result
         return self._valid(key, value)
 
-    def sat(self, entry: dict[str, Any], value: Callable[[Node], int], rid: str | None = None) -> int:
+    def sat(self, entry: dict[str, Any], value: Callable[[Node], int], rid: str | None = None,
+            frame: Frame | None = None) -> int:
+        """``sat(e)`` for basis entry ``e`` of record ``rid``, whose frame gives a content entry's role; ``frame``
+        stands for it when the record is no node here (Admission's step 6, reading F26)."""
+
         mode, target, cls = entry["mode"], entry["target"], entry["class"]
         if mode == "identity":
             return T
@@ -193,7 +197,7 @@ class Support:
             return value(("current", target["record"])) if target["record"] in self.s.records else F
         if mode in ("content", "validity"):
             content = self.content(target["unit"], target["rev"], cls, value)
-            frame = self.frame_of(rid)
+            frame = frame if frame is not None else self.frame_of(rid)
             if frame is not None and mode == "content":
                 in_frame = self.s.frame is not None and self.s.frame.x.id == frame.x.id
                 content = role_sat(frame, target["unit"], target["rev"], in_frame, content)
@@ -204,6 +208,30 @@ class Support:
         if mode == "execution":
             return self.execution(target, value)
         return F
+
+    def stale_entries(self, record: dict[str, Any], frame: Frame | None = None) -> list[int]:
+        """Catalogue §8.3 step 6 (readings F10, F26): the positions of ``record``'s basis entries that are not
+        satisfied (value ``F``) in this state, read entry by entry from its values. ``record`` is no node here, so
+        a record or subject it alone would make current counts as ``F``, and ``frame`` gives its entries' roles."""
+
+        def value(node: Node) -> int:
+            return self.values.get(node, F)
+
+        return [i for i, entry in enumerate(record.get("basis") or []) if self.sat(entry, value, None, frame) == F]
+
+    @lru_cache(maxsize=None)  # noqa: B019
+    def frame_support(self, transformation: str) -> Support | None:
+        """The values of ``D_n[X]`` at this head (``frame_state``), or ``None`` when ``X`` is unknown here or its
+        frame does not exist."""
+
+        framed = frame_state(self.s.h, self.s.n, transformation, self.s)
+        return Support(framed) if framed is not None else None
+
+    def transformation_frame(self, transformation: str) -> Frame | None:
+        """The frame ``X``'s records' roles are computed in at this head: fixed at ``k - 1`` once ``X`` is
+        integrated (reading F17)."""
+
+        return self._frames(transformation)
 
     def frame_of(self, rid: str | None) -> Frame | None:
         """The frame a frame record's roles are computed in (§7.3)."""

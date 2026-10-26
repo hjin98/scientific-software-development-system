@@ -11,6 +11,8 @@ request's records exist:
 - no ``validity`` entry on one of the record's own subjects (``DEP_OWN_SUBJECT``, F22);
 - no ``EQUIVALENCE`` with a ``validity`` entry on a consumer of its unit (``DEP_CONSUMER``, F23).
 
+The last two read a record declaring an unintegrated ``X`` in ``X``'s frame, where it acts.
+
 A never-lost record owes these checks too, so salvage never writes a target §5.7 calls corruption. The support
 graph's acyclicity (``CYCLE_SUPPORT``, F24) is request-level: the engine compares the final trial's static graph,
 and an integration's or adoption's frame, with the head's (``Support.grows_a_cycle``).
@@ -58,6 +60,13 @@ def dependency_codes(record: Mapping[str, Any], trial: Any) -> set[str]:
                 codes.add("DEP_TARGET_KIND")
             elif aimed["actor"] != record["actor"]:
                 codes.add("AUTH_ACTOR")  # only the raiser withdraws (§3.4, §15.2)
+    # a record declaring an unintegrated X acts in X's frame, so its own subjects and consumers are read there,
+    # whichever trial judges it: the head's for salvage too (review cab6179a B1)
+    declared = record.get("frame")
+    x = declared.get("transformation") if isinstance(declared, Mapping) else None
+    framed = trial.frame_support(x) if isinstance(x, str) and s.enactment(x) not in s.integrated else None
+    if framed is not None:
+        trial, s = framed, framed.s
     structure = s.view.structure
     own = trial.j.own_subjects(dict(record))
     validity = [e["target"]["unit"] for e in record.get("basis") or []

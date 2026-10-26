@@ -18,7 +18,7 @@ from ssds.derivation.extension import TRIAL_TREE
 from ssds.derivation.frames import transformation_of
 
 from ._fixtures import admission_body, chain_of, record
-from ._scenario import HUMAN, Scenario, agent, content, integrate, judgment, submit, validity
+from ._scenario import HUMAN, HUMAN_B, Scenario, agent, content, integrate, judgment, submit, validity
 from .test_phase_f_step4d import FILES, MOVED, PARTED, PARTED_FILES, RESCOPED, THREE
 
 
@@ -117,6 +117,160 @@ class StepsReadTheFrame(unittest.TestCase):
         self.assertEqual(dependency_codes(rec, tried(sc, [rec], frame)), {"DEP_OWN_SUBJECT"}, "and impl's after X")
 
 
+class FrameRecordsActInTheirFrame(unittest.TestCase):
+    """Review cab6179a B1: a record declaring an unintegrated ``X`` acts in ``X``'s frame, so step 5 reads its own
+    subjects there whichever trial judges it, the head's (salvage) included."""
+
+    def test_at_the_head_too(self) -> None:
+        sc = Scenario(PARTED, dict(PARTED_FILES))
+        x, _, _ = submit(sc, {}, agent("maker"), "task-1", manifest=MOVED)
+        frame = frame_of_candidate(sc, x)
+        t = {"subject": "impl", "scope_id": frame.view.scope_id("impl"), "rev": frame.view.rev("impl")}
+        framed = judgment("REVIEW", t, "NO_PASS", basis=[content("impl", t["rev"]), validity("p", frame.view.rev("p"))],
+                          frame={"transformation": x})
+        self.assertEqual(dependency_codes(framed, tried(sc, [framed])), {"DEP_OWN_SUBJECT"})
+        admitted = judgment("REVIEW", sc.triple("impl"), "NO_PASS",
+                            basis=[content("impl", sc.rev("impl")), validity("p", sc.rev("p"))])
+        self.assertEqual(dependency_codes(admitted, tried(sc, [admitted])), set(), "it acts at the head")
+
+
+class Currency(unittest.TestCase):
+    """Step 4e-ii: each basis entry on the head's ``Support`` in the record's frame; satisfied when not ``F`` (F26)."""
+
+    def codes(self, sc: Scenario, rec: dict, change=None, siblings=()) -> set[str]:
+        from ssds.admission.currency import Currency as Step6
+
+        return Step6(sc.derive(), change).codes(rec, tried(sc, [*siblings, rec]))
+
+    def review(self, sc: Scenario, *basis, outcome: str = "PASS", **extra) -> dict:
+        t = sc.triple("impl")
+        return judgment("REVIEW", t, outcome, actor=HUMAN_B, basis=[content("impl", t["rev"]), *basis], **extra)
+
+    def test_a_content_entry_on_a_superseded_revision_is_stale(self) -> None:
+        sc = Scenario(THREE, dict(FILES))
+        r1 = sc.rev("arch")
+        self.assertEqual(self.codes(sc, self.review(sc, content("arch", r1))), set())
+        sc.absorb({"arch.md": "a2\n"})
+        self.assertEqual(self.codes(sc, self.review(sc, content("arch", r1))), {"STALE_BASIS"})
+
+    def test_an_equivalence_at_the_head_covers_its_class(self) -> None:
+        from ._scenario import OWNER, attested
+
+        sc = Scenario(THREE, dict(FILES))
+        r1 = sc.rev("arch")
+        sc.absorb({"arch.md": "a1 \n"})
+        r2 = sc.rev("arch")
+        eq = judgment("EQUIVALENCE", {"unit": "arch", "from": r1, "to": r2, "class": "EDITORIAL"}, "EQUIVALENT",
+                      actor=OWNER, basis=[{"mode": "identity", "target": {"unit": "arch", "rev": r1}, "class": "EXACT"},
+                                          {"mode": "identity", "target": {"unit": "arch", "rev": r2}, "class": "EXACT"}])
+        sc.admit(*attested(eq))
+        self.assertEqual(self.codes(sc, self.review(sc, content("arch", r1, "EDITORIAL"))), set())
+        self.assertEqual(self.codes(sc, self.review(sc, content("arch", r1))), {"STALE_BASIS"}, "EXACT is never covered")
+
+    def test_a_validity_entry_needs_a_valid_subject_and_provisional_suffices(self) -> None:
+        from ._scenario import OWNER, attested, challenge
+
+        sc = Scenario(THREE, dict(FILES))
+        entry = validity("arch", sc.rev("arch"))
+        self.assertEqual(self.codes(sc, self.review(sc, entry)), {"STALE_BASIS"}, "no acceptance: invalid")
+        t = sc.triple("arch")
+        acc = judgment("ACCEPTANCE", t, "PASS", basis=[content("arch", t["rev"])])
+        sc.admit(*attested(acc))
+        self.assertEqual(self.codes(sc, self.review(sc, entry)), set())
+        c = challenge({"record": acc["id"]})
+        sc.admit(*attested(c))
+        self.assertEqual(self.codes(sc, self.review(sc, entry)), {"STALE_BASIS"}, "a blocking challenge stands")
+        sc.admit(*attested(judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER,
+                                    fields={"continuation": {"subjects": ["arch"], "items": [], "kinds": []}})))
+        self.assertEqual(sc.derive().valid("arch"), 1)
+        self.assertEqual(self.codes(sc, self.review(sc, entry)), set(), "P is satisfied (F26)")
+
+    def test_a_record_entry_on_a_co_submitted_record_is_stale(self) -> None:
+        from ._scenario import attested, on_record
+
+        sc = Scenario(THREE, dict(FILES))
+        earlier = judgment("REVIEW", sc.triple("arch"), "PASS", actor=HUMAN)
+        sibling = judgment("REVIEW", sc.triple("notes"), "PASS", actor=HUMAN)
+        self.assertEqual(self.codes(sc, self.review(sc, on_record(sibling["id"])), siblings=[sibling]),
+                         {"STALE_BASIS"}, "no node at the head (F10)")
+        sc.admit(*attested(earlier))
+        self.assertEqual(self.codes(sc, self.review(sc, on_record(earlier["id"]))), set())
+
+    def test_a_standing_entry_on_a_superseded_record_is_stale(self) -> None:
+        from ._scenario import attested
+
+        sc = Scenario(THREE, dict(FILES))
+        first = judgment("REVIEW", sc.triple("arch"), "PASS", actor=HUMAN)
+        sc.admit(*attested(first))
+        standing = {"mode": "standing", "target": {"record": first["id"]}, "class": "EXACT"}
+        self.assertEqual(self.codes(sc, self.review(sc, standing)), set())
+        again = judgment("REVIEW", sc.triple("arch"), "PASS", actor=HUMAN, supersedes=[first["id"]])
+        sc.admit(*attested(again))
+        self.assertEqual(self.codes(sc, self.review(sc, standing)), {"STALE_BASIS"})
+
+    def test_a_before_image_a_concurrent_change_moved_is_stale_in_the_frame(self) -> None:
+        sc = Scenario(THREE, dict(FILES))
+        before = sc.rev("impl")
+        x, _, _ = submit(sc, {"impl.md": "i2\n"}, agent("maker"), "task-1")
+        rec = judgment("REVIEW", {"transformation": x}, "PASS", actor=HUMAN, basis=[content("impl", before)],
+                       frame={"transformation": x})
+        self.assertEqual(self.codes(sc, rec), set(), "the before-image is the head's revision")
+        sc.absorb({"notes.md": "n2\n"})
+        self.assertEqual(self.codes(sc, rec), set(), "a change elsewhere moves nothing")
+        sc.absorb({"impl.md": "i1 concurrent\n"})
+        self.assertEqual(self.codes(sc, rec), {"STALE_BASIS"})
+
+    def test_an_integrated_frames_before_image_is_a_fixed_fact(self) -> None:
+        sc = Scenario(THREE, dict(FILES))
+        before = sc.rev("impl")
+        x, candidate, _ = submit(sc, {"impl.md": "i2\n"}, agent("maker"), "task-1")
+        rec = judgment("REVIEW", {"transformation": x}, "PASS", actor=HUMAN, basis=[content("impl", before)],
+                       frame={"transformation": x})
+        integrate(sc, x, candidate)
+        self.assertEqual(self.codes(sc, rec), set(), "§7.3's admitted-state column (F17)")
+
+    def test_a_frame_a_co_submitted_result_fixes_is_read_at_the_head(self) -> None:
+        sc = Scenario(THREE, dict(FILES))
+        before = sc.rev("impl")
+        x, candidate, result = submit(sc, {"impl.md": "i2\n"}, agent("maker"), "task-1")
+        sc.entries.pop()  # the result is co-submitted, not admitted
+        rec = judgment("REVIEW", {"transformation": x}, "PASS", actor=HUMAN, basis=[content("impl", before)],
+                       frame={"transformation": x})
+        self.assertEqual(self.codes(sc, rec, siblings=[result]), set())
+        self.assertEqual(self.codes(sc, rec), {"STALE_BASIS"}, "no result fixes X: no frame")
+
+    def test_never_lost_reports_and_challenges_are_never_checked(self) -> None:
+        from ._scenario import challenge
+
+        sc = Scenario(THREE, dict(FILES))
+        r1 = sc.rev("arch")
+        sc.absorb({"arch.md": "a2\n"})
+        stale = content("arch", r1)
+        self.assertEqual(self.codes(sc, self.review(sc, stale)), {"STALE_BASIS"})
+        self.assertEqual(self.codes(sc, self.review(sc, stale, outcome="NO_PASS")), set(), "adverse: never-lost")
+        report = {**record("FINDING", target={"units": ["arch"]}, fields={"materiality": "ROUTINE"}),
+                  "basis": [stale]}
+        self.assertEqual(self.codes(sc, report), set())
+        self.assertEqual(self.codes(sc, {**challenge({"subject": "arch", "scope_id": "s", "rev": r1}), "basis": [stale]}),
+                         set())
+        c = challenge({"subject": "arch", "scope_id": "s", "rev": r1})
+        ruling = judgment("ADJUDICATION", {"record": c["id"]}, "UPHELD", basis=[stale])
+        self.assertEqual(self.codes(sc, ruling), set(), "challenge tier: not support tier (F28)")
+
+    def test_a_request_carrying_x_reads_every_record_in_its_frame(self) -> None:
+        sc = Scenario(THREE, dict(FILES))
+        x, _, _ = submit(sc, {"impl.md": "i2\n"}, agent("maker"), "task-1")
+        frame = frame_of_candidate(sc, x)
+        rec = judgment("REVIEW", sc.triple("arch"), "PASS", actor=HUMAN, basis=[content("impl", frame.view.rev("impl"))])
+        self.assertEqual(self.codes(sc, rec), {"STALE_BASIS"}, "the output does not exist at the head")
+        self.assertEqual(self.codes(sc, rec, change=frame), set())
+
+    def test_an_empty_basis_has_nothing_to_satisfy(self) -> None:
+        sc = Scenario(THREE, dict(FILES))
+        rec = judgment("REVIEW", {"transformation": "sha256:" + "9" * 64}, "PASS", frame={"transformation": "sha256:" + "9" * 64})
+        self.assertEqual(self.codes(sc, rec), set())
+
+
 class EngineWiring(unittest.TestCase):
     """The engine passes the request's own frame to every trial it builds, and none when that frame does not
     exist or the request changes nothing."""
@@ -190,6 +344,60 @@ class EngineWiring(unittest.TestCase):
         seen = self.frames_passed({}, {"integration_frame": mock.DEFAULT})
         self.assertTrue(seen)
         self.assertEqual(set(map(id, seen)), {id(None)})
+
+
+class RequestCycle(unittest.TestCase):
+    """The engine reads ``CYCLE_SUPPORT`` from the final trial against the head (F24). A cycle among new records
+    needs subjects valid at the head, which no admitted request can yet make, so the decision is driven here."""
+
+    def test_a_final_trial_that_grows_a_cycle_is_cycle_support(self) -> None:
+        from ssds.admission.authorize import Authorization
+        from ssds.admission.engine import Admission
+        from ssds.admission.request import request_message
+
+        from ._fixtures import sshsig
+        from .test_admission_requests import RequestFixture, finding
+
+        fixture = RequestFixture("setUp")
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        for grows in (True, False):
+            class Tried:
+                def grows_a_cycle(self, before) -> bool:
+                    return grows
+
+            rec = with_actor(finding(note=str(grows)), fixture.human())
+            req = fixture.request([rec], base_position=len(fixture.entries()) - 1)
+            req["binding"] = {"human": {"actor": fixture.human(),
+                                        "signature": sshsig(fixture.private, request_message(req))}}
+            with mock.patch.object(Admission, "trial", lambda *a, **k: Tried()), \
+                    mock.patch("ssds.admission.engine.authorize",
+                               lambda *a: Authorization(True, frozenset(), (), ())):
+                reasons = fixture.admit(req).reasons
+            with self.subTest(grows=grows):
+                self.assertEqual("CYCLE_SUPPORT" in reasons, grows)
+
+
+class StaleThroughTheEngine(unittest.TestCase):
+    def test_step_six_joins_the_records_other_codes(self) -> None:
+        from ssds.admission.request import request_message
+        from ssds.ledger.read import with_id
+
+        from ._fixtures import sshsig
+        from .test_admission_requests import RequestFixture
+
+        fixture = RequestFixture("setUp")
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        from .test_phase_f_step4b import derive_state
+
+        subject, scope, rev = derive_state(fixture).subject_triple("guide")
+        # its own subject (step 5) and invalid at the head (step 6): both codes, one refusal
+        rec = with_id({**record("REVIEW", target={"subject": subject, "scope_id": scope, "rev": rev}, outcome="PASS",
+                                basis=[content("guide", rev), validity("guide", rev)]), "actor": fixture.human()})
+        req = fixture.request([rec], base_position=len(fixture.entries()) - 1)
+        req["binding"] = {"human": {"actor": fixture.human(), "signature": sshsig(fixture.private, request_message(req))}}
+        self.assertEqual(dict(fixture.admit(req).refused).get(rec["id"]), ("DEP_OWN_SUBJECT", "STALE_BASIS"))
 
 
 class SalvageAtTheHead(unittest.TestCase):

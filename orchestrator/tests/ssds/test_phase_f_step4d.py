@@ -360,7 +360,10 @@ class Requests(RequestFixture):
         self.assertEqual(refused.get(c["id"]), ("SCHEMA_UNSUPPORTED",),
                          "its target passes step 5; a never-lost record still fails closed at steps 6-8")
 
-    def test_a_mutual_acceptance_request_is_cycle_support(self) -> None:
+    def test_a_mutual_acceptance_request_is_stale_at_an_empty_head(self) -> None:
+        """Each acceptance relies on a subject no acceptance at the head makes valid, so step 6 refuses both before
+        their cycle can form (step 4e-ii); the request-level reading is driven in test_phase_f_step4e."""
+
         from ssds.ledger.read import with_id
 
         from ._fixtures import record
@@ -375,10 +378,10 @@ class Requests(RequestFixture):
                                      outcome="PASS", basis=[content(subject, rev), validity(other[0], other[2])]),
                             "actor": self.human()})
 
-        decision = self.admit(self.human_request([acceptance(guide, policy), acceptance(policy, guide)]))
-        self.assertIn("CYCLE_SUPPORT", decision.reasons, decision)
-        one = self.admit(self.human_request([acceptance(guide, policy)]))
-        self.assertNotIn("CYCLE_SUPPORT", one.reasons, "one side alone makes no cycle")
+        pair = [acceptance(guide, policy), acceptance(policy, guide)]
+        decision = self.admit(self.human_request(pair))
+        self.assertNotIn("CYCLE_SUPPORT", decision.reasons, decision)
+        self.assertEqual({rid: why for rid, why in decision.refused}, {r["id"]: ("STALE_BASIS",) for r in pair})
 
 
 if __name__ == "__main__":

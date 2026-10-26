@@ -39,7 +39,7 @@ REASONS = frozenset({
     "STRUCT_MERGE_CONFLICT", "FREEZE_SOURCE", "FREEZE_DESTINATION", "ENACTMENT_MISSING",
     # step 5's checks other than cycles (SD-68), realized by Phase F step 4d
     "DEP_TARGET_ORDER", "DEP_TARGET_KIND", "DEP_COUNTER_CHALLENGE", "DEP_OWN_SUBJECT", "DEP_CONSUMER",
-    "CYCLE_SUPPORT", "CYCLE_WARRANT",  # CYCLE_WARRANT is not emitted until Stage S defines it (reading F25)
+    "CYCLE_SUPPORT", "CYCLE_WARRANT", "STALE_BASIS",  # CYCLE_WARRANT is not emitted until Stage S defines it (reading F25)
 })
 
 #: Input bounds at the Admission boundary (Manual §25.4; the values are delegated, proposed defaults).

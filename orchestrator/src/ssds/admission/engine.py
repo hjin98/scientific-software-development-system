@@ -33,10 +33,11 @@ from .checks import (content_identity, over_bounds, producing_context, record_pr
                      referenced_records, referenced_revisions, request_problems, transformation_named, verified_objects)
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems
+from .currency import Currency
 from .request import REPORT_KINDS, never_lost, request_id
 
 #: The validation steps after step 2 that are not realized yet (Phase F steps 3-5).
-UNREALIZED_STEPS = ("authorization", "structure", "currency", "legality", "regression")
+UNREALIZED_STEPS = ("authorization", "structure", "legality", "regression")
 
 
 def salvageable(record: Mapping[str, Any]) -> bool:
@@ -380,7 +381,8 @@ class Admission:
                 base = Workflow.historical(support.s.h, position) if "REF_BASE" not in reasons \
                     and isinstance(position, int) and 0 <= position <= s.n else None
                 before = passing
-                passing, more, ok, alone, last = self.authorized(request, passing, chain, entries, base, auth, change)
+                passing, more, ok, alone, last = self.authorized(request, passing, chain, entries, base, auth, change,
+                                                                 Currency(support, change))
                 refused += more + alone
                 if change is not None:
                     # a rejection admits never-lost records at the head (§8.3 step 6), so their own step-3 and step-5
@@ -438,9 +440,11 @@ class Admission:
             out[x] = {(u, v.rev(u)) for v in views for u in v.structure.units}
         return out
 
-    def authorized(self, request: Mapping[str, Any], passing: list[dict], chain, entries, base, auth, change=None):
+    def authorized(self, request: Mapping[str, Any], passing: list[dict], chain, entries, base, auth, change=None,
+                   currency: Any = None):
         """Authorize the records in the trial extension of their own request (reading F10), in the state after the
-        request's own transformation when ``change`` is its frame (reading F27), removing each refused
+        request's own transformation when ``change`` is its frame (reading F27), with step 6's ``currency`` codes
+        joining each round's refusals (reading F10; step 4e-ii), removing each refused
         record and rebuilding the trial until none is refused (at most once per record). Returns the records
         still passing, the refusals, whether the envelope's obligation and role hold, the records refused alone, and
         the final trial, which step 5's request-level check reads (``None`` when no record passes)."""
@@ -458,10 +462,15 @@ class Admission:
             result = authorize(request, passing, last, base)
             if not result.ok:
                 return passing, refused, False, alone, last
-            if not result.refused and not result.alone:
+            refusals = dict(result.refused)
+            for record in passing if currency is not None else ():
+                stale = currency.codes(record, last)
+                if stale:
+                    refusals[record["id"]] = tuple(sorted(set(refusals.get(record["id"], ())) | stale))
+            if not refusals and not result.alone:
                 break
-            gone = {rid for rid, _ in result.refused + result.alone}
-            refused += list(result.refused)
+            gone = set(refusals) | {rid for rid, _ in result.alone}
+            refused += list(refusals.items())
             alone += list(result.alone)
             passing = [r for r in passing if r["id"] not in gone]
             last = None
