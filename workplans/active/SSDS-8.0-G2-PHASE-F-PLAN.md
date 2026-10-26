@@ -41,7 +41,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              43e85277); 5a is closed (PASS at 3d125c63); 5a, 5b (5b-i to 5b-iii) and 5c are closed (last PASS at 1acbb8df);
              5d is closed (PASS at b546a2b8, notes taken up); 5e and 5f
              are deferred (SD-71). Step 5 is closed for Phase F. Revision 19 splits step 6 into 6a-6g (§3.3,
-             readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a is next. A10 is accepted (SD-66);
+             readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a is built and under same-family review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1365,3 +1365,18 @@ Its notes are taken up:
 - N4: group 4's discriminators are placed.
 
 **Narrow re-check of 112d2a40.** No SERIOUS CHALLENGE. **PASS:** B1, B2 and notes 1-4 are closed as stated. Its sync note is taken up: 6c's row reads F42's "a unit in its write set". Revision 19 stands.
+
+**Step 6a built.**
+- **Admission.**
+  - `expected_head` folds absorptions as `History` does: the observed head, or the fence commit.
+  - `Admission` takes the observed product repository its composition root supplies (`product`). When `obs` is not the expected head, it appends an absorption of `obs`, its commits imported and kept reachable from the ledger ref, then revalidates the request at the new head (§8.3 step 9, §8.6).
+  - It halts and appends nothing in three cases: with no product repository; when `obs` is no commit there; and when the head entry is an admission with a pending publication effect (F39).
+  - A lifecycle admission still halts on a moved head: its human approval names the head it was signed for.
+- **Not yet built.** The absorption's commit point is 6b's. Until then it is appended and checkpointed as admissions are today, and nothing appends on the real ledger (plan check N1).
+- **Tests.** `test_phase_f_step6a.py`:
+  - a moved head absorbed, then the request revalidated (two entries, the request at the new head, derivation folding the same head, `obs` reachable from the ledger ref);
+  - no product repository, and an observed head that is no commit, each halting with nothing appended;
+  - an unmoved head appending no absorption;
+  - a pending effect not absorbed;
+  - `expected_head` over genesis, absorptions, a fence and a rejection.
+- **Mutants.** Seven: six are killed. Removing the explicit no-product check is equivalent: the import then fails and still halts with nothing appended.

@@ -16,13 +16,14 @@ from __future__ import annotations
 import secrets
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
 from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflow, adoption_codes, adoption_frame,
                              derive, frame_state, outside_scope, passing, protected_touched, transformation_of, trial,
                              trust_roots)
-from ssds.ledger.append import append_entry, write_checkpoint
+from ssds.ledger.append import AppendFailed, append_entry, import_commits, write_checkpoint
 from ssds.ledger.qualification import FileWitness
 from ssds.ledger.read import (LedgerEntry, entry_violations, read_chain, record_id, record_violations, submits,
                               verify_sshsig, with_id)
@@ -84,6 +85,9 @@ class Admission:
     ledger_id: str
     trees: TreeSource
     incarnation_id: str = field(default_factory=lambda: secrets.token_hex(16))
+    #: the observed product repository the composition root supplies, from which an absorption imports ``obs``
+    #: (§8.6; plan step 6a); without one, a moved head halts Admission, as before
+    product: Path | None = None
 
     def __post_init__(self) -> None:
         self.home.check(self.ledger_id)
@@ -128,16 +132,46 @@ class Admission:
 
     @staticmethod
     def expected_head(entries: Iterable[LedgerEntry]) -> str:
-        """The integration head the last entry left: an admission's admitted commit, else the genesis baseline."""
+        """The integration head the last entry left, as ``History`` folds it: an accepted admission's admitted
+        commit, an absorption's observed head (or its fence commit), else the genesis baseline (step 6a)."""
 
         expected = None
         for entry in entries:
             body = entry.entry
             if body["entry_kind"] == "ADMISSION" and body["admission"]["decision"] == "ACCEPT":
                 expected = body["admission"]["admitted_commit"]
+            elif body["entry_kind"] == "ABSORPTION":
+                fence = body["absorption"]["fence"]
+                expected = fence["fence_commit"] if fence else body["obs"]
             elif body["entry_kind"] == "LIFECYCLE" and body["lifecycle"]["kind"] == "GENESIS":
                 expected = body["lifecycle"]["fields"]["baseline_commit"]
         return expected
+
+    def absorb(self, entries: list[LedgerEntry], obs: str) -> None:
+        """Append an absorption of the observed head ``obs`` (catalogue §8.6, §8.3 step 9), its commits imported so
+        the entry keeps them reachable. Halts instead when there is no product repository to read, or when the
+        head entry is an admission whose publication effect is pending: §22.3's procedure governs there, not a
+        plain absorption (reading F39), and no integration is accepted in Phase F (SD-70, SD-71)."""
+
+        head = entries[-1]
+        body = head.entry
+        if self.product is None:
+            raise AdmissionHalted(f"the observed head {obs} is not the expected head and no product repository is read")
+        if body["entry_kind"] == "ADMISSION" and body["admission"]["decision"] == "ACCEPT" \
+                and body["admission"]["admitted_commit"] != body["admission"]["base_commit"]:
+            raise AdmissionHalted("the head admission's publication effect is pending (§22.3; reading F39)")
+        try:
+            import_commits(self.repository, self.product, [obs])
+        except AppendFailed:
+            raise AdmissionHalted(f"the observed head {obs} is not a commit of the product repository") from None
+        entry = {"ledger_id": self.ledger_id, "position": body["position"] + 1, "schema": 1, "prev": head.digest,
+                 "entry_kind": "ABSORPTION", "host_key_id": self.key.key_id, "incarnation_id": self.incarnation_id,
+                 "obs": obs, "absorption": {"fence": None}, "admission": None, "lifecycle": None, "records": []}
+        problems = entry_violations(entry)
+        if problems:
+            raise EntryInvalid(f"the absorption of {obs} would not verify: {problems}")
+        appended = append_entry(self.repository, entry, self.key, head.commit, referenced=[obs])
+        write_checkpoint(FileWitness(self.home.witness_root), appended.checkpoint)
 
     @staticmethod
     def recorded(entries: Iterable[LedgerEntry], rid: str) -> LedgerEntry | None:
@@ -158,8 +192,11 @@ class Admission:
                             tuple((x["record_id"], tuple(x["reasons"])) for x in section["refused"]),
                             found.entry["position"], appended=False)
         expected = self.expected_head(entries)
-        if obs != expected:
-            raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
+        if obs != expected:  # §8.3 step 9: first absorb obs, then revalidate at the new head (step 6a)
+            self.absorb(entries, obs)
+            chain = self.chain()
+            entries = chain.entries[: chain.readable_through + 1]
+            expected = self.expected_head(entries)
 
         reasons, refused, passing, auth, alone, salvage, integrating = self.validate(request, chain, entries)
         decision = "REJECT" if reasons or blocking(refused, alone) else "ACCEPT"
