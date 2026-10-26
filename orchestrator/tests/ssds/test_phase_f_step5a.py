@@ -26,13 +26,17 @@ class Codes(unittest.TestCase):
                      "CONFORMANCE_RESULT", "REGRESSION", "NOT_SETTLED", "HEAD_MOVED", "OBLIGATION_NOT_DERIVED"):
             self.assertIn(code, REASONS)
         self.assertLessEqual(MERIT_CODES, REASONS)
+        self.assertFalse({"ENACTMENT_MISSING", "FREEZE_SOURCE", "FREEZE_DESTINATION"} & MERIT_CODES)
 
     def test_on_merits(self) -> None:
-        self.assertTrue(on_merits({"AUTH_WRITE_SCOPE", "STRUCT_SIBLING_OVERLAP", "FREEZE_SOURCE"}))
+        self.assertTrue(on_merits({"AUTH_WRITE_SCOPE", "STRUCT_SIBLING_OVERLAP", "RELATION_DANGLING"}))
         self.assertFalse(on_merits(set()), "nothing judged")
         self.assertFalse(on_merits({"SCHEMA_UNSUPPORTED"}), "an unbuilt check judges nothing")
         self.assertFalse(on_merits({"AUTH_WRITE_SCOPE", "AUTH_ENVELOPE"}), "a binding fault taints the rejection")
         self.assertFalse(on_merits({"REF_BASE"}))
+        self.assertFalse(on_merits({"FREEZE_SOURCE"}), "a freeze is the head's state (review 87b4fa8 B1)")
+        self.assertFalse(on_merits({"FREEZE_DESTINATION", "AUTH_WRITE_SCOPE"}))
+        self.assertFalse(on_merits({"ENACTMENT_MISSING"}), "the review route records it in X's frame")
 
 
 class RefusedIntegration(unittest.TestCase):

@@ -49,11 +49,12 @@ REASONS = frozenset({
 })
 
 #: The codes that refuse an integration on its candidate's merits (reading F35): a rejection carrying only these
-#: names ``X``, so the item takes a new iteration (``Items.refused``). A rejection for anything else (a binding, an
-#: unbuilt check, a moved head) leaves the candidate pending.
-MERIT_PREFIXES = ("STRUCT_", "RELATION_", "FREEZE_", "CONFORMANCE_")
-MERIT_CODES = frozenset({"ENACTMENT_MISSING", "AUTH_WRITE_SCOPE", "AUTH_PROTECTED", "CYCLE_SUPPORT", "CYCLE_WARRANT",
-                         "STALE_RETAINED", "OBLIGATION_REENACTED", "REGRESSION"})
+#: names ``X``, so the item takes a new iteration (``Items.refused``). A rejection for anything else leaves the
+#: candidate pending: a binding, an unbuilt check, a moved head, a freeze (the head's state, lifted when its challenge
+#: is resolved) or a missing enactment acceptance (the review route's, recorded in ``X``'s frame; review 87b4fa8 B1).
+MERIT_PREFIXES = ("STRUCT_", "RELATION_", "CONFORMANCE_")
+MERIT_CODES = frozenset({"AUTH_WRITE_SCOPE", "AUTH_PROTECTED", "CYCLE_SUPPORT", "CYCLE_WARRANT", "STALE_RETAINED",
+                         "OBLIGATION_REENACTED", "REGRESSION"})
 
 
 def on_merits(reasons: Iterable[str]) -> bool:
