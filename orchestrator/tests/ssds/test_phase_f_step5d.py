@@ -97,6 +97,64 @@ class Reviews(unittest.TestCase):
                 self.assertEqual("STALE_RETAINED" in codes, not supported, codes)
 
 
+    def test_a_superseded_review_no_longer_counts(self) -> None:
+        """Review b546a2b N2: the reviews the integration claims with are the acting, unsuperseded ones."""
+
+        from .test_judgment import History, TransformationJudgedContent
+
+        issue, later, delta, author, _, supported = TransformationJudgedContent.CASES["same_key_in_scope_after_issue"]
+        self.assertFalse(supported)
+        h = History()
+        for owner, item, d, a in issue:
+            h.enact(owner, item, d, a)
+        x = h.candidate(delta, author, "k", ["u", "v"])
+        first = judgment("REVIEW", {"transformation": x}, "PASS", actor="human:SHA256:reviewer",
+                         frame={"transformation": x})
+        h.sc.admit(first)
+        for owner, item, d, a in later:
+            h.enact(owner, item, d, a)
+        support = h.derive()
+        self.assertIn("STALE_RETAINED", review_codes(x, support, Workflow(support)))
+        h.sc.admit(judgment("REVIEW", {"transformation": x}, "NO_PASS", actor="human:SHA256:reviewer",
+                            frame={"transformation": x}, supersedes=[first["id"]]))
+        support = h.derive()
+        self.assertTrue(support.frame_support(x).s.superseded(first["id"]), "superseded in X's frame, where both act")
+        self.assertNotIn("STALE_RETAINED", review_codes(x, support, Workflow(support)), "no passing review stands")
+
+
+class Waiting(unittest.TestCase):
+    """Review b546a2b N1: only what waits on an execution or a runner is no defect of the candidate."""
+
+    def test_which_incomplete_findings_wait(self) -> None:
+        from ssds.admission.engine import _waits
+        from ssds.derivation.conformance import INCOMPLETE, Hit
+
+        def hit(template, finding):
+            return Hit("WHOLE", template, INCOMPLETE, finding)
+
+        self.assertTrue(_waits(hit("OBLIGATION.required_evidence", "required evidence e is not realized")))
+        self.assertTrue(_waits(hit("RUNNER.x", "a required execution is missing for the exact candidate")))
+        self.assertTrue(_waits(hit("RUNNER.x", "not evaluated by this derivation and not observed by a runner")))
+        self.assertFalse(_waits(hit("DOMAIN.layer_direction", "a layer imports upward")))
+        self.assertFalse(_waits(hit("TEST_INTEGRITY.x", "a HARD check reported only a signal")))
+        self.assertFalse(_waits(hit("OBLIGATION.required_artifact", "artifact a is missing")))
+
+    def test_an_evaluated_incomplete_condemns_and_a_waiting_one_waits(self) -> None:
+        from types import SimpleNamespace
+
+        from ssds.admission.engine import conformance_codes
+        from ssds.derivation.conformance import INCOMPLETE, Hit
+
+        def of(*hits):
+            return SimpleNamespace(hits=hits, result_only=(), clean=not hits)
+
+        self.assertEqual(conformance_codes(of(Hit("WHOLE", "DOMAIN.layer_direction", INCOMPLETE, "upward"))),
+                         {"CONFORMANCE_FAILED"})
+        self.assertEqual(conformance_codes(of(Hit("WHOLE", "OBLIGATION.required_evidence", INCOMPLETE, "unrealized"))),
+                         {"CONFORMANCE_INCOMPLETE"})
+        self.assertEqual(conformance_codes(of()), set())
+
+
 class ClaimedDischarge(unittest.TestCase):
     """A claimed obligation's discharge predicate holds after the request's own records (§8.3 step 7)."""
 

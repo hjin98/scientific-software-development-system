@@ -39,7 +39,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              details 4e (readings F26-F28); step 4e is closed (last PASS at 2d737acf), and with it step 4.
              Revision 18 splits step 5 into 5a-5f (§3.2, readings F29-F34, Q-F9), checked (PASS at
              43e85277); 5a is closed (PASS at 3d125c63); 5a, 5b (5b-i to 5b-iii) and 5c are closed (last PASS at 1acbb8df);
-             5d (claims and integration legality, F37) is built and under same-family review; 5e and 5f follow. A10 is accepted (SD-66);
+             5d is closed (PASS at b546a2b8, notes taken up); 5e (rebase)
+             and 5f (regression) follow. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1293,3 +1294,13 @@ Its notes are taken up:
     - a claim-only request through the engine.
   - 4c's integration cases now expect the new codes, and its clean case is made clean with a realization and an independent review.
 - **Mutants.** Eleven: all are killed, one by a case added after a first run.
+
+**Same-family review of b546a2b8 (5d).** No SERIOUS CHALLENGE. **PASS**, with no blockers. **Step 5d is closed.** Its answers confirm:
+- review discharge read at the head;
+- claims in the trial (F10's "values at the head" governs step 6, not step 7's predicate);
+- F37;
+- `OBLIGATION_REENACTED` and `AUTH_ENVELOPE` against §8.4.
+
+Its notes are taken up in code, to be read again in 5e's review:
+- N1: an `INCOMPLETE` that was evaluated (a `DOMAIN` template, a `HARD` check reporting only a signal) is the candidate's own defect, `CONFORMANCE_FAILED`. Only a required execution missing, a runner template not observed, or required evidence unrealized waits. `conformance_codes` is the one place this is decided.
+- N2: `STALE_RETAINED` reads only the passing reviews of `X` that act, unsuperseded, in `X`'s frame, where a frame review's supersession acts. A superseded supporting review no longer masks a current one. Removing the acting filter is an equivalent mutant: a passing review of `X` always declares frame `X` (4c-iii's N2), so it acts there.

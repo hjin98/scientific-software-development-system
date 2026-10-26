@@ -552,6 +552,29 @@ def integration_frame(candidate: str, support: Any) -> Any:
     return frame
 
 
+#: The conformance findings that wait on an execution or a runner, not on the candidate (§14.3, §17.5; step 5d).
+_WAITING = ("a required execution is missing", "not evaluated by this derivation and not observed by a runner")
+
+
+def _waits(hit: Any) -> bool:
+    return hit.template == "OBLIGATION.required_evidence" or hit.finding.startswith(_WAITING)
+
+
+def conformance_codes(conformance: Any) -> set[str]:
+    """The exact candidate's conformance at an integration (§8.3 step 7, §14.6; step 5d). Its own defect is
+    ``CONFORMANCE_FAILED``, a merit (F35): a violation; a discrepancy other than the outcome being ``COMPLETE``
+    while something is still unmet, unless the result's own templates show it (F30); an ``INCOMPLETE`` that was
+    evaluated (a ``DOMAIN`` template, a ``HARD`` check reporting only a signal; review b546a2b N1). What waits on an
+    execution or a runner is ``CONFORMANCE_INCOMPLETE``, and the candidate stays pending."""
+
+    own = any(h.cls == "VIOLATION" or (h.cls == "DISCREPANCY" and h.template != "FAITHFULNESS.outcome_consistent")
+              or (h.cls == "INCOMPLETE" and not _waits(h)) for h in conformance.hits) \
+        or any(h.cls in ("DISCREPANCY", "INCOMPLETE") for h in conformance.result_only)
+    if own:
+        return {"CONFORMANCE_FAILED"}
+    return set() if conformance.clean else {"CONFORMANCE_INCOMPLETE"}
+
+
 def review_codes(x: str, support: Any, workflow: Any) -> set[str]:
     """An integrating request claims together with its current review judgments (§11.5 (3)), read from the
     ledger (reading F32): ``REVIEW(X)`` discharged at the head (``OBLIGATION_PREDICATE_UNMET`` otherwise), by
@@ -561,8 +584,12 @@ def review_codes(x: str, support: Any, workflow: Any) -> set[str]:
     s = support.s
     review = next((o for o in workflow.binding_index().values()
                    if o.kind == "REVIEW" and o.target == {"transformation": x}), None)
+    # the judgments the integration claims with: passing reviews of X acting in its frame, none superseded there,
+    # where a frame record's supersession acts (review b546a2b N2)
+    framed = support.frame_support(x)
+    there = framed.s if framed is not None else s
     reviews = [r for r in s.of_kind("REVIEW") if s.record(r)["target"] == {"transformation": x}
-               and passing(s.record(r))]
+               and passing(s.record(r)) and r in there.records and there.acts(r) and not there.superseded(r)]
     if reviews and not any(support.j.supports_integration(r, s.n) for r in reviews):
         return {"STALE_RETAINED"}  # what was reviewed is not what integrates
     if review is None or workflow.discharge(review) not in ("DISCHARGED", "DISCHARGED_PROVISIONAL"):
@@ -593,14 +620,7 @@ def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
         return {"AUTH_ENVELOPE"}  # §11.5 (3): an integration request is bound to the producing task (step 5d)
     codes = {f.code for f in frame.structural.findings}
     conformance = workflow.conformance(workflow.submitting_result(x))
-    # the exact candidate's own defect (§8.3 step 7, §14.6; step 5d): a violation, or a discrepancy other than the
-    # outcome being COMPLETE while something is still unmet, unless the result's own templates show it (F30)
-    own = any(h.cls == "VIOLATION" or (h.cls == "DISCREPANCY" and h.template != "FAITHFULNESS.outcome_consistent")
-              for h in conformance.hits) or any(h.cls in ("DISCREPANCY", "INCOMPLETE") for h in conformance.result_only)
-    if own:
-        codes.add("CONFORMANCE_FAILED")
-    elif not conformance.clean:
-        codes.add("CONFORMANCE_INCOMPLETE")  # not yet complete, as unrealized evidence is: the candidate stays pending
+    codes |= conformance_codes(conformance)
     codes |= review_codes(x, support, workflow)
     contract = conformance.contract[0]
     if contract is None or outside_scope(frame, contract.write_scope):
