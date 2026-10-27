@@ -255,6 +255,8 @@ class Workflow:
                 real = a.real(x)
                 if real is None or found["differed"]:
                     continue  # (2) failed: nondeterministic in fact, the owner's (§6.9)
+                if a.unpinnable(real):
+                    continue  # no run is ext-equal to an unpinnable one: none could serve (1) or (3) (§6.3, §6.9; F111)
                 for on, tree, lacking in (("FAILING", a.basis(real).get("tree"), not found["reproduced"]),
                                           ("HERE", s.h.head(s.n), not found["observed_here"])):
                     if lacking and self._bounded(real, on) and not self._rerun_done(x, real, tree):

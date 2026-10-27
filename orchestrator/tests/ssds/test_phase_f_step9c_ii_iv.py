@@ -220,6 +220,15 @@ class Rerun(unittest.TestCase):
         r.sc.admit(challenge({"record": rerun["id"]}))  # not standing: it serves no condition
         self.assertEqual(kinds(r, "RERUN"), [], "it ran: no loop; the failure stays with its owner")
 
+    def test_never_while_the_failing_run_is_unpinnable(self) -> None:
+        """Step 9f-ii-0 (F111; §6.3: an unpinnable read "supports no mechanical stop"; §6.9): no run is ext-equal to
+        an unpinnable one, so a rerun could never end ``RERUN``, which would loop."""
+
+        r, failing = self.failing(unpinnable=True)
+        self.assertEqual(kinds(r, "RERUN"), [])
+        r.run(r.tree("T0"), BAD, unpinnable=True)
+        self.assertEqual(kinds(r, "RERUN"), [], "a rerun ends nothing either")
+
     def test_never_when_it_differed_or_the_closure_is_unbounded(self) -> None:
         r, failing = self.failing()
         r.run(r.tree("T0"), GOOD, pins=("p2",))  # other pins, so no rerun; same tree, a differing outcome: (2)
