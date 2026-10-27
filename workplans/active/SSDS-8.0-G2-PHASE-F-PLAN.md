@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up); 7b (recovery skeleton) is next. A10 is accepted (SD-66);
+             taken up). Revision 21 details 7b (readings F50-F53) and awaits its plan check. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -251,6 +251,19 @@ Step 10 and SD-64 need `ssdp-shadow`'s retirement first, so step 7 builds it fir
   - Corrupted derived state: re-derivation, which is derivation's default.
   - Content objects unavailable: the `UNAVAILABLE` binding health of Phase D's content model.
 
+#### 7b in detail (revision 21)
+
+7b builds the recovery path's machinery and admits no new kind by itself: each of `LEDGER_LOSS`, `FORK_RESOLUTION` and `WITNESS_SET_REDESIGNATION` stays `EntryInvalid` until its own part (7c-7e) supplies its content check.
+- **The gate** (F50). `admit_lifecycle` routes a recovery-tier kind through one gate: `obs = null`; the human gate's approval over the ledger, the next position after the replica's last readable entry, that entry's digest and the record identity (§25.2); and the qualification states its kind may be admitted in, from a single table. Nothing is admitted under `INTEGRITY_HALT` or `RETIRED`.
+- **The trial** (F51) runs before every recovery append. It replaces 7a's writable-witness stand-in, and the retirement goes through it.
+- **Fixture witnesses** (F53) let tests run `TEAM` and `HARDENED` quorums.
+- **The witness model per position moves to 7e** (F52).
+- **Tests.**
+  - the gate table, kind by state, including `INTEGRITY_HALT`, `RETIRED` and an unsupported kind;
+  - the trial refusing a record that would leave the ledger unqualified (a retirement under too few writable witnesses), and passing one that holds;
+  - the trial run under `TEAM` (3, 2, 2, 0) and `HARDENED` (4, 3, 3, 1) fixture witnesses, with one witness unreachable and with `f` denying;
+  - 7a's tests unchanged.
+
 Discriminators: S5 §23 `loss_bounds` and `qualification_states` at Admission; each §23.8 row as a fixture history; a stale-consistent restore; a fresh clone; a redesignation over a provisional entry; `deployment_classes_sound` at redesignation; §31.4's retired lineage and stale mirror reading `RETIRED`; and §4's "recovery authorization and authenticated witness retirement".
 
 ## 4. Acceptance groups: cases and discriminators carried
@@ -397,6 +410,18 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F47** *Ref restores (step 7d).* Choosing the side of a fork the replica does not hold, or restoring a recoverable suffix, rewrites the ledger ref, which the append-only compare-and-swap cannot do, and fitness B1 confines Git writes to `ledger.append`. The Manual assigns "replica restore" to the Ledger Store (component table), so this defers a `ledger` function, not only an operator convenience. It is deferred to Phase H, with §24.2's re-encoding. When built, it needs a named extension of fitness B1's single Git-writing exception (plan check of bd515e6, note 2). In Phase F a restore is an operator action outside SSDS, disclosed, and Admission qualifies whatever the replica holds.
 - **F48** *A continuity attestation's designation (step 7f).* §5.2 and §12.5 have a continuity attestation recorded by "a designated human" (R3), but no policy key designates one, and `Support.qualified` reads only the human floor. It stays `SCHEMA_UNSUPPORTED` until a designation exists. On `ssdp-shadow-2` it would follow only a `LEDGER_LOSS`, which F46 makes rare.
 - **F49** *The retired ledger's high-water mark (step 7a).* §24.2's "retire participants' high-water marks for it" sits in the confidentiality path, beside the purge of the old ledger, which needs G5's operation-specific authorization. Read "retired" as frozen, not deleted. A mark rises only when its holder qualifies a head `QUALIFIED`, which `RETIRED` excludes, so after the statement is held no participant raises it again. It stays at the retirement entry, so a replica that later loses the statement and is rewound still reads `ROLLBACK`. Deleting it belongs to that purge.
+- **F50** *The recovery gate (step 7b).* §23.8 admits recovery records in the states they repair, which 6b's held head refuses. One table states each kind's admissible qualification states:
+  - `LINEAGE_RETIREMENT`: `QUALIFIED`, with no provisional entry (7a);
+  - `LEDGER_LOSS`: `ROLLBACK`, `FORK` or `UNQUALIFIED` (7c);
+  - `FORK_RESOLUTION`: `FORK` (7d);
+  - `WITNESS_SET_REDESIGNATION`: `QUALIFIED` with one provisional entry, or `UNQUALIFIED` (7e).
+
+  `REPLICA_REDESIGNATION` stays refused until 7g, and every kind is refused under `INTEGRITY_HALT`. Under `RETIRED` every kind is refused, `LEDGER_LOSS` included, per §23.6: "recovery continues in the successor lineage".
+
+  Except a retirement, which goes through the held head, a recovery entry is appended after the replica's last readable entry `A`. This is §23.6's `R + 1` for a loss: 7c's retained head is the replica head. The approval names `A`'s position and digest. A held head is never required, and the high-water mark is raised only by the commit's re-qualification. The entry carries `obs = null` (§22.1).
+- **F51** *The trial qualification (step 7b).* Before any recovery append, Admission builds the entry and signs it. Ed25519 is deterministic, so the digest is the one the append will produce. Admission then qualifies the extended chain: the reachable witnesses' reports, plus the entry's checkpoint at each witness this host can write, under the retained high-water mark. The append proceeds only when that trial is `QUALIFIED` at the new position with no provisional entry. So a recovery record is admitted only if it actually repairs what it claims: its abandonment explains every mark, and a quorum can hold it. The trial is not proof that the writes will succeed. A write that fails leaves a provisional entry, which 6b's recovery completes, and the commit's own re-qualification decides what is reported. For a retirement, the trial is the extended chain still `QUALIFIED`; its statement is published after the commit (7a).
+- **F52** *The witness model in force per position (moved to 7e).* Only a `WITNESS_SET_REDESIGNATION` changes the model (F46 holds a loss's `controls` to the retained ones), and none can be admitted before 7e. Until then every chain's model in force is its genesis model. The fold, and its dual-quorum admission under old and new sets, are therefore 7e's. 7b keeps qualification on the genesis model, and every reader keeps calling the one owner, `Admission.witness_set` (the Interface reads genesis too), so 7e changes one place per reader.
+- **F53** *Fixture witnesses (step 7b; F3).* `TEAM` and `HARDENED` forbid `FILE` witnesses (`WitnessModel.validate`), and this host reaches no `GIT` or `LOG` witness. For tests only, Admission takes an optional map from declared witness id to a fixture directory. A declared non-`FILE` witness found there is read and written as a file witness. The composition root never passes it, so the real ledger's witnesses are exactly its `FILE` ones (F3).
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -1680,3 +1705,5 @@ Its notes:
 - **N3 (put to the stakeholder with Q-F13).** Any registered human may approve the retirement, as for `KEY_LIFECYCLE`. The ledger has one registered human, the stakeholder, so this is the stakeholder's approval. Whether a later ledger should name the deciding role is asked with Q-F13.
 
 **Step 7a is closed.** 7b (the recovery skeleton) is next.
+
+**Revision 21: step 7b in detail (§3.4, readings F50-F53).** 7b builds the recovery gate and its table (F50), the trial qualification before every recovery append (F51), and fixture witnesses for `TEAM` and `HARDENED` (F53). It admits no new kind: 7c-7e each supply their content check. The witness model in force per position moves to 7e (F52), since only a redesignation can change it.
