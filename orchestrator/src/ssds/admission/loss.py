@@ -57,8 +57,13 @@ def evidence(chain: Any, trees: TreeSource, model: WitnessModel, reports: Mappin
     def off_chain(position: int, digest: str) -> bool:
         return position > last.position or digests[position] != digest
 
-    heads = {(c.position, c.entry_digest) for cps in held.values() for c in cps if off_chain(c.position, c.entry_digest)}
-    if mark is not None and off_chain(mark.position, mark.entry_digest):
+    # a head an admitted resolution or loss already abandoned is not abandoned again: qualification no longer reads
+    # it (``_abandoned``), and naming it would bar every later fork resolution behind an old loss
+    gone = {a.get("digest") for e in entries if (e.lifecycle or {}).get("kind") in ("FORK_RESOLUTION", "LEDGER_LOSS")
+            for a in e.lifecycle["fields"]["abandoned"] if isinstance(a, Mapping)}
+    heads = {(c.position, c.entry_digest) for cps in held.values() for c in cps
+             if off_chain(c.position, c.entry_digest) and c.entry_digest not in gone}
+    if mark is not None and off_chain(mark.position, mark.entry_digest) and mark.entry_digest not in gone:
         heads.add((mark.position, mark.entry_digest))
     silent = len(declared) - len(held)
 
@@ -98,4 +103,22 @@ def loss_problems(fields: Any, expected: Mapping[str, Any]) -> list[str]:
     return problems
 
 
-__all__ = ["controls", "evidence", "loss_problems"]
+def resolution_problems(fields: Any, expected: Mapping[str, Any]) -> list[str]:
+    """Why a ``FORK_RESOLUTION``'s ``fields`` cannot be admitted against the loss evidence ``expected``; none if they
+    can (§23.6; reading F58). It abandons exactly the heads a loss would name, every one proved never admitted, so it
+    sets no boundary: any other abandonment is a ``LEDGER_LOSS``. The replica keeps its own side; choosing the side it
+    does not hold needs a ref restore (F47)."""
+
+    if not isinstance(fields, Mapping) or set(fields) != {"abandoned"}:
+        return ["a fork resolution carries exactly its abandoned heads"]
+    problems = [] if fields["abandoned"] == expected["abandoned"] else \
+        ["abandoned is not the recomputed abandoned (§23.6; readings F54, F58)"]
+    statuses = [a["status"] for a in expected["abandoned"]]
+    if not statuses:
+        problems.append("nothing is abandoned: there is no fork to resolve")
+    elif any(s != "PROVED_NEVER_ADMITTED" for s in statuses):
+        problems.append("a head not proved never admitted is abandoned only by a LEDGER_LOSS (§23.6)")
+    return problems
+
+
+__all__ = ["controls", "evidence", "loss_problems", "resolution_problems"]

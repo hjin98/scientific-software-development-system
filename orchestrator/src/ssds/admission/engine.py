@@ -38,7 +38,7 @@ from .checks import (content_identity, on_merits, over_bounds, producing_context
                      verified_objects)
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems, retirement_problems
-from .loss import evidence as loss_evidence, loss_problems
+from .loss import evidence as loss_evidence, loss_problems, resolution_problems
 from .currency import Currency
 from .legality import Legality, conformance_alone
 from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
@@ -230,7 +230,8 @@ class Admission:
                              self.home.high_water(self.ledger_id).get())
 
     def prepare_loss(self) -> dict[str, Any]:
-        """The fields of a ``LEDGER_LOSS`` the human gate would sign now: what the operator puts in the record."""
+        """The fields of a ``LEDGER_LOSS`` the human gate would sign now: what the operator puts in the record. A
+        ``FORK_RESOLUTION``'s are its ``abandoned`` alone (reading F58)."""
 
         return self.loss_evidence(self.chain())[0]
 
@@ -485,6 +486,9 @@ class Admission:
             expected, report = self.loss_evidence(chain)
             problems = record_violations(record) + loss_problems(record.get("fields"), expected)
             objects = {expected["report"]: report}  # the qualification report, stored with the entry (F55)
+        elif kind == "FORK_RESOLUTION":
+            problems = record_violations(record) + resolution_problems(record.get("fields"),
+                                                                       self.loss_evidence(chain)[0])
         else:
             problems = record_violations(record) + _content_problems(kind, record.get("fields"), roots, position,
                                                                      self.ledger_id)
@@ -792,7 +796,7 @@ RECOVERY_STATES: dict[str, frozenset[str]] = {
     "REPLICA_REDESIGNATION": frozenset(),  # 7g
 }
 #: The step of Phase F that supplies each recovery kind's content check; until then it is refused.
-_UNBUILT = {"FORK_RESOLUTION": "7d", "WITNESS_SET_REDESIGNATION": "7e"}
+_UNBUILT = {"WITNESS_SET_REDESIGNATION": "7e"}
 
 
 def admissible(kind: str, held: Qualification) -> bool:

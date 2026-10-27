@@ -25,7 +25,9 @@ from ._fixtures import approve, commit, entry, genesis_record, git, record, sshs
 from .test_admission_requests import RequestFixture, finding
 
 
-class Loss(RequestFixture):
+class LossFixture(RequestFixture):
+    """A ledger's loss helpers; no tests of its own, so later steps subclass it."""
+
     def human_request(self, records):
         from ssds.admission.request import request_message
 
@@ -52,6 +54,8 @@ class Loss(RequestFixture):
     def state(self):
         return self.admission.qualification(self.admission.chain())
 
+
+class Loss(LossFixture):
     # -- §23.8's rows ------------------------------------------------------------------------------------------
 
     def test_a_truncated_ledger_takes_a_loss_and_then_absorbs_a_newer_product(self) -> None:
@@ -210,8 +214,8 @@ class Loss(RequestFixture):
         self.assertEqual(len(self.entries()), before)
 
 
-class TeamLoss(RequestFixture):
-    """Losses on a TEAM (3, 2, 2, 0) ledger with fixture witnesses (F53)."""
+class TeamLedger(RequestFixture):
+    """A TEAM (3, 2, 2, 0) ledger with fixture witnesses (F53); no tests of its own, so later steps subclass it."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -251,6 +255,11 @@ class TeamLoss(RequestFixture):
 
     def rewind_to_genesis(self) -> None:
         git(self.repository, "update-ref", ledger_ref("team"), self.genesis.commit)
+
+
+
+class TeamLoss(TeamLedger):
+    """Losses on the TEAM ledger."""
 
     def test_a_mixed_set_is_one_loss_naming_both(self) -> None:
         one = self.append(self.genesis, 1, "1")

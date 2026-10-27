@@ -93,7 +93,7 @@ class Gate(RequestFixture):
 
         self.rewind()
         before = len(self.entries())
-        for kind, refusal in (("LEDGER_LOSS", "recomputed"), ("FORK_RESOLUTION", "step 7d")):  # 7c builds the loss
+        for kind, refusal in (("LEDGER_LOSS", "recomputed"), ("FORK_RESOLUTION", "LEDGER_LOSS")):  # 7c, 7d
             with self.subTest(kind=kind), self.assertRaisesRegex(EntryInvalid, refusal):
                 self.recovery(kind)
         with self.assertRaisesRegex(AdmissionHalted, "reading F50"):

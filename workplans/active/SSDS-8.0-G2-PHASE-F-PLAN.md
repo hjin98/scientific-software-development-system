@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`) is next. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -477,6 +477,14 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 
   It must equal the recomputation, so any change fails closed until a control fold exists (F46).
 - **F57** *After a loss (step 7c).* Qualification reads the named heads as abandoned through its existing `_abandoned`, once the loss is inside a quorum-held prefix. The trial (F51) therefore shows that the loss explains every mark. Derivation's boundary at the loss's position withholds permissive records and relaxers before it unless they are held, derives `REQUALIFY`, and never revives a record from agreement between product and ledger (§23.6, Phase D). The next ordinary entry absorbs a newer product (6a). An abandoned chain that surfaces later is never merged; the boundary stays.
+- **F58** *A fork resolution's abandoned heads (step 7d).* A `FORK_RESOLUTION` carries exactly `{abandoned}`. It is checked against the loss evidence:
+  - It must name exactly F54's set: every head off the replica's chain or beyond it that the witnesses or the mark show, each with its recomputed status.
+  - Every head must be proved never admitted (§23.6). That gives it no boundary, and derivation folds none, since it folds boundaries only at a `LEDGER_LOSS`.
+  - A head possibly or known admitted is abandoned only by a loss.
+  - A mark's head is floored at possibly admitted (review 8bfaaf0 N2), so a resolution never abandons it.
+  - Nothing to abandon is refused.
+
+  The replica keeps its own side. Choosing the side it does not hold, or restoring a recoverable suffix, needs the ref restore, F47's (Q-F14). This reading follows directly from §3.4's 7d row and F54, so it was not given a separate plan check; 7d's code review judges it.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -1911,3 +1919,19 @@ Its notes:
 - **N1 (answered).** A human `ACCEPTANCE` or `REVIEW` of the fixture's `NATIVE` subject is accepted, but derives `current = F` at the head under the fixture's empty policy (probe of this step). So no engine-level loss can withhold a current permissive record here. `REQUALIFY`'s positive case stays at derivation level (`test_s3`, `test_support`), as recorded.
 
 **Step 7c is closed.**
+
+**Step 7d built (`FORK_RESOLUTION`; reading F58).**
+- **Code.** `admission/loss.py` gains `resolution_problems` (F58). `admit_lifecycle` checks a fork resolution against `loss_evidence`, and `FORK_RESOLUTION` leaves `_UNBUILT`. The gate (F50: `FORK` or `ROLLBACK`) and the trial (F51) apply as before.
+- **Tests.** `test_phase_f_step7d.py`, 8 tests. 7c's helpers move into test-free bases (`LossFixture`, `TeamLedger`) that 7d subclasses, so no test runs twice.
+  - **On `TEAM`.**
+    - §23.8's "only proved-never-admitted entries lost" row: a `KEY_LIFECYCLE` held by one of three witnesses is lost by the replica (`ROLLBACK`), resolved with no boundary, and then the same record is admitted afresh by its identity (§22.4; lifecycle form, since the fixture `TEAM` genesis carries no policy objects for a request's derivation).
+    - A fork keeps the replica's side.
+    - A head held by `q_a` is a loss's.
+    - A mark's head is never resolved away.
+    - The set is exact, and so is the shape.
+    - `UNQUALIFIED` is refused at the gate.
+  - **On `LOCAL_TRUST`.** Any witnessed head is known admitted, so it is a loss's.
+- **A 7c defect found and repaired.** Mutant D03 (no refusal of an empty set) survived, and tracing why exposed the defect. `evidence` named heads that an earlier admitted loss or resolution had already abandoned, which qualification no longer reads (`_abandoned`). So after any loss naming a known-admitted head, every later fork resolution would have been refused as "a loss's". `evidence` now excludes those digests, for checkpoints and the mark alike. A test admits a loss, then a resolution of a newer sub-quorum head naming only that head. Mutant D06 (no exclusion) is killed.
+- **Mutants.** Six: five are killed. D03 is equivalent under the gate: `FORK` and `ROLLBACK` arise only from an off-chain head not yet abandoned, which `evidence` names, so "nothing abandoned" cannot reach a fork resolution's check. The refusal stays as defence.
+- **Fail closed.** Choosing the side the replica does not hold, and restoring a recoverable suffix, wait for the ref restore (F47, Q-F14).
+- **Full suite.** It passes on the repaired code: 1355 tests, 6 skipped.
