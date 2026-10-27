@@ -19,7 +19,7 @@ from ssds.content import recorded_identity
 from . import test_assessment as ta
 from ._fixtures import RUNNER_KEY, record
 from ._scenario import designated, judgment, store
-from .test_assessment import BAD, GOOD, SPEC_TERM, Runs
+from .test_assessment import BAD, GOOD, OBL, SPEC_TERM, Runs
 from .test_phase_f_step9b_ii import DECLARATIVE, Declared
 
 
@@ -175,6 +175,33 @@ class Custody(unittest.TestCase):
                                  "frame": {"transformation": x}}))
         self.assertFalse(self.r.stale(self.failing, "T1"), "a pending frame's enumeration does not act")
 
+    def test_an_untrusted_enumeration(self) -> None:
+        """Re-check of 9031b16d (w1-w3): an enumeration counts only under a realization's trust."""
+
+        from .test_phase_f_step9c_ii_i import adopt
+
+        cases = {"compromised": None, "not a trust root": "ed25519:other", "not machinery": RUNNER_KEY}
+        for case, key in cases.items():
+            with self.subTest(case=case):
+                self.setUp()
+                if case == "compromised":
+                    self.enumerate(self.every_run())
+                    at = self.r.sc.derive().s.position_of(self.passed["id"]) + 1
+                    self.r.sc.lifecycle(record("KEY_LIFECYCLE", target=None, fields={
+                        "action": "COMPROMISED", "key": {"role": "RUNNER", "id": RUNNER_KEY, "public_key": "00" * 32},
+                        "from_position": at}))
+                elif case == "not a trust root":
+                    adopt(self.r.sc, CUSTODY_POLICY.replace('keys = ["ed25519:test"]',
+                                                            'keys = ["ed25519:test", "ed25519:other"]'))
+                    self.r.sc.admit(record("CUSTODY_ENUMERATION", target={"runner": "ci"},
+                                           actor=f"machinery:custody@{key}", actor_class="MACHINERY",
+                                           fields={"runs": sorted(self.every_run())}))
+                else:
+                    self.r.sc.admit(record("CUSTODY_ENUMERATION", target={"runner": "ci"},
+                                           actor=f"machinery:custody@{key}", actor_class="AGENT",
+                                           fields={"runs": sorted(self.every_run())}))
+                self.assertFalse(self.r.stale(self.failing, "T1"))
+
     def test_an_enumerated_run_not_admitted(self) -> None:
         self.enumerate(self.every_run() | {"sha256:" + "9" * 64})
         self.assertFalse(self.r.stale(self.failing, "T1"), "every enumerated run counts (F81)")
@@ -226,16 +253,48 @@ class Either(unittest.TestCase):
         good = r.run(r.sc.head, {"y": "0.0"})
         self.assertTrue(r.assessments().yields(good["id"], failing["id"]), "its check was in force at its base")
 
-    def test_an_output_never_declared_is_not_yielded(self) -> None:
+    def test_a_frame_records_base_is_its_frames(self) -> None:
+        """Re-check of 9031b16d (w5): a⁻ in a candidate's frame, admitted after an absorbed revision dropped x; its
+        base is the frame's, where x was declared, so its check was in force there."""
+
+        from ssds.ledger.read import with_id
+
+        from ._scenario import HUMAN_B, agent, content, on_record, submit
+
+        r = Declared(DECLARATIVE)
+        t0 = r.tree("T0")
+        real = r.run(t0, {"x": 1, "y": "0.0"})
+        spec_rev = r.sc.view(t0).rev("spec")
+        x, _, _ = submit(r.sc, {"b.py": "w = 1\n"}, agent("maker"), "t-frame")
+        removed = DECLARATIVE.replace('{ name = "x", type = "int" }, ', "") \
+            .replace('{ output = "x", template = "EXACT", params = { reference = 2 } },\n', "")
+        r.revise(removed)
+        failing = with_id({**judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": OBL}, "FAIL",
+                                      actor=HUMAN_B, basis=[on_record(real["id"]), content("spec", spec_rev)],
+                                      fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": spec_rev},
+                                              "failing_outputs": ["x"]}),
+                           "frame": {"transformation": x}})
+        r.sc.admit(failing)
+        good = r.run(r.sc.head, {"y": "0.0"})
+        self.assertTrue(r.assessments().yields(good["id"], failing["id"]))
+
+    def test_an_output_never_declared_fails_closed(self) -> None:
         r = Declared(DECLARATIVE)
         t0 = r.tree("T0")
         failing = r.assess(r.run(t0, {"x": 2, "y": "0.0"}), "FAIL", failing=("w",))
         good = r.run(t0, {"x": 2, "y": "0.0"})
-        self.assertFalse(r.assessments().yields(good["id"], failing["id"]), "w was never a checked output")
+        self.assertTrue(r.assessments().yields(good["id"], failing["id"]),
+                        "w is no declared output of a⁻'s reading: F(a⁻) names none of it, so fail closed")
 
 
 class NeverStaleByMechanics(unittest.TestCase):
-    """Review of babcbd22, B1: its three probes."""
+    """Review of babcbd22, B1: its three probes; re-check of 9031b16d: an undeclared failing name."""
+
+    def test_a_failing_name_no_declaration_has(self) -> None:
+        reader = 'oracle = "ASSESSOR_READ"\nrunner = "ci"\ntime_bound_hours = 24\noutputs = [{ name = "x", type = "int" }]\n'
+        for declaration, outcome in ((DECLARATIVE, {"x": 2, "y": "0.0"}), (reader, {"x": 1})):
+            with self.subTest(oracle=declaration.split("\n")[0]):
+                self.assertFalse(self.stale(declaration, outcome, outcome, outcome, ("typo",)))
 
     def stale(self, declaration, failing_outcome, rerun_outcome, here_outcome, failing_outputs=None):
         r = Declared(declaration)

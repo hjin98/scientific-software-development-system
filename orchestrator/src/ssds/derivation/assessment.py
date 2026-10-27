@@ -422,7 +422,12 @@ class Assessments:
         outcome = self.outcome(observation) or {}
         if not isinstance(found, SpecDeclaration):
             return True  # a defective or unknown reading computes nothing (fail closed)
+        own_reading = self.s.record(rid)["fields"].get("reading") or {}
+        own = self.s.specs.declaration_at(own_reading.get("unit"), own_reading.get("rev"))
         for x in self.failing_outputs(rid):
+            if not isinstance(own, SpecDeclaration) or own.output(x) is None:
+                return True  # F(a⁻) is "the declared outputs it found failing" (§6.5): a name outside a⁻'s own
+                # reading, or an unusable one, fails closed (re-check of 9031b16d)
             name = _renamed(found, x)
             stored = _renamed(self.declaration(observation), x)
             if found.output(name) is None or stored not in outcome:
