@@ -16,10 +16,10 @@ readings F83-F86).
 
 Verdicts are read through the declaration of the reading's specification revision (§6.5):
 an embedded verdict only under the reading the execution ran, and ``EXACT`` recomputed from the
-stored outcome under any reading; every other template is not computable until Q-F21 settles it
-(F86), so it is taken as yielding the failure (fail closed), as is a reading whose declaration is
-defective or unknown. A passing assessment under a defective specification is not admissible
-(§17.4; F84); a failing one still counts, since failing evidence is never dropped (§6; step 9b-ii's
+stored outcome under any reading, as are the numeric oracles, exactly (SD-81; reading F116);
+``SET_EQUAL`` is not computable (F86), so it is taken as yielding the failure (fail closed), as is a
+reading whose declaration is defective or unknown. A passing assessment under a defective specification is not
+admissible (§17.4; F84); a failing one still counts, since failing evidence is never dropped (§6; step 9b-ii's
 narrowing of F84's note 1, on the safe side). The rest of §17.4's admissibility is step 9c-ii's,
 and home follows successors by file overlap, which only adds subjects.
 """
@@ -31,7 +31,8 @@ from collections.abc import Callable
 from functools import cached_property, lru_cache
 from typing import Any
 
-from ssds.content import SpecDeclaration, TreeView, canonical_reference, is_canonical, jcs, recorded_identity
+from ssds.content import (SpecDeclaration, TreeView, canonical_reference, is_canonical, jcs, judge,
+                          recorded_identity)
 
 from .frames import transformation_of
 from .realization import basis_problems, context_available, on_minus
@@ -479,8 +480,14 @@ class Assessments:
                 if not is_canonical(output, outcome[stored]) \
                         or jcs(outcome[stored]) != jcs(reference):  # byte equality (§17.3)
                     return True
-            else:
-                return True  # not computable until Q-F21 settles it (F86)
+            else:  # the numeric oracles, judged exactly (SD-81; reading F116); SET_EQUAL is not computable (F86)
+                observed = self.declaration(observation)
+
+                def value_of(n: str, name: str = name, stored: str = stored, observed: Any = observed) -> Any:
+                    return outcome[stored] if n == name else outcome.get(_renamed(observed, n))
+
+                if judge(verdict, {o.name: o for o in found.outputs}, value_of) is not True:
+                    return True
         return read_by_assessor and not self.covered(observation, rid, unit, rev)
 
     # -- discriminating readings (§6.6; readings F106-F108) -----------------------------------------------------

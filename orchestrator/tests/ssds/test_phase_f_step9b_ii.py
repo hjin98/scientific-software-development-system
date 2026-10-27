@@ -3,8 +3,8 @@
 
 The evaluated outcome is ``{output name: canonical value}``. A verdict on a failing output is read through the
 declaration of the reading in force: an embedded verdict, a declared ``enum`` output, counts only under the reading the
-execution ran; ``EXACT`` is recomputed from the stored outcome under any reading; every other template is not computable
-until Q-F21, and a defective or unknown reading is not usable, so each yields the failure (fail closed). A passing
+execution ran; ``EXACT`` is recomputed from the stored outcome under any reading, as the numeric oracles are since SD-81
+(step 9g-i); ``SET_EQUAL`` is not computable, and a defective or unknown reading is not usable, so each yields the failure (fail closed). A passing
 assessment under a defective specification is not admissible; a failing one still counts.
 """
 
@@ -82,7 +82,12 @@ class Verdicts(unittest.TestCase):
         failing = r.fail(r.run(t0, {"x": 1, "y": "9.0"}))
         failing_y = r.assess(r.run(t0, {"x": 1, "y": "9.0"}), "FAIL", failing=("y",))
         good = r.run(t0, {"x": 2, "y": "0.0"})
-        self.assertTrue(r.assessments().yields(good["id"], failing_y["id"]), "ABS_TOL waits for Q-F21 (F86)")
+        self.assertFalse(r.assessments().yields(good["id"], failing_y["id"]),
+                         "ABS_TOL is judged exactly since SD-81 (step 9g-i, F116)")
+        r.revise(DECLARATIVE.replace('template = "ABS_TOL", params = { reference = 0.0, tol = 0.5 }',
+                                     'template = "SET_EQUAL", params = { reference = 0.0 }'))
+        self.assertTrue(r.assessments().yields(good["id"], failing_y["id"]), "SET_EQUAL is not computable (F86)")
+        r.revise(DECLARATIVE)
         r.revise("oracle = \n")
         self.assertTrue(r.assessments().yields(good["id"], failing["id"]), "a defective reading")
 

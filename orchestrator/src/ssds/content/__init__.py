@@ -35,7 +35,7 @@ from .plan import (
 )
 from .resolve import Region, Span
 from .spec import (SYSTEM_TIME_CAP_HOURS, Output, SpecDeclaration, SpecFailure, Verdict, canonical_float,
-                   canonical_reference, float_of, is_canonical, parse_spec, spec_declaration)
+                   canonical_reference, exact_of, float_of, is_canonical, judge, parse_spec, spec_declaration)
 from .structure import (
     RESIDUAL_SUFFIX,
     SYSTEM_UNITS,
@@ -57,7 +57,7 @@ from .writeset import write_set
 
 __all__ = [
     "SYSTEM_TIME_CAP_HOURS", "Output", "SpecDeclaration", "SpecFailure", "Verdict", "canonical_float",
-    "canonical_reference", "float_of", "is_canonical", "parse_spec", "spec_declaration",
+    "canonical_reference", "exact_of", "float_of", "is_canonical", "judge", "parse_spec", "spec_declaration",
     "ABSENT", "Check", "Contract", "ContractObligation", "DEFAULT_MANIFEST_PATH", "Entry", "EvidenceVerifier",
     "ITEM_KINDS", "Item", "ItemFailure", "ItemPart", "Plan", "REVIEW", "Ref", "SLOTS", "named_spans", "parse_item", "plans", "GOVERNED_KEY", "GitReadError", "ID_RE", "IntegrityFinding",
     "KINDS", "MODES", "Manifest", "ManifestFailure", "RESIDUAL_SUFFIX", "Region", "SYSTEM_UNITS", "Segment",

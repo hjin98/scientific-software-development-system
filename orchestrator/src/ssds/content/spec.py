@@ -9,8 +9,10 @@ error that makes the specification defective (F84; plan check of db0bf1ce, note 
 Outputs are §17.3's scalar forms: ``float64`` (canonical ``binary64-hex``, ``decimal-shortest`` or ``rounded:<n>``),
 ``int``, ``bool``, ``enum`` and ``digest``. An embedded oracle's verdict on an output is itself a declared ``enum``
 output with values ``PASS`` and ``FAIL``, named by the verdict entry's ``embedded`` key (F85). A declarative verdict
-names one of the seven templates (§6.5, §14.3); its parameters are checked for the obvious constraints now, and only
-``EXACT`` is evaluated in Phase F (F86, Q-F21).
+names one of the seven templates (§6.5, §14.3); its parameters are checked statically (SD-81 item 5). ``EXACT`` is
+byte equality (F86); ``ABS_TOL``, ``REL_TOL``, ``ULP_TOL``, ``RANGE`` and ``MONOTONE`` are judged by :func:`judge`
+exactly on rationals, their parameters re-read as the decimals written (SD-81; reading F116); ``SET_EQUAL`` is not
+evaluated (no collection form).
 
 The canonical text of a ``float64`` value (an implementation reading of §17.3's forms, recorded with step 9b):
 ``binary64-hex`` is ``0x`` and the 16 lower-case hexadecimal digits of the IEEE-754 bit pattern (exact, NaN payloads
@@ -31,7 +33,9 @@ import re
 import struct
 import tomllib
 from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
+from fractions import Fraction
 from typing import Any
 
 from .plan import fenced_blocks
@@ -70,6 +74,7 @@ class Verdict:
     template: str | None = None  # a declarative verdict's template
     params: dict[str, Any] = field(default_factory=dict)
     embedded: str | None = None  # an embedded verdict's output carrying PASS or FAIL
+    exact: dict[str, Any] = field(default_factory=dict)  # numeric parameters as exact rationals (SD-81 item 7)
 
 
 @dataclass(frozen=True)
@@ -208,17 +213,19 @@ def spec_declaration(view: TreeView, uid: str) -> SpecDeclaration | SpecFailure:
 def parse_spec(data: bytes) -> SpecDeclaration | SpecFailure:
     try:
         raw = tomllib.loads(data.decode("utf-8"))
+        # the declared numbers as the exact decimals written, for the oracles' parameters (SD-81 item 7)
+        exact = tomllib.loads(data.decode("utf-8"), parse_float=Decimal)
     except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
         return SpecFailure("TOML", str(error))
     try:
-        return _declaration(raw)
+        return _declaration(raw, exact)
     except _Grammar as error:
         return SpecFailure("GRAMMAR", str(error))
     except (ArithmeticError, ValueError, TypeError) as error:  # total over untrusted content (§25.4; review B3)
         return SpecFailure("GRAMMAR", f"a value outside the grammar: {error}")
 
 
-def _declaration(raw: dict[str, Any]) -> SpecDeclaration:
+def _declaration(raw: dict[str, Any], exact: dict[str, Any] | None = None) -> SpecDeclaration:
     if not set(raw) <= _KEYS:
         raise _Grammar(f"unknown keys {sorted(set(raw) - _KEYS)}")
     if not _REQUIRED <= set(raw):
@@ -232,7 +239,7 @@ def _declaration(raw: dict[str, Any]) -> SpecDeclaration:
         raise _Grammar("time_bound_hours is a positive number")
     outputs = _outputs(raw["outputs"])
     by_name = {o.name: o for o in outputs}
-    verdicts = _verdicts(raw.get("verdicts", []), oracle, by_name)
+    verdicts = _verdicts(raw.get("verdicts", []), oracle, by_name, (exact or {}).get("verdicts", []))
     fixed = raw.get("fixed", {})
     if not isinstance(fixed, dict) or not all(isinstance(k, str) and isinstance(v, str) and v for k, v in fixed.items()):
         raise _Grammar("fixed maps attribute names to values")
@@ -275,7 +282,7 @@ def _outputs(raw: Any) -> tuple[Output, ...]:
     return tuple(out)
 
 
-def _verdicts(raw: Any, oracle: str, outputs: dict[str, Output]) -> tuple[Verdict, ...]:
+def _verdicts(raw: Any, oracle: str, outputs: dict[str, Output], exact: Any = ()) -> tuple[Verdict, ...]:
     if not isinstance(raw, list):
         raise _Grammar("verdicts is a list")
     if oracle == "ASSESSOR_READ":
@@ -304,13 +311,50 @@ def _verdicts(raw: Any, oracle: str, outputs: dict[str, Output]) -> tuple[Verdic
         if not isinstance(params, dict):
             raise _Grammar(f"verdict on {name}: params is a table")
         _check_params(entry["template"], params, outputs[name], outputs)
-        out.append(Verdict(name, entry["template"], dict(params)))
+        exact_entry = exact[len(out)] if isinstance(exact, list) and len(exact) > len(out) else {}
+        exact_params = _exact_params(entry["template"],
+                                     (exact_entry.get("params") or {}) if isinstance(exact_entry, dict) else {})
+        out.append(Verdict(name, entry["template"], dict(params), exact=exact_params))
     return tuple(out)
 
 
+def _exact_params(template: str, params: dict[str, Any]) -> dict[str, Any]:
+    """A numeric template's parameters as exact rationals of the decimals written (SD-81 item 7): a ``Fraction``, or
+    an infinity, which only a ``RANGE`` bound may be (item 8); a NaN anywhere is a static error (item 5; plan check of
+    6f512acd, note 1)."""
+
+    out: dict[str, Any] = {}
+    for key in ("reference", "tol", "lo", "hi"):
+        if key not in params or template not in ("ABS_TOL", "REL_TOL", "ULP_TOL", "RANGE"):
+            continue
+        value = params[key]
+        if isinstance(value, Decimal):
+            if value.is_nan():
+                raise _Grammar(f"{template}'s {key} is a number, not NaN")
+            if value.is_infinite():
+                if template != "RANGE":
+                    raise _Grammar(f"{template}'s {key} is finite")
+                out[key] = math.inf if value > 0 else -math.inf
+                continue
+            out[key] = Fraction(value)
+        elif isinstance(value, int) and not isinstance(value, bool):
+            out[key] = Fraction(value)
+    if template == "ULP_TOL" and isinstance(out.get("reference"), Fraction) \
+            and Fraction(float(out["reference"])) != out["reference"]:
+        # item 7 forbids reading it as its nearest binary64 and item 2 has no distance to it: fail closed until
+        # Q-F28 (re-check of 1e0d5c8a, B1)
+        raise _Grammar("ULP_TOL's reference is exactly a binary64 value, written as its exact decimal (Q-F28)")
+    if template == "RANGE" and all(isinstance(out.get(k), (Fraction, float)) for k in ("lo", "hi")) \
+            and out["lo"] > out["hi"]:
+        raise _Grammar("RANGE's lo is at most its hi")  # decided on the decimals written (item 7)
+    return out
+
+
 def _check_params(template: str, params: dict[str, Any], output: Output, outputs: dict[str, Output]) -> None:
-    """The obvious constraints of a template's parameters (plan check of db0bf1ce, note 3); Q-F21's further rules
-    apply once it is settled."""
+    """The constraints of a template's parameters (plan check of db0bf1ce, note 3; SD-81 item 5)."""
+
+    if any(isinstance(v, float) and math.isnan(v) for v in params.values()):
+        raise _Grammar(f"{template} on {output.name}: a parameter is a number, not NaN")
 
     def finite_number(key: str) -> bool:
         return _number(params.get(key)) and math.isfinite(params[key])
@@ -351,6 +395,81 @@ def _check_params(template: str, params: dict[str, Any], output: Output, outputs
             raise _Grammar("MONOTONE orders at least two declared numeric outputs, its own among them")
 
 
+# -- the numeric oracles (SD-81; Phase F reading F116) -----------------------------------------------------------------
+
+NUMERIC_TEMPLATES = frozenset({"ABS_TOL", "REL_TOL", "ULP_TOL", "RANGE", "MONOTONE"})
+
+
+def exact_of(output: Output, value: Any) -> Fraction | float | None:
+    """A canonical numeric value exactly (SD-81 items 4 and 6): a ``Fraction``, or ``±inf`` or ``nan`` as floats;
+    ``None`` when the value is not canonical. A ``rounded:<n>`` or ``decimal-shortest`` value is its decimal, a
+    ``binary64-hex`` one its binary64."""
+
+    if output.type == "int":
+        return Fraction(value) if is_canonical(output, value) else None
+    if output.type != "float64":
+        return None
+    binary = float_of(output.canonical, value)
+    if binary is None:
+        return None
+    if math.isnan(binary) or math.isinf(binary):
+        return binary
+    if output.canonical == "binary64-hex":
+        return Fraction(binary)
+    return Fraction(Decimal(value))
+
+
+def _ulp_index(value: float) -> int:
+    """The binary64 value's place on the integer line in sign-magnitude order, ``+0`` and ``−0`` one point (item 2)."""
+
+    bits = struct.unpack(">q", struct.pack(">d", value))[0]
+    return bits if bits >= 0 else -(bits & 0x7FFFFFFFFFFFFFFF)
+
+
+def judge(verdict: Verdict, outputs: Mapping[str, Output], value_of: Callable[[str], Any]) -> bool | None:
+    """A numeric verdict's ``PASS`` (True) or ``FAIL`` (False) over an outcome, read exactly (SD-81 items 1-8);
+    ``value_of(name)`` gives a declared output's canonical value, or ``None`` when the outcome lacks it. ``None``
+    for a template this does not judge."""
+
+    template, exact = verdict.template, verdict.exact
+    output = outputs[verdict.output]
+    if template == "MONOTONE":
+        names = verdict.params["outputs"]
+        values = [exact_of(outputs[n], value_of(n)) if n in outputs else None for n in names]
+        if any(v is None or (isinstance(v, float) and math.isnan(v)) for v in values):
+            return False
+        order = verdict.params["order"]
+        strict, rising = order in ("INCREASING", "DECREASING"), order in ("INCREASING", "NON_DECREASING")
+        for a, b in zip(values, values[1:]):
+            if a == b and strict:
+                return False
+            if a != b and (a > b if rising else a < b):
+                return False
+        return True
+    if template not in ("ABS_TOL", "REL_TOL", "ULP_TOL", "RANGE"):
+        return None
+    x = exact_of(output, value_of(verdict.output))
+    if x is None or (isinstance(x, float) and math.isnan(x)):
+        return False  # a NaN either side fails (item 3)
+    if template == "RANGE":
+        lo, hi = exact.get("lo"), exact.get("hi")
+        if isinstance(x, float):  # an infinity passes only the same declared infinity on its side (item 8)
+            return (hi == x) if x > 0 else (lo == x)
+        return (lo is None or lo <= x) and (hi is None or x <= hi)
+    r = exact["reference"]
+    if isinstance(x, float):  # two equal infinities pass; any other infinity fails (item 3)
+        return isinstance(r, float) and r == x
+    if template == "ABS_TOL":
+        return abs(x - r) <= exact["tol"]
+    if template == "REL_TOL":
+        return abs(x - r) <= exact["tol"] * abs(r)  # with r = 0: exact equality (item 1)
+    if output.type != "float64" or _ROUNDED.fullmatch(output.canonical or ""):
+        return False  # ULP_TOL is a binary64 distance; the parser refuses it elsewhere (item 5)
+    # the binary64 the output denotes (item 6), and the reference, exactly a binary64 (F116; Q-F28)
+    distance = abs(_ulp_index(float_of(output.canonical, value_of(verdict.output))) - _ulp_index(float(r)))
+    return distance <= verdict.params["n"]
+
+
 def _granularity(raw: Any) -> dict[str, Any]:
     if raw == {"mode": "SINGLE"}:
         return dict(raw)
@@ -364,4 +483,4 @@ def _granularity(raw: Any) -> dict[str, Any]:
 
 __all__ = ["NUMERIC", "ORACLES", "SPEC_FILE_SUFFIX", "SPEC_INFO", "SYSTEM_TIME_CAP_HOURS", "TEMPLATES", "TYPES",
            "Output", "SpecDeclaration", "SpecFailure", "Verdict", "canonical_float", "canonical_reference",
-           "float_of", "is_canonical", "parse_spec", "spec_declaration"]
+           "exact_of", "float_of", "is_canonical", "judge", "parse_spec", "spec_declaration"]
