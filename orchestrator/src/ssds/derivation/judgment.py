@@ -594,8 +594,9 @@ class Judgments:
         return bool(self.disposed_failures(record))
 
     def disposed_failures(self, record: dict[str, Any]) -> list[str]:
-        """Every failing assessment the record disposes of (§6.7): a reassessment whose supersession chain reaches
-        one at any depth (plan review 409c2f7 B2); an ``IMMATERIALITY`` covering them; an ``UPHELD`` adjudication
+        """Every failing assessment the record disposes of (§6.7): each a reassessment's supersession chain reaches,
+        at any depth (plan review 409c2f7 B2; review of e643fa07, B1); an ``IMMATERIALITY`` covering them; an
+        ``UPHELD`` adjudication
         of a challenge targeting one or its realization, "the only premises whose revocation discredits the
         observation" (§6.7; SD-48)."""
 
@@ -607,17 +608,17 @@ class Judgments:
 
         kind, target = record["kind"], record["target"] or {}
         if kind == "EVIDENCE_ASSESSMENT":
-            frontier, seen = list(record.get("supersedes") or []), set()
+            frontier, seen, found = list(record.get("supersedes") or []), set(), []
             while frontier:
                 x = frontier.pop()
                 if not isinstance(x, str) or x in seen or x not in s.records:
                     continue
                 seen.add(x)
                 if failing(x):
-                    return [x]
+                    found.append(x)
                 if s.record(x)["kind"] == "EVIDENCE_ASSESSMENT":
                     frontier.extend(s.record(x).get("supersedes") or [])
-            return []
+            return sorted(found)
         if kind == "IMMATERIALITY":
             return [x for x in target.get("records", []) if failing(x)]
         if kind == "ADJUDICATION" and record["outcome"] == "UPHELD":

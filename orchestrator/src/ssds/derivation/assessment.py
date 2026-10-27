@@ -171,38 +171,17 @@ class Assessments:
         within_home = any(u in self.s.view.inside(h) for u in units for h in home_now)
         return within and not within_home
 
-    def disposed_by(self, record: dict[str, Any]) -> list[str]:
-        """The failing assessments ``record`` would dispose of (§6.7, §6.8; reading F101): those an ``IMMATERIALITY``
-        names; another actor's that an assessment supersedes; and, for an ``UPHELD`` adjudication of a challenge,
-        another actor's that the challenge targets, directly or through its realization (Manual §6.7)."""
-
-        s = self.s
-        kind, target = record["kind"], record.get("target") or {}
-
-        def failing(x: Any) -> bool:
-            return isinstance(x, str) and x in s.records and s.record(x)["kind"] == "EVIDENCE_ASSESSMENT" \
-                and self.failing(x)
-
-        if kind == "IMMATERIALITY":
-            return [x for x in target.get("records") or [] if failing(x)]
-        others = []
-        if kind == "EVIDENCE_ASSESSMENT":
-            others = list(record.get("supersedes") or [])
-        elif kind == "ADJUDICATION" and record.get("outcome") == "UPHELD" and target.get("record") in s.records:
-            aimed = (s.record(target["record"]).get("target") or {}).get("record")
-            if aimed in s.records and s.record(aimed)["kind"] == "REALIZATION":
-                others = [x for x in s.of_kind("EVIDENCE_ASSESSMENT") if s.record(x)["target"].get("realization") == aimed]
-            else:
-                others = [aimed]
-        return [x for x in others if failing(x) and s.record(x)["actor"] != record["actor"]]
-
     def disposition_needs_human(self, record: dict[str, Any]) -> bool:
         """§6.8's class: R3, a human's, where a subject a failure ``record`` disposes of is about is, or has been, D1
-        or D2 (reading F101). The one predicate Admission reads."""
+        or D2 (reading F101). The failures are ``Judgments.disposed_failures``'s, the one owner of §6.7's
+        disposition (review of e643fa07, B1); "another actor's" restricts supersessions and adjudications, not an
+        ``IMMATERIALITY``. The one predicate Admission reads."""
 
         structure = self.s.view.structure
         subjects = [u for u, unit in structure.units.items() if unit.subject]
-        for x in self.disposed_by(record):
+        disposed = [x for x in self.j.disposed_failures(record)
+                    if record["kind"] == "IMMATERIALITY" or self.s.record(x)["actor"] != record["actor"]]
+        for x in disposed:
             about = set(self.home(x)) | {u for u in subjects if self.about(x, u)}
             if any(self.s.ever_authority(u) for u in about):
                 return True

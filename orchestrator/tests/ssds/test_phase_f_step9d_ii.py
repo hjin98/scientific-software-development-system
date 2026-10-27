@@ -155,6 +155,41 @@ class Dispositions(unittest.TestCase):
             own = ordinary(r, real, "PASS", actor=failing["actor"], supersedes=[failing["id"]], failing_outputs=None)
             self.assertFalse(a.disposition_needs_human(own), "its own author's reassessment is no other actor's")
 
+    def test_a_disposition_through_a_supersession_chain(self) -> None:
+        """Review of e643fa07, B1 (§6.7: "directly or through a chain of supersessions"): another actor's failure
+        reached through its author's own reassessment."""
+
+        r, real, failing = self.failing("D2")
+        own = ordinary(r, real, "PASS", actor=failing["actor"], supersedes=[failing["id"]], failing_outputs=None)
+        r.sc.admit(own)
+        later = ordinary(r, real, "PASS", actor=agent("reviewer"), supersedes=[own["id"]], failing_outputs=None)
+        d = r.sc.derive()
+        self.assertEqual(d.j.disposed_failures(later), [failing["id"]])
+        self.assertTrue(d.a.disposition_needs_human(later))
+        self.assertIn("AUTH_ACTOR", self.record_codes(r, later))
+
+    def test_every_failure_a_chain_reaches(self) -> None:
+        """Review of e643fa07, B1: the chain's nearer failure is the agent's own; the deeper one is another's."""
+
+        r, real, failing = self.failing("D2")
+        reviewer = agent("reviewer")
+        own_failure = ordinary(r, real, "FAIL", actor=reviewer, supersedes=[failing["id"]])
+        r.sc.admit(own_failure)
+        later = ordinary(r, real, "PASS", actor=reviewer, supersedes=[own_failure["id"]], failing_outputs=None)
+        d = r.sc.derive()
+        self.assertEqual(d.j.disposed_failures(later), sorted([failing["id"], own_failure["id"]]))
+        self.assertTrue(d.a.disposition_needs_human(later))
+
+    def test_an_immateriality_of_ones_own_failure(self) -> None:
+        """§6.8's "another actor's" qualifies supersessions and adjudications only."""
+
+        r, real, _ = self.failing("D2")
+        reviewer = agent("reviewer")
+        own = ordinary(r, real, "FAIL", actor=reviewer)
+        r.sc.admit(own)
+        rec = judgment("IMMATERIALITY", {"records": [own["id"]]}, "IMMATERIAL", actor=reviewer, actor_class="AGENT")
+        self.assertTrue(r.sc.derive().a.disposition_needs_human(rec))
+
     def test_through_authorize_an_agents_d2_disposition(self) -> None:
         for kind, expected in (("D2", True), ("D4", False)):
             with self.subTest(kind=kind):
