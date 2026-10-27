@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F12 settled (SD-64, SD-67 to SD-73); Q-F13 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F12 settled (SD-64, SD-67 to SD-73); Q-F13 and Q-F14 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53); revision 22 awaits its re-check. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -580,7 +580,13 @@ Clause (f) is part of clean conformance, re-derived "at every revalidation of an
 - **Recommended:** (a) a non-breach retirement naming `ssdp-shadow-2` as successor for discovery only, with no binding or claim of equal state (F44). The stakeholder signs one approval, the `LINEAGE_RETIREMENT` record, and the host key signs the published statement (F45). The reading goes to the Manual clarification batch.
 - **Alternative:** (b) a retirement naming no successor at all.
 
-SD-64 already decided that `ssdp-shadow` is retired, so the question is only how its successor is named (plan check of bd515e6, note 1).
+SD-64 already decided that `ssdp-shadow` is retired, so the question is only how its successor is named (plan check of bd515e6, note 1). Also asked with it, from review 749b37d N3: a retirement is approved by any registered human, as `KEY_LIFECYCLE` is. On `ssdp-shadow` that human is the stakeholder alone. Should a later ledger name the role that decides a retirement (recommended: no change in Phase F; put it in the Manual clarification batch with F44)?
+
+**Q-F14. Who builds the ref restore (F47) and §5.7's recovery under `INTEGRITY_HALT` (F50).** F47 deferred the ledger's ref restore to Phase H, and revision 22 deferred §5.7's route with it, because that route must move the ref past a corrupt suffix. The G2 workplan's Phase H row is "adversarial, privacy and fault harnesses", whereas this is a Ledger Store mechanism ("replica restore"), and Phase F's row owns §22-§25 (plan check of 43b2e4e, note).
+- **Recommended:** (a) an explicit handoff. Phase F discloses both as unbuilt at its exit, and the stakeholder widens Phase H's row to build the `ledger` restore function, with its named extension of fitness B1, before H's fault harnesses exercise it. Phase H's fault harnesses need that restore anyway.
+- **Alternative:** (b) build both in Phase F as a further part of step 7, with a ref-moving `ledger` function and the named B1 extension, operator-gated.
+
+Until it is answered, both stay unbuilt and are disclosed: Admission appends nothing under `INTEGRITY_HALT`, and a restore is an operator action outside SSDS.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -1732,3 +1738,32 @@ F51-F53 are judged faithful. Notes 1-5 ask for:
 - **B2.** §5.7's route needs the ref moved past a corrupt suffix, which is F47's restore. It is deferred with that restore to Phase H, and §6 discloses it.
 - **B3.** A redesignation is admissible at a settled `QUALIFIED` head, through the held head.
 - **Notes.** F50 states that the compare-and-swap is from `A`'s commit and is refused when the ref is elsewhere. F51 places the redesignation's trial in 7e. F53 takes a file-witness object, for a denying witness. 7b's tests add every case the notes name.
+
+**Re-check of 43b2e4e5 (revision 22).** No SERIOUS CHALLENGE. **PASS**: B1-B3 are closed and the notes taken up. Its one note says that F47's ref restore, and §5.7's route with it, has no owner in the G2 workplan's Phase H row, which covers harnesses only. It goes to the stakeholder as **Q-F14** (§7), and Q-F13 now also carries review 749b37d N3.
+
+**Step 7b built (the recovery gate; readings F50-F53).**
+- **The gate.** `admit_lifecycle` takes `KEY_LIFECYCLE` and every recovery-tier kind; any other kind is `EntryInvalid` before any state is read.
+  - **`obs`.** A recovery record carries `obs = null`.
+  - **Settling first.** Admission first completes its own provisional entry (6b's recovery), then reads the qualification.
+  - **State.** The kind must be admissible in that state (`RECOVERY_STATES`, `admissible`). A settled `QUALIFIED` head goes through the held head, which raises the mark and halts a retired ledger, completing a retirement's statement. Any other recovery entry follows the replica's last readable entry.
+  - **Content.** The approval is checked as before. Each kind's content check is `_content_problems`: `LEDGER_LOSS`, `FORK_RESOLUTION` and `WITNESS_SET_REDESIGNATION` are refused there, naming 7c, 7d and 7e, and `REPLICA_REDESIGNATION` is refused at the gate (7g).
+- **The trial.** `Admission.trial_qualification` seals the entry with `ledger.append.seal`, now public and shared with `append_entry`. It extends the chain and qualifies it, with the entry's checkpoint added at every witness this host can write. Every recovery append, the retirement included, needs it `QUALIFIED` at the new position with no provisional entry. It replaces 7a's writable-witness count. `publish_retirement` now asks the qualification itself for `RETIRED`.
+- **Fixture witnesses.** `Admission.fixture_witnesses` maps a declared non-`FILE` witness id to a directory or a `FileWitness` object. Statements are read through the same witness set, so a fixture witness holds them too.
+- **Tests.** `test_phase_f_step7b.py`, 17 tests:
+  - the gate table, kind by state, including `BEHIND`, `RETIRED`, `INTEGRITY_HALT` and kinds outside the path;
+  - the guard that only `admission/engine.py` mentions the fixture map;
+  - a qualified ledger refusing a loss, a fork resolution and a replica redesignation;
+  - under `ROLLBACK`, a loss and a fork resolution passing the gate to their unbuilt checks (B1), and a redesignation refused;
+  - a redesignation at a settled head reaching its check (B3);
+  - nothing under `INTEGRITY_HALT` (B2);
+  - `obs`; an approval for another position or head digest; an approval replayed from an earlier head;
+  - an own provisional entry completed before the gate;
+  - an unpublished retirement halting every recovery kind;
+  - the trial under `TEAM` with one witness unwritable (held) and two unwritable (refused);
+  - the trial under `HARDENED` with one witness unreachable (held), and with one unreachable and one denying (refused);
+  - a trial appending nothing.
+
+  7a's loss test now expects the gate's refusal.
+- **Not testable in 7b.** The compare-and-swap refused when the ref is not at `A` (note 1) needs a recovery kind that passes its content check, so it moves to 7c's tests.
+- **Mutants.** Thirteen: twelve are killed. G05, the trial's head-position clause, is equivalent: a trial `QUALIFIED` below the new position always has the new entry provisional. G13, a kind outside the path reaching the state read, survived at first and is killed by the added test.
+- **Full suite.** It passes: 1332 tests, 6 skipped (run before G13's test was added; that test then ran alone and passes).

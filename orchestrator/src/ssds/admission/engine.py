@@ -24,11 +24,10 @@ from ssds.core.api.v1 import canonical_json
 from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflow, adoption_codes, adoption_frame,
                              derive, frame_state, outside_scope, passing, protected_touched, transformation_of, trial,
                              trust_roots)
-from ssds.ledger.append import (AppendFailed, AppendRefused, append_entry, import_commits, retirement_statement,
+from ssds.ledger.append import (AppendFailed, AppendRefused, append_entry, import_commits, retirement_statement, seal,
                                write_checkpoint, write_retirement)
 from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Qualification, WitnessModel,
-                                       checkpoint_body, checkpoint_message, qualify, retirement_held,
-                                       retirement_statements)
+                                       checkpoint_body, checkpoint_message, qualify, retirement_held)
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 
@@ -96,6 +95,10 @@ class Admission:
     #: the observed product repository the composition root supplies, from which an absorption imports ``obs``
     #: (§8.6; plan step 6a); without one, a moved head halts Admission, as before
     product: Path | None = None
+    #: tests only (reading F53, F3): a declared non-``FILE`` witness id mapped to a fixture witness, a directory read
+    #: and written as a file witness or a file-witness object, so ``TEAM`` and ``HARDENED`` quorums run; the
+    #: composition root never passes it
+    fixture_witnesses: Mapping[str, Path | FileWitness] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.home.check(self.ledger_id)
@@ -190,19 +193,42 @@ class Admission:
     # -- the commit point (catalogue §21.3, §22.4, §23.3-§23.4; plan step 6b) -------------------------------------
 
     def witness_set(self, chain) -> tuple[WitnessModel, dict[str, FileWitness]]:
-        """The genesis witness model and the witnesses this host can write: each ``FILE`` witness at its location.
-        Any other kind is unreachable here and answers nothing (fixtures only, F3)."""
+        """The genesis witness model (in force at every position until 7e, reading F52) and the witnesses this host
+        reaches: each ``FILE`` witness at its location, and a fixture witness a test maps (F53). Any other is
+        unreachable here and answers nothing (F3)."""
 
         model = WitnessModel.from_json(chain.entries[0].entry["lifecycle"]["fields"]["witnesses"])
-        return model, {w.id: FileWitness(Path(w.location)) for w in model.witnesses if w.kind == "FILE"}
+        files = {w.id: FileWitness(Path(w.location)) for w in model.witnesses if w.kind == "FILE"}
+        for w in model.witnesses:
+            fixture = self.fixture_witnesses.get(w.id) if w.kind != "FILE" else None
+            if fixture is not None:
+                files[w.id] = fixture if isinstance(fixture, FileWitness) else FileWitness(Path(fixture))
+        return model, files
 
-    def qualification(self, chain) -> Qualification:
+    def qualification(self, chain, extra: Checkpoint | None = None) -> Qualification:
+        """The ledger's qualification (§23.4). With ``extra``, the trial of reading F51: each witness this host can
+        write is also taken to hold that checkpoint."""
+
         model, files = self.witness_set(chain)
         reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in model.witnesses}
+        if extra is not None:
+            reports = {w: (cps + [extra] if cps is not None and _writable(files[w], self.ledger_id) else cps)
+                       for w, cps in reports.items()}
         host_keys = self.host_keys(chain)
-        retired = retirement_held(retirement_statements(model, self.ledger_id).values(), model.q_a, self.ledger_id,
-                                  host_keys, chain)
+        statements = {w.id: files[w.id].statement(self.ledger_id) if w.id in files else None for w in model.witnesses}
+        retired = retirement_held(statements.values(), model.q_a, self.ledger_id, host_keys, chain)
         return qualify(chain, reports, model, host_keys, self.home.high_water(self.ledger_id).get(), retired=retired)
+
+    def trial_qualification(self, chain, entry: Mapping[str, Any]) -> Qualification:
+        """The trial qualification before a recovery append (reading F51): ``chain`` extended by ``entry``, sealed
+        as the append will seal it, its checkpoint taken as held by every witness this host can write."""
+
+        entry_json, signature, digest = seal(entry, self.key)
+        placeholder = "0" * 40  # the commit is not yet made; qualification reads digests
+        extended = replace(chain, entries=chain.entries[: chain.readable_through + 1] + (LedgerEntry(
+            entry["position"], placeholder, (), dict(entry), entry_json, signature, digest, {}),))
+        body = checkpoint_body(self.ledger_id, entry["position"], digest, placeholder, self.key.key_id)
+        return self.qualification(extended, Checkpoint(**body, signature=self.key.sign(checkpoint_message(body)).hex()))
 
     @staticmethod
     def host_keys(chain) -> dict[str, str]:
@@ -236,14 +262,13 @@ class Admission:
         host reaches; Admission halts until ``q_a`` of them hold it, and the next start completes it."""
 
         statement = retirement_statement(self.key, self.ledger_id, chain.entries[-1])
-        model, files = self.witness_set(chain)
+        _, files = self.witness_set(chain)
         for witness in files.values():
             try:
                 write_retirement(witness, statement)
             except (OSError, AppendFailed):
                 continue  # a witness holding another file holds nothing of this statement
-        if not retirement_held(retirement_statements(model, self.ledger_id).values(), model.q_a, self.ledger_id,
-                               self.host_keys(chain), chain):
+        if self.qualification(chain).state != "RETIRED":
             raise AdmissionHalted("the retirement is admitted but its statement is not yet held by q_a witnesses "
                                   "(§24.2)")
 
@@ -395,29 +420,38 @@ class Admission:
         record, for this ledger at this position after this head, verifies, and its fields are well formed for its
         kind (:mod:`.lifecycle`). The approval is kept in the record's provenance. Returns the position.
 
-        A ``KEY_LIFECYCLE`` record carries the observed integration head, which must be the expected one. A
-        ``LINEAGE_RETIREMENT`` is a recovery entry with ``obs = null`` (§22.1), admitted only at a settled head (the
-        held head has no provisional entry, §24.2) and only when ``q_a`` witnesses are reachable to hold it; its
-        statement is then published (reading F45), and the ledger reads ``RETIRED``."""
+        A ``KEY_LIFECYCLE`` record carries the observed integration head, which must be the expected one, at the held
+        head. A recovery-tier record carries ``obs = null`` (§22.1) and passes the recovery gate (reading F50): its
+        kind's admissible qualification states, and the trial qualification of the extended chain (F51). A
+        ``LINEAGE_RETIREMENT`` is admitted at the settled held head and its statement then published (F45); every
+        other recovery kind follows the replica's last readable entry, and is refused until its own part of step 7
+        supplies its content check."""
 
         kind = record.get("kind") if isinstance(record, Mapping) else None
-        if kind not in ("KEY_LIFECYCLE", "LINEAGE_RETIREMENT"):
-            raise EntryInvalid(f"a lifecycle record of kind {kind!r} is not admitted through this path yet")
-        chain = self.held_head()
-        entries = chain.entries[: chain.readable_through + 1]
-        if kind == "LINEAGE_RETIREMENT":
-            if obs is not None:
-                raise EntryInvalid("a recovery lifecycle entry carries obs = null (§22.1)")
-            model, files = self.witness_set(chain)
-            if sum(1 for w in files.values() if _writable(w, self.ledger_id)) < model.q_a:
-                # the trial qualification: an entry fewer than q_a witnesses can hold would stay provisional
-                raise AdmissionHalted("fewer than q_a witnesses can hold an entry: the retirement would not be held")
-        else:
-            expected = self.expected_head(entries)
+        if kind != "KEY_LIFECYCLE" and kind not in RECOVERY_STATES:
+            raise EntryInvalid(f"a lifecycle record of kind {kind!r} is not admitted through this path")
+        if kind == "KEY_LIFECYCLE":
+            chain = self.held_head()
+            expected = self.expected_head(chain.entries[: chain.readable_through + 1])
             if obs != expected:
                 # not absorbed here: the human approval names the ledger head it was signed after, which an
                 # absorption would move; the lifecycle waits until an admission has absorbed obs (review c06f5be N2)
                 raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
+        else:
+            if obs is not None:
+                raise EntryInvalid("a recovery lifecycle entry carries obs = null (§22.1)")
+            chain = self.chain()
+            held = self.qualification(chain)
+            if held.current and held.provisional is not None:  # 6b's recovery first: completed, it is settled
+                self.distribute(chain.entries[held.provisional], chain)
+                held = self.qualification(chain)
+            if not admissible(kind, held):
+                raise AdmissionHalted(f"a {kind} is not admitted while the ledger is {held.state}"
+                                      f"{' with a provisional entry' if held.provisional is not None else ''} "
+                                      f"(reading F50)")
+            if held.current and held.provisional is None:
+                chain = self.held_head()  # the settled head (§24.2): the mark raised, a retired ledger halted
+        entries = chain.entries[: chain.readable_through + 1]
         roots = trust_roots(entries)
         head = entries[-1]
         position = head.entry["position"] + 1
@@ -431,9 +465,8 @@ class Admission:
                 or not verify_sshsig(roots.humans[actor], message, signature):
             raise EntryInvalid("a lifecycle record needs its named human's verifying approval for this ledger, position "
                                "and head")
-        problems = record_violations(record) + (lifecycle_problems(record.get("fields"), roots, position)
-                                                if kind == "KEY_LIFECYCLE" else
-                                                retirement_problems(record.get("fields"), self.ledger_id))
+        problems = record_violations(record) + _content_problems(kind, record.get("fields"), roots, position,
+                                                                 self.ledger_id)
         identity = record_id({**record, "provenance": None})
         if any(e.lifecycle is not None and record_id({**e.lifecycle, "provenance": None}) == identity for e in entries):
             problems.append("this lifecycle record is already admitted")  # Review e6ac009 B5
@@ -446,6 +479,11 @@ class Admission:
         problems = entry_violations(entry) + record_violations(signed)
         if problems:
             raise EntryInvalid(f"the lifecycle entry would not verify: {problems}")
+        if kind != "KEY_LIFECYCLE":
+            trial = self.trial_qualification(chain, entry)
+            if not trial.current or trial.head != position or trial.provisional is not None:
+                raise AdmissionHalted(f"the trial qualification of this {kind} is {trial.state} at {trial.head}: "
+                                      f"it would not be held (reading F51)")
         appended = self.commit(entry, head)
         if kind == "LINEAGE_RETIREMENT":
             self.publish_retirement(self.chain())
@@ -720,6 +758,35 @@ def _writable(witness: FileWitness, ledger_id: str) -> bool:
     folder = witness.directory(ledger_id)
     target = folder if folder.is_dir() else witness.root
     return target.is_dir() and os.access(target, os.W_OK | os.X_OK)
+
+
+#: The recovery gate (reading F50): the qualification states each recovery-tier kind is admitted in. A state with
+#: ``+PROVISIONAL`` admits the kind only over a provisional entry. A kind with no admissible state is refused, and
+#: nothing is admitted under ``INTEGRITY_HALT`` or ``RETIRED`` (§5.7's route waits for F47's ref restore, Phase H).
+RECOVERY_STATES: dict[str, frozenset[str]] = {
+    "LINEAGE_RETIREMENT": frozenset({"QUALIFIED"}),  # through the settled held head (7a)
+    "LEDGER_LOSS": frozenset({"ROLLBACK", "FORK", "UNQUALIFIED"}),  # 7c
+    "FORK_RESOLUTION": frozenset({"FORK", "ROLLBACK"}),  # 7d: a proved-never-admitted loss reads ROLLBACK
+    "WITNESS_SET_REDESIGNATION": frozenset({"QUALIFIED", "QUALIFIED+PROVISIONAL", "UNQUALIFIED"}),  # 7e
+    "REPLICA_REDESIGNATION": frozenset(),  # 7g
+}
+#: The step of Phase F that supplies each recovery kind's content check; until then it is refused.
+_UNBUILT = {"LEDGER_LOSS": "7c", "FORK_RESOLUTION": "7d", "WITNESS_SET_REDESIGNATION": "7e"}
+
+
+def admissible(kind: str, held: Qualification) -> bool:
+    """Whether the recovery gate admits ``kind`` in ``held``'s state (reading F50)."""
+
+    state = held.state + ("+PROVISIONAL" if held.current and held.provisional is not None else "")
+    return state in RECOVERY_STATES.get(kind, frozenset())
+
+
+def _content_problems(kind: str, fields: Any, roots: Any, position: int, ledger_id: str) -> list[str]:
+    if kind == "KEY_LIFECYCLE":
+        return lifecycle_problems(fields, roots, position)
+    if kind == "LINEAGE_RETIREMENT":
+        return retirement_problems(fields, ledger_id)
+    return [f"a {kind} is not admitted until Phase F step {_UNBUILT.get(kind, '7g')} builds its checks"]
 
 
 def _retiring(entry: LedgerEntry) -> bool:

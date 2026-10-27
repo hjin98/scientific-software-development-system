@@ -116,9 +116,11 @@ class Retirement(RequestFixture):
         self.assertEqual(len(self.entries()), before)
 
     def test_other_recovery_kinds_are_not_admitted_through_this_path_yet(self) -> None:
+        """Since 7b the recovery gate refuses a loss at a qualified head first (reading F50; test_phase_f_step7b)."""
+
         rec = record("LEDGER_LOSS", target=None, actor=self.human(),
                      fields={"retained": {}, "abandoned": [], "report": "sha256:" + "0" * 64, "controls": {}})
-        with self.assertRaises(EntryInvalid):
+        with self.assertRaises(AdmissionHalted):
             self.admission.admit_lifecycle(rec, sshsig(self.private, self.admission.lifecycle_message(rec)), None)
 
     # -- the settled head and the trial ------------------------------------------------------------------------

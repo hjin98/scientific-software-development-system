@@ -99,6 +99,15 @@ class Appended:
     checkpoint: Checkpoint
 
 
+def seal(entry: Mapping[str, Any], key: HostKey) -> tuple[bytes, bytes, str]:
+    """``entry``'s canonical bytes, its host-key signature and its digest: exactly what ``append_entry`` writes, as
+    Ed25519 signs deterministically (a trial qualification reads the digest before the append, reading F51)."""
+
+    entry_json = canonical_json(dict(entry))
+    signature = key.sign(entry_message(entry_json))
+    return entry_json, signature, entry_digest(entry_json, signature)
+
+
 def append_entry(
     repo: Path,
     entry: Mapping[str, Any],
@@ -110,8 +119,7 @@ def append_entry(
     """Sign and append ``entry`` if the ledger ref is still at ``expected_head``."""
 
     ledger_id = entry["ledger_id"]
-    entry_json = canonical_json(dict(entry))
-    signature = key.sign(entry_message(entry_json))
+    entry_json, signature, digest = seal(entry, key)
     files = [("100644", _blob(repo, entry_json), "entry.json"), ("100644", _blob(repo, signature), "entry.sig")]
     object_entries = [("100644", _blob(repo, data), f"{digest.removeprefix('sha256:')}.json")
                       for digest, data in sorted((objects or {}).items())]
@@ -133,7 +141,6 @@ def append_entry(
         if ledger_head(repo, ledger_id) != expected_head:
             raise AppendRefused(f"ledger {ledger_id} moved from {expected_head}")
         raise AppendFailed(result.stderr.decode("utf-8", "replace").strip())
-    digest = entry_digest(entry_json, signature)
     body = checkpoint_body(ledger_id, entry["position"], digest, commit, key.key_id)
     checkpoint = Checkpoint(**body, signature=key.sign(checkpoint_message(body)).hex())
     return Appended(entry["position"], commit, digest, checkpoint)
@@ -198,4 +205,4 @@ def retain(folder: Path, name: str, data: bytes) -> None:
 
 
 __all__ = ["AppendFailed", "AppendRefused", "Appended", "HostKey", "append_entry", "create_ledger_repository",
-           "import_commits", "retain", "retirement_statement", "write_checkpoint", "write_retirement"]
+           "import_commits", "retain", "retirement_statement", "seal", "write_checkpoint", "write_retirement"]
