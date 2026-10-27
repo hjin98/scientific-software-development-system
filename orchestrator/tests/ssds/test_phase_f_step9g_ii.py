@@ -85,6 +85,9 @@ class Reported(Fixture):
         self.assertEqual((rec["kind"], rec["target"], rec["actor"]),
                          ("AVAILABILITY", {"digest": evaluated}, f"machinery:runner@{self.runner.key_id}"))
         self.assertFalse(self.derive().a.standing(real["id"]))
+        for outcome in ("AVAILABLE", "UNAVAILABLE"):  # review of 9265fed8, B1: the last report decides
+            self.assertEqual(len(ex.report_availability("ci", evaluated, outcome).admitted), 1, outcome)
+        self.assertFalse(self.derive().a.standing(real["id"]), "UNAVAILABLE, AVAILABLE, UNAVAILABLE ends unavailable")
         with self.assertRaises(ValueError):
             ex.report_availability("ci", evaluated, "GONE")
         with self.assertRaises(ValueError):

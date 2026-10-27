@@ -294,7 +294,10 @@ class Executor:
         record = _with_id({"kind": "AVAILABILITY", "schema": 1, "ruleset": dict(latest.h.ruleset(latest.n)),
                            "actor": f"machinery:runner@{key.key_id}", "actor_class": "MACHINERY", "frame": "ADMITTED",
                            "target": {"digest": digest}, "basis": [], "outcome": outcome, "reason": [],
-                           "supersedes": [], "binding": None, "governs": dict(self.governs), "provenance": {},
+                           "supersedes": [], "binding": None, "governs": dict(self.governs),
+                           # each report its own record, so a re-report after an opposite one is never refused as a
+                           # duplicate of the first (review of 9265fed8, B1)
+                           "provenance": {"report": secrets.token_hex(16)},
                            "refs": [], "recorded_at": self.recorded_at(), "fields": {}})
         signed, rid = self._request(record, key_class=runner_class)
         return self._send(signed, rid)
