@@ -201,6 +201,96 @@ class Workflow:
         return [make("REISSUE", {"envelope": envelope}, {"records": sorted(records)}, holder=DISPATCHER)
                 for envelope, records in sorted(pending.items())]
 
+    def _evidence_obligations(self) -> list[Obligation]:
+        """``REALIZE``, ``ASSESS``, ``RERUN`` and ``READING`` (§10.2, §6.8-§6.9; reading F95), in the admitted
+        state only: a frame derives none (SD-70)."""
+
+        if self.s.frame is not None:
+            return []
+        from ssds.content import SpecDeclaration
+
+        s, a = self.s, self.d.a
+        structure = s.view.structure
+        subjects = [u for u, unit in structure.units.items() if unit.subject]
+        out: list[Obligation] = []
+        required = sorted({e for subject in subjects for e in s.evidence.required(subject)})
+        realizations = [r for r in s.of_kind("REALIZATION") if s.record(r)["outcome"] == "COMPLETE"]
+        for e in required:  # REALIZE(e): no current, complete, admissible realization of the current revisions
+            claim, spec = s.evidence.readable(e) or (None, None)
+            if claim is None or s.specs.defective(spec):
+                continue  # a defective specification derives none (F84)
+            current = {(spec, s.cur(spec)), (claim, s.cur(claim))}
+
+            def serves(r: str) -> bool:
+                record = s.record(r)
+                target = record["target"]
+                revisions = {(target["spec"]["unit"], target["spec"]["rev"])} | {
+                    (c["unit"], c["rev"]) for c in target.get("claim") or []}
+                return current <= revisions and a.realization_ok(r, e) and self.d.current(r) > F \
+                    and not a.unavailable_needed(r)
+
+            if not any(serves(r) for r in realizations):
+                out.append(make("REALIZE", {"obligation": e},
+                                {"spec": {"unit": spec, "rev": s.cur(spec)}, "claim": [{"unit": claim, "rev": s.cur(claim)}]},
+                                holder=DISPATCHER))
+        for r in realizations:  # ASSESS(realization, e): admitted, complete, admissible, no acting assessment for e
+            record = s.record(r)
+            spec = record["target"]["spec"]["unit"]
+            for claim in sorted({c["unit"] for c in record["target"].get("claim") or [] if isinstance(c, dict)}):
+                e = s.evidence.token(claim, spec)
+                if not s.evidence.required_somewhere(e) or not a.realization_ok(r, e, adverse=True):
+                    continue
+                if any(s.acts(x) and s.record(x)["target"].get("realization") == r
+                       and s.record(x)["target"].get("obligation") == e for x in s.of_kind("EVIDENCE_ASSESSMENT")):
+                    continue
+                out.append(make("ASSESS", {"realization": r}, {"obligation": e}, holder=REVIEWER))
+        for e, records in sorted(a.by_obligation.items()):  # RERUN and READING for a counting, unstale failure
+            for x in records:
+                if not (a.failing(x) and a.admissible(x, e) and a.starts(x)) \
+                        or not any(a.about(x, subject) for subject in subjects) \
+                        or a.stale(x, self.d.base, self._value) \
+                        or a.disposition(x, self._value, self.d.base, self.d.j.nonind) != F:
+                    continue
+                found = a.explain(x, self.d.base, self._value)
+                real = a.real(x)
+                if real is None or found["differed"] or not self._bounded(real):
+                    continue  # (2) failed, or no current completeness judgment bounds the closure (§6.9)
+                for on, tree, lacking in (("FAILING", a.basis(real).get("tree"), not found["reproduced"]),
+                                          ("HERE", s.h.head(s.n), not found["observed_here"])):
+                    if lacking and not self._rerun_done(x, real, tree):
+                        out.append(make("RERUN", {"record": x, "on": on}, {"tree": tree}, holder=DISPATCHER))
+                declared = a.declaration(real)
+                here = [o for o in found["observed_here"] if o != real]  # another run: the failing one is read
+                if isinstance(declared, SpecDeclaration) and declared.oracle == "ASSESSOR_READ" and here:
+                    o = here[0]
+                    if not any(s.acts(y) and s.record(y)["target"].get("realization") == o and a.failing(y)
+                               for y in s.of_kind("EVIDENCE_ASSESSMENT")):
+                        about = [u for u in subjects if a.about(x, u)]
+                        cls = "R3" if any(structure.kind(u) in ("D1", "D2") for u in about) else "R2"
+                        out.append(make("READING", {"record": x}, {"observation": o, "class": cls}, holder=REVIEWER))
+        return out
+
+    def _bounded(self, real: str) -> bool:
+        """A current completeness judgment bounds the realization's execution closure (§6.9; plan check note 3)."""
+
+        basis = self.d.a.basis(real)
+        bounded = basis.get("bounded_by")
+        if isinstance(bounded, list) and bounded and all(c in self.s.records and self.d.current(c) > F for c in bounded):
+            return True
+        units = {u.get("unit") for u in basis.get("units", []) if isinstance(u, dict)}
+        return bool(units) and any(  # any current completeness judgment of the closure, a fresh one included
+            self.s.acts(c) and self.s.record(c)["outcome"] == "COMPLETE" and self.d.current(c) > F
+            and "EXEC" in (self.s.record(c)["target"].get("classes") or [])
+            and units <= set(self.s.record(c)["target"].get("scope") or []) for c in self.s.of_kind("COMPLETENESS"))
+
+    def _rerun_done(self, failing: str, real: str, tree: str) -> bool:
+        """A complete admitted observation of ``conf(a⁻)`` on ``tree`` with ``ext``-equal pins and attributes
+        exists: the rerun ran, whether or not it serves, so it never loops; an INCOMPLETE run does not end it (F95)."""
+
+        a = self.d.a
+        return any(o != real and self.s.record(o)["outcome"] == "COMPLETE" and a.basis(o).get("tree") == tree
+                   and a.ext(o, real) for o in a.observations(failing))
+
     def _resubmitted(self, rid: str, body: dict[str, Any]) -> bool:
         """An admitted record is the refused one resubmitted: the same record apart from its binding, by the same
         actor, with the same lineage class (catalogue §8.3 step 3: "keeping its original actor and lineage class";
@@ -227,6 +317,7 @@ class Workflow:
         found += self._spec_and_invariant_obligations()
         found += self._review_obligations()
         found += self._reissue_obligations()
+        found += self._evidence_obligations()
         for item in self.items.all:
             found.append(item.obligation)
             found.extend(item.route.decisions)
@@ -648,6 +739,12 @@ class Workflow:
         if o.kind in ANSWER_KIND and self.answer(o) is not None:
             return Readiness(ANSWERED)
         waiting: list[str] = []
+        if o.kind == "REALIZE":  # no designated runner of the specification's class: nothing can realize it (F95)
+            from ssds.content import SpecDeclaration
+
+            declared = self.s.specs.declaration(o.params["spec"]["unit"])
+            if not isinstance(declared, SpecDeclaration) or declared.runner not in self.s.policy.runners:
+                waiting.append("no designated runner of the specification's class")
         subject = self._subject_of(o) or (o.target.get("subject") if o.kind == REVISING_REVIEW else None)
         if o.kind in ("ACCEPT", "GATE") and subject is not None:
             if not self.d.ok(subject):
