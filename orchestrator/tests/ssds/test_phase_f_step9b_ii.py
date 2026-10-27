@@ -86,12 +86,15 @@ class Verdicts(unittest.TestCase):
         r.revise("oracle = \n")
         self.assertTrue(r.assessments().yields(good["id"], failing["id"]), "a defective reading")
 
-    def test_the_judged_outputs_default_to_the_declared_verdicts(self) -> None:
+    def test_a_failure_naming_none_found_every_declared_output_failing(self) -> None:
+        """§6.5; reading F105 (step 9e-i) corrects this test's earlier default, the outputs a verdict judges, which
+        left an assessor-read failure nothing to compare."""
+
         r = Declared(DECLARATIVE)
         t0 = r.tree("T0")
         unnamed = r.assess(r.run(t0, {"x": 1, "y": "0.0", "z": True}), "FAIL", failing=())  # z has no verdict
         good = r.run(t0, GOOD)
-        self.assertEqual(r.assessments().failing_outputs(unnamed["id"]), ["x", "y"])
+        self.assertEqual(r.assessments().failing_outputs(unnamed["id"]), ["x", "y", "z"])
         self.assertEqual(r.assessments().restricted(good["id"], ["x", "z"]), {"x": "2", "z": None},
                          "canonical JSON text: identity is byte equality (§17.3)")
 

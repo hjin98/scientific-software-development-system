@@ -382,8 +382,10 @@ class Assessments:
         return found if isinstance(found, SpecDeclaration) else None
 
     def failing_outputs(self, rid: str) -> list[str]:
-        """The outputs ``rid`` names as failing, else the outputs its specification judges (those with a verdict),
-        else every output of the outcome."""
+        """The outputs ``rid`` names as failing, else every declared output, verdict carriers included (§6.5: "one
+        naming none found every declared output failing"; reading F105), else every output of the outcome. An
+        assessor-read declaration has no verdicts, so reading only the judged outputs left its failures nothing to
+        compare."""
 
         named = self.s.record(rid)["fields"].get("failing_outputs") or []
         if named:
@@ -391,7 +393,7 @@ class Assessments:
         real = self.real(rid)
         declared = self.declaration(real) if real else None
         if declared is not None:
-            return sorted(v.output for v in declared.verdicts)
+            return sorted(o.name for o in declared.outputs)
         return sorted((self.outcome(real) if real else None) or {})
 
     def restricted(self, observation: str, outputs: list[str]) -> dict[str, Any] | None:

@@ -3545,3 +3545,8 @@ The check is requested.
 - **Tests.** The cleanup-failure test under both signatures; a refusal under a 3.11-signature `rmtree` cleaned up, not masked; an `ENXIO` open refused `replaced`. `test_phase_f_step9f_i.py` has 15 tests.
 - **Mutants.** Three (S1-S3): all are killed. No 3.11 interpreter is installed, so 3.11 is exercised through its `rmtree` signature, not run.
 - **Full suite.** It passes: 1681 tests, 6 skipped, F105's moved 9b-ii test apart (corrected in F105's commit), before the `ENXIO` test, which passes with the step's tests.
+
+**Step 9e-i, its first change: F105 (a repair to 9c-ii-iii).** `Assessments.failing_outputs` gives, for a failure naming none, every declared output, verdict carriers included (§6.5), where it gave only the outputs a verdict judges. An assessor-read failure naming none is now compared on its outputs and never goes stale by mechanics alone.
+- **Tests.** `test_phase_f_step9e_i.py`: the survey's probe (an unnamed assessor-read failure, rerun and changed, never stale) and a mechanical failure naming none reading `x` and its carrier `x_verdict`. 9b-ii's "the judged outputs default to the declared verdicts" moves to "a failure naming none found every declared output failing", with `z` (no verdict) now included.
+- **Mutants.** P1 (back to the verdict outputs) and P2 (the carrier left out) are killed.
+- **Full suite.** It passes (1681 tests, 6 skipped, with the moved 9b-ii test failing before its correction, the only failure).
