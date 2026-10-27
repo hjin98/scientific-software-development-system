@@ -27,7 +27,8 @@ from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflo
 from ssds.ledger.append import (AppendFailed, AppendRefused, append_entry, import_commits, retirement_statement, seal,
                                write_checkpoint, write_retirement)
 from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Qualification, WitnessModel,
-                                       checkpoint_body, checkpoint_message, qualify, retirement_held)
+                                       checkpoint_body, checkpoint_message, lineage_witnesses, qualify_segments,
+                                       retirement_held, segment_witnesses, segments)
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 
@@ -194,13 +195,16 @@ class Admission:
     # -- the commit point (catalogue §21.3, §22.4, §23.3-§23.4; plan step 6b) -------------------------------------
 
     def witness_set(self, chain) -> tuple[WitnessModel, dict[str, FileWitness]]:
-        """The genesis witness model (in force at every position until 7e, reading F52) and the witnesses this host
-        reaches: each ``FILE`` witness at its location, and a fixture witness a test maps (F53). Any other is
-        unreachable here and answers nothing (F3)."""
+        """The witness model in force at the chain's end (its last segment, reading F59) and the witnesses this host
+        reaches among every segment's: each ``FILE`` witness at its location, and a fixture witness a test maps
+        (F53). Any other is unreachable here and answers nothing (F3)."""
 
-        model = WitnessModel.from_json(chain.entries[0].entry["lifecycle"]["fields"]["witnesses"])
-        files = {w.id: FileWitness(Path(w.location)) for w in model.witnesses if w.kind == "FILE"}
-        for w in model.witnesses:
+        found = [m for _, m in segments(chain)]
+        model = found[-1] if found and found[-1] is not None else \
+            WitnessModel.from_json(chain.entries[0].entry["lifecycle"]["fields"]["witnesses"])
+        witnesses = lineage_witnesses(chain)
+        files = {w.id: FileWitness(Path(w.location)) for w in witnesses if w.kind == "FILE"}
+        for w in witnesses:
             fixture = self.fixture_witnesses.get(w.id) if w.kind != "FILE" else None
             if fixture is not None:
                 files[w.id] = fixture if isinstance(fixture, FileWitness) else FileWitness(Path(fixture))
@@ -211,14 +215,15 @@ class Admission:
         write is also taken to hold that checkpoint."""
 
         model, files = self.witness_set(chain)
-        reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in model.witnesses}
+        reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in lineage_witnesses(chain)}
         if extra is not None:
-            reports = {w: (cps + [extra] if cps is not None and _writable(files[w], self.ledger_id) else cps)
-                       for w, cps in reports.items()}
+            holders = {w.id for w in segment_witnesses(chain, extra.position)}
+            reports = {w: (cps + [extra] if cps is not None and w in holders and _writable(files[w], self.ledger_id)
+                           else cps) for w, cps in reports.items()}
         host_keys = self.host_keys(chain)
         statements = {w.id: files[w.id].statement(self.ledger_id) if w.id in files else None for w in model.witnesses}
         retired = retirement_held(statements.values(), model.q_a, self.ledger_id, host_keys, chain)
-        return qualify(chain, reports, model, host_keys, self.home.high_water(self.ledger_id).get(), retired=retired)
+        return qualify_segments(chain, reports, host_keys, self.home.high_water(self.ledger_id).get(), retired=retired)
 
     def loss_evidence(self, chain) -> tuple[dict[str, Any], bytes]:
         """A ``LEDGER_LOSS``'s fields after ``chain``'s last readable entry, and its report object, from the witness
@@ -296,8 +301,10 @@ class Admission:
         if body["host_key_id"] != self.key.key_id:
             raise AdmissionHalted("a provisional entry appended under another host key: its checkpoint is that key's (§22.4)")
         checkpoint = Checkpoint(**body, signature=self.key.sign(checkpoint_message(body)).hex())
-        _, files = self.witness_set(chain if chain is not None else self.chain())
-        for witness in files.values():
+        chain = chain if chain is not None else self.chain()
+        _, files = self.witness_set(chain)
+        holders = {w.id for w in segment_witnesses(chain, appended.entry["position"])}  # every segment it lies in
+        for witness in (files[w] for w in sorted(holders) if w in files):
             try:
                 write_checkpoint(witness, checkpoint)
             except (OSError, ValueError):

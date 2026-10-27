@@ -20,7 +20,7 @@ from ssds.core import cli as core_cli
 from ssds.core.api.v1 import ssds_home
 from ssds.interface.commands import make_commands
 from ssds.interface.operations import Refused, Session
-from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, WitnessModel, retirement_statements
+from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, WitnessSpec
 from ssds.ledger.read import read_chain
 
 
@@ -36,10 +36,13 @@ class HomeAccess:
     def chain(self):
         return read_chain(self.home.ledger_repository(self.ledger_id), self.ledger_id)
 
-    def witness_reports(self, model: WitnessModel):
+    def witness_reports(self, witnesses: Iterable[WitnessSpec]):
+        witnesses = list(witnesses)
         reports = {w.id: FileWitness(Path(w.location)).read(self.ledger_id) if w.kind == "FILE" else None
-                   for w in model.witnesses}
-        return reports, retirement_statements(model, self.ledger_id)
+                   for w in witnesses}
+        statements = {w.id: FileWitness(Path(w.location)).statement(self.ledger_id) if w.kind == "FILE" else None
+                      for w in witnesses}
+        return reports, statements
 
     def high_water(self) -> HighWaterMark | None:
         return self.home.high_water(self.ledger_id).get()

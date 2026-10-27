@@ -400,6 +400,104 @@ def qualify(
     return Qualification(state if state != "OK" else "UNQUALIFIED")
 
 
+def segments(chain: Chain) -> list[tuple[int, WitnessModel | None]]:
+    """The witness model in force per position (Phase F step 7e, reading F59): genesis's from position 0; each
+    ``WITNESS_SET_REDESIGNATION`` in the readable chain, and each ``LEDGER_LOSS`` whose ``controls.witnesses``
+    re-establishes a different set (F62), starts a segment at its own position, whose entry belongs to both segments.
+    A model that does not parse is ``None``: nothing qualifies under it."""
+
+    out: list[tuple[int, WitnessModel | None]] = []
+    for entry in chain.entries[: chain.readable_through + 1]:
+        lifecycle = entry.lifecycle
+        kind = lifecycle.get("kind") if lifecycle else None
+        try:
+            if kind == "GENESIS" and entry.position == 0 or kind == "WITNESS_SET_REDESIGNATION" and out:
+                raw = lifecycle["fields"]["witnesses"]
+            elif kind == "LEDGER_LOSS" and out:
+                raw = lifecycle["fields"]["controls"]["witnesses"]
+            else:
+                continue
+            model = WitnessModel.from_json(raw)
+        except (KeyError, TypeError, ValueError, AttributeError):
+            model = None
+        if kind == "LEDGER_LOSS" and model is not None and model == out[-1][1]:
+            continue  # a loss re-establishing the same set starts no segment
+        out.append((entry.position, model))
+    return out
+
+
+def segment_witnesses(chain: Chain, position: int) -> list[WitnessSpec]:
+    """The witnesses an entry at ``position`` is checkpointed to: those of every segment it lies in (F59)."""
+
+    found = segments(chain)
+    out: dict[str, WitnessSpec] = {}
+    for i, (start, model) in enumerate(found):
+        end = found[i + 1][0] if i + 1 < len(found) else None
+        if model is not None and start <= position and (end is None or position <= end):
+            out.update((w.id, w) for w in model.witnesses)
+    return list(out.values())
+
+
+def lineage_witnesses(chain: Chain) -> list[WitnessSpec]:
+    """Every witness any segment declares, each once: what a reader gathers reports from (F59)."""
+
+    out: dict[str, WitnessSpec] = {}
+    for _, model in segments(chain):
+        if model is not None:
+            out.update((w.id, w) for w in model.witnesses)
+    return list(out.values())
+
+
+def qualify_segments(
+    chain: Chain,
+    reports: Mapping[str, Sequence[Checkpoint] | None],
+    host_keys: Mapping[str, str],
+    high_water: HighWaterMark | None = None,
+    authoritative: bool = True,
+    retired: bool = False,
+) -> Qualification:
+    """Qualify ``chain`` across its witness segments (reading F59), newest first, each under its own model and its own
+    declared witnesses' reports. A later segment starting at ``p`` passes to the older one only when its holding from
+    ``p`` is proved never admitted (§23.6's bound, ``h + m + f < q_a``, ``h`` counting its witnesses reporting an
+    authentic checkpoint at ``p`` or later and ``m`` those not responding); the older segment then reads the
+    redesignation as provisional, its result counting inside its range, up to but excluding ``p``. Otherwise the
+    later segment's verdict is the answer, whatever it is: ``FORK`` and ``ROLLBACK`` included, and ``UNQUALIFIED``
+    when too few respond, so neither a denying witness nor an unreachable set lets an older set present a stale head
+    (plan revisions 26-27, checks of c36b278e B1 and 3b6ebcc0 R1). Old witnesses are not read once it may be held."""
+
+    if chain.halt is not None:
+        return Qualification("INTEGRITY_HALT")
+    if retired:
+        return Qualification("RETIRED")
+    found = segments(chain)
+    if not found:
+        return Qualification("UNQUALIFIED")
+    for i in reversed(range(len(found))):
+        start, model = found[i]
+        if model is None:
+            return Qualification("UNQUALIFIED")
+        declared = {w.id for w in model.witnesses}
+        own = {w: r for w, r in reports.items() if w in declared}
+        verdict = qualify(chain, own, model, host_keys, high_water, authoritative)
+        if i > 0:
+            responders = [cps for cps in own.values() if cps is not None]
+            h = sum(1 for cps in responders if any(c.ledger_id == chain.ledger_id and c.position >= start
+                                                   and c.authentic(host_keys) for c in cps))
+            m = len(declared) - len(responders)
+            if loss_status(h, m, model.f, model.q_a) != "PROVED_NEVER_ADMITTED":
+                return verdict  # possibly held from its start: its verdict governs, FORK and ROLLBACK included
+            continue  # proved never held from its start: the older segment reads the redesignation as provisional
+        end = found[1][0] if len(found) > 1 else None
+        if verdict.current and end is not None and verdict.head is not None and verdict.head >= end:
+            # the genesis set holds the redesignation (or beyond), its successor does not: the redesignation is
+            # provisional over the head before it
+            digests = chain.digests()
+            critical = ("more than one entry beyond the qualified head",) if len(digests) - 1 > end else ()
+            return Qualification("QUALIFIED", end - 1, digests[end - 1], end, critical)
+        return verdict
+    return Qualification("UNQUALIFIED")
+
+
 def loss_status(h: int, m: int, f: int, q_a: int) -> str:
     """An abandoned entry: proved never admitted iff ``h + m + f < q_a``; known admitted iff ``h >= q_a`` (§23.6)."""
 
@@ -414,7 +512,8 @@ __all__ = [
     "Checkpoint", "DEPLOYMENT_CLASSES", "FileWitness", "HighWaterMark", "HighWaterStore", "Home", "HomeRefused",
     "Qualification", "RETIREMENT_DOMAIN", "RETIREMENT_FILE", "RetirementStatement",
     "STATES", "WitnessModel", "WitnessSpec", "checkpoint_body", "checkpoint_message", "loss_status",
-    "publish_private", "qualify", "retirement_held", "retirement_message", "retirement_statements",
+    "lineage_witnesses", "publish_private", "qualify", "qualify_segments", "retirement_held", "segment_witnesses",
+    "segments", "retirement_message", "retirement_statements",
     "retirement_verified", "write_all",
     "quorum_sound",
 ]

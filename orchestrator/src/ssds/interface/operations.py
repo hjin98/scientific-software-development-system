@@ -21,13 +21,14 @@ can answer about is :class:`Refused`.
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 import inspect
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 from ssds import derivation
-from ssds.ledger.qualification import HighWaterMark, Qualification, WitnessModel, qualify, retirement_held
+from ssds.ledger.qualification import (HighWaterMark, Qualification, WitnessModel, WitnessSpec, lineage_witnesses,
+                                       qualify_segments, retirement_held, segments)
 
 from .render import Doctrine, Renderer
 
@@ -44,9 +45,9 @@ class LedgerAccess(Protocol):
 
     def chain(self) -> Any: ...
 
-    def witness_reports(self, model: WitnessModel) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Each declared witness's report (None when it does not respond), and the retirement statement it holds
-        (``FileWitness.statement``; None when it holds none)."""
+    def witness_reports(self, witnesses: Iterable[WitnessSpec]) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Each witness's report (None when it does not respond), and the retirement statement it holds
+        (``FileWitness.statement``; None when it holds none); the witnesses are every segment's (reading F59)."""
 
     def high_water(self) -> HighWaterMark | None: ...
 
@@ -88,12 +89,15 @@ def present(access: LedgerAccess, trees: Callable[[str], Any]) -> Presented:
     if not chain.entries or chain.genesis is None:
         return Presented(access.ledger_id, len(chain.entries), None, None, ("no readable genesis",))
     fields = chain.genesis["fields"]
-    model = WitnessModel.from_json(fields["witnesses"])
-    reports, statements = access.witness_reports(model)
+    found = [m for _, m in segments(chain)]
+    model = found[-1] if found[-1] is not None else WitnessModel.from_json(fields["witnesses"])  # in force (F59)
+    reports, statements = access.witness_reports(lineage_witnesses(chain))
     host_keys = {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
-    retired = retirement_held(statements.values(), model.q_a, access.ledger_id, host_keys, chain)  # §24.2, F45
+    in_force = {w.id for w in model.witnesses}
+    retired = retirement_held([s for w, s in statements.items() if w in in_force], model.q_a, access.ledger_id,
+                              host_keys, chain)  # §24.2, F45
     mark = access.high_water()
-    qualification = qualify(chain, reports, model, host_keys, mark, retired=retired)
+    qualification = qualify_segments(chain, reports, host_keys, mark, retired=retired)
     if qualification.current and qualification.head is not None:
         # §23.4: whoever presents current state keeps the last head it qualified; the mark only rises.
         if mark is None or qualification.head > mark.position:

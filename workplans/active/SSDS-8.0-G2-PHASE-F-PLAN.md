@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62); revision 27 awaits its re-check. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2010,3 +2010,28 @@ It confirmed F60 and F61, the shared boundary at `p`, and skipping another host'
 B2 is closed.
 
 **Revision 27 repairs it.** The held test is §23.6's bound applied to the segment's start. The older segment is read only when the new set's holding from `p` is proved never admitted (`h + m + f < q_a`); in every other case the newest verdict governs. The read-quorum case is subsumed. 7e-i's tests add the `HARDENED` truncation with a denying witness and the partial copy.
+
+**Re-check of b19707d9 (revision 27).** No SERIOUS CHALLENGE. **PASS**: R1 is closed, and every case traced holds. It names one accepted trade-off: a routine redesignation whose new set becomes unreachable right after its append reads `UNQUALIFIED`, so appends stop, rather than reading as the older segment's provisional entry. That fails closed, as §22.4's "appends stop" asks.
+
+**Step 7e-i built (the witness model per position; reading F59).**
+- **The Ledger Store's `qualification` API.**
+  - `segments` gives genesis's model from 0, and a segment at each redesignation and at each loss that re-establishes a different set. An unparseable model qualifies nothing.
+  - `segment_witnesses` gives the witnesses of every segment a position lies in.
+  - `lineage_witnesses` gives every segment's witnesses.
+  - `qualify_segments` is F59's rule: newest first, the held test by §23.6's bound, and the older segment's range, up to but excluding `p`, with a result at or past `p` read as the redesignation provisional.
+- **Readers.** `Admission.witness_set` returns the last segment's model and every segment's reachable witnesses. `Admission.qualification` reads every segment's reports through `qualify_segments`, with the retirement statements counted under the last segment's model. `distribute` writes a checkpoint to the witnesses of every segment its position lies in. The trial adds its checkpoint only to those witnesses. The Interface's `present` reads through the same functions, and `LedgerAccess.witness_reports` now takes the witnesses to read.
+- **Tests.** `test_phase_f_step7e.py`, 12 tests:
+  - segments and where a checkpoint goes, including a loss with and without a new set;
+  - a held redesignation, and a fresh clone with no mark;
+  - a redesignation the new set does not hold, provisional, whether or not the old set holds its copy;
+  - truncation to `p` reading `ROLLBACK` (B1);
+  - under `HARDENED`, one denying witness still reading `ROLLBACK`, and one partial copy reading provisional (R1);
+  - forged new-set checkpoints holding nothing;
+  - an unreachable new set reading `UNQUALIFIED`;
+  - an old-set fork after a held redesignation not read;
+  - the mark read in the governing segment;
+  - an unparseable model;
+  - Admission and the Interface agreeing across a redesignation on a real fixture ledger (`LOCAL_TRUST` to another file witness), with the old set no longer written after it.
+- **Mutants.** Nine: all are killed. S8, the held count without an authenticity filter, survived at first and is killed by the forged-checkpoint test.
+- **Full suite.** It passes: 1366 tests, 6 skipped. It ran before the forged-checkpoint test, which then ran with the step's tests and passes.
+- **Deferred to 7e-ii.** `RETIRED` under the last segment, on a ledger where a redesignation was admitted. The readers agreeing over another host's provisional entry. The trial's checkpoint going only to the new position's segments (exercised by the dual trial).
