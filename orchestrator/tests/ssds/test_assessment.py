@@ -26,19 +26,28 @@ UNITS = '''
     [[unit]]
     id = "spec"
     kind = "EVIDENCE_SPEC"
-    scope = [{ path = "s.py" }]
+    scope = [{ path = "s.py" }, { path = "s.ssds-spec.toml" }]
 '''
 SPEC = "# ssds:rel EVIDENCES code\ndef check():\n    return 1\n"
+#: The specification's declaration (catalogue §17.1; Phase F step 9b): one output judged by an embedded verdict, a
+#: declared enum output (F85).
+DECLARATION = """oracle = "EMBEDDED"
+runner = "ci"
+time_bound_hours = 24
+outputs = [{ name = "x", type = "int" }, { name = "x_verdict", type = "enum", values = ["PASS", "FAIL"] }]
+verdicts = [{ output = "x", embedded = "x_verdict" }]
+"""
 POLICY = 'schema = 1\n[domains.D4]\nevidence = ["obl"]\n'
 CODE_TERM = {"path": "a.py"}
 SPEC_TERM = {"file": "s.py", "symbol": "check"}
-BAD = {"outputs": {"x": {"value": "1", "verdict": "FAIL"}}}
-GOOD = {"outputs": {"x": {"value": "2", "verdict": "PASS"}}}
+#: Evaluated outcomes in §17.3's shape: {output name: canonical value} (F85).
+BAD = {"x": 1, "x_verdict": "FAIL"}
+GOOD = {"x": 2, "x_verdict": "PASS"}
 
 
 class Runs:
     def __init__(self, other: bool = False) -> None:
-        self.files = {"a.py": "v = 1\n", "s.py": SPEC}
+        self.files = {"a.py": "v = 1\n", "s.py": SPEC, "s.ssds-spec.toml": DECLARATION}
         if other:
             self.files["other.txt"] = "1\n"
         self.sc = Scenario(UNITS, self.files, policy=POLICY)

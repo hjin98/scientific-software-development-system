@@ -18,6 +18,14 @@ from ssds.derivation.plans import partition_violations, resolve
 from ._scenario import attested
 from ._scenario import OWNER, Scenario, content, judgment
 
+#: ``tests.conv``'s specification declaration (catalogue §17.1; Phase F step 9b): an evidence specification without
+#: one is defective and admits no passing assessment.
+CONV_DECLARATION = """oracle = "EMBEDDED"
+runner = "ci"
+time_bound_hours = 24
+outputs = [{ name = "x", type = "int" }, { name = "x_verdict", type = "enum", values = ["PASS", "FAIL"] }]
+verdicts = [{ output = "x", embedded = "x_verdict" }]
+"""
 MANIFEST = '''
     [[unit]]
     id = "plan.work"
@@ -49,7 +57,7 @@ MANIFEST = '''
     [[unit]]
     id = "tests.conv"
     kind = "EVIDENCE_SPEC"
-    scope = [{ path = "specs/conv.toml" }]
+    scope = [{ path = "specs/conv.toml" }, { path = "specs/conv.ssds-spec.toml" }]
     [[unit]]
     id = "records"
     kind = "EVIDENCE_RECORD"
@@ -57,7 +65,7 @@ MANIFEST = '''
 '''
 FILES = {"src/solver.py": "def step():\n    return 1\n", "src/io.py": "def write():\n    return 2\n",
          "numerics.md": "# Numerics\n", "design.md": "# Design\n", "specs/conv.toml": "kind = 'convergence'\n",
-         "records.md": "# Records\n"}
+         "records.md": "# Records\n", "specs/conv.ssds-spec.toml": CONV_DECLARATION}
 SECONDARY = '[ { check = "TEST_INTEGRITY.no_skips" }, { check = "BOUNDARY.write_scope" } ]'
 
 

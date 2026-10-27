@@ -9,15 +9,19 @@ Observations are ``REALIZATION`` records. Each records its execution basis once
 (§6.3): ``tree`` (the commit it ran on), unit, read and widened entries with
 their content identities, pins, an unpinnable flag, execution attributes, the
 frozen resolution ``context`` and ``bounded_by`` (completeness judgments, or
-``"UNBOUNDED"``). Its evaluated outcome is a ledger-store object
-``{"outputs": {name: {"value": v, "verdict": "PASS" | "FAIL"}}}``.
+``"UNBOUNDED"``). Its evaluated outcome is a ledger-store object in §17.3's shape,
+``{output name: canonical value}`` over the declared outputs; an embedded verdict is itself a
+declared ``enum`` output that the specification's declaration names (Phase F step 9b-ii,
+readings F83-F86).
 
-Phase D boundaries, each on the conservative side: specification admissibility
-(§17.4) is Phase F, so an assessment is admissible for its own obligation;
-declarative check templates are the §14.3 library, so only embedded verdicts
-under the reading an execution ran are computable and any other verdict is
-taken as yielding the failure (fail closed); home follows successors by file
-overlap, which only adds subjects.
+Verdicts are read through the declaration of the reading's specification revision (§6.5):
+an embedded verdict only under the reading the execution ran, and ``EXACT`` recomputed from the
+stored outcome under any reading; every other template is not computable until Q-F21 settles it
+(F86), so it is taken as yielding the failure (fail closed), as is a reading whose declaration is
+defective or unknown. A passing assessment under a defective specification is not admissible
+(§17.4; F84); a failing one still counts, since failing evidence is never dropped (§6; step 9b-ii's
+narrowing of F84's note 1, on the safe side). The rest of §17.4's admissibility is step 9c-ii's,
+and home follows successors by file overlap, which only adds subjects.
 """
 
 from __future__ import annotations
@@ -27,7 +31,7 @@ from collections.abc import Callable
 from functools import cached_property, lru_cache
 from typing import Any
 
-from ssds.content import TreeView, recorded_identity
+from ssds.content import SpecDeclaration, TreeView, canonical_reference, recorded_identity
 
 from .frames import transformation_of
 from .state import F, P, State, T
@@ -174,7 +178,13 @@ class Assessments:
         return within and not within_home
 
     def admissible(self, rid: str, obligation: str) -> bool:
-        return self.s.record(rid)["target"]["obligation"] == obligation
+        if self.s.record(rid)["target"]["obligation"] != obligation:
+            return False
+        if self.failing(rid):
+            return True  # failing evidence is never dropped (§6): a defect of its specification does not hide it
+        real = self.realization(rid)
+        spec = (real or {}).get("target", {}).get("spec") or {}
+        return real is not None and not self.s.specs.defective(spec.get("unit"), spec.get("rev"))
 
     # -- matching (§6.5) --------------------------------------------------------------------------
 
@@ -282,33 +292,56 @@ class Assessments:
         data = self.s.h.objects.get(digest) if digest else None
         return json.loads(data) if data else None
 
+    def declaration(self, observation: str) -> SpecDeclaration | None:
+        """The usable declaration of the specification revision ``observation`` ran under, or None."""
+
+        spec = self.s.record(observation)["target"]["spec"]
+        found = self.s.specs.declaration_at(spec["unit"], spec["rev"])
+        return found if isinstance(found, SpecDeclaration) else None
+
     def failing_outputs(self, rid: str) -> list[str]:
+        """The outputs ``rid`` names as failing, else the outputs its specification judges (those with a verdict),
+        else every output of the outcome."""
+
         named = self.s.record(rid)["fields"].get("failing_outputs") or []
         if named:
             return list(named)
-        outcome = self.outcome(self.real(rid)) if self.real(rid) else None
-        return sorted((outcome or {}).get("outputs", {}))
+        real = self.real(rid)
+        declared = self.declaration(real) if real else None
+        if declared is not None:
+            return sorted(v.output for v in declared.verdicts)
+        return sorted((self.outcome(real) if real else None) or {})
 
     def restricted(self, observation: str, outputs: list[str]) -> dict[str, Any] | None:
         outcome = self.outcome(observation)
         if outcome is None:
             return None
-        values = outcome.get("outputs", {})
-        return {x: values.get(x, {}).get("value") for x in outputs}
+        return {x: outcome.get(x) for x in outputs}
 
     def yields(self, observation: str, rid: str) -> bool:
-        """Under the state's reading: an embedded verdict FAIL, or not computable (fail closed), or x missing."""
+        """Under the reading in force: a verdict on a failing output that is not PASS, or not computable (fail
+        closed), or the output missing (§6.5; F85, F86)."""
 
-        reading_now = self.s.cur(self.s.record(rid)["fields"]["reading"]["unit"]) \
-            if self.s.record(rid)["fields"]["reading"]["unit"] in self.s.view.structure.units else None
+        unit = self.s.record(rid)["fields"]["reading"]["unit"]
+        reading_now = self.s.cur(unit) if unit in self.s.view.structure.units else None
+        found = self.s.specs.declaration_at(unit, reading_now) if reading_now is not None else None
         ran_under = self.s.record(observation)["target"]["spec"]["rev"]
         outcome = self.outcome(observation) or {}
-        outputs = outcome.get("outputs", {})
         for x in self.failing_outputs(rid):
-            if x not in outputs or ran_under != reading_now:
+            verdict = found.verdict(x) if isinstance(found, SpecDeclaration) else None
+            if x not in outcome or verdict is None:
                 return True
-            if outputs[x].get("verdict") != "PASS":
-                return True
+            if verdict.embedded is not None:  # the recorded verdict counts only under the reading the run ran
+                if ran_under != reading_now or outcome.get(verdict.embedded) != "PASS":
+                    return True
+            elif verdict.template == "EXACT":  # recomputed from the stored outcome under any reading
+                try:
+                    if outcome[x] != canonical_reference(found.output(x), verdict.params["reference"]):
+                        return True
+                except ValueError:
+                    return True
+            else:
+                return True  # not computable until Q-F21 settles it (F86)
         return False
 
     def standing(self, observation: str) -> bool:

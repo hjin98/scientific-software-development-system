@@ -11,6 +11,7 @@ import unittest
 
 from ssds.derivation import F, P, T
 
+from .test_lint import CONV_DECLARATION
 from ._fixtures import lifecycle_body, record
 from ._scenario import (
     attested,
@@ -276,7 +277,8 @@ class EvidenceTerm(unittest.TestCase):
             id = "spec"
             kind = "EVIDENCE_SPEC"
             scope = [{ path = "spec.md" }]
-        ''', {"arch.md": "a1\n", "impl.md": "i1\n", "spec.md": "<!-- ssds:rel EVIDENCES arch -->\n"}, policy=POLICY_EVIDENCE)
+        ''', {"arch.md": "a1\n", "impl.md": "i1\n",
+                "spec.md": "<!-- ssds:rel EVIDENCES arch -->\n\n```ssds-spec\n" + CONV_DECLARATION + "```\n"}, policy=POLICY_EVIDENCE)
         sc = self.sc
         self.real = judgment("REALIZATION", {"spec": {"unit": "spec", "rev": sc.rev("spec")},
                                              "claim": [{"unit": "arch", "rev": sc.rev("arch")}]}, "COMPLETE",
