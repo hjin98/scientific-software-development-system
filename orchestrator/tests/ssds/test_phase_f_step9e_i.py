@@ -182,19 +182,18 @@ class S1Discriminators(unittest.TestCase):
         self.assertValue(r, "T")
 
     def test_x3_a_change_with_no_new_assessment(self) -> None:
-        """ef8445a X3: (PASS_, FAIL_, CMOVE, EXEC(1, 1, old=True), EXEC(1, 3)) -> P. What it discriminates holds: with
-        no new reading the failure keeps counting and the claim is not T. s1's P rests on the equivalence keeping its
-        leading ``PASS_`` current; here a realization supports its claim only at the claim's exact revision (§17.4,
-        F91; §4.4: ``EXACT`` takes no equivalence), so that pass is not current and the value is F. A Stage S note.
-        The change is therefore a plain move: an equivalence would not reach the ``EXACT`` entry."""
+        """ef8445a X3: (PASS_, FAIL_, CMOVE, EXEC(1, 1, old=True), EXEC(1, 3)) -> F, as SD-85 corrects s1's P: a
+        realization supports its claim only at the claim's exact revision (§17.4, F91; §4.4: ``EXACT`` takes no
+        equivalence), so no equivalence keeps s1's leading ``PASS_`` current. The change is therefore a plain move:
+        an equivalence would not reach the ``EXACT`` entry. The failure keeps counting."""
 
-        from ssds.derivation import T
+        from ssds.derivation import F
 
         r = Readings()
         r.move(), r.exec(1, old=True), r.exec(3)
         d = r.sc.derive()
         self.assertEqual(d.a.adverse("code", OBL, d.base), [r.failure["id"]], "the failure counts")
-        self.assertNotEqual(r.ev(), T)
+        self.assertEqual(r.ev(), F)
 
     def test_a_reading_made_under_an_earlier_reading_no_longer_stands(self) -> None:
         # (PASS_, FAIL_, EXEC(1, 1, old=True), MOVE, DUAL(1, 0), ORACLE, EXEC(1, 0), PASS_) -> P
