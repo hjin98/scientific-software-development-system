@@ -101,6 +101,48 @@ class FailuresKeepCounting(unittest.TestCase):
                          "retirement is not a disposition (§6.2, §10.2)")
         self.assertLess(before, 2)
 
+    def test_a_policy_that_stops_requiring_evidence_keeps_the_failure(self) -> None:
+        """Review of 09ab5249, B1: the latch reads each position under the policy in force there."""
+
+        import hashlib
+
+        from ._fixtures import record
+
+        r, failing = self.failing()
+        d = r.sc.derive()
+        self.assertTrue(d.a.starts(failing["id"]))
+        before = d.a.qual("code", lambda key: 2, d.base, d.j.nonind)
+        relaxed = POLICY.replace("evidence = true", "evidence = false").encode()
+        digest = "sha256:" + hashlib.sha256(relaxed).hexdigest()
+        r.sc.objects.setdefault(r.sc.position, {})[digest] = relaxed
+        r.sc.lifecycle(record("RULESET_ADOPTION", target=None, fields={
+            "system": "ssds-rules/1", "policy": digest, "analyzers": ["ssds.analyzer.python/1"]}))
+        d = r.sc.derive()
+        self.assertEqual(d.s.evidence.required("code"), (), "the obligation retires")
+        self.assertTrue(d.a.starts(failing["id"]), "the failure it counted is never erased")
+        self.assertEqual(d.a.qual("code", lambda key: 2, d.base, d.j.nonind), before)
+        self.assertLess(before, 2)
+
+    def test_a_claim_moved_into_an_older_subject_counts_there(self) -> None:
+        """Review of 09ab5249, note 1: ``about``'s second clause. The subject existed at the failure's base, so
+        ``home`` does not add it; it requires the obligation now, so the failure counts against it."""
+
+        from .test_assessment import POLICY as RUNS_POLICY
+
+        suite = UNITS + '    [[unit]]\n    id = "suite"\n    kind = "D4"\n    scope = [{ prefix = "pkg/" }]\n'
+        r = Runs()
+        r.files["pkg/b.py"] = "b = 1\n"
+        r.sc = Scenario(suite, r.files, policy=RUNS_POLICY)
+        r.trees = {"T0": r.sc.head}
+        failing = r.fail(r.run(r.tree("T0"), BAD))
+        moved = suite.replace('scope = [{ path = "a.py" }]', 'scope = [{ path = "pkg/a.py" }]')
+        x, cand, _ = submit(r.sc, {"pkg/a.py": "v = 1\n"}, agent("mover"), "t-move", manifest=moved)
+        integrate(r.sc, x, cand)
+        d = r.sc.derive()
+        self.assertNotIn("suite", d.a.home(failing["id"]))
+        self.assertTrue(d.a.about(failing["id"], "suite"))
+        self.assertLess(d.a.qual("suite", lambda key: 2, d.base, d.j.nonind), 2)
+
     def test_a_retarget_to_a_successor_keeps_the_failure(self) -> None:
         r, failing = self.failing()
         split = UNITS.replace('scope = [{ path = "a.py" }]', 'scope = [{ path = "a.py" }]\n    [[unit]]\n'
@@ -122,6 +164,10 @@ class Lint(unittest.TestCase):
         r.sc.absorb({"s.py": SPEC.replace("# ssds:rel EVIDENCES code\n", "")})
         lint = r.sc.derive().s.evidence.lint
         self.assertEqual([f.code for f in lint["code"]], ["EVIDENCE"])
+        from ssds.derivation import Workflow, queries
+
+        explained = queries.explain(Workflow(r.sc.derive()), "code")
+        self.assertTrue(explained["evidence_lint"][0].startswith("EVIDENCE: "), "surfaced (review of 09ab5249, N4)")
         self.assertEqual(Runs().sc.derive().s.evidence.lint, {})
 
 

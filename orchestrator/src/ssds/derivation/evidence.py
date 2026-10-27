@@ -66,9 +66,10 @@ class EvidenceFacts:
 
         return [(spec, claim) for spec, kind, claim, _ in view.authored_relations() if kind == "EVIDENCES"]
 
-    def _required(self, view: Any, subject: str) -> dict[str, tuple[str, str]]:
+    def _required(self, view: Any, subject: str, policy: Any = None) -> dict[str, tuple[str, str]]:
         structure = view.structure
-        if subject not in structure.units or self.s.policy.get(structure.domain(subject), "evidence", False) is not True:
+        policy = self.s.policy if policy is None else policy
+        if subject not in structure.units or policy.get(structure.domain(subject), "evidence", False) is not True:
             return {}
         inside = set(view.inside(subject))
         return {self.token(claim, spec): (claim, spec) for spec, claim in self._relations(view) if claim in inside}
@@ -87,12 +88,17 @@ class EvidenceFacts:
         return None
 
     def required_somewhere(self, token: str, through: int | None = None) -> bool:
-        """Some subject required ``token`` at some admitted position up to ``through`` (a latch)."""
+        """Some subject required ``token`` at some admitted position up to ``through`` (a latch), each position read
+        under the policy in force there, so a policy that later stops requiring evidence retires the obligation and
+        never erases a failure it counted (§10.2; review of 09ab5249, B1)."""
+
+        from .state import Policy
 
         last = self.s.n if through is None else through
         for k in range(last + 1):
             view = self.s.h.view(k)
-            if any(token in self._required(view, u) for u, unit in view.structure.units.items() if unit.subject):
+            policy = Policy.parse(self.s.h.objects.get(self.s.h.ruleset(k)["policy"]))
+            if any(token in self._required(view, u, policy) for u, unit in view.structure.units.items() if unit.subject):
                 return True
         return False
 
