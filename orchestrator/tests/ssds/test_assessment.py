@@ -15,6 +15,7 @@ from ssds.content import Tree, recorded_identity
 from ._scenario import attested
 from ._fixtures import manifest, tree
 from ssds.derivation import F
+from ssds.derivation.evidence import obligation_token
 
 from ._scenario import HUMAN_B, Scenario, challenge, content, judgment, on_record, store
 
@@ -37,7 +38,9 @@ time_bound_hours = 24
 outputs = [{ name = "x", type = "int" }, { name = "x_verdict", type = "enum", values = ["PASS", "FAIL"] }]
 verdicts = [{ output = "x", embedded = "x_verdict" }]
 """
-POLICY = 'schema = 1\n[domains.D4]\nevidence = ["obl"]\n'
+POLICY = 'schema = 1\n[domains.D4]\nevidence = true\n'
+#: The evidence obligation the specification's EVIDENCES relation to ``code`` derives (§10.2; Phase F reading F87).
+OBL = obligation_token("code", "spec")
 CODE_TERM = {"path": "a.py"}
 SPEC_TERM = {"file": "s.py", "symbol": "check"}
 #: Evaluated outcomes in §17.3's shape: {output name: canonical value} (F85).
@@ -99,7 +102,7 @@ class Runs:
 
     def fail(self, realization: dict) -> dict:
         view = self.sc.view(self.trees["T0"])
-        a = judgment("EVIDENCE_ASSESSMENT", {"realization": realization["id"], "obligation": "obl"}, "FAIL", actor=HUMAN_B,
+        a = judgment("EVIDENCE_ASSESSMENT", {"realization": realization["id"], "obligation": OBL}, "FAIL", actor=HUMAN_B,
                      basis=[on_record(realization["id"]), content("spec", view.rev("spec"))],
                      fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}, "failing_outputs": ["x"]})
         self.sc.admit(a)
@@ -194,11 +197,11 @@ class DisputeEffects(unittest.TestCase):
         r.run(t1, GOOD)
         r.stale(failing, "T1")
         d = r.sc.derive()
-        self.assertEqual(d.a.adverse("code", "obl", d.base), [])
+        self.assertEqual(d.a.adverse("code", OBL, d.base), [])
         r2 = Runs()
         failing2 = r2.fail(r2.run(r2.tree("T0"), BAD))
         d2 = r2.sc.derive()
-        self.assertEqual(d2.a.adverse("code", "obl", d2.base), [failing2["id"]], "with no reproduction it counts")
+        self.assertEqual(d2.a.adverse("code", OBL, d2.base), [failing2["id"]], "with no reproduction it counts")
 
 
 
@@ -310,7 +313,7 @@ class Group2Discriminators(unittest.TestCase):
         realization = r.run(r.tree("T0"), BAD)
         failing = r.fail(realization)
         d = r.sc.derive()
-        self.assertEqual(d.a.adverse("code", "obl", d.base), [failing["id"]])
+        self.assertEqual(d.a.adverse("code", OBL, d.base), [failing["id"]])
         c = challenge({"record": realization["id"]})
         upheld = adjudication(c["id"], "UPHELD", actor="human:SHA256:adjudicator")
         r.sc.admit(*attested(c, upheld))

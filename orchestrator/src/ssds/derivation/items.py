@@ -411,7 +411,7 @@ class ItemObligation:
             if status == "PROVISIONAL":
                 value = min(value, P)
             a, d = self.d.a, self.d
-            for obligation in self.s.policy.get(self.s.view.structure.domain(subject), "evidence"):
+            for obligation in self.s.evidence.required(subject):
                 value = min(value, a.ev(subject, obligation, self.w._value, d.base, d.j.nonind))
             value = min(value, a.qual(subject, self.w._value, d.base, d.j.nonind))
             for gate in self.item.gates:

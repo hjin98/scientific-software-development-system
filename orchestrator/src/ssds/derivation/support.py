@@ -429,7 +429,7 @@ class Support:
                                       if s.record(q)["kind"] == kind] or [F]))
             for gate in s.policy.get(domain, "gates"):
                 term = min(term, self.gterm(subject, gate, value))
-            for obligation in s.policy.get(domain, "evidence"):
+            for obligation in s.evidence.required(subject):
                 term = min(term, self.a.ev(subject, obligation, value, self.base, self.j.nonind))
             best = max(best, term)
         return min(result, best, self.a.qual(subject, value, self.base, self.j.nonind))

@@ -246,7 +246,7 @@ def evidence(w: Any, claim: str) -> list[dict[str, Any]]:
                 entry["failing_outputs"] = a.failing_outputs(rid)  # the discriminating observations
             out.append(entry)
     if subject is not None:
-        for obligation in s.policy.get(structure.domain(subject), "evidence"):
+        for obligation in s.evidence.required(subject):
             if obligation not in seen:  # required and never realized: unavailable, never passing (§6 of the plan)
                 out.append({"obligation": obligation, "label": EVIDENTIAL, "status": "unavailable"})
     return out

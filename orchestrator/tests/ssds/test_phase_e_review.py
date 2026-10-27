@@ -14,17 +14,22 @@ import unittest
 from ssds.derivation import Workflow, queries
 from ssds.ledger.read import transformation_id, with_id
 
+from ssds.derivation.evidence import obligation_token
 from ._scenario import attested
 from . import test_assessment as ta
 from . import test_step5_review
 from ._fixtures import record
 from ._scenario import HUMAN, Scenario, challenge, content, judgment, on_record
 from .test_briefs import renderer, section
-from .test_lint import FILES, MANIFEST
+from .test_lint import CONV_DECLARATION, FILES, MANIFEST
 from .test_obligations import TWO
 from .test_routes import Flow, document_item
 
 D4_RECORDS = MANIFEST.replace('id = "records"\n    kind = "EVIDENCE_RECORD"', 'id = "records"\n    kind = "D4"')
+#: ``tests.conv`` evidences ``records`` (an authored EVIDENCES relation), whose domain requires evidence: the obligation
+#: is the relation's (§10.2; Phase F reading F87).
+EVIDENCED = {**FILES, "specs/conv.ssds-spec.toml": "# ssds:rel EVIDENCES records\n" + CONV_DECLARATION}
+HEALTH = obligation_token("records", "tests.conv")
 
 
 class EvidenceFlow(Flow):
@@ -33,7 +38,7 @@ class EvidenceFlow(Flow):
     def __init__(self) -> None:
         text = document_item().replace("secondary = []", 'secondary = [{ check = "TEST_INTEGRITY.no_skips" }, '
                                                          '{ check = "BOUNDARY.write_scope" }]')
-        self.sc = Scenario(D4_RECORDS, {**FILES, "plans/work.md": text}, policy='schema = 1\n[domains.D4]\nevidence = ["health"]\n')
+        self.sc = Scenario(D4_RECORDS, {**EVIDENCED, "plans/work.md": text}, policy='schema = 1\n[domains.D4]\nevidence = true\n')
         self.counter = 0
         self.accept_plan()
 
@@ -41,7 +46,7 @@ class EvidenceFlow(Flow):
         fields = {"mode": "ORDINARY", "reading": {"unit": "tests.conv", "rev": self.sc.rev("tests.conv")}}
         if outcome == "FAIL":
             fields["failing_outputs"] = ["x"]
-        rec = judgment("EVIDENCE_ASSESSMENT", {"realization": realization["id"], "obligation": "health"}, outcome,
+        rec = judgment("EVIDENCE_ASSESSMENT", {"realization": realization["id"], "obligation": HEALTH}, outcome,
                        basis=[on_record(realization["id"]), content("tests.conv", self.sc.rev("tests.conv"))], fields=fields)
         self.sc.admit(rec)
         return rec
@@ -63,7 +68,7 @@ class Discharge(unittest.TestCase):
         self.assertEqual(f.item().discharge(), "DISCHARGED")
         f.assessment(real, "FAIL")
         w = f.w()
-        self.assertLess(w.d.a.ev("records", "health", w._value, w.d.base, w.d.j.nonind), 2)
+        self.assertLess(w.d.a.ev("records", HEALTH, w._value, w.d.base, w.d.j.nonind), 2)
         self.assertEqual(f.item().discharge(), "OPEN", "never latched (SD-36): no provisional permission was given")
         self.assertNotEqual(f.item().route.route, "discharged")
 
@@ -72,7 +77,7 @@ class EvidenceProjection(unittest.TestCase):
     def test_b2_a_challenged_assessment_is_no_supporting_premise(self) -> None:
         r = ta.Runs()
         real = r.run(r.tree("T0"), ta.GOOD)
-        passing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": "obl"}, "PASS",
+        passing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": ta.OBL}, "PASS",
                            basis=[on_record(real["id"]), content("spec", r.sc.rev("spec"))],
                            fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": r.sc.rev("spec")}})
         r.sc.admit(passing)
@@ -202,8 +207,8 @@ def _partitioned_with_evidence():
     f = PartFlow.__new__(PartFlow)
     text = plan().replace('verifier = "REVIEW"', 'verifier = "REVIEW"\nsecondary = [{check="TEST_INTEGRITY.no_skips"}, '
                                                  '{check="BOUNDARY.write_scope"}]')
-    f.sc = Scenario(D4_RECORDS + NOTES, {**FILES, "plans/work.md": text, "notes/a.md": "a\n", "notes/b.md": "b\n"},
-                    policy='schema = 1\n[domains.D4]\nevidence = ["health"]\n')
+    f.sc = Scenario(D4_RECORDS + NOTES, {**EVIDENCED, "plans/work.md": text, "notes/a.md": "a\n", "notes/b.md": "b\n"},
+                    policy='schema = 1\n[domains.D4]\nevidence = true\n')
     f.counter = 0
     f.accept_plan()
     f.spend(f.item().obligation)
@@ -347,9 +352,9 @@ def _retained_flow():
 
     class RetainedFlow(PartFlow):
         def __init__(self) -> None:
-            self.sc = Scenario(D4_RECORDS + NOTES + FOLLOWUP_UNIT, {**FILES, "plans/work.md": text, "notes/a.md": "a\n",
+            self.sc = Scenario(D4_RECORDS + NOTES + FOLLOWUP_UNIT, {**EVIDENCED, "plans/work.md": text, "notes/a.md": "a\n",
                                                                     "notes/b.md": "b\n"},
-                               policy='schema = 1\n[domains.D4]\nevidence = ["health"]\n')
+                               policy='schema = 1\n[domains.D4]\nevidence = true\n')
             self.counter = 0
             from ._scenario import OWNER
 

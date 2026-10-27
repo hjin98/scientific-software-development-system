@@ -148,28 +148,21 @@ class Assessments:
     def required_somewhere(self, obligation: str, through: int | None = None) -> bool:
         """The obligation is required for some subject in the admitted state at some position (a latch)."""
 
-        last = self.s.n if through is None else through
-        for k in range(last + 1):
-            view = self.s.h.view(k)
-            for subject, unit in view.structure.units.items():
-                if unit.subject and obligation in self.s.policy.get(view.structure.domain(subject), "evidence"):
-                    return True
-        return False
+        return self.s.evidence.required_somewhere(obligation, through)
 
     def starts(self, rid: str) -> bool:
         obligation = self.s.record(rid)["target"]["obligation"]
         if self.in_lineage_frame(rid) or self.required_somewhere(obligation):
             return True
         if self.s.frame is not None:
-            return any(unit.subject and obligation in self.s.policy.get(self.s.view.structure.domain(u), "evidence")
-                       for u, unit in self.s.view.structure.units.items())
+            return self.s.evidence.required_anywhere(obligation)
         return False
 
     def about(self, rid: str, subject: str) -> bool:
         if subject in self.home(rid):
             return True
         obligation = self.s.record(rid)["target"]["obligation"]
-        if obligation in self.s.policy.get(self.s.view.structure.domain(subject), "evidence"):
+        if obligation in self.s.evidence.required(subject):
             return True
         home_now = {s for s in self.home(rid) if s in self.s.view.structure.units}
         units = self.claim_units(rid)

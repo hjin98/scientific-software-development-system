@@ -13,7 +13,7 @@ from __future__ import annotations
 import unittest
 
 from ._scenario import HUMAN_B, Scenario, content, judgment, on_record
-from .test_assessment import BAD, DECLARATION, GOOD, POLICY, SPEC, UNITS, Runs
+from .test_assessment import BAD, DECLARATION, GOOD, OBL, POLICY, SPEC, UNITS, Runs
 
 DECLARATIVE = """oracle = "DECLARATIVE"
 runner = "ci"
@@ -40,7 +40,7 @@ class Declared(Runs):
         fields = {"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}}
         if failing:
             fields["failing_outputs"] = list(failing)
-        a = judgment("EVIDENCE_ASSESSMENT", {"realization": realization["id"], "obligation": "obl"}, outcome,
+        a = judgment("EVIDENCE_ASSESSMENT", {"realization": realization["id"], "obligation": OBL}, outcome,
                      actor=HUMAN_B, basis=[on_record(realization["id"]), content("spec", view.rev("spec"))], fields=fields)
         self.sc.admit(a)
         return a
@@ -162,12 +162,12 @@ class Admissibility(unittest.TestCase):
         passing = r.assess(r.run(t0, GOOD), "PASS")
         failing = r.assess(r.run(t0, BAD), "FAIL")
         a = r.assessments()
-        self.assertFalse(a.admissible(passing["id"], "obl"))
-        self.assertTrue(a.admissible(failing["id"], "obl"), "failing evidence is never dropped (§6)")
+        self.assertFalse(a.admissible(passing["id"], OBL))
+        self.assertTrue(a.admissible(failing["id"], OBL), "failing evidence is never dropped (§6)")
         self.assertFalse(a.admissible(failing["id"], "other"))
         sound = Declared(DECLARATION)
         admitted = sound.assess(sound.run(sound.tree("T0"), GOOD), "PASS")
-        self.assertTrue(sound.assessments().admissible(admitted["id"], "obl"))
+        self.assertTrue(sound.assessments().admissible(admitted["id"], OBL))
 
 
 if __name__ == "__main__":

@@ -606,7 +606,8 @@ class Renderer:
             f"gate: {o.target.get('gate')}; decision asked: GATE_DECISION on {_json(o.target.get('subject'))}",
             f"qualified head: {self.head.get('label')} position {self.head.get('position')} {self.head.get('digest')}",
             "required evidence (the decision's supporting premises, or why each does not hold):",
-            *[f"- {e['obligation']}: {e['status']}" + (f" via {', '.join(e['via'])}" if e["via"] else "")
+            *[f"- {e['obligation']}" + (f" ({e['claim']} evidenced by {e['spec']})" if e.get("claim") else "")
+              + f": {e['status']}" + (f" via {', '.join(e['via'])}" if e["via"] else "")
               + "".join(f"\n  - {_json(r)}" for r in e["records"]) for e in required],
             "findings as data (standing adverse judgments whose reach includes the decision asked):",
             _carried_text(self.w.briefing.carried(o)),

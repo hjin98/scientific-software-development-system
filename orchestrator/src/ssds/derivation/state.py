@@ -113,6 +113,9 @@ class Policy:
         for name, table in raw.get("domains", {}).items():
             if not set(table) <= allowed:
                 raise ValueError(f"unknown policy key in domain {name}")
+            if "evidence" in table and not isinstance(table["evidence"], bool):
+                raise ValueError(f"[domains.{name}] evidence is a boolean: whether its claims require evidence "
+                                 f"(§25.3; Phase F reading F87)")
         return cls(dict(raw.get("domains", {})), _workflow(raw.get("workflow", {})), _runners(raw.get("runners", {})))
 
     def get(self, domain: str | None, key: str, default: Any = ()) -> Any:
@@ -371,6 +374,14 @@ class State:
         from .plans import PlanFacts
 
         return PlanFacts(self)
+
+    @cached_property
+    def evidence(self) -> Any:
+        """Evidence obligations: identity, requirement and lint (§10.2; step 9c-i)."""
+
+        from .evidence import EvidenceFacts
+
+        return EvidenceFacts(self)
 
     @cached_property
     def specs(self) -> Any:

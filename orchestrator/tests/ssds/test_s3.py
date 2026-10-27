@@ -14,7 +14,7 @@ from ssds.derivation import F, T, Consequences, consequences, derive
 from ._scenario import attested
 from ._fixtures import chain_of, lifecycle_body, record
 from ._scenario import HUMAN_B, OWNER, Scenario, judgment, validity
-from .test_assessment import BAD, Runs
+from .test_assessment import BAD, OBL, Runs
 from .test_support import TWO, accept
 
 
@@ -90,7 +90,7 @@ class ForcedComponents(unittest.TestCase):
         realization = r.run(r.tree("T0"), BAD)
         failing = r.fail(realization)
         view0 = r.sc.view(r.trees["T0"])
-        looped = judgment("EVIDENCE_ASSESSMENT", {"realization": realization["id"], "obligation": "obl"}, "FAIL",
+        looped = judgment("EVIDENCE_ASSESSMENT", {"realization": realization["id"], "obligation": OBL}, "FAIL",
                           actor=OWNER, basis=list(failing["basis"]) + [validity("code", view0.rev("code"))],
                           fields=dict(failing["fields"]))
         r.sc.admit(looped)

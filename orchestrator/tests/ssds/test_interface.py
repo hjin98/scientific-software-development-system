@@ -148,11 +148,11 @@ class StepSixReview(unittest.TestCase):
                          ("EXACT", [("tool", "IMPLIED")]))
 
     def test_b2_disputed_and_unavailable_evidence(self) -> None:
-        from .test_assessment import BAD, GOOD, Runs
+        from .test_assessment import BAD, GOOD, OBL, Runs
 
         none = Runs()
         self.assertEqual(queries.evidence(Workflow(none.sc.derive()), "code"),
-                         [{"obligation": "obl", "label": "EVIDENTIAL", "status": "unavailable"}])
+                         [{"obligation": OBL, "label": "EVIDENTIAL", "status": "unavailable"}])
         r = Runs()
         t0 = r.tree("T0")
         r.fail(r.run(t0, BAD))
@@ -160,7 +160,7 @@ class StepSixReview(unittest.TestCase):
         self.assertEqual([e["status"] for e in queries.evidence(w, "code")], ["current"], "a lone failure is no dispute")
         good = r.run(t0, GOOD)
         view = r.sc.view(t0)
-        r.sc.admit(judgment("EVIDENCE_ASSESSMENT", {"realization": good["id"], "obligation": "obl"}, "PASS",
+        r.sc.admit(judgment("EVIDENCE_ASSESSMENT", {"realization": good["id"], "obligation": OBL}, "PASS",
                             actor=agent("assessor"), actor_class="AGENT",
                             basis=[on_record(good["id"]), content("spec", view.rev("spec"))],
                             fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}}))

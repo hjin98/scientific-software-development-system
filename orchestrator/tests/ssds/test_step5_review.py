@@ -310,14 +310,14 @@ class Floors(unittest.TestCase):
         from .test_assessment import Runs
 
         with mock.patch.object(ta, "UNITS", ta.UNITS.replace('kind = "D4"', 'kind = "D2"')), \
-                mock.patch.object(ta, "POLICY", 'schema = 1\n[domains.D2]\nevidence = ["obl"]\n'):
+                mock.patch.object(ta, "POLICY", 'schema = 1\n[domains.D2]\nevidence = true\n'):
             r = Runs()
             t0, t1 = r.tree("T0"), r.tree("T1", **{"a.py": "v = 2\n"})
             failing = r.fail(r.run(t0, ta.BAD))
             r.run(t0, ta.BAD)
             good = r.run(t1, ta.GOOD)
             view = r.sc.view(t0)
-            r.sc.admit(*attested(judgment("EVIDENCE_ASSESSMENT", {"realization": good["id"], "obligation": "obl"}, "PASS",
+            r.sc.admit(*attested(judgment("EVIDENCE_ASSESSMENT", {"realization": good["id"], "obligation": ta.OBL}, "PASS",
                                 actor=agent("assessor"), actor_class="AGENT",
                                 basis=[_scenario.on_record(good["id"]), content("spec", view.rev("spec"))],
                                 fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}})))

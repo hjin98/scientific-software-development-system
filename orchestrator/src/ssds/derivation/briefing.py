@@ -258,7 +258,7 @@ class Briefing:
         claims = [u for u in structure.units if structure.subj(u) == subject]
         entries = [e for claim in claims for e in queries.evidence(self.w, claim) if "assessment" in e]
         out = []
-        for obligation in self.s.policy.get(structure.domain(subject), "evidence"):
+        for obligation in self.s.evidence.required(subject):
             mine = sorted({e["assessment"]: e for e in entries if e["obligation"] == obligation}.values(),
                           key=lambda e: e["assessment"])
             value = a.ev(subject, obligation, self.w._value, d.base, d.j.nonind)
@@ -275,7 +275,8 @@ class Briefing:
                 status = "stale"
             else:
                 status = "UNAVAILABLE"
-            out.append({"obligation": obligation, "holds": value == T, "status": status,
+            claim, spec = self.s.evidence.readable(obligation) or (None, None)  # the readable pair (F87)
+            out.append({"obligation": obligation, "claim": claim, "spec": spec, "holds": value == T, "status": status,
                         "via": supporting if value > F else [],
                         "records": [{k: e[k] for k in ("assessment", "outcome", "status", "current", "reason",
                                                        "failing_outputs") if k in e} for e in mine]})

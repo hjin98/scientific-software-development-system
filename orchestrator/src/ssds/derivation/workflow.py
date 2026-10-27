@@ -625,7 +625,7 @@ class Workflow:
             if status == "PROVISIONAL":
                 value = min(value, P)
             domain = self.s.view.structure.domain(subject)
-            for obligation in self.s.policy.get(domain, "evidence"):
+            for obligation in self.s.evidence.required(subject):
                 value = min(value, self.d.a.ev(subject, obligation, self._value, self.d.base, self.d.j.nonind))
             value = min(value, self.d.a.qual(subject, self._value, self.d.base, self.d.j.nonind))
         if value == T:
