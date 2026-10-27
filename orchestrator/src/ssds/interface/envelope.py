@@ -6,8 +6,10 @@ candidate commits back onto that ref; the result is read by fetching that one re
 merged, regenerable from the ledger and the obligations.
 
 This module is fitness B1's reserved exception for a writing Git subcommand. It writes only in a scratch repository:
-at run time it refuses any repository whose common Git directory is the product repository's, so no ref, object or
-file of the governed repository is ever written (Phase F reading F70).
+at run time it refuses any repository whose common Git directory is the product repository's, or lies inside the
+product's working tree (a repository nested there), and anything that is no repository; the ``GIT_*`` environment is
+dropped, so no variable redirects a write, and the scratch's hooks do not run. So no ref, object or file of the
+governed repository is ever written (Phase F reading F70; review of 4d949827, notes 1-3).
 """
 
 from __future__ import annotations
@@ -33,27 +35,40 @@ class TransportRefused(RuntimeError):
 
 def _git(repo: Path, args: list[str], data: bytes | None = None, check: bool = True) -> subprocess.CompletedProcess:
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")} | _IDENTITY
-    return subprocess.run(["git", "-C", str(repo), *args], input=data, capture_output=True, env=env, check=check,
-                          timeout=60)
+    return subprocess.run(["git", "-C", str(repo), "-c", "core.hooksPath=/dev/null", *args], input=data,
+                          capture_output=True, env=env, check=check, timeout=60)
 
 
 def _common_dir(repo: Path) -> Path:
-    out = _git(repo, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).stdout.decode().strip()
-    return Path(out).resolve()
+    found = _git(repo, ["rev-parse", "--path-format=absolute", "--git-common-dir"], check=False)
+    if found.returncode != 0:
+        raise TransportRefused(f"{repo} is no Git repository")
+    return Path(found.stdout.decode().strip()).resolve()
+
+
+def _top_level(repo: Path) -> Path | None:
+    found = _git(repo, ["rev-parse", "--show-toplevel"], check=False)
+    return Path(found.stdout.decode().strip()).resolve() if found.returncode == 0 and found.stdout.strip() else None
 
 
 def run_ref(task_id: str) -> str:
-    if not task_id or any(c in task_id for c in " ~^:?*[\\") or ".." in task_id or task_id.startswith("/"):
+    """The task's run ref, a valid ref name under ``RUN_REF`` (``git check-ref-format``; review of 4d949827, note 6)."""
+
+    ref = RUN_REF + task_id if isinstance(task_id, str) else ""
+    if not task_id or "/" in task_id or any(c in task_id for c in " ~^:?*[\\") or ".." in task_id \
+            or subprocess.run(["git", "check-ref-format", ref], capture_output=True, timeout=60).returncode != 0:
         raise TransportRefused(f"{task_id!r} is no task id a run ref can name")
-    return RUN_REF + task_id
+    return ref
 
 
 def _guard(scratch: Path, product: Path) -> None:
-    """Refuse the governed product repository, however it is reached (a linked worktree, a path alias)."""
+    """Refuse the governed product repository, however it is reached (a linked worktree, a path alias, a
+    subdirectory), a repository nested in its working tree, and anything that is no repository."""
 
-    if _common_dir(scratch) == _common_dir(product):
-        raise TransportRefused(f"{scratch} is the product repository: the Git-envelope transport writes only in a "
-                               f"scratch repository (reading F70)")
+    common, top = _common_dir(scratch), _top_level(product)
+    if common == _common_dir(product) or top is not None and common.is_relative_to(top):
+        raise TransportRefused(f"{scratch} is or lies in the product repository: the Git-envelope transport writes "
+                               f"only in a scratch repository (reading F70)")
 
 
 def publish(scratch: Path, product: Path, binding: Mapping[str, Any], brief: bytes) -> str:
@@ -69,9 +84,11 @@ def publish(scratch: Path, product: Path, binding: Mapping[str, Any], brief: byt
     tree = _git(scratch, ["mktree"], listing).stdout.decode().strip()
     commit = _git(scratch, ["commit-tree", tree, "-m", f"ssds task {binding['envelope']['task_id']}"]).stdout \
         .decode().strip()
-    created = _git(scratch, ["update-ref", ref, commit, "0" * 40], check=False)
+    created = _git(scratch, ["update-ref", ref, commit, ""], check=False)  # create only, whatever the hash function
     if created.returncode != 0:
-        raise TransportRefused(f"{ref} already exists: a task envelope is written once")
+        if _git(scratch, ["rev-parse", "--verify", "--quiet", ref], check=False).returncode == 0:
+            raise TransportRefused(f"{ref} already exists: a task envelope is written once")
+        raise TransportRefused(f"{ref} could not be created: {created.stderr.decode(errors='replace').strip()}")
     return commit
 
 

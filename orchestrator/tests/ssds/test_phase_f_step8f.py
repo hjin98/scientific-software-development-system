@@ -70,10 +70,39 @@ class GitEnvelope(RequestFixture):
         publish(self.scratch, self.product, issued.binding(), b"brief")
         with self.assertRaisesRegex(TransportRefused, "already exists"):
             publish(self.scratch, self.product, issued.binding(), b"another brief")
-        for bad in ("", "../x", "a b", "a:b", "/x"):
+        for bad in ("", "../x", "a b", "a:b", "/x", "x.lock", "a/", "a.", "a@{b", "a//b", "a/.b", "a\x01b"):
             with self.subTest(task=bad), self.assertRaises(TransportRefused):
                 run_ref(bad)
         self.assertTrue(run_ref("task-1-x").startswith(RUN_REF))
+
+    def test_a_nested_repository_or_no_repository_is_refused(self) -> None:
+        issued = self.issue("GIT_ENVELOPE")
+        nested = init_repo(self.product / "nested")
+        commit(nested, "nested")
+        with self.assertRaises(TransportRefused):
+            publish(nested, self.product, issued.binding(), b"brief")
+        plain = self.root / "plain"
+        plain.mkdir()
+        with self.assertRaises(TransportRefused):
+            publish(plain, self.product, issued.binding(), b"brief")
+
+    def test_no_git_variable_redirects_a_write(self) -> None:
+        before = git(self.product, "count-objects", "-v")
+        objects = git(self.product, "rev-parse", "--path-format=absolute", "--git-path", "objects")
+        issued = self.issue("GIT_ENVELOPE")
+        with mock.patch.dict("os.environ", {"GIT_OBJECT_DIRECTORY": objects, "GIT_DIR": str(self.product / ".git")}):
+            publish(self.scratch, self.product, issued.binding(), b"brief")
+        self.assertEqual(git(self.product, "count-objects", "-v"), before, "no object reaches the product's store")
+        self.assertTrue(git(self.scratch, "rev-parse", run_ref(issued.envelope["task_id"])))
+
+    def test_a_sha256_scratch_repository(self) -> None:
+        sha256 = self.root / "sha256"
+        git(self.root, "init", "-q", "--object-format=sha256", str(sha256))
+        issued = self.issue("GIT_ENVELOPE")
+        tip = publish(sha256, self.product, issued.binding(), b"brief")
+        self.assertEqual(len(tip), 64)
+        with self.assertRaisesRegex(TransportRefused, "already exists"):
+            publish(sha256, self.product, issued.binding(), b"brief")
 
 
 class Mcp(RequestFixture):
@@ -93,8 +122,8 @@ class Mcp(RequestFixture):
 
     def test_the_handshake_names_the_pinned_revision(self) -> None:
         response = mcp.handle(self.connect(), {"jsonrpc": "2.0", "id": 1, "method": "initialize",
-                                               "params": {"protocolVersion": mcp.PROTOCOL, "capabilities": {}}})
-        self.assertEqual(response["result"]["protocolVersion"], "2025-06-18")
+                                               "params": {"protocolVersion": "2024-11-05", "capabilities": {}}})
+        self.assertEqual(response["result"]["protocolVersion"], "2025-06-18", "the pinned revision, not the client's")
         self.assertIn("tools", response["result"]["capabilities"])
         self.assertIsNone(mcp.handle(self.connect(), {"jsonrpc": "2.0", "method": "notifications/initialized"}))
         self.assertEqual(mcp.handle(self.connect(), {"jsonrpc": "2.0", "id": 2, "method": "ping"})["result"], {})
@@ -119,22 +148,49 @@ class Mcp(RequestFixture):
     def test_errors(self) -> None:
         refused = self.call("read", ref="nowhere")
         self.assertTrue(refused["result"]["isError"])
-        self.assertTrue(self.call("unknown-tool")["result"]["isError"])
         self.assertEqual(mcp.handle(self.connect(), {"jsonrpc": "2.0", "id": 4, "method": "resources/list"})
                          ["error"]["code"], -32601)
         self.assertEqual(mcp.handle(self.connect(), {"id": 5})["error"]["code"], -32600)
+        self.assertEqual(mcp.handle(self.connect(), {"jsonrpc": "1.0", "id": 5, "method": "ping"})["error"]["code"],
+                         -32600)
         bad = mcp.handle(self.connect(), {"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "read"}})
         self.assertEqual(bad["error"]["code"], -32602)
 
+    def test_invalid_calls_are_protocol_errors(self) -> None:
+        """Review of 4d949827, B1: an unknown tool or invalid arguments is -32602, never a refusal."""
+
+        for name, arguments in (("unknown-tool", {}), ("read", {}), ("ask", {"query": "q", "args": "ab"}),
+                                ("ask", {"query": "q", "args": [1]}), ("status", {"extra": "x"}),
+                                ("read", {"ref": 7})):
+            with self.subTest(name=name, arguments=arguments):
+                self.assertEqual(self.call(name, **arguments)["error"]["code"], -32602)
+
+    def test_a_refusal_is_the_clis_and_a_fault_is_no_refusal(self) -> None:
+        refused = mcp.handle(self.connect(), {"jsonrpc": "2.0", "id": 8, "method": "tools/call",
+                                              "params": {"name": "status", "arguments": {"ledger": "../evil"}}})
+        self.assertTrue(refused["result"]["isError"], "HomeRefused, as the CLI refuses it")
+        from ssds.interface.operations import Session
+
+        with mock.patch.object(Session, "status", side_effect=KeyError("bug")):
+            fault = self.call("status")
+        self.assertEqual(fault["error"]["code"], -32603, "a fault is an internal error, not a refusal")
+
+    def test_a_client_response_is_not_answered(self) -> None:
+        self.assertIsNone(mcp.handle(self.connect(), {"jsonrpc": "2.0", "id": 9, "result": {}}))
+
     def test_serve_over_stdio(self) -> None:
         out = io.StringIO()
-        lines = [json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
-                 json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}), "", "not json",
-                 json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})]
+        lines = [json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode(),
+                 json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}).encode(), b"", b"not json",
+                 b"\xff\xfe{}",
+                 json.dumps({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+                             "params": {"name": "status", "arguments": {"ledger": "../evil"}}}).encode(),
+                 json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping"}).encode()]
         mcp.serve(self.connect(), lines, out)
         responses = [json.loads(line) for line in out.getvalue().splitlines()]
-        self.assertEqual([r.get("id") for r in responses], [1, None, 2])
-        self.assertEqual(responses[1]["error"]["code"], -32700)
+        self.assertEqual([r.get("id") for r in responses], [1, None, None, 3, 2], "it keeps serving")
+        self.assertEqual((responses[1]["error"]["code"], responses[2]["error"]["code"]), (-32700, -32700))
+        self.assertTrue(responses[3]["result"]["isError"])
 
 
 if __name__ == "__main__":

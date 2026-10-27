@@ -144,15 +144,13 @@ def mcp_serve() -> None:
 
     from ssds.interface.mcp import serve
 
-    serve(connect, sys.stdin, sys.stdout)
+    serve(connect, sys.stdin.buffer, sys.stdout)  # bytes: an undecodable line is a parse error, not a crash
 
 
 for group in ("dispatcher", "mcp"):
     if any(command_name(info) == group for info in app.registered_commands):
         raise CommandCollision(f"command {group!r} is claimed twice")
 app.add_typer(mcp_app, name="mcp")
-if any(command_name(info) == "dispatcher" for info in app.registered_commands):
-    raise CommandCollision("command 'dispatcher' is claimed twice")
 app.add_typer(dispatcher_app, name="dispatcher")
 
 

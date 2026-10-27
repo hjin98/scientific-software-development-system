@@ -4,6 +4,11 @@ JSON-RPC 2.0 over stdio, one message per line, built on the standard library: no
 line 739). It implements the Model Context Protocol revision ``PROTOCOL`` for the tools capability only, and exposes
 the same logical operations as the CLI (``status``, ``ask``, ``read``, ``open``, ``inspect``) through the same
 ``Session``, so a transport never answers differently from another. The session factory is the composition root's.
+
+A call's arguments are checked against the tool's input schema first: an unknown tool or invalid arguments is the
+protocol error ``-32602``. A refusal is exactly the CLI's (``Refused``, ``HomeRefused``), answered as a tool result
+with ``isError``; any other exception is a fault, answered ``-32603`` and never reported as a refusal, and the server
+keeps serving (review of 4d949827, B1).
 """
 
 from __future__ import annotations
@@ -12,6 +17,8 @@ import json
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, TextIO
+
+from ssds.ledger.qualification import HomeRefused
 
 from .operations import Refused
 
@@ -43,11 +50,25 @@ def tool_list() -> list[dict[str, Any]]:
             for name, spec in TOOLS.items()]
 
 
-def call(connect: Callable[[str, Path], Any], name: str, arguments: dict[str, Any]) -> Any:
-    """One tool call, through the same ``Session`` the CLI uses."""
+def valid(name: Any, arguments: Any) -> bool:
+    """The call names a tool and its arguments meet that tool's input schema exactly."""
 
-    if name not in TOOLS:
-        raise Refused(f"unknown tool {name!r}")
+    if not isinstance(name, str) or name not in TOOLS or not isinstance(arguments, dict):
+        return False
+    properties = {**_LEDGER, **TOOLS[name]["properties"]}
+    if not {"ledger", *TOOLS[name]["required"]} <= set(arguments) or not set(arguments) <= set(properties):
+        return False
+    for key, value in arguments.items():
+        if properties[key]["type"] == "string" and not isinstance(value, str):
+            return False
+        if properties[key]["type"] == "array" and not (isinstance(value, list) and all(isinstance(v, str) for v in value)):
+            return False
+    return True
+
+
+def call(connect: Callable[[str, Path], Any], name: str, arguments: dict[str, Any]) -> Any:
+    """One tool call, through the same ``Session`` the CLI uses; ``arguments`` already ``valid``."""
+
     session = connect(arguments["ledger"], Path(arguments.get("repository", ".")).resolve())
     if name == "status":
         return session.status()
@@ -63,6 +84,9 @@ def call(connect: Callable[[str, Path], Any], name: str, arguments: dict[str, An
 def handle(connect: Callable[[str, Path], Any], message: Any) -> dict[str, Any] | None:
     """The response to one JSON-RPC message, or None for a notification."""
 
+    if isinstance(message, dict) and message.get("jsonrpc") == "2.0" and "method" not in message \
+            and ("result" in message or "error" in message):
+        return None  # a response to a request of ours: the server sends none, so there is nothing to answer
     if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or not isinstance(message.get("method"), str):
         return {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "invalid request"}}
     method, ident = message["method"], message.get("id")
@@ -78,12 +102,14 @@ def handle(connect: Callable[[str, Path], Any], message: Any) -> dict[str, Any] 
         result = {"tools": tool_list()}
     elif method == "tools/call":
         name, arguments = params.get("name"), params.get("arguments")
-        if not isinstance(name, str) or not isinstance(arguments, dict) or "ledger" not in arguments:
+        if not valid(name, arguments):
             return {"jsonrpc": "2.0", "id": ident, "error": {"code": -32602, "message": "invalid params"}}
         try:
             answer, failed = call(connect, name, arguments), False
-        except (Refused, KeyError) as refused:
-            answer, failed = {"refused": str(refused)}, True
+        except (Refused, HomeRefused) as refused:  # only refusals, as the CLI's: a fault is never reported as one
+            answer, failed = {"refused": refused.args[0] if refused.args else str(refused)}, True
+        except Exception:  # noqa: BLE001 - a fault: an internal error, and the server keeps serving
+            return {"jsonrpc": "2.0", "id": ident, "error": {"code": -32603, "message": "internal error"}}
         result = {"content": [{"type": "text", "text": json.dumps(answer, sort_keys=True, default=str)}],
                   "isError": failed}
     else:
@@ -91,14 +117,15 @@ def handle(connect: Callable[[str, Path], Any], message: Any) -> dict[str, Any] 
     return {"jsonrpc": "2.0", "id": ident, "result": result}
 
 
-def serve(connect: Callable[[str, Path], Any], lines: Iterable[str], out: TextIO) -> None:
-    """Answer each line of ``lines`` on ``out``, until the input ends."""
+def serve(connect: Callable[[str, Path], Any], lines: Iterable[str | bytes], out: TextIO) -> None:
+    """Answer each line of ``lines`` on ``out``, until the input ends. A line that is not UTF-8 JSON is a parse
+    error, answered, and the server keeps serving."""
 
     for line in lines:
         if not line.strip():
             continue
         try:
-            message = json.loads(line)
+            message = json.loads(line)  # bytes are decoded as UTF-8: invalid UTF-8 is a ValueError
         except ValueError:
             response: dict[str, Any] | None = {"jsonrpc": "2.0", "id": None,
                                                "error": {"code": -32700, "message": "parse error"}}
@@ -109,4 +136,4 @@ def serve(connect: Callable[[str, Path], Any], lines: Iterable[str], out: TextIO
             out.flush()
 
 
-__all__ = ["PROTOCOL", "TOOLS", "call", "handle", "serve", "tool_list"]
+__all__ = ["PROTOCOL", "TOOLS", "call", "handle", "serve", "tool_list", "valid"]
