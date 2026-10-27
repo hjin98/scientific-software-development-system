@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F14 settled (SD-64, SD-67 to SD-75; Q-F15 withdrawn); Q-F16 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F16 settled (SD-64, SD-67 to SD-76; Q-F15 withdrawn). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -74,7 +74,7 @@ The Phase D threat boundary for the SSDS home (SD-59; Phase D plan §2) holds fo
 
 **What Phase F does not build** (each later phase's, with reason):
 - intake, the migration path and external units (Phase G), except SD-69's adoption path: an `ABSORB` adopting quarantined declaration keys, built in step 4c-iv so that step 10 can repair `ssdp-shadow-2` in place (Q-F7). Every other §18.3 disposition, and §18.4's effects of `QUARANTINE` and of contrary dispositions, stay Phase G's;
-- adversarial, privacy and fault harnesses beyond the failure points group 4 names (Phase H). §24.2's breach protocol stays in Phase F, as the G2 row places §22-§25 there. Its rotation branch's `REDACTION_NOTICE` is built in 7g. Its replacement lineage, re-encoding and private pseudonym mapping, and with them `LINEAGE_MIGRATION`, are placed by Q-F16 (revision 29);
+- adversarial, privacy and fault harnesses beyond the failure points group 4 names (Phase H). §24.2's breach protocol stays in Phase F, as the G2 row places §22-§25 there. Its rotation branch's `REDACTION_NOTICE` is built in 7g. Its replacement lineage, re-encoding and private pseudonym mapping, and with them `LINEAGE_MIGRATION`'s equal-state qualification, are handed to Phase H (SD-76);
 - any live agent trajectory or measurement spend, including the Dispatcher's harness route with a real model (a campaign, G2 workplan §5.1 item 7);
 - moving any subject to `NATIVE` (a cutover, G4).
 
@@ -559,7 +559,7 @@ Until Q-F3, real-runner execution is limited to fixtures that hold no secret.
 
 Until Phase G admits intake records, an `INTAKE_*` record's `paths` target uses the token grammar; Phase G gives it a validated, repository-contained relative path (Manual §25.4; review 8230421 N3). Until Phase G, a change of unknown provenance on the real shadow ledger is absorbed and goes no further than its §18 intake obligations, which are derived but not routed beyond `INTAKE`. The exception is SD-69's: step 10's human `ABSORB` adoption of the two reserved leaves (F1).
 
-Until Phase H, failure points beyond those group 4 names are untested. Until Q-F16 is answered, §24.2's replacement-lineage re-encoding is not built and `LINEAGE_MIGRATION` is refused (reading F64; this corrects the older wording, which put the re-encoding in Phase H without a decision).
+Until Phase H, failure points beyond those group 4 names are untested. Until Phase H builds it (SD-76), §24.2's replacement-lineage re-encoding is not built and `LINEAGE_MIGRATION` is refused (reading F64; this corrects the older wording, which put the re-encoding in Phase H without a decision).
 
 Until an authorized campaign, no live agent submits to Admission.
 
@@ -715,6 +715,8 @@ SD-64 already decided that `ssdp-shadow` is retired, so the question is only how
 Until it is answered, both stay unbuilt and are disclosed: Admission appends nothing under `INTEGRITY_HALT`, and a restore is an operator action outside SSDS.
 
 **Q-F15 (withdrawn by revision 26).** Revision 25 asked how a redesignation could carry a `LEDGER_LOSS`. The check of c36b278e showed that schema 1 expresses it as a loss whose `controls.witnesses` re-establishes the set (F62). 7e-ii builds it, and there is nothing to ask.
+
+**Resolved by SD-76 (item 69):** Q-F16 (a). The replacement lineage goes to Phase H, and the G2 workplan's Phase H row is widened.
 
 **Q-F16. Where §24.2's replacement lineage is built (F64).** The G2 workplan places §24's breach protocol in Phase F, and §1 says its replacement lineage, re-encoding and pseudonym mapping run on fixture ledgers. §6's older wording, and revision 28, put it in Phase H without a decision (check of 66ac030b, B1). The rotation branch's `REDACTION_NOTICE` is built in 7g either way.
 - **Recommended:** (a) hand the replacement lineage to Phase H with its privacy harnesses: the re-encoding with sensitive fields replaced, the commit identity mapping, the private pseudonym mapping, and `LINEAGE_MIGRATION`'s equal-state qualification. Do this by an extension of SD-75 that widens the G2 Phase H row. Phase F keeps `LINEAGE_MIGRATION`'s field checks and refuses it meanwhile. The confidentiality incident is privacy work, which Phase H's row already names, and no Phase F step needs it.
@@ -2187,3 +2189,5 @@ Its notes:
 - **Disclosed and handed off:** the ref and replica restore and §5.7's route to Phase H (SD-75).
 - **Waiting on Q-F16:** `LINEAGE_MIGRATION` and §24.2's replacement lineage.
 - **Unbuilt by F48:** a continuity attestation.
+
+**SD-76 (item 69): Q-F16 (a).** §24.2's replacement lineage (re-encoding, commit identity and pseudonym mapping, and `LINEAGE_MIGRATION`'s equal-state qualification) is handed to Phase H with its privacy harnesses, as an extension of SD-75. The G2 workplan's Phase H row is widened. `LINEAGE_MIGRATION` stays refused in Phase F with its field checks.
