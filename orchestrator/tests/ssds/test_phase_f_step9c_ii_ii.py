@@ -85,6 +85,34 @@ class BindingHealth(unittest.TestCase):
         self.availability(r, "AVAILABLE")
         self.assertEqual(r.ev(), T, "the latest record restores it")
 
+    def test_a_reference_its_envelope_names(self) -> None:
+        """Review of 06a20532, note 4 (y8)."""
+
+        from .test_phase_f_step9b_ii import DECLARATIVE
+        from .test_phase_f_step9c_ii_i import Fixture
+
+        r = Fixture(DECLARATIVE)
+        log = "sha256:" + "4" * 64
+        real = r.realization(refs=[{"store": "RUNNER", "digest": log, "media_type": "text/plain"}])
+        self.assertTrue(r.sc.derive().a.standing(real["id"]))
+        r.sc.admit(record("AVAILABILITY", target={"digest": log}, outcome="UNAVAILABLE", actor=HUMAN_B))
+        self.assertFalse(r.sc.derive().a.standing(real["id"]))
+
+    def test_only_an_acting_record_counts(self) -> None:
+        """Review of 06a20532, note 4 (y7): a record in the frame of a transformation not integrated does not act
+        (§5.2), so it decides nothing."""
+
+        from ssds.ledger.read import with_id
+
+        from ._scenario import agent, submit
+
+        r = Passing()
+        x, _, _ = submit(r.sc, {"b.py": "w = 1\n"}, agent("maker"), "t-pending")
+        pending = with_id({**record("AVAILABILITY", target={"digest": r.real["fields"]["evaluated"]},
+                                    outcome="UNAVAILABLE", actor=HUMAN_B), "frame": {"transformation": x}})
+        r.sc.admit(pending)
+        self.assertEqual(r.ev(), T, "not acting")
+
     def test_an_unavailable_reference_never_changes_adverse_use(self) -> None:
         r = Runs()
         failing = r.fail(r.run(r.tree("T0"), {"x": 1, "x_verdict": "FAIL"}))

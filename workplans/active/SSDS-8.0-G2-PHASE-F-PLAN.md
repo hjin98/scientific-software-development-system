@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is closed (PASS at 041c6c98); 8d is closed (PASS at 50954f95); 8f's review (4d949827) found B1, repaired with its notes; the repair awaits its re-check. Revision 32 splits 8g (readings F73-F74); its check (53216046) found B1, repaired by revision 33; the re-check (25bd1d0d) passed F73 and found B1 in F74, repaired by revision 34 (re-check PASS at 70cef9cf, note taken up). 8f's repair is re-checked (PASS at 7be4890d, notes taken up). 8g's review (26907956) found B1-B3, repaired (re-check PASS at 4f5caedb; N1 and N2 follow). 9a is closed (re-check PASS at 5f9c7cce, which also passes 8g's N1 at ce988a56; 8g is closed). 9b is closed (re-check PASS at c9af0774). 9c-i's review (09ab5249) found B1, repaired with its notes; the repair awaits its re-check. 9c-i is closed (re-check PASS at 478901d6). 9c-ii-i's review (d481277f) found B1, repaired; the repair awaits its re-check. 9c-ii-ii is built and awaits its review. Revision 35 splits step 9 into 9a-9f-ii (§3.6; readings F75-F83; Q-F19-Q-F22); its check (09df7c27) found B1-B2, repaired by revision 36 (re-check PASS at 7a53ad06, notes taken up in Q-F20 and Q-F21). Step 9's parts may be built; 9b's tolerance oracles wait for Q-F21, and 9f-ii's read-observation flag for Q-F20. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is closed (PASS at 041c6c98); 8d is closed (PASS at 50954f95); 8f's review (4d949827) found B1, repaired with its notes; the repair awaits its re-check. Revision 32 splits 8g (readings F73-F74); its check (53216046) found B1, repaired by revision 33; the re-check (25bd1d0d) passed F73 and found B1 in F74, repaired by revision 34 (re-check PASS at 70cef9cf, note taken up). 8f's repair is re-checked (PASS at 7be4890d, notes taken up). 8g's review (26907956) found B1-B3, repaired (re-check PASS at 4f5caedb; N1 and N2 follow). 9a is closed (re-check PASS at 5f9c7cce, which also passes 8g's N1 at ce988a56; 8g is closed). 9b is closed (re-check PASS at c9af0774). 9c-i's review (09ab5249) found B1, repaired with its notes; the repair awaits its re-check. 9c-i is closed (re-check PASS at 478901d6). 9c-ii-i and 9c-ii-ii are closed (PASS at cb146b5a and 06a20532, notes taken up in 9c-ii-iii). 9c-ii-iii is built and awaits its review. Revision 35 splits step 9 into 9a-9f-ii (§3.6; readings F75-F83; Q-F19-Q-F22); its check (09df7c27) found B1-B2, repaired by revision 36 (re-check PASS at 7a53ad06, notes taken up in Q-F20 and Q-F21). Step 9's parts may be built; 9b's tolerance oracles wait for Q-F21, and 9f-ii's read-observation flag for Q-F20. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -3174,3 +3174,47 @@ Its proposed readings D1-D8 are F89 (the obligation's revision, the policy at ad
   - a later designation admitting no earlier evidence.
 - **Mutants.** Four. All are killed, T2 once the compromise test was made retroactive (a key compromised before an observation is already out of the trust roots there).
 - **Full suite.** It passes: 1557 tests, 6 skipped.
+
+**Re-check of cb146b5a (9c-ii-i's repair) and review of 06a20532 (9c-ii-ii).** No SERIOUS CHALLENGE. **PASS** on both. 9c-ii-i and 9c-ii-ii are closed.
+- **9c-ii-i.**
+  - B1 is repaired: the retroactive compromise keeps the failure unstale, and the failing assessment stays admissible.
+  - The notes are taken up.
+  - A new note: an unreadable historical policy "designates nothing", which would drop a failing assessment through (d).
+- **9c-ii-ii.**
+  - F91 is faithful and counts nothing twice.
+  - `P` and "latest acting record" are right.
+  - No adverse use changes.
+- **Notes on 9c-ii-ii.**
+  - (1) The implicit entries add static edges, so an equivalence of class `CONSUMER:REALIZATION` that cites the realization by a record entry forms a static cycle, refused `CYCLE_SUPPORT`. This fails closed; a covering equivalence must not cite the realization.
+  - (2) `EXACT` content entries still added equivalence edges in `deps`.
+  - (3) Ties at one position fell to iteration order.
+  - (4) The `acts` filter and the envelope `refs` were untested.
+  - A bounding judgment with an `EXACT` basis makes every dependency edit stale its realization, by design, so it needs its own coverage.
+
+**Step 9c-ii-iii built (completing `stale`; readings F93-F94), with the 9c-ii-i and 9c-ii-ii notes.**
+- **`link⁻`** (F93). Its anchors range over every admitted observation of the configuration, `INCOMPLETE` ones included. Conditions (2) and (4) compare complete observations. `explain` reads the same anchors.
+- **Custody** (F93; `Assessments.custody_ok`). An `EXTERNAL_CUSTODY` class's observation serves conditions (1) and (3) only under all of these:
+  - the class's latest acting `CUSTODY_ENUMERATION`, signed by one of its keys;
+  - that enumeration lists the observation and every admitted run of the configuration by the class;
+  - every run it lists is admitted.
+
+  A `DISPATCHER` class's observation is unaffected.
+- **The "either" clause** (F94). Where an observation lacks `x`, or the reading has no verdict on it, the failure is yielded only if `a⁻`'s check on `x` was in force at `a⁻`'s base (the reading's declaration where `a⁻` was admitted). A defective or unknown one counts as in force.
+- **Renames** (F94). `_renamed` maps a name one hop through a declaration's `output_renames`. `yields` reads the reading's verdict under its name and the observation's value under its own, and `restricted` reads each observation's own names.
+- **The notes taken up.**
+  - The adverse side of `realization_ok` treats (d) as met under an unreadable historical policy, so failing evidence is never dropped.
+  - `EXACT` content entries add no equivalence edges in `deps`.
+  - A tie of `AVAILABILITY` records at one position falls to `UNAVAILABLE`.
+  - The `acts` filter and the envelope `refs` are tested.
+- **Tests.**
+  - `test_phase_f_step9c_ii_iii.py`, 12 tests:
+    - an incomplete anchor linking a differing run, and its control;
+    - custody: none, the full enumeration, an unlisted run, another run of the class unlisted, an enumerated run not admitted;
+    - the "either" clause: a removed admitted check still yielded, an output never checked at the base not yielded;
+    - renames: mapped, unmapped, and an outcome read under its own names.
+  - `test_phase_f_step9c_ii_ii.py` gains a reference the envelope names and a record not acting.
+  - The expected values are from §6.6 and §6.9 (authority-derived).
+- **Mutants.** Eleven.
+  - Nine are killed: U4 and U7 after their tests were added, and Y7 and Y8 for the notes.
+  - U1 and U8 each narrow one condition's anchors and survive. A narrow anchor links symmetrically, so conditions (2) and (4) each catch the case alone. Their joint mutant, U9, is killed.
+- **Full suite.** It passes: 1571 tests, 6 skipped.

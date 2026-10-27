@@ -213,9 +213,12 @@ class Assessments:
         if any(r.attributes.get(k) != v for k, v in declared.fixed.items()):
             return False  # (b)
         position = self.s.position_of(real)
-        designated = self.designated(r, declared.runner, position)
+        from .state import policy_at
+
+        unreadable = policy_at(self.s.h, position) is None
+        designated = self.designated(r, declared.runner, position) or (adverse and unreadable)
         if not designated:
-            return False  # (d)
+            return False  # (d); an unreadable historical policy never drops failing evidence (re-check of cb146b5a)
         compromised = self.trust.compromised.get(r.runner_key)
         return adverse or compromised is None or position < compromised  # (e)
 
@@ -382,8 +385,21 @@ class Assessments:
         if outcome is None:
             return None
         # identity of outcomes is byte equality of canonical values (§17.3), so values compare as canonical JSON,
-        # type-strict: 1 is not true (review of a0f2e31b, B2)
-        return {x: jcs(outcome[x]).decode() if x in outcome else None for x in outputs}
+        # type-strict: 1 is not true (review of a0f2e31b, B2); a name follows the observation's own renames (F94)
+        declared = self.declaration(observation)
+        names = {x: _renamed(declared, x) for x in outputs}
+        return {x: jcs(outcome[n]).decode() if n in outcome else None for x, n in names.items()}
+
+    def _in_force_at_base(self, rid: str, unit: str, x: str) -> bool:
+        """``a⁻``'s check on ``x`` was in force at its base: the reading's declaration where ``a⁻`` was admitted has
+        a verdict on ``x`` (or on its one-hop rename); a defective or unknown declaration counts as in force (§6.6;
+        fail closed; reading F94)."""
+
+        view = self.s.h.view(self.s.position_of(rid))
+        found = self.s.specs.declaration_at(unit, view.rev(unit)) if unit in view.structure.units else None
+        if not isinstance(found, SpecDeclaration):
+            return True
+        return found.verdict(_renamed(found, x)) is not None
 
     def yields(self, observation: str, rid: str) -> bool:
         """Under the reading in force: a verdict on a failing output that is not PASS, or not computable (fail
@@ -405,20 +421,24 @@ class Assessments:
         ran_under = self.s.record(observation)["target"]["spec"]["rev"]
         outcome = self.outcome(observation) or {}
         for x in self.failing_outputs(rid):
-            verdict = found.verdict(x) if isinstance(found, SpecDeclaration) else None
-            if x not in outcome or verdict is None:
-                return True
+            name = _renamed(found, x)
+            verdict = found.verdict(name) if isinstance(found, SpecDeclaration) else None
+            stored = _renamed(self.declaration(observation), x)
+            if stored not in outcome or verdict is None:
+                if self._in_force_at_base(rid, unit, x):
+                    return True  # §6.6's "either" clause: a⁻'s check on x was in force at its base (F94)
+                continue
             if verdict.embedded is not None:  # the recorded verdict counts only under the reading the run ran
                 if ran_under != rev or outcome.get(verdict.embedded) != "PASS":
                     return True
             elif verdict.template == "EXACT":  # recomputed from the stored outcome under any reading
-                output = found.output(x)
+                output = found.output(name)  # the reading's output; the value is the observation's own name's
                 try:
                     reference = canonical_reference(output, verdict.params["reference"])
                 except ValueError:
                     return True
-                if not is_canonical(output, outcome[x]) \
-                        or jcs(outcome[x]) != jcs(reference):  # byte equality (§17.3)
+                if not is_canonical(output, outcome[stored]) \
+                        or jcs(outcome[stored]) != jcs(reference):  # byte equality (§17.3)
                     return True
             else:
                 return True  # not computable until Q-F21 settles it (F86)
@@ -463,8 +483,10 @@ class Assessments:
                 continue
             digest = (self.s.record(rid).get("target") or {}).get("digest")
             position = self.s.position_of(rid)
-            if isinstance(digest, str) and (digest not in latest or position >= latest[digest][0]):
-                latest[digest] = (position, self.s.record(rid)["outcome"])
+            outcome = self.s.record(rid)["outcome"]
+            if isinstance(digest, str) and (digest not in latest or position > latest[digest][0]
+                                            or position == latest[digest][0] and outcome == "UNAVAILABLE"):
+                latest[digest] = (position, outcome)  # a tie at one position falls to UNAVAILABLE (safe side)
         return {d: outcome for d, (_, outcome) in latest.items()}
 
     def unavailable_needed(self, real: str) -> bool:
@@ -482,28 +504,57 @@ class Assessments:
         real = self.real(rid)
         if real is None or self.outcome(real) is None:
             return False
-        configuration = [o for o in self.observations(rid) if self.s.record(o)["outcome"] != "INCOMPLETE"
+        anchors = self.observations(rid)  # link⁻'s o' ranges over every one, INCOMPLETE ones included (§6.6; F93)
+        configuration = [o for o in anchors if self.s.record(o)["outcome"] != "INCOMPLETE"
                          and self.outcome(o) is not None]
         failing = self.failing_outputs(rid)
         expected = self.restricted(real, failing)
         failing_tree = self.tree_of(real)
         here = self.s.view.tree
-        reproduced = any(o != real and self.standing(o) and self.on_plus(o, failing_tree, real, base, value)
+        reproduced = any(o != real and self.standing(o) and self.custody_ok(o, anchors)
+                         and self.on_plus(o, failing_tree, real, base, value)
                          and self.restricted(o, failing) == expected for o in configuration)
         if not reproduced:
             return False
         if any(self.restricted(o, failing) != expected for o in configuration
-               if self.link_minus(o, failing_tree, configuration)):
+               if self.link_minus(o, failing_tree, anchors)):
             return False  # it differed: nondeterministic in fact, the owner's
-        if not any(self.standing(o) and self.on_plus(o, here, real, base, value) for o in configuration):
+        if not any(self.standing(o) and self.custody_ok(o, anchors) and self.on_plus(o, here, real, base, value)
+                   for o in configuration):
             return False
-        return not any(self.yields(o, rid) for o in configuration if self.link_minus(o, here, configuration))
+        return not any(self.yields(o, rid) for o in configuration if self.link_minus(o, here, anchors))
+
+    def custody_ok(self, observation: str, configuration: list[str]) -> bool:
+        """§6.9, §17.5, F81 (reading F93): an external custody runner's observation serves conditions (1) and (3)
+        only under the latest admitted ``CUSTODY_ENUMERATION`` of its class, signed by one of the class's keys, that
+        lists it and every admitted realization of the configuration by that class, every run it lists admitted."""
+
+        from .realization import read
+        from .state import policy_at
+
+        r = read(observation, self.s.record(observation))
+        position = self.s.position_of(observation)
+        policy = policy_at(self.s.h, position)
+        cls = policy.runners.get(r.runner_class) if policy is not None and r.runner_class else None
+        if cls is None or cls.kind != "EXTERNAL_CUSTODY":
+            return True
+        enumerations = [e for e in self.s.of_kind("CUSTODY_ENUMERATION")
+                        if (self.s.record(e).get("target") or {}).get("runner") == r.runner_class and self.s.acts(e)
+                        and any(str(self.s.record(e).get("actor", "")).endswith("@" + k) for k in cls.keys)]
+        if not enumerations:
+            return False
+        latest = max(enumerations, key=self.s.position_of)
+        runs = set((self.s.record(latest).get("fields") or {}).get("runs") or [])
+        by_class = {o for o in configuration if read(o, self.s.record(o)).runner_class == r.runner_class}
+        admitted = set(self.s.of_kind("REALIZATION"))
+        return observation in runs and by_class <= runs and runs <= admitted
 
     def explain(self, rid: str, base: Callable[[str], int], value: Callable[[Any], int] | None = None) -> dict[str, Any]:
         """Which observations satisfy or defeat each condition, and every link traversed (798b2b4 B4)."""
 
         real = self.real(rid)
-        configuration = [o for o in self.observations(rid) if self.s.record(o)["outcome"] != "INCOMPLETE"
+        anchors = self.observations(rid)
+        configuration = [o for o in anchors if self.s.record(o)["outcome"] != "INCOMPLETE"
                          and self.outcome(o) is not None]
         failing = self.failing_outputs(rid)
         expected = self.restricted(real, failing) if real else None
@@ -511,20 +562,20 @@ class Assessments:
         here = self.s.view.tree
 
         def links(o: str, tree) -> list[str]:
-            return [other for other in configuration if self.on_minus(other, tree) and self.on_minus(other, self.tree_of(o))]
+            return [other for other in anchors if self.on_minus(other, tree) and self.on_minus(other, self.tree_of(o))]
 
         out: dict[str, Any] = {"reproduced": [], "differed": [], "observed_here": [], "yielding_here": [], "links": []}
         if real is None:
             return out
         for o in configuration:
-            if o != real and self.standing(o) and self.on_plus(o, failing_tree, real, base, value) and \
-                    self.restricted(o, failing) == expected:
+            if o != real and self.standing(o) and self.custody_ok(o, anchors) \
+                    and self.on_plus(o, failing_tree, real, base, value) and self.restricted(o, failing) == expected:
                 out["reproduced"].append(o)
             via = links(o, failing_tree)
             if via and self.restricted(o, failing) != expected:
                 out["differed"].append(o)
             out["links"].extend(("failing-content", o, v) for v in via)
-            if self.standing(o) and self.on_plus(o, here, real, base, value):
+            if self.standing(o) and self.custody_ok(o, anchors) and self.on_plus(o, here, real, base, value):
                 out["observed_here"].append(o)
             via_here = links(o, here)
             if via_here and self.yields(o, rid):
@@ -637,3 +688,12 @@ class Assessments:
         for judgment in bounded if isinstance(bounded, list) else []:  # §17.4: "together with its bounding
             result = min(result, value(("current", judgment)) if judgment in self.s.records else F)  # judgments"
         return result
+
+
+def _renamed(declared: Any, x: str) -> str:
+    """``x``'s name under ``declared``: itself when declared, else its one-hop rename (§6.5; reading F94). Renames
+    are not composed along the revision lineage: a twice-renamed output is not evaluated, the coarser, safe reading."""
+
+    if not isinstance(declared, SpecDeclaration) or declared.output(x) is not None:
+        return x
+    return declared.output_renames.get(x, x)

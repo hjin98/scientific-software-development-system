@@ -81,7 +81,8 @@ class Support:
             for entry in self.entries(key):
                 mode, target = entry["mode"], entry["target"]
                 if mode in ("content", "validity"):
-                    out.update(("current", q) for q in self.equivalences(target["unit"]))
+                    if entry.get("class") != "EXACT":  # no equivalence covers an EXACT entry (§4.1): no edge
+                        out.update(("current", q) for q in self.equivalences(target["unit"]))
                     if mode == "validity":
                         subject = self.s.view.structure.subj(target["unit"])
                         if subject:
