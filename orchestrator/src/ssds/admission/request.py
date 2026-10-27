@@ -23,6 +23,7 @@ from typing import Any
 
 from ssds.core.api.v1 import canonical_json
 from ssds.derivation import adverse
+from ssds.ledger.read import with_id
 
 REQUEST_FIELDS = frozenset({"binding", "claims", "base_position", "base_commit", "candidates", "adopted_deltas",
                             "records", "objects"})
@@ -91,6 +92,16 @@ def request_message(request: Mapping[str, Any]) -> bytes:
     return b"ssds request " + request_id({**request, "binding": None}).encode("ascii") + b"\n"
 
 
+def resubmitted(body: Mapping[str, Any], refused_id: str, envelope: str) -> dict[str, Any]:
+    """The record a re-issue resubmits (catalogue §8.3 step 3; Phase F reading F74): the retained ``body`` unchanged
+    but for its binding, which names the re-issued envelope ``envelope``, and its provenance, which cites the refusal
+    of ``refused_id``; its identity is recomputed."""
+
+    provenance = body.get("provenance")
+    return with_id({**body, "binding": {**body["binding"], "envelope": envelope},
+                    "provenance": {**(provenance if isinstance(provenance, Mapping) else {}), "reissue_of": refused_id}})
+
+
 def never_lost(record: Mapping[str, Any]) -> bool:
     """Reports, challenges, failing assessments, adverse judgments and designated-runner observations: admitted
     whatever the request's fate when they pass their own checks (catalogue §8.3 step 6)."""
@@ -109,4 +120,4 @@ def never_lost(record: Mapping[str, Any]) -> bool:
 
 __all__ = ["ATTESTATION_FIELDS", "ENVELOPE_FIELDS", "REPORT_KINDS", "REQUEST_FIELDS", "ROUTES", "RUNNER_OBSERVATIONS",
            "attestation_message", "binding_digest", "binding_object", "envelope_digest", "envelope_message", "never_lost",
-           "request_id", "request_message"]
+           "request_id", "request_message", "resubmitted"]

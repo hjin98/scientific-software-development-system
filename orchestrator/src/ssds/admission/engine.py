@@ -32,7 +32,7 @@ from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Q
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 
-from .authenticate import authenticate, stored_attestations
+from .authenticate import authenticate, retained, stored_attestations
 from .authorize import authorize
 from .checks import (content_identity, on_merits, over_bounds, producing_context, record_problems, referenced_objects,
                      referenced_records, referenced_revisions, request_problems, target_references, transformation_named,
@@ -690,7 +690,11 @@ class Admission:
             stored = {d: o for e in entries for d, o in e.objects.items()}
             bindings = {f.record["binding"]["envelope"] for f in s.records.values()
                         if isinstance(f.record.get("binding"), Mapping) and f.record["binding"].get("envelope")}
-            auth = authenticate(request, passing, trust_roots(entries), s.n, stored_attestations(stored, bindings))
+            position = request.get("base_position")
+            listed = retained(s.h, position, stored) if "REF_BASE" not in reasons and isinstance(position, int) \
+                and not isinstance(position, bool) and 0 <= position <= s.n else {}
+            auth = authenticate(request, passing, trust_roots(entries), s.n, stored_attestations(stored, bindings),
+                                listed)
             reasons |= auth.reasons
             covered = {rid for rid, _ in auth.refused}
             refused += list(auth.refused)
@@ -825,7 +829,7 @@ class Admission:
             entry = self.admission_entry(head, expected, request_id(request), "ACCEPT", (), passing, (), expected)
             objects = {d: good[d] for r in passing for d in referenced_objects(r) if d in good} | auth.objects
             last = self.trial(chain, entry, objects, change)
-            result = authorize(request, passing, last, base)
+            result = authorize(request, passing, last, base, auth.retained)
             if not result.ok:
                 return passing, refused, False, alone, last
             refusals = dict(result.refused)

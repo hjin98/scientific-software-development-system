@@ -869,7 +869,7 @@ class RefusedAlone(RequestFixture):
         issued = self.issue()
         kept, ineligible = self.bind(finding(), issued), self.bind(finding(materiality="MATERIAL"), issued)
 
-        def fake(request, records, trial, base):
+        def fake(request, records, trial, base, resubmitted=None):
             present = {r["id"] for r in records}
             return Authorization(True, frozenset(), (), tuple((rid, ("AUTH_ACTOR",)) for rid in [ineligible["id"]]
                                                              if rid in present))

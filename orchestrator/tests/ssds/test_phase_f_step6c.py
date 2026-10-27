@@ -66,7 +66,7 @@ class Accepting(RequestFixture):
         naming = with_id({**record("FINDING", target={"records": [ineligible["id"]]}, fields={"materiality": "ROUTINE"}),
                           "actor": self.human()})
 
-        def fake(request, records, trial, base):
+        def fake(request, records, trial, base, resubmitted=None):
             present = {r["id"] for r in records}
             return Authorization(True, frozenset(), (), tuple((rid, ("AUTH_ACTOR",)) for rid in [ineligible["id"]]
                                                              if rid in present))

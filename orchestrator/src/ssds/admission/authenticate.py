@@ -23,18 +23,28 @@ the request without its binding; every record it carries is that human's (``AUTH
 A binding is untrusted input: one canonical JSON cannot encode, or one carrying a secret, authenticates nothing,
 and nothing in it is stored (Manual §24.1, §25.4; Review e6ac009 B2, B4).
 
+A **re-issue's resubmission** (Phase F step 8g-ii, reading F74): a never-lost record refused under a retired key's
+unlisted envelope is retained, and the derived ``REISSUE(envelope)`` obligation lists its identity. The Dispatcher
+resubmits it under the original task re-issued by a key in force, whose envelope copies the original task, obligation,
+role, contract revision and ``governs``. For exactly the identities a ``REISSUE`` obligation at the request's base
+lists, a record citing one (``provenance.reissue_of``) is authenticated against the retained record instead of the
+envelope's launch: its content apart from ``id``, ``binding`` and ``provenance`` equals the retained body, and its
+actor, ``lineage_class`` and ``lineage`` equal the retained record's, which were verified against the original stored
+binding object when it was refused (F9, F11; re-check of 70cef9cf, note 1).
+
 The role, record-kind, write-scope and other authorization checks of step 3 are Phase F step 4's.
 """
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
 from ssds.core.api.v1 import canonical_json
-from ssds.derivation import TrustRoots
+from ssds.derivation import TrustRoots, Workflow
 from ssds.ledger.read import is_token, verify_host, verify_sshsig
 
 from .checks import secret_detected
@@ -57,6 +67,54 @@ class Authentication:
     objects: dict[str, bytes] = field(default_factory=dict)  # the binding object, stored with admitted records
     retired_key: bool = False  # under a retired key: only never-lost records are admissible
     reissue: str | None = None  # a verified envelope of a retired key its retirement does not list (§8.3 step 3)
+    retained: Mapping[str, "Retained"] = field(default_factory=dict)  # the listed identities resubmitted here (F74)
+
+
+@dataclass(frozen=True)
+class Retained:
+    """A never-lost record refused under an unlisted retired envelope, whose identity a ``REISSUE`` obligation at the
+    request's base lists (reading F74)."""
+
+    body: dict[str, Any]  # the retained record, without its id
+    envelope: dict[str, Any]  # the original envelope, from the binding object stored with the refusal
+    obligation: Any  # the original obligation as derived at the original issue position, or None
+
+
+def retained(history: Any, position: int, objects: Mapping[str, bytes]) -> dict[str, Retained]:
+    """The identities the ``REISSUE`` obligations derived at ``position`` list, each with its retained body, its
+    original envelope and its original obligation, judged under the ruleset in force at the original issue
+    (re-check of 25bd1d0d, note 1)."""
+
+    out: dict[str, Retained] = {}
+    for o in Workflow.historical(history, position).obligations:
+        if o.kind != "REISSUE":
+            continue
+        for rid in (o.params or {}).get("records", []):
+            try:
+                body = json.loads(objects[rid])
+                original = json.loads(objects[body["binding"]["envelope"]])["envelope"]
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not isinstance(original, dict) or set(original) != ENVELOPE_FIELDS \
+                    or not isinstance(original["issued_at_position"], int) \
+                    or not 0 <= original["issued_at_position"] <= position:
+                continue
+            at = Workflow.historical(history, original["issued_at_position"])
+            obligation = next((x for x in at.obligations if x.id == original["obligation_id"]), None)
+            out[rid] = Retained(body, original, obligation)
+    return out
+
+
+def resubmission(record: Mapping[str, Any], listed: Mapping[str, Retained]) -> Retained | None:
+    """The retained record ``record`` resubmits, when it cites a listed identity (``provenance.reissue_of``)."""
+
+    provenance = record.get("provenance")
+    cited = provenance.get("reissue_of") if isinstance(provenance, Mapping) else None
+    return listed.get(cited) if isinstance(cited, str) else None
+
+
+def _content(record: Mapping[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in record.items() if k not in ("id", "binding", "provenance")}
 
 
 NOT_AUTHENTICATED = Authentication(False, frozenset({"AUTH_ENVELOPE"}))
@@ -146,7 +204,8 @@ def stored_attestations(objects: Mapping[str, bytes], bindings: set[str]) -> dic
 
 
 def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRoots, head: int,
-                 attestations: Mapping[str, list[str]] | None = None) -> Authentication:
+                 attestations: Mapping[str, list[str]] | None = None,
+                 listed: Mapping[str, Retained] | None = None) -> Authentication:
     binding = request.get("binding")
     if not isinstance(binding, Mapping) or not _encodable(binding):
         return NOT_AUTHENTICATED
@@ -202,11 +261,29 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
     lineage_list = lineage_closure(attestation["session"], attestation["input_sessions"], attestations or {}) \
         if lineage == "ATTESTED_FRESH" else []
     refused = []
+    resubmitted: dict[str, Retained] = {}
     for record in records:
         own = []
         actor = record.get("actor")
         if cosigner is not None and _attests(record, cosigner, bound_here):
             continue  # the co-signer's own attestation, authenticated by the co-signature
+        kept = resubmission(record, listed or {})
+        if kept is not None:
+            # a re-issue's resubmission (reading F74): against the retained record, under the original task re-issued
+            # by a key in force, whose envelope copies the original's task, obligation, role, contract and governs
+            original, rb, kb = kept.envelope, record.get("binding"), kept.body.get("binding")
+            rb, kb = (rb if isinstance(rb, Mapping) else {}), (kb if isinstance(kb, Mapping) else {})
+            fields = ("task_id", "obligation_id", "role", "contract_revision", "governs")
+            if retired or any(envelope[k] != original[k] for k in fields) \
+                    or _content(record) != _content(kept.body) \
+                    or (actor, record.get("actor_class")) != (kept.body.get("actor"), kept.body.get("actor_class")) \
+                    or rb.get("envelope") != digest \
+                    or {k: v for k, v in rb.items() if k != "envelope"} != \
+                    {k: v for k, v in kb.items() if k != "envelope"}:
+                refused.append((record["id"], ("AUTH_ENVELOPE",)))
+            else:
+                resubmitted[record["provenance"]["reissue_of"]] = kept
+            continue
         if record.get("id") in attested:
             expected = "HUMAN_ATTESTED_FRESH"  # fixed at admission by the co-submitted attestation (§5.10 (a))
         else:
@@ -242,7 +319,7 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         # never-lost records that passed them are refused, retained and re-issued (§8.3 step 3; review 8d274c4 B1)
         return Authentication(False, frozenset({"AUTH_ENVELOPE"}), tuple(refused), lineage, {digest: obj}, retired,
                               reissue=digest)
-    return Authentication(True, frozenset(), tuple(refused), lineage, {digest: obj}, retired)
+    return Authentication(True, frozenset(), tuple(refused), lineage, {digest: obj}, retired, retained=resubmitted)
 
 
 def _attests(record: Mapping[str, Any], cosigner: str, bound_here: set) -> bool:
@@ -267,4 +344,5 @@ def _human(request: Mapping[str, Any], human: Any, records: list[dict], roots: T
     return Authentication(True, frozenset(), tuple(refused), None, {})
 
 
-__all__ = ["Authentication", "NOT_AUTHENTICATED", "authenticate", "lineage_closure", "stored_attestations"]
+__all__ = ["Authentication", "NOT_AUTHENTICATED", "Retained", "authenticate", "lineage_closure", "resubmission",
+           "retained", "stored_attestations"]

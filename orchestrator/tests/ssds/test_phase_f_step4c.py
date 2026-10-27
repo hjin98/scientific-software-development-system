@@ -1492,7 +1492,7 @@ class AdoptionReviewCases(AdmissionRequests):
             seen.append((elements, named))
             return set()
 
-        def authorize(request, recs, trial, base):
+        def authorize(request, recs, trial, base, resubmitted=None):
             gone = tuple((r["id"], ("AUTH_ACTOR",)) for r in recs if r["id"] in refuse)
             return Authorization(True, frozenset(), gone, ())
 

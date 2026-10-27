@@ -463,7 +463,7 @@ class SalvageAtTheHead(unittest.TestCase):
         def trial(admission, chain, entry, objects=None, change=None):
             return Tried(change is not None)
 
-        def authorize(request, records, tried, base):
+        def authorize(request, records, tried, base, resubmitted=None):
             where = "frame" if tried.framed else "head"
             gone = tuple((r["id"], ("AUTH_ACTOR",)) for r in records if where == refuse_in)
             return Authorization(True, frozenset(), gone, ())

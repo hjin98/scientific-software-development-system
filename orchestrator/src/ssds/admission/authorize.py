@@ -21,6 +21,11 @@ triples (prospective tenure, step 4c-iii).
 Step 5's per-record checks (``dependency``, step 4d) run in the same loop, so a refusal of either removes the
 record before the trial is rebuilt.
 
+A re-issue's resubmission (step 8g-ii, reading F74): when every record is a resubmission authentication matched to an
+identity a ``REISSUE`` obligation at the base lists, the existence half is met by that obligation, and the envelope's
+role is judged against the original obligation as derived at the original issue (plan check of 53216046 B1; re-check
+of 25bd1d0d, B1 and note 1). Any other record citing ``reissue_of`` stays ``SCHEMA_UNSUPPORTED``.
+
 Not built yet, so refused as ``SCHEMA_UNSUPPORTED`` (fail closed, plan §3.1): discriminating readings (step 9),
 product-scope acceptance, and lifecycle-tier records, which reach the ledger only through the human-gated lifecycle
 path.
@@ -50,26 +55,38 @@ class Authorization:
     alone: tuple[tuple[str, tuple[str, ...]], ...] = ()  # refused alone: the request is judged without them
 
 
-def authorize(request: Mapping[str, Any], records: list[dict], trial: Any, base: Any) -> Authorization:
+def authorize(request: Mapping[str, Any], records: list[dict], trial: Any, base: Any,
+              resubmitted: Mapping[str, Any] | None = None) -> Authorization:
     """``trial`` is the trial extension's ``Support`` with ``records`` admitted; ``base`` the workflow at the
-    request's base position, or ``None`` when that position is not valid (``REF_BASE``)."""
+    request's base position, or ``None`` when that position is not valid (``REF_BASE``); ``resubmitted`` the listed
+    identities authentication matched (``Authentication.retained``)."""
 
     binding = request.get("binding") or {}
     envelope = binding.get("envelope") if "envelope" in binding else None
+    listed = frozenset(resubmitted or ())
     obligation = None
     if envelope is not None:
-        obligation = next((o for o in base.obligations if o.id == envelope["obligation_id"]), None) if base else None
+        originals = [resubmitted[_cited(r)] for r in records if _cited(r) in listed]
+        if base is not None and records and len(originals) == len(records):
+            obligation = originals[0].obligation  # one envelope, one original obligation (authentication matched)
+        elif base is not None:
+            obligation = next((o for o in base.obligations if o.id == envelope["obligation_id"]), None)
         if obligation is None or obligation.holder != envelope["role"] or envelope["role"] not in ROLE_TEMPLATES:
             return Authorization(False, frozenset({"AUTH_ENVELOPE"}))
     refused, alone = [], []
     for record in records:
         # step 5's per-record checks share this fixed point (step 4d): a refusal of either removes the record
-        codes = _record_codes(record, envelope, trial, base, obligation) | dependency_codes(record, trial)
+        codes = _record_codes(record, envelope, trial, base, obligation, listed) | dependency_codes(record, trial)
         if codes:
             refused.append((record["id"], tuple(sorted(codes))))
         elif record["kind"] == "ADJUDICATION" and not _adjudication_eligible(record, trial):
             alone.append((record["id"], ("AUTH_ACTOR",)))
     return Authorization(True, frozenset(), tuple(refused), tuple(alone))
+
+
+def _cited(record: Mapping[str, Any]) -> Any:
+    provenance = record.get("provenance")
+    return provenance.get("reissue_of") if isinstance(provenance, Mapping) else None
 
 
 def _adjudication_eligible(record: dict, trial: Any) -> bool:
@@ -82,19 +99,22 @@ def _adjudication_eligible(record: dict, trial: Any) -> bool:
     return record["actor_class"] == "HUMAN" or not trial.j.chain_needs_human(challenge)
 
 
-def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, base: Any, obligation: Any) -> set[str]:
+def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, base: Any, obligation: Any,
+                  listed: frozenset = frozenset()) -> set[str]:
     kind = record["kind"]
     if kind in LIFECYCLE_TIER:
         return {"AUTH_ROLE_KIND"} if envelope is not None else {"SCHEMA_UNSUPPORTED"}
     codes: set[str] = set()
     if envelope is not None and not role_permits(envelope["role"], kind, record.get("outcome")):
         codes.add("AUTH_ROLE_KIND")
-    resubmission = isinstance(record.get("provenance"), dict) and "reissue_of" in record["provenance"]
+    resubmission = isinstance(record.get("provenance"), dict) and "reissue_of" in record["provenance"] \
+        and record["provenance"]["reissue_of"] not in listed  # a listed one is step 8g-ii's (F74)
     if kind == "PRODUCT_SCOPE_ACCEPTANCE" or resubmission \
             or (kind == "EVIDENCE_ASSESSMENT" and (record.get("fields") or {}).get("mode") == "DISCRIMINATING"):
         # not built: discriminating readings (step 9);
         # the product-scope authority policy designates (§3.5; plan review 8a41539 B4); a re-issue's resubmission,
-        # which only step 8's Dispatcher makes, under the re-issued task's envelope (review 8d274c4 B2)
+        # other than the listed one step 8g-ii's Dispatcher makes, under the re-issued task's envelope (review 8d274c4
+        # B2; reading F74)
         codes.add("SCHEMA_UNSUPPORTED")
         return codes
     if not trial.qualified(record, trial.j.domain_of(record)):
