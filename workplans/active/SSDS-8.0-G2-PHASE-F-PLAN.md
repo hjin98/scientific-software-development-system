@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F11 settled (SD-64, SD-67 to SD-72); Q-F12 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F12 settled (SD-64, SD-67 to SD-73). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -44,8 +44,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a and 6b are closed (PASS at c06f5be5 and
              e78d0cf7); 6c (accepting) is closed (PASS at ab0b790d). Admission now accepts records-only
              requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d (publication,
-             F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289). Q-F12
-             asks whether 6f (fences and settlement) waits with 5e and 5f; step 7 follows. A10 is accepted (SD-66);
+             F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
+             deferred (SD-73). Step 6 is closed for Phase F; step 7 (loss and recovery) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -199,7 +199,7 @@ Step 10 needs only records-only admissions and a records-only `ABSORB` adoption,
 | **6c** accepting | ACCEPT lifted, with SD-70's gate (a request carrying a `TASK_RESULT`, candidates, or a claim reading conformance stays `SCHEMA_UNSUPPORTED`). Also gated: an `EVIDENCE_ASSESSMENT` or runner observation, until step 9; an adoption while any admitted realization reads a unit in its write set (step 8, F42). The committed entry equals the trial entry, adoption deltas included. A records-only adoption's entry never carries `integrates`, so it registers no integration (6e; plan check N2). Step 9's drop cascade runs on ACCEPT (F40), and the request is reported admitted only once held | `trial`, `Frame.entry_deltas`, the salvage cascade | — |
 | **6d** publication derivation | `pub(n)` (`PENDING`, `PUBLISHED`, `OVERTAKEN`) and the `LATE_PUBLICATION` finding (§22.2); the entry-shape halt in derivation (§8.6: a violating entry is corrupt); the extended head through checkpoint resume | `History`, `s3` | — |
 | **6e** integration registration | `History` registers an integration whenever an ACCEPT carries `integrates` (an adoption's never does, 6c), so an empty transformation agrees with its trial (plan check of 0d92c731); a full fixture regression and the checkpoint round trip | `History._fold`, `_resume` | — |
-| **6f** fence and settlement derivation | Fence classification, `settled(n)`, the fence-attention obligation, the kept-fence conditions (E15) and `NOT_SETTLED`, on hand-built fixture ledgers carrying fencing absorptions | `items.py`'s fence route | which records are "a human decision on a fenced admission" (F41) |
+| **6f** fence and settlement derivation; **deferred by SD-73** | Fence classification, `settled(n)`, the fence-attention obligation, the kept-fence conditions (E15) and `NOT_SETTLED`, on hand-built fixture ledgers carrying fencing absorptions | `items.py`'s fence route | which records are "a human decision on a fenced admission" (F41) |
 | **6g** deferred | The publisher's attempted set (the per-start incarnation identity every entry records is already built and stays, F4; plan check N3), the integration-ref compare-and-swap, the merge commit for `C_n`, fence-commit writing, the takeover-wait policy key and the ABA policy in action: integration-only, unreachable under SD-70 and SD-71, disclosed at the exit | — | deferred with 5e and 5f |
 
 The step 6 row's `deployment_classes_sound` "at redesignation" needs step 7's `WITNESS_SET_REDESIGNATION`, so it runs at step 7. Group 4's discriminators are placed as follows (plan check N4):
@@ -372,7 +372,7 @@ Until step 6 builds the commit, an accepted structure-changing request is unreac
 
 Until heads hold acceptances (steps 6-8), a request-level support cycle among a request's own records is unreachable through the engine. Each record would rely on a subject that no acceptance at the head makes valid, so step 6 refuses it first. `CYCLE_SUPPORT`'s engine reading is therefore tested by driving the trial.
 
-Until the phase that lifts SD-70's gate for integrations builds step 5e, the rebase SD-69's Q-F6 (iii) correction allows, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii; SD-71). Until it builds step 5f, step 8's no-collateral-regression check is unbuilt. No integration is accepted meanwhile (SD-70), and the Phase F exit discloses both.
+Until the phase that lifts SD-70's gate for integrations builds step 6f (SD-73), fences, settlement, the kept-fence route and `NOT_SETTLED` are unbuilt; no fence can arise while no integration is accepted. Until it builds step 5e, the rebase SD-69's Q-F6 (iii) correction allows, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii; SD-71). Until it builds step 5f, step 8's no-collateral-regression check is unbuilt. No integration is accepted meanwhile (SD-70), and the Phase F exit discloses both.
 
 Until step 6 lifts ACCEPT, step 5's checks (§3.2) act only on refusal codes and salvage. Until step 9, a discharge predicate with an evidence term, conformance needing required evidence, a citation against a realization, and step 8's comparison all fail closed (§3.2). A10's step 7 clauses and §16.11 (c)'s occasion templates are unbuilt in Phase F (SD-66). When step 6 lifts ACCEPT, a request carrying a `TASK_RESULT`, or one whose acceptance depends on a task result's conformance, stays `SCHEMA_UNSUPPORTED` until A10's D4 (SD-70, Q-F9 (a)). The exit discloses them.
 
@@ -489,6 +489,8 @@ Clause (f) is part of clean conformance, re-derived "at every revalidation of an
 **Q-F12. Step 6f after SD-70 and SD-71.** Step 6f derives fences, settlement, the fence-attention obligation, the kept-fence route (E15) and `NOT_SETTLED`, on hand-built fixture ledgers. Every one of these arises only from an integration's publication effect. A records-only admission has no effect and is never fenced (F1), and under SD-70 and SD-71 no integration is accepted in Phase F. So no fence can arise on any Phase F ledger, as with 5e and 5f.
 - **Recommended:** (a) defer 6f to the phase that lifts SD-70's gate for integrations, with 6g's publisher side and 5e and 5f. Its discriminators (362af9f N6, 61cd09b N6, 730490d N2's fence form, the five S3 kept-fence cases, and `NOT_SETTLED`) are reported unexecuted at the exit. Step 6 then closes with 6a-6e, and Phase F proceeds to step 7 (loss and recovery), which the old ledger's retirement statement needs.
 - **Alternative:** (b) build 6f now, tested on hand-built fixture ledgers only.
+
+**Resolved by SD-73 (item 67):** (a). 6f is deferred with 6g, 5e and 5f, and its discriminators are reported unexecuted at the exit.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -1547,3 +1549,5 @@ Cases pin N2 and N4.
 - **Mutants.** One: killed.
 
 **Same-family review of 04012289 (6e) and fa5ce639 (6d's notes).** No SERIOUS CHALLENGE. **PASS.** Every fixture writing an accepted `integrates` already moved the head, and keeping `DERIVATION_VERSION` is sound. 6d's N2 and N4 are confirmed. **Step 6e is closed.**
+
+**SD-73 (item 67): Q-F12 (a).** Step 6f is deferred with 6g, 5e and 5f. **Step 6 is closed for Phase F**: 6a-6e built, 6f and 6g deferred and disclosed.
