@@ -48,12 +48,16 @@ def execution_basis(support: Any, spec: str, claims: list[str], runner_class: st
     ignore = tuple(structure.ignore)
     bounding: set[str] = set()
 
+    def value(node: Any) -> int:
+        return support.values.get(node, F)
+
     def complete(scope: frozenset[str], c: str) -> bool:
         for rid in s.of_kind("COMPLETENESS"):
-            record = s.record(rid)
-            target = record["target"]
-            if record["outcome"] == "COMPLETE" and frozenset(target["scope"]) == scope and c in target["classes"] \
-                    and support.current(rid) > F:
+            target = s.record(rid)["target"]
+            # the reader's own test, at this head (review of bde2a6d5, note 1): a judgment bound would refuse
+            # bounds nothing here, so the closure widens instead
+            if frozenset(target["scope"]) == scope and c in target["classes"] \
+                    and support.a.bounds_on(rid, s.view, support.base, value):
                 bounding.add(rid)  # the closure takes the first complete scope: this judgment bounds it
                 return True
         return False
@@ -78,12 +82,13 @@ def execution_basis(support: Any, spec: str, claims: list[str], runner_class: st
 
 
 def configuration(support: Any, spec: str) -> dict[str, Any] | None:
-    """§6.5's configuration: the specification unit and the execution attributes it fixes."""
+    """§6.5's configuration: the specification unit, by its lineage root so a rename keeps it (F87; review of
+    bde2a6d5, note 3), and the execution attributes it fixes."""
 
     declared = support.s.specs.declaration(spec)
     if not isinstance(declared, SpecDeclaration):
         return None
-    return {"spec": spec, "fixed": [[k, declared.fixed[k]] for k in sorted(declared.fixed)]}
+    return {"spec": support.s.evidence.root(spec), "fixed": [[k, declared.fixed[k]] for k in sorted(declared.fixed)]}
 
 
 def outcome_problems(declared: SpecDeclaration, outcome: Any) -> list[str]:

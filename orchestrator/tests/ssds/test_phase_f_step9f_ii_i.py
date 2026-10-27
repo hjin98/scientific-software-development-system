@@ -64,6 +64,22 @@ class Basis(unittest.TestCase):
         b = execution_basis(r.sc.derive(), "spec", ["code"], "ci")
         self.assertEqual((b["class_attributes"], b["observes_outside_reads"]), (["python"], False))
 
+    def test_a_judgment_bound_would_refuse_bounds_nothing(self) -> None:
+        """Review of bde2a6d5, note 1: the builder reads the reader's test, so a provisional (overridden) judgment, which
+        ``bound`` refuses, widens the closure."""
+
+        from ._scenario import OWNER, challenge
+
+        r = Runs()
+        code, _ = complete(r, ["code"]), complete(r, ["spec"])
+        c = challenge({"record": code})
+        r.sc.admit(c)
+        r.sc.admit(judgment("RISK_OVERRIDE", {"record": c["id"]}, None, actor=OWNER,
+                            fields={"continuation": {"subjects": ["code"], "items": [], "kinds": []}}))
+        d = r.sc.derive()
+        self.assertNotEqual(d.s.status1(code), "CLEAR")
+        self.assertEqual(execution_basis(d, "spec", ["code"], "ci")["bounded_by"], "UNBOUNDED")
+
     def test_a_judgment_no_longer_current_bounds_nothing(self) -> None:
         from ._scenario import challenge
 
@@ -123,6 +139,17 @@ class Configuration(unittest.TestCase):
 
         r = Declared(DECLARATIVE.replace('runner = "ci"', 'runner = "ci"\nfixed = { regime = "re<2000" }'))
         self.assertEqual(run_configuration(r.sc.derive(), "spec"), {"spec": "spec", "fixed": [["regime", "re<2000"]]})
+
+    def test_keyed_by_the_specifications_lineage_root(self) -> None:
+        """Review of bde2a6d5, note 3: a rename keeps the configuration (F87)."""
+
+        from unittest import mock
+
+        from ssds.derivation.evidence import EvidenceFacts
+
+        r = Runs()
+        with mock.patch.object(EvidenceFacts, "root", lambda self, unit: f"root-of-{unit}"):
+            self.assertEqual(run_configuration(r.sc.derive(), "spec")["spec"], "root-of-spec")
 
 
 class Outcome(unittest.TestCase):

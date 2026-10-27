@@ -317,32 +317,37 @@ class Assessments:
         if bounded_by == "UNBOUNDED" or not self._context_available(self.basis(observation)):
             return False
         view = TreeView(tree, self.s.view.structure, self.s.h.manifest_path)
-        for c in bounded_by:
-            if c not in self.s.records:
-                return False
-            record = self.s.record(c)
-            if (record["kind"], record["outcome"]) != ("COMPLETENESS", "COMPLETE") or not self._stands(c):
-                return False  # only a positive completeness certificate bounds; INCOMPLETE stays adverse
-            target = record["target"]
-            if view.membership_digest(tuple(target["scope"])) != target.get("membership"):
-                return False
-            if record["actor_class"] == "MACHINERY" and target.get("analyzer") not in self.s.analyzer_set:
-                return False
-            for entry in record["basis"]:
-                mode = entry["mode"]
-                if mode == "content":
-                    unit, rev = entry["target"]["unit"], entry["target"]["rev"]
-                    if unit not in view.structure.units or view.rev(unit) != rev:
-                        return False
-                elif mode == "record":
-                    q = entry["target"]["record"]
-                    if value is None or q not in self.s.records or value(("current", q)) != T:
-                        return False
-                elif mode == "standing":
-                    if entry["target"]["record"] not in self.s.records or base(entry["target"]["record"]) != T:
-                        return False
-                elif mode != "identity":
+        return all(self.bounds_on(c, view, base, value) for c in bounded_by)
+
+    def bounds_on(self, c: str, view: Any, base: Callable[[str], int], value: Callable[[Any], int] | None = None) -> bool:
+        """Completeness judgment ``c`` certifies a closure on the content ``view`` holds: ``bound``'s test for one
+        judgment, the one owner the execution basis builder reads too (review of bde2a6d5, note 1)."""
+
+        if c not in self.s.records:
+            return False
+        record = self.s.record(c)
+        if (record["kind"], record["outcome"]) != ("COMPLETENESS", "COMPLETE") or not self._stands(c):
+            return False  # only a positive completeness certificate bounds; INCOMPLETE stays adverse
+        target = record["target"]
+        if view.membership_digest(tuple(target["scope"])) != target.get("membership"):
+            return False
+        if record["actor_class"] == "MACHINERY" and target.get("analyzer") not in self.s.analyzer_set:
+            return False
+        for entry in record["basis"]:
+            mode = entry["mode"]
+            if mode == "content":
+                unit, rev = entry["target"]["unit"], entry["target"]["rev"]
+                if unit not in view.structure.units or view.rev(unit) != rev:
                     return False
+            elif mode == "record":
+                q = entry["target"]["record"]
+                if value is None or q not in self.s.records or value(("current", q)) != T:
+                    return False
+            elif mode == "standing":
+                if entry["target"]["record"] not in self.s.records or base(entry["target"]["record"]) != T:
+                    return False
+            elif mode != "identity":
+                return False
         return True
 
     def _stands(self, c: str) -> bool:
