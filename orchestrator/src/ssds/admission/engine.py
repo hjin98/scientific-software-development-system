@@ -660,8 +660,11 @@ class Admission:
                                 and aimed["kind"] not in (*REPORT_KINDS, "CHALLENGE"):
                             own.append("REF_TARGET")  # it reclassifies a report or a challenge (§15.2)
                         if record["kind"] == "LINEAGE_ATTESTATION" and not any(
-                                r.get("id") == target.get("record") for r in records if r is not record):
-                            own.append("REF_TARGET")  # only a co-submitted attestation classifies (§5.10 (a); F72)
+                                r.get("id") == target.get("record") and isinstance(r.get("binding"), Mapping)
+                                for r in records if r is not record):
+                            # only a co-submitted attestation of a task-bound record classifies (§5.10 (a); F72;
+                            # review 50954f9 N1)
+                            own.append("REF_TARGET")
                         if record["kind"] == "CONTINUITY_ATTESTATION":  # one declaring a frame is REF_TRANSFORMATION
                             own.extend(attestation_references(record, known, passing, s.view.structure.units,
                                                               stored | set(good)))

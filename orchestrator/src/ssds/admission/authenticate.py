@@ -246,7 +246,10 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
 
 
 def _attests(record: Mapping[str, Any], cosigner: str, bound_here: set) -> bool:
-    """The co-signer's ``LINEAGE_ATTESTATION`` of a record bound to this task in this request (reading F72)."""
+    """The co-signer's ``LINEAGE_ATTESTATION`` of a record bound to this task in this request (reading F72). Such a
+    record is authenticated by the co-signature instead of the per-record agent checks (actor, envelope fields,
+    contract, lineage, ``AUTH_VERSION``, the retired-key rule): its governing version does not matter, and under a
+    retired key its target, not never-lost, is refused, so the cascade drops it (review 50954f9 N2)."""
 
     target = record.get("target")
     return record.get("kind") == "LINEAGE_ATTESTATION" and record.get("outcome") == "HUMAN_ATTESTED_FRESH" \

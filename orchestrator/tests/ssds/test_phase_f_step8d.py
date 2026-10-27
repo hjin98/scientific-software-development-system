@@ -137,6 +137,14 @@ class Admitting(RequestFixture):
         req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
         decision = self.admit(req)
         self.assertIn("REF_TARGET", dict(decision.refused).get(rec["id"], ()) + tuple(decision.reasons))
+        own = with_id({**finding(note="the human's own"), "actor": self.human()})
+        of_own = with_id({**record("LINEAGE_ATTESTATION", target={"record": own["id"]}, outcome="HUMAN_ATTESTED_FRESH"),
+                          "actor": self.human()})
+        req = self.request([own, of_own], base_position=len(self.entries()) - 1)
+        req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+        decision = self.admit(req)
+        self.assertIn("REF_TARGET", dict(decision.refused).get(of_own["id"], ()) + tuple(decision.reasons),
+                      "a human's own record is no task-bound target (review 50954f9 N1)")
 
 
 class Notice(RequestFixture):

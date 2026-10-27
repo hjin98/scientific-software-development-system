@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is closed (PASS at 041c6c98); 8d is built and awaits its review. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is closed (PASS at 041c6c98); 8d is closed (PASS at 50954f95); 8f is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2480,3 +2480,34 @@ Its notes:
   8e's tests now pass the shared doctrine reader.
 - **Mutants.** Eight: all are killed. D3, an attestation of a record not bound here, survived at first and is killed by the added test.
 - **Full suite.** It passes: 1443 tests, 6 skipped.
+
+**Same-family review of 50954f95 (8d).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Probed adversarially, the co-signature authenticates nothing but its own attestation of a record bound here. No bound record obtains `HUMAN_ATTESTED_FRESH` without it, and a co-signature cannot be reused across requests or envelopes. Leaving it out of the stored binding object leaves nothing unverifiable, and refusing an attested record that claims `UNKNOWN` is right. 8d is faithful to §5.10 (a) and (f), §12.2 and §16.5.
+
+Its notes are taken up with 8f:
+- **N1.** Step 2 accepts a `LINEAGE_ATTESTATION` only when its co-submitted target is task-bound, so a human's attestation of their own record is refused. Tested.
+- **N2.** `_attests`' docstring states which checks the co-signature replaces.
+
+**Step 8f built (the transports; reading F70).**
+- **The Git-envelope transport** (`interface/envelope.py`, fitness B1's reserved writer).
+  - `publish` writes `task.json` (the signed binding object) and `brief.md` on `refs/heads/ssds/run/<task-id>`, creating the ref only if absent (write once).
+  - `fetch` reads `result.json` from that one ref.
+  - Both refuse any repository whose common Git directory is the product repository's, so a linked worktree or path alias is refused too.
+  - `run_ref` refuses names that are not task ids.
+  - The commit identity is fixed and the environment's `GIT_*` settings are dropped.
+- **The MCP server** (`interface/mcp.py`): JSON-RPC 2.0 over stdio on the standard library, pinned to MCP `2025-06-18`, tools capability only.
+  - `initialize`, `ping`, `tools/list`, and `tools/call` for `status`, `ask`, `read`, `open` and `inspect`, the CLI's operations through the same `Session` from the composition root's `connect`.
+  - Notifications get no response. A refusal is `isError`. The JSON-RPC error codes are -32700, -32600, -32601 and -32602.
+  - `ssds mcp serve` mounts it.
+- **The fitness table.** The Interface's public modules gain its two transports, `mcp` and `envelope`, so the composition root may import them.
+- **Tests.** `test_phase_f_step8f.py`, 8 tests:
+  - a Git-envelope round trip, in which an agent clone writes `result.json` back onto the run ref, with the product repository's refs and files unchanged;
+  - the product repository refused directly and through a linked worktree;
+  - a run ref written once, and malformed task ids refused;
+  - the MCP handshake and its pinned revision, a notification and `ping`;
+  - the tools equal to the CLI's command set;
+  - a call answering as the `Session` does;
+  - the error codes;
+  - serving over stdio.
+- **Mutants.** Nine: all are killed.
+- **Full suite.** It passes: 1451 tests, 6 skipped.
+- **What step 10 needs.** Step 10's test, that a candidate request through the library API, the Dispatcher or a transport is refused at Admission's entry, can now be run through these transports.

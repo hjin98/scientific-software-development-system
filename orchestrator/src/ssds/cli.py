@@ -132,6 +132,25 @@ def dispatcher_serve(ledger: str = typer.Option(..., "--ledger", help="the ledge
     raise typer.Exit(0 if "withheld" not in report else 1)
 
 
+#: The MCP transport (Phase F step 8f, reading F70): JSON-RPC 2.0 over stdio, the CLI's operations through ``connect``.
+mcp_app = typer.Typer(name="mcp", help="The MCP transport over stdio.", no_args_is_help=True, add_completion=False)
+
+
+@mcp_app.command("serve")
+def mcp_serve() -> None:
+    """Serve the Interface's operations over MCP on stdin and stdout until the input ends."""
+
+    import sys
+
+    from ssds.interface.mcp import serve
+
+    serve(connect, sys.stdin, sys.stdout)
+
+
+for group in ("dispatcher", "mcp"):
+    if any(command_name(info) == group for info in app.registered_commands):
+        raise CommandCollision(f"command {group!r} is claimed twice")
+app.add_typer(mcp_app, name="mcp")
 if any(command_name(info) == "dispatcher" for info in app.registered_commands):
     raise CommandCollision("command 'dispatcher' is claimed twice")
 app.add_typer(dispatcher_app, name="dispatcher")
