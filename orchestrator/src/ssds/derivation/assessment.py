@@ -428,7 +428,32 @@ class Assessments:
         s = self.s
         if not s.cont(observation) or s.record(observation)["outcome"] == "INCOMPLETE":
             return False
+        if self.unavailable_needed(observation):
+            return False  # binding health (§17.4; reading F92)
         return s.status1(observation) == "CLEAR"  # a risk override never resolves a challenge
+
+    @cached_property
+    def _availability(self) -> dict[str, str]:
+        """Digest -> the outcome of the latest acting ``AVAILABILITY`` record on it (§17.4)."""
+
+        latest: dict[str, tuple[int, str]] = {}
+        for rid in self.s.of_kind("AVAILABILITY"):
+            if not self.s.acts(rid):
+                continue
+            digest = (self.s.record(rid).get("target") or {}).get("digest")
+            position = self.s.position_of(rid)
+            if isinstance(digest, str) and (digest not in latest or position >= latest[digest][0]):
+                latest[digest] = (position, self.s.record(rid)["outcome"])
+        return {d: outcome for d, (_, outcome) in latest.items()}
+
+    def unavailable_needed(self, real: str) -> bool:
+        """A reference the realization needs, its evaluated outcome or one its envelope names, is marked
+        unavailable by the latest acting ``AVAILABILITY`` record on it (binding health, §17.4; reading F92)."""
+
+        record = self.s.record(real)
+        needed = [(record.get("fields") or {}).get("evaluated")]
+        needed += [r.get("digest") for r in record.get("refs") or [] if isinstance(r, dict)]
+        return any(self._availability.get(d) == "UNAVAILABLE" for d in needed if isinstance(d, str))
 
     # -- stop: staleness (§6.6) -------------------------------------------------------------------------
 
@@ -541,7 +566,11 @@ class Assessments:
         best = F
         for a in self.by_obligation.get(obligation, []):
             if self.passing(a) and self.admissible(a, obligation) and self.about(a, subject):
-                best = max(best, value(("current", a)))
+                held = value(("current", a))
+                real = self.real(a)
+                if real is not None and self.unavailable_needed(real):
+                    held = min(held, P)  # "not T": a needed reference is unavailable (§17.4; reading F92)
+                best = max(best, held)
         return min(best, self.undisputed(subject, obligation, value, base, nonind))
 
     def qual(self, subject: str, value: Callable[[Any], int], base: Callable[[str], int],
@@ -583,4 +612,7 @@ class Assessments:
         for term, cid in list(basis.get("reads", [])) + list(basis.get("widened", [])):
             if recorded_identity(tree, term, ignore) != cid:
                 return F
+        bounded = basis.get("bounded_by", [])
+        for judgment in bounded if isinstance(bounded, list) else []:  # §17.4: "together with its bounding
+            result = min(result, value(("current", judgment)) if judgment in self.s.records else F)  # judgments"
         return result

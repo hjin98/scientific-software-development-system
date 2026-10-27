@@ -56,11 +56,29 @@ class Support:
         return [rid for rid in self.s.of_kind("EQUIVALENCE")
                 if self.passing(rid) and self.s.record(rid)["target"]["unit"] == unit]
 
+    def entries(self, rid: str) -> list[dict[str, Any]]:
+        """``rid``'s basis entries. A ``REALIZATION`` also has three implicit ones, whatever its submitter wrote
+        (§17.4; reading F91): its recorded execution basis (``execution``, class ``CONSUMER:REALIZATION``), whose
+        bounding completeness judgments' currency it reads, and ``content`` on each claim of its target (``EXACT``),
+        so it supports a claim only while its basis holds and its target is the claim's revision."""
+
+        record = self.s.record(rid)
+        entries = list(record["basis"])
+        if record["kind"] == "REALIZATION":
+            execution = (record.get("fields") or {}).get("execution")
+            if isinstance(execution, dict):
+                entries.append({"mode": "execution", "target": execution, "class": "CONSUMER:REALIZATION"})
+            for claim in (record.get("target") or {}).get("claim") or []:
+                if isinstance(claim, dict) and isinstance(claim.get("unit"), str) and isinstance(claim.get("rev"), str):
+                    entries.append({"mode": "content", "target": {"unit": claim["unit"], "rev": claim["rev"]},
+                                    "class": "EXACT"})
+        return entries
+
     def deps(self, node: Node) -> set[Node]:
         kind, key = node
         out: set[Node] = set()
         if kind == "current":
-            for entry in self.s.record(key)["basis"]:
+            for entry in self.entries(key):
                 mode, target = entry["mode"], entry["target"]
                 if mode in ("content", "validity"):
                     out.update(("current", q) for q in self.equivalences(target["unit"]))
@@ -71,7 +89,9 @@ class Support:
                 elif mode == "execution":
                     for unit_entry in target.get("units", []):
                         out.update(("current", q) for q in self.equivalences(unit_entry["unit"]))
-                    out.update(("current", c) for c in target.get("bounded_by", []) if c in self.s.records)
+                    bounded = target.get("bounded_by", [])
+                    out.update(("current", c) for c in (bounded if isinstance(bounded, list) else [])
+                               if c in self.s.records)
                 elif mode == "record" and target["record"] in self.s.records:
                     out.add(("current", target["record"]))
             return out
@@ -114,7 +134,7 @@ class Support:
         out = set(self.deps(node))
         kind, key = node
         if kind == "current":
-            for entry in s.record(key)["basis"]:
+            for entry in self.entries(key):
                 target = entry["target"]
                 units = [target.get("unit")] if entry["mode"] in ("content", "validity") else \
                     [u.get("unit") for u in target.get("units", [])] if entry["mode"] == "execution" else []
@@ -176,7 +196,7 @@ class Support:
         kind, key = node
         if kind == "current":
             result = self.base(key)
-            for entry in self.s.record(key)["basis"]:
+            for entry in self.entries(key):
                 if result == F:
                     break
                 result = min(result, self.sat(entry, value, key))
