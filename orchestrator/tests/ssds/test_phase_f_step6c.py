@@ -42,10 +42,10 @@ class Accepting(RequestFixture):
         self.assertEqual((entry["adopted_deltas"], entry["integrates"]), ([], None))
 
     def test_a_kind_phase_f_does_not_check_is_not_yet_accepted(self) -> None:
-        """Review c9c937d: a human decision on an obligation no one derives, an observation recorded by a human."""
+        """Review c9c937d: a human decision on an obligation no one derives. (A human's ``AVAILABILITY``, once this
+        test's second case, is accepted since step 9g-ii, SD-82.)"""
 
-        for kind, target, outcome in (("HUMAN_DECISION", {"obligation": "sha256:" + "6" * 64}, "ACCEPT"),
-                                      ("AVAILABILITY", {"digest": "sha256:" + "6" * 64}, "AVAILABLE")):
+        for kind, target, outcome in (("HUMAN_DECISION", {"obligation": "sha256:" + "6" * 64}, "ACCEPT"),):
             rec = with_id({**record(kind, target=target, outcome=outcome), "actor": self.human()})
             decision = self.admit(self.signed_by_human([rec]))
             with self.subTest(kind=kind):
@@ -220,7 +220,6 @@ class Gate(unittest.TestCase):
             self.assertTrue(gated({}, [{"kind": "TASK_RESULT", "target": {"task": "t"}}], support, None))
             self.assertTrue(gated({"candidates": ["c"]}, [], support, None))
             for kind, target in (("HUMAN_DECISION", {"obligation": "o"}),
-                                 ("AVAILABILITY", {"digest": "d"}),
                                  ("EXTERNAL_CONSULTATION", {"external": "e"}), ("RISK_OVERRIDE", {"record": "r"}),
                                  ("GATE_DECISION", {"gate": "g", "subject": {}, "core": "c"}),
                                  ("REVIEW", {"integrated": "ITEM", "of": "k"}),
@@ -230,7 +229,8 @@ class Gate(unittest.TestCase):
                              "step 9d-i (F99)")
             for kind, target in (("EVIDENCE_ASSESSMENT", {"realization": "r", "obligation": "o"}),
                                  ("COMPLETENESS", {"scope": [], "classes": [], "membership": "m"}),
-                                 ("IMMATERIALITY", {"records": ["r"]}), ("CUSTODY_ENUMERATION", {"runner": "r"})):
+                                 ("IMMATERIALITY", {"records": ["r"]}), ("CUSTODY_ENUMERATION", {"runner": "r"}),
+                                 ("AVAILABILITY", {"digest": "d"})):
                 self.assertFalse(gated({}, [{"kind": kind, "target": target}], support, None), f"step 9d-ii: {kind}")
             self.assertTrue(gated({"claims": ["item"]}, [], support, None), "an item obligation reads conformance")
             self.assertFalse(gated({"claims": ["other"]}, [], support, None))

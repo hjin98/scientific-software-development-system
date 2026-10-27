@@ -69,7 +69,7 @@ HUMAN_BINDING = frozenset({"actor", "signature"})
 RUNNER_BINDING = frozenset({"key", "signature"})
 #: What a runner key authenticates (catalogue §17.5, §25.1): its observations, and an external custody runner's
 #: enumeration of its runs.
-RUNNER_KINDS = frozenset({"REALIZATION", "CHECK_EXECUTION", "CUSTODY_ENUMERATION"})
+RUNNER_KINDS = frozenset({"REALIZATION", "CHECK_EXECUTION", "CUSTODY_ENUMERATION", "AVAILABILITY"})
 _COMPONENT = re.compile(r"[a-z][a-z0-9_.-]{0,63}")
 _ATTEMPT = re.compile(r"[0-9]{1,9}")
 _PUBLIC_KEY = re.compile(r"[0-9a-f]{64}")

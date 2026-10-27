@@ -486,7 +486,11 @@ class Assessments:
                 def value_of(n: str, name: str = name, stored: str = stored, observed: Any = observed) -> Any:
                     return outcome[stored] if n == name else outcome.get(_renamed(observed, n))
 
-                if judge(verdict, {o.name: o for o in found.outputs}, value_of) is not True:
+                try:
+                    passed = judge(verdict, {o.name: o for o in found.outputs}, value_of)
+                except (KeyError, TypeError, ValueError, ArithmeticError):
+                    return True  # an oracle that cannot be judged yields, never passes (review of 8fe75792, note 2)
+                if passed is not True:
                     return True
         return read_by_assessor and not self.covered(observation, rid, unit, rev)
 

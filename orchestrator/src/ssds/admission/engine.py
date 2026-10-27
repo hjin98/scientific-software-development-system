@@ -972,6 +972,7 @@ _ACCEPTED = {
     # step 9d-ii (F99-F101): an ordinary assessment, a completeness judgment, an immateriality judgment
     "EVIDENCE_ASSESSMENT": {"realization"}, "COMPLETENESS": {"completeness"}, "IMMATERIALITY": {"records"},
     "CUSTODY_ENUMERATION": {"custody"},  # step 9d-iii: an external custody runner's enumeration (F102)
+    "AVAILABILITY": {"content_ref"},  # step 9g-ii: a human's or a designated runner's (SD-82; F117)
 }
 
 
@@ -985,7 +986,8 @@ def _shape(target: Any) -> str | None:
                           ("delta", {"absorption", "key"}), ("record", {"record"}), ("records", {"records"}),
                           ("units", {"units"}), ("spec", {"spec", "claim"}),
                           ("realization", {"realization", "obligation"}),
-                          ("completeness", {"scope", "classes", "membership"}), ("custody", {"runner"})):
+                          ("completeness", {"scope", "classes", "membership"}), ("custody", {"runner"}),
+                          ("content_ref", {"digest"})):
         if needed <= keys:
             return shape
     return None

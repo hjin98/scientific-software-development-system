@@ -141,6 +141,8 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
         codes.add("AUTH_ACTOR")
     if kind == "CUSTODY_ENUMERATION" and not _custody_actor(record, trial):
         codes.add("AUTH_ACTOR")
+    if kind == "AVAILABILITY" and not _availability_actor(record, trial):
+        codes.add("AUTH_ACTOR")
     if kind in ("ACCEPTANCE", "LEGACY_ACCEPTANCE"):
         # a legacy import "supplies the acceptance for that (subject, scope_id, rev)" (§19.2), so it meets the same
         # target rules, on a subject the protocol it imports governs (review c80fc6a B1)
@@ -198,6 +200,16 @@ def _custody_actor(record: dict, trial: Any) -> bool:
     runner = trial.s.policy.runners.get((record.get("target") or {}).get("runner"))
     key = str(record.get("actor", "")).rsplit("@", 1)[-1]
     return runner is not None and runner.kind == "EXTERNAL_CUSTODY" and key in runner.keys
+
+
+def _availability_actor(record: dict, trial: Any) -> bool:
+    """``AVAILABILITY``'s producers (SD-82; reading F117): a human, or a designated runner, a machinery actor whose
+    signing key, its ``@<key id>``, some runner class the policy in force designates holds."""
+
+    if record.get("actor_class") == "HUMAN":
+        return True
+    key = str(record.get("actor", "")).rsplit("@", 1)[-1]
+    return record.get("actor_class") == "MACHINERY" and any(key in c.keys for c in trial.s.policy.runners.values())
 
 
 def _supersession_unbuilt(superseded: str, trial: Any) -> bool:

@@ -258,6 +258,19 @@ class Staleness(unittest.TestCase):
         r.revise(TOLERANCE.replace("tol = 0.5", "tol = 0.25"))
         self.assertTrue(r.assessments().yields(at["id"], failing["id"]), "the new reading's tolerance")
 
+    def test_a_judge_that_cannot_decide_yields(self) -> None:
+        """Review of 8fe75792, note 2: an exception in the judge fails closed, never open."""
+
+        from unittest import mock
+
+        r = Declared(TOLERANCE)
+        t0 = r.tree("T0")
+        failing = r.assess(r.run(t0, {"x": 2, "y": "9.0", "z": "9.0"}), "FAIL", failing=("y",))
+        good = r.run(t0, {"x": 2, "y": "0.25", "z": "1.0"})
+        self.assertFalse(r.assessments().yields(good["id"], failing["id"]))
+        with mock.patch("ssds.derivation.assessment.judge", side_effect=KeyError("tol")):
+            self.assertTrue(r.assessments().yields(good["id"], failing["id"]))
+
     def test_monotone_through_derivation(self) -> None:
         r = Declared(TOLERANCE)
         t0 = r.tree("T0")

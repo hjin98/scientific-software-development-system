@@ -267,15 +267,37 @@ class Executor:
         self.home.create_private(self.home.artifact_parts(self.ledger_id, digest), raw)
         return {"store": "RUNNER", "digest": digest, "media_type": "application/json"}
 
-    def _request(self, record: dict[str, Any], objects: dict[str, str] | None = None) -> tuple[dict[str, Any], str]:
+    def _request(self, record: dict[str, Any], objects: dict[str, str] | None = None,
+                 key_class: str | None = None) -> tuple[dict[str, Any], str]:
         """The record's request, signed by its runner key and journaled (``REQUEST``) before it is sent."""
 
         s = self._latest()
         request = {"binding": None, "claims": [], "base_position": s.n, "base_commit": s.h.head(s.n),
                    "candidates": [], "adopted_deltas": [], "records": [record], "objects": dict(objects or {})}
-        key_class = record["fields"]["execution"]["runner"]["class"]
+        key_class = key_class or record["fields"]["execution"]["runner"]["class"]
         signed = RunnerKey(self.home, self.ledger_id, key_class).sign(request)
         return signed, self.journal.submitted(signed)
+
+    def report_availability(self, runner_class: str, digest: str, outcome: str) -> Any:
+        """An ``AVAILABILITY`` record on ``digest``, signed by ``runner_class``'s key here, for a referenced artifact
+        found missing (or found again) while materializing or executing (SD-82; reading F117). Phase F's runs
+        reference no external artifact, and a tree's missing Git object no ``content_ref`` names, so nothing calls
+        it yet (disclosed, plan check of 6f512acd, note 2)."""
+
+        if outcome not in ("AVAILABLE", "UNAVAILABLE"):
+            raise ValueError(f"an availability is AVAILABLE or UNAVAILABLE, not {outcome}")
+        latest = self._latest()
+        cls = latest.policy.runners.get(runner_class)
+        key = RunnerKey(self.home, self.ledger_id, runner_class)
+        if cls is None or key.key_id not in cls.keys:
+            raise ValueError(f"this Dispatcher holds no key {runner_class} designates")
+        record = _with_id({"kind": "AVAILABILITY", "schema": 1, "ruleset": dict(latest.h.ruleset(latest.n)),
+                           "actor": f"machinery:runner@{key.key_id}", "actor_class": "MACHINERY", "frame": "ADMITTED",
+                           "target": {"digest": digest}, "basis": [], "outcome": outcome, "reason": [],
+                           "supersedes": [], "binding": None, "governs": dict(self.governs), "provenance": {},
+                           "refs": [], "recorded_at": self.recorded_at(), "fields": {}})
+        signed, rid = self._request(record, key_class=runner_class)
+        return self._send(signed, rid)
 
     def _send(self, signed: dict[str, Any], rid: str) -> Any:
         decision = self.submit(signed)
