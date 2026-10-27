@@ -108,6 +108,41 @@ class AbsorbedReadings(unittest.TestCase):
         self.assertTrue(r.assessments().yields(relaxed["id"], failing["id"]),
                         "the integrated reading still fails x = 1")
 
+    def test_an_unrelated_integration_never_makes_an_absorbed_edit_count(self) -> None:
+        """Re-check of 6fedb664, B1: the integrated reading is per unit."""
+
+        from ._scenario import agent
+
+        r = Declared(DECLARATIVE)
+        t0 = r.tree("T0")
+        failing = r.fail(r.run(t0, {"x": 1, "y": "0.0"}))
+        r.revise(DECLARATIVE.replace("reference = 2", "reference = 1"))  # absorbed, never admitted
+        r.sc.integrate({"a.py": "v = 1\n# unrelated\n"}, agent("other"), "task-other")
+        relaxed = r.run(r.sc.head, {"x": 1, "y": "0.0"})
+        self.assertTrue(r.assessments().yields(relaxed["id"], failing["id"]),
+                        "the specification's integrated revision is still the one with reference 2")
+
+    def test_in_a_candidates_frame_its_own_reading_alone(self) -> None:
+        """Re-check of 6fedb664, note: in a candidate's frame the reading in force is the candidate's own, held by no
+        absorption, so a candidate relaxing the specification is judged under it alone."""
+
+        from ssds.derivation.frames import Frame, transformation_of
+        from ssds.derivation.state import State
+        from ssds.derivation.support import Support
+
+        from ._scenario import agent, submit
+
+        r = Declared(DECLARATIVE)
+        t0 = r.tree("T0")
+        failing = r.fail(r.run(t0, {"x": 1, "y": "0.0"}))
+        x, cand, _ = submit(r.sc, {"s.ssds-spec.toml": DECLARATIVE.replace("reference = 2", "reference = 1")},
+                            agent("relaxer"), "task-relax")
+        relaxed = r.run(cand, {"x": 1, "y": "0.0"})
+        s = r.sc.derive().s
+        framed = Support(State(s.h, None, Frame(s.h, s.n, transformation_of(s, x), s.enactment(x))))
+        self.assertFalse(framed.a.yields(relaxed["id"], failing["id"]))
+        self.assertTrue(r.assessments().yields(relaxed["id"], failing["id"]), "in the admitted state it is not held")
+
     def test_a_comment_only_absorption_changes_nothing(self) -> None:
         r = Declared(DECLARATIVE)
         t0 = r.tree("T0")

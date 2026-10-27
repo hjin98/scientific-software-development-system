@@ -55,12 +55,19 @@ class SpecFacts:
         return None
 
     def integrated_rev(self, uid: str) -> str | None:
-        """``uid``'s revision at the last position an admission integrated (genesis's baseline when none has): the
-        reading §6.6 also takes where the state holds the current one only by absorption (review of a0f2e31b, B1)."""
+        """``uid``'s revision as an admission last integrated it: the revision the latest integration that changed
+        ``uid`` produced, else genesis's, else None (fail closed): the reading §6.6 also takes where the state holds
+        the current one only by absorption. Per unit, so an unrelated integration after an absorbed edit never makes
+        that edit count as integrated (review of a0f2e31b, B1; re-check of 6fedb664, B1)."""
 
-        last = max((k for k in self.s.h.integrations if k <= self.s.n), default=0)
-        view = self.s.h.view(last)
-        return view.rev(uid) if uid in view.structure.units else None
+        h = self.s.h
+        for k in sorted((k for k in h.integrations if 0 < k <= self.s.n), reverse=True):
+            after, before = h.view(k), h.view(k - 1)
+            now = after.rev(uid) if uid in after.structure.units else None
+            if now != (before.rev(uid) if uid in before.structure.units else None):
+                return now
+        genesis = h.view(0)
+        return genesis.rev(uid) if uid in genesis.structure.units else None
 
     def defective(self, uid: str, rev: str | None = None) -> bool:
         found = self.declaration(uid) if rev is None else self.declaration_at(uid, rev)

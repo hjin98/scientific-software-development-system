@@ -106,6 +106,11 @@ class Grammar(unittest.TestCase):
             "two verdicts on one output": with_line(EMBEDDED, 'verdicts = [{ output = "x", embedded = "x_verdict" }]',
                                                     'verdicts = [{ output = "x", embedded = "x_verdict" }, '
                                                     '{ output = "x", embedded = "x_verdict" }]'),
+            "a huge integer bound": with_line(EMBEDDED, "time_bound_hours = 24", "time_bound_hours = 1" + "0" * 400),
+            "a huge integer tolerance": with_line(DECLARATIVE, "tol = 1e-8", "tol = 1" + "0" * 400),
+            "a huge integer reference": with_line(DECLARATIVE, "reference = true", "reference = true")
+            .replace('{ output = "l2", template = "ABS_TOL", params = { reference = 0.0, tol = 1e-8 } }',
+                     '{ output = "l2", template = "EXACT", params = { reference = 1' + "0" * 400 + ' } }'),
             "not TOML": "oracle = \n",
         }
         for name, text in cases.items():

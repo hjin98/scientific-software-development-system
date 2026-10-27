@@ -167,9 +167,13 @@ def canonical_reference(output: Output, reference: Any) -> Any:
                 raise ValueError(f"a reference for {output.name} is canonical {output.canonical} text")
             return reference
         if isinstance(reference, (int, float)) and not isinstance(reference, bool):
-            if isinstance(reference, int) and float(reference) != reference:
+            try:
+                exact = float(reference)
+            except OverflowError:
+                raise ValueError(f"a reference for {output.name} is beyond binary64") from None
+            if isinstance(reference, int) and exact != reference:
                 raise ValueError(f"a reference for {output.name} is not exactly a binary64 value")
-            return canonical_float(output.canonical, float(reference))
+            return canonical_float(output.canonical, exact)
         if float_of(output.canonical, reference) is not None:
             return reference
         raise ValueError(f"a reference for {output.name} is a number or canonical {output.canonical} text")
@@ -210,6 +214,8 @@ def parse_spec(data: bytes) -> SpecDeclaration | SpecFailure:
         return _declaration(raw)
     except _Grammar as error:
         return SpecFailure("GRAMMAR", str(error))
+    except (ArithmeticError, ValueError, TypeError) as error:  # total over untrusted content (§25.4; review B3)
+        return SpecFailure("GRAMMAR", f"a value outside the grammar: {error}")
 
 
 def _declaration(raw: dict[str, Any]) -> SpecDeclaration:

@@ -323,7 +323,9 @@ class Assessments:
         reading_now = self.s.cur(unit) if unit in self.s.view.structure.units else None
         if reading_now is None:
             return True
-        readings = {reading_now, self.s.specs.integrated_rev(unit)}
+        # in a candidate's frame the reading in force is the candidate's own, held by no absorption: §6.6's second
+        # reading applies to the admitted state (re-check of 6fedb664, note)
+        readings = {reading_now} if self.s.frame is not None else {reading_now, self.s.specs.integrated_rev(unit)}
         return any(self._yields_under(observation, rid, unit, rev) for rev in readings)
 
     def _yields_under(self, observation: str, rid: str, unit: str, rev: str | None) -> bool:
