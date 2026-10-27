@@ -391,15 +391,15 @@ class Assessments:
         return {x: jcs(outcome[n]).decode() if n in outcome else None for x, n in names.items()}
 
     def _in_force_at_base(self, rid: str, unit: str, x: str) -> bool:
-        """``a⁻``'s check on ``x`` was in force at its base: the reading's declaration where ``a⁻`` was admitted has
-        a verdict on ``x`` (or on its one-hop rename); a defective or unknown declaration counts as in force (§6.6;
-        fail closed; reading F94)."""
+        """``a⁻``'s check on ``x`` was in force at its base: ``x`` (or its one-hop rename) was a declared output of the
+        reading's declaration at ``a⁻``'s base; a defective or unknown declaration counts as in force (§6.6; fail
+        closed; reading F94; review of babcbd22, B1)."""
 
-        view = self.s.h.view(self.s.position_of(rid))
+        view = self.s.h.view(self.base_position(rid))  # a frame record's base is its frame's (review note)
         found = self.s.specs.declaration_at(unit, view.rev(unit)) if unit in view.structure.units else None
         if not isinstance(found, SpecDeclaration):
             return True
-        return found.verdict(_renamed(found, x)) is not None
+        return found.output(_renamed(found, x)) is not None  # x was a declared output: its check was in force
 
     def yields(self, observation: str, rid: str) -> bool:
         """Under the reading in force: a verdict on a failing output that is not PASS, or not computable (fail
@@ -420,14 +420,23 @@ class Assessments:
         found = self.s.specs.declaration_at(unit, rev) if rev is not None else None
         ran_under = self.s.record(observation)["target"]["spec"]["rev"]
         outcome = self.outcome(observation) or {}
+        if not isinstance(found, SpecDeclaration):
+            return True  # a defective or unknown reading computes nothing (fail closed)
         for x in self.failing_outputs(rid):
             name = _renamed(found, x)
-            verdict = found.verdict(name) if isinstance(found, SpecDeclaration) else None
             stored = _renamed(self.declaration(observation), x)
-            if stored not in outcome or verdict is None:
+            if found.output(name) is None or stored not in outcome:
+                # §6.5's "either" clause: G's reading does not evaluate x (x is not one of its declared outputs), or
+                # the observation lacks x: yielded only if a⁻'s check on x was in force at its base (F94; review of
+                # babcbd22, B1)
                 if self._in_force_at_base(rid, unit, x):
-                    return True  # §6.6's "either" clause: a⁻'s check on x was in force at its base (F94)
+                    return True
                 continue
+            if found.oracle == "ASSESSOR_READ":
+                return True  # yielded unless a standing discriminating reading covers it, none until 9e (§6.6)
+            verdict = found.verdict(name)
+            if verdict is None:
+                return True  # a mechanical reading with no verdict on a declared output: not computable (§6.5)
             if verdict.embedded is not None:  # the recorded verdict counts only under the reading the run ran
                 if ran_under != rev or outcome.get(verdict.embedded) != "PASS":
                     return True
@@ -524,6 +533,26 @@ class Assessments:
             return False
         return not any(self.yields(o, rid) for o in configuration if self.link_minus(o, here, anchors))
 
+    def _enumeration_trusted(self, enumeration: str, runner_class: str) -> bool:
+        """An enumeration by ``MACHINERY`` under a key the policy and runner trust roots at its own admission
+        designated for the class, not compromised by then (F89 (d)-(e) for the enumeration; review of babcbd22,
+        note 1)."""
+
+        from .state import policy_at
+        from .trust import trust_roots
+
+        record = self.s.record(enumeration)
+        actor = str(record.get("actor", ""))
+        key = actor.rsplit("@", 1)[1] if actor.startswith("machinery:") and "@" in actor else None
+        position = self.s.position_of(enumeration)
+        policy = policy_at(self.s.h, position)
+        cls = policy.runners.get(runner_class) if policy is not None else None
+        if record["actor_class"] != "MACHINERY" or key is None or cls is None or key not in cls.keys \
+                or key not in trust_roots(self.s.h.chain.entries[: position + 1]).runners:
+            return False
+        compromised = self.trust.compromised.get(key)
+        return compromised is None or position < compromised
+
     def custody_ok(self, observation: str, configuration: list[str]) -> bool:
         """§6.9, §17.5, F81 (reading F93): an external custody runner's observation serves conditions (1) and (3)
         only under the latest admitted ``CUSTODY_ENUMERATION`` of its class, signed by one of the class's keys, that
@@ -540,7 +569,7 @@ class Assessments:
             return True
         enumerations = [e for e in self.s.of_kind("CUSTODY_ENUMERATION")
                         if (self.s.record(e).get("target") or {}).get("runner") == r.runner_class and self.s.acts(e)
-                        and any(str(self.s.record(e).get("actor", "")).endswith("@" + k) for k in cls.keys)]
+                        and self._enumeration_trusted(e, r.runner_class)]
         if not enumerations:
             return False
         latest = max(enumerations, key=self.s.position_of)

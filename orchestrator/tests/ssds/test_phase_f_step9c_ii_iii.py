@@ -46,6 +46,59 @@ def narrow_incomplete(r: Runs, head: str) -> dict:
     return real
 
 
+def other_anchor(r: Runs, head: str) -> dict:
+    """An INCOMPLETE run on ``head`` whose basis records only ``other.txt``: it links exactly the trees agreeing
+    there (§6.6), so it separates conditions (2) and (4) (review of babcbd22, U1/U8)."""
+
+    from ssds.ledger.read import with_id
+
+    t = r.sc.trees[head]
+    view = r.sc.view(head)
+    term = {"path": "other.txt"}
+    basis = designated({"tree": head, "context": {"system": "ssds-rules/1", "ignore": [],
+                                                  "analyzers": ["ssds.analyzer.python/1"]},
+                        "pins": [["dataset:input", "p1"]], "unpinnable": False, "attributes": [], "units": [],
+                        "reads": [[term, recorded_identity(t, term, ())]], "bounded_by": [r.bound_judgment(head)],
+                        "incomplete": "CRASHED"})
+    real = judgment("REALIZATION", {"spec": {"unit": "spec", "rev": view.rev("spec")},
+                                    "claim": [{"unit": "code", "rev": view.rev("code")}]}, "INCOMPLETE",
+                    actor=f"machinery:dispatcher@{RUNNER_KEY}", actor_class="MACHINERY",
+                    fields={"execution": basis, "configuration": {"regime": "default"}})
+    real = with_id({**real, "provenance": {"attempt": f"other-{head}"}})
+    r.sc.admit(real)
+    return real
+
+
+class Separated(unittest.TestCase):
+    def test_condition_two_alone(self) -> None:
+        """The anchor links a differing run on T1 to the failing tree T0, and nothing to G = T2."""
+
+        r = Runs(other=True)
+        t0 = r.tree("T0")
+        t1 = r.tree("T1", **{"a.py": "v = 2\n"})
+        t2 = r.tree("T2", **{"a.py": "v = 2\n", "other.txt": "2\n"})
+        failing = r.fail(r.run(t0, BAD))
+        r.run(t0, BAD)
+        r.run(t1, GOOD)
+        r.run(t2, GOOD)
+        other_anchor(r, t0)
+        self.assertFalse(r.stale(failing, "T2"), "(2): the run on T1 differed")
+
+    def test_condition_four_alone(self) -> None:
+        """The anchor links an unfixed run on X to G = T2, and nothing to the failing tree T0."""
+
+        r = Runs(other=True)
+        t0 = r.tree("T0")
+        x = r.tree("X", **{"other.txt": "2\n"})
+        t2 = r.tree("T2", **{"a.py": "v = 2\n", "other.txt": "2\n"})
+        failing = r.fail(r.run(t0, BAD))
+        r.run(t0, BAD)
+        r.run(x, BAD)
+        r.run(t2, GOOD)
+        other_anchor(r, x)
+        self.assertFalse(r.stale(failing, "T2"), "(4): the unfixed run on X yields here")
+
+
 class Anchors(unittest.TestCase):
     def test_an_incomplete_anchor_links_a_differing_run(self) -> None:
         r = Runs()
@@ -100,9 +153,47 @@ class Custody(unittest.TestCase):
         self.enumerate(self.every_run() - {self.failing["target"]["realization"]})
         self.assertFalse(self.r.stale(self.failing, "T1"), "every admitted run of the configuration by the class")
 
+    def test_an_enumeration_by_a_key_outside_the_class(self) -> None:
+        self.r.sc.admit(record("CUSTODY_ENUMERATION", target={"runner": "ci"}, actor="machinery:custody@ed25519:other",
+                               actor_class="MACHINERY", fields={"runs": sorted(self.every_run())}))
+        self.assertFalse(self.r.stale(self.failing, "T1"))
+
+    def test_the_latest_enumeration_decides(self) -> None:
+        self.enumerate(self.every_run())
+        self.enumerate(self.every_run() - {self.passed["id"]})
+        self.assertFalse(self.r.stale(self.failing, "T1"), "the newer enumeration omits a run")
+
+    def test_an_enumeration_that_does_not_act(self) -> None:
+        from ssds.ledger.read import with_id
+
+        from ._scenario import agent, submit
+
+        x, _, _ = submit(self.r.sc, {"b.py": "w = 1\n"}, agent("maker"), "t-pending")
+        self.r.sc.admit(with_id({**record("CUSTODY_ENUMERATION", target={"runner": "ci"},
+                                          actor=f"machinery:custody@{RUNNER_KEY}", actor_class="MACHINERY",
+                                          fields={"runs": sorted(self.every_run())}),
+                                 "frame": {"transformation": x}}))
+        self.assertFalse(self.r.stale(self.failing, "T1"), "a pending frame's enumeration does not act")
+
     def test_an_enumerated_run_not_admitted(self) -> None:
         self.enumerate(self.every_run() | {"sha256:" + "9" * 64})
         self.assertFalse(self.r.stale(self.failing, "T1"), "every enumerated run counts (F81)")
+
+
+class UnreadablePolicy(unittest.TestCase):
+    def test_an_unreadable_historical_policy_never_drops_failing_evidence(self) -> None:
+        """Review of babcbd22, note 3 (v9)."""
+
+        from .test_phase_f_step9c_ii_i import adopt
+
+        r = Runs()
+        adopt(r.sc, ta.POLICY + "unknown_table = 1\n")  # a policy this parser refuses
+        real = r.run(r.tree("T0"), BAD)
+        failing = r.fail(real)
+        adopt(r.sc, ta.POLICY)
+        d = r.sc.derive()
+        self.assertTrue(d.a.admissible(failing["id"], ta.OBL), "(d) is met on the adverse side")
+        self.assertFalse(d.a.realization_ok(real["id"], ta.OBL), "and never on the permissive side")
 
 
 class Either(unittest.TestCase):
@@ -114,12 +205,54 @@ class Either(unittest.TestCase):
         r.revise(DECLARATIVE.replace('{ output = "x", template = "EXACT", params = { reference = 2 } },\n', ""))
         self.assertTrue(r.assessments().yields(good["id"], failing["id"]), "its check was in force at its base")
 
-    def test_an_output_never_checked_at_its_base_is_not_yielded(self) -> None:
+    def test_a_declared_output_with_no_verdict_is_yielded(self) -> None:
+        """Review of babcbd22, B1: z is declared but checked by no verdict: not computable, so yielded."""
+
         r = Declared(DECLARATIVE)
         t0 = r.tree("T0")
         failing = r.assess(r.run(t0, {"x": 2, "y": "0.0", "z": True}), "FAIL", failing=("z",))
         good = r.run(t0, {"x": 2, "y": "0.0", "z": True})
-        self.assertFalse(r.assessments().yields(good["id"], failing["id"]), "z had no check at a⁻'s base")
+        self.assertTrue(r.assessments().yields(good["id"], failing["id"]))
+
+    def test_an_output_removed_from_the_declaration(self) -> None:
+        """The either clause's genuine case: x was declared at a⁻'s base and G's reading no longer declares it."""
+
+        r = Declared(DECLARATIVE)
+        t0 = r.tree("T0")
+        failing = r.fail(r.run(t0, {"x": 1, "y": "0.0"}))
+        removed = DECLARATIVE.replace('{ name = "x", type = "int" }, ', "") \
+            .replace('{ output = "x", template = "EXACT", params = { reference = 2 } },\n', "")
+        r.revise(removed)
+        good = r.run(r.sc.head, {"y": "0.0"})
+        self.assertTrue(r.assessments().yields(good["id"], failing["id"]), "its check was in force at its base")
+
+    def test_an_output_never_declared_is_not_yielded(self) -> None:
+        r = Declared(DECLARATIVE)
+        t0 = r.tree("T0")
+        failing = r.assess(r.run(t0, {"x": 2, "y": "0.0"}), "FAIL", failing=("w",))
+        good = r.run(t0, {"x": 2, "y": "0.0"})
+        self.assertFalse(r.assessments().yields(good["id"], failing["id"]), "w was never a checked output")
+
+
+class NeverStaleByMechanics(unittest.TestCase):
+    """Review of babcbd22, B1: its three probes."""
+
+    def stale(self, declaration, failing_outcome, rerun_outcome, here_outcome, failing_outputs=None):
+        r = Declared(declaration)
+        t0, t1 = r.tree("T0"), r.tree("T1", **{"a.py": "v = 2\n"})
+        failing = r.assess(r.run(t0, failing_outcome), "FAIL", failing=failing_outputs or ("x",))
+        r.run(t0, rerun_outcome)
+        r.run(t1, here_outcome)
+        return r.stale(failing, "T1")
+
+    def test_assessor_read_identical_or_different(self) -> None:
+        reader = 'oracle = "ASSESSOR_READ"\nrunner = "ci"\ntime_bound_hours = 24\noutputs = [{ name = "x", type = "int" }]\n'
+        self.assertFalse(self.stale(reader, {"x": 1}, {"x": 1}, {"x": 1}), "a value alone discriminates nothing")
+        self.assertFalse(self.stale(reader, {"x": 1}, {"x": 1}, {"x": 2}))
+
+    def test_an_unchecked_declared_output(self) -> None:
+        self.assertFalse(self.stale(DECLARATIVE, {"x": 2, "y": "0.0", "z": True}, {"x": 2, "y": "0.0", "z": True},
+                                    {"x": 2, "y": "0.0", "z": True}, ("z",)))
 
 
 RENAMED = DECLARATIVE.replace('{ name = "x", type = "int" }', '{ name = "x2", type = "int" }') \
