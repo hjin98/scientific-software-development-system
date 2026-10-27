@@ -47,14 +47,14 @@ def would_issue(chain: Any, trees: Any, held: Any, open_tasks: Any = ()) -> tupl
     return issuable(ready(chain, trees, held), open_tasks)[0]
 
 
-def ready(chain: Any, trees: Any, held: Any) -> tuple[Task, ...]:
+def ready(chain: Any, trees: Any, held: Any, ancestry: Any = None) -> tuple[Task, ...]:
     """Every ``READY`` agent-held obligation at ``held``'s head, as a task, before scheduling."""
 
     if not held.current or held.provisional is not None or held.head is None:
         raise NotIssuable(f"the ledger is {held.state} at {held.head}, provisional {held.provisional}: "
                           f"nothing is issued (§23.4)")
     prefix = dataclasses.replace(chain, entries=chain.entries[: held.head + 1])
-    workflow = Workflow(derive(prefix, trees))
+    workflow = Workflow(derive(prefix, trees, ancestry=ancestry))
     out = []
     for o in workflow.obligations:
         if o.holder in AGENT_ROLES and workflow.readiness(o).state == READY:
@@ -164,15 +164,15 @@ def judge_provenance(issued: Any, model_family: str | None, toolchain: str | Non
                       "model_family": model_family, "toolchain": toolchain}}
 
 
-def observe(chain: Any, trees: Any, held: Any) -> dict[str, Any]:
+def observe(chain: Any, trees: Any, held: Any, ancestry: Any = None) -> dict[str, Any]:
     """``dispatcher serve`` on a shadow ledger: the would-issue set at ``H*``, issuing nothing and writing no run ref
-    (reading F8)."""
+    (reading F8); ``ancestry`` is the composition root's commit-graph reader (reading F119)."""
 
     report: dict[str, Any] = {"ledger_id": chain.ledger_id, "qualification": held.state, "head": held.head,
                               "head_digest": held.head_digest, "issued": [],
                               "mode": "observe-only: nothing is issued and no run ref is written (F8)"}
     try:
-        allowed, deferred = issuable(ready(chain, trees, held), ())
+        allowed, deferred = issuable(ready(chain, trees, held, ancestry), ())
         report["would_issue"] = [t.to_json() for t in allowed]
         report["held"] = [{**t.to_json(), "because": why} for t, why in deferred]
     except NotIssuable as refused:

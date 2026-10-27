@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 import secrets
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -106,6 +106,9 @@ class Admission:
     #: and written as a file witness or a file-witness object, so ``TEAM`` and ``HARDENED`` quorums run; the
     #: composition root never passes it
     fixture_witnesses: Mapping[str, Path | FileWitness] = field(default_factory=dict)
+    #: the commit-graph reader publication classification needs (§22.2; reading F119): the composition root sets it
+    #: over the ledger repository; unset, a publication not ``obs`` itself is ``UNKNOWN``
+    ancestry: Callable[[str, str], bool | None] | None = None
 
     def __post_init__(self) -> None:
         self.home.check(self.ledger_id)
@@ -442,7 +445,8 @@ class Admission:
         if decision == "ACCEPT" and request.get("adopted_deltas"):
             # the committed entry is the trial's: a records-only adoption carries its frame's deltas and never
             # integrates (6c; reading F27; plan check of 97d9824 N2)
-            frame = adoption_frame(derive(chain, self.trees).s, expected, request["adopted_deltas"])
+            frame = adoption_frame(derive(chain, self.trees, ancestry=self.ancestry).s, expected,
+                                   request["adopted_deltas"])
             entry["admission"]["adopted_deltas"] = frame.entry_deltas()
         problems = entry_violations(entry) + [p for r in admitted for p in record_violations(r)]
         if problems:  # nothing that would break the chain is ever appended
@@ -476,7 +480,7 @@ class Admission:
         """The derived state as if ``entry`` were appended to ``chain`` (reading F10), after ``frame``'s
         transformation when given (reading F27); nothing is written."""
 
-        return trial(chain, self.trees, entry, objects, frame)
+        return trial(chain, self.trees, entry, objects, frame, self.ancestry)
 
     def admit_lifecycle(self, record: Mapping[str, Any], signature: str, obs: str | None) -> int:
         """Admit a human-gated lifecycle record (§25.2): its actor is a registered human whose signature over the
@@ -607,7 +611,7 @@ class Admission:
         salvage = None
         change = None  # the frame of the request's own transformation, when it exists (reading F27)
         integrating = None  # the X an integrating request names, recorded on a rejection on its merits (F35)
-        support = derive(chain, self.trees) if records or not reasons else None
+        support = derive(chain, self.trees, ancestry=self.ancestry) if records or not reasons else None
         s = support.s if support is not None else None
         if s is not None:
             known = set(s.records)
@@ -776,7 +780,7 @@ class Admission:
         result fixes there (a co-submitted result refused fixes nothing; review 23b487a B1), to a fixed point; the
         rest refused ``REF_RECORD`` or ``REF_TRANSFORMATION`` (§8.3 steps 2, 6 and 9; reading F40)."""
 
-        state = derive(chain, self.trees).s
+        state = derive(chain, self.trees, ancestry=self.ancestry).s
         known, fixed_before = set(state.records), set(state.submissions)
         kept: list[dict] = list(records)
         drops: list[tuple[str, tuple[str, ...]]] = []

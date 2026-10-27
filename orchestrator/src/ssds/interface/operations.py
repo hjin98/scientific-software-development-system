@@ -51,6 +51,10 @@ class LedgerAccess(Protocol):
 
     def high_water(self) -> HighWaterMark | None: ...
 
+    def ancestry(self) -> Callable[[str, str], bool | None] | None:
+        """The commit-graph reader over the ledger repository that publication classification reads (§22.2;
+        reading F119)."""
+
     def raise_high_water(self, mark: HighWaterMark) -> None: ...
 
 
@@ -105,10 +109,10 @@ def present(access: LedgerAccess, trees: Callable[[str], Any]) -> Presented:
         if mark is None or qualification.head > mark.position:
             access.raise_high_water(HighWaterMark(qualification.head, qualification.head_digest))
         prefix = dataclasses.replace(chain, entries=chain.entries[: qualification.head + 1])
-        view = derivation.consequences(prefix, trees)
+        view = derivation.consequences(prefix, trees, ancestry=access.ancestry())
         withheld = tuple(view.assertion_withheld)
     elif chain.readable_through >= 0:
-        view = derivation.consequences(chain, trees)
+        view = derivation.consequences(chain, trees, ancestry=access.ancestry())
         withheld = (f"qualification {qualification.state}: historical views only", *view.assertion_withheld)
     else:
         return Presented(access.ledger_id, len(chain.entries), qualification, None, ("no readable entry",))

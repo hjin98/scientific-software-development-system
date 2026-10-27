@@ -16,7 +16,7 @@ from pathlib import Path
 import typer
 from typer.models import CommandInfo
 
-from ssds.content import GitReadError, read_tree
+from ssds.content import GitReadError, ancestry, read_tree
 from ssds.core import cli as core_cli
 from ssds.core.api.v1 import ssds_home
 from ssds.interface.commands import make_commands
@@ -53,27 +53,55 @@ class HomeAccess:
         self.home.check(self.ledger_id)
         self.home.high_water(self.ledger_id).set(mark)
 
+    def ancestry(self):
+        """The ledger repository's commit graph: every absorption imports its observed commits there (step 6a), so
+        each ``obs`` and each admitted ``C_n`` is reachable without reading the product repository (F119)."""
 
-def connect(ledger_id: str, repository: Path) -> Session:
-    """A session over a ledger in the SSDS home, its trees read from ``repository``."""
+        return ancestry(self.home.ledger_repository(self.ledger_id))
 
-    def trees(commit: str):
+
+class Composition:
+    """The one factory through which every derivation the CLI and its serve paths build is made (reading F119; plan
+    check of 603295c8, note 1): the ledger's access, which carries the commit graph, and its trees, read from the
+    repository the ledger names."""
+
+    def __init__(self, ledger_id: str, repository: Path) -> None:
+        self.access = HomeAccess(Home(ssds_home()), ledger_id)
+        self.repository = repository.resolve()
+
+    def trees(self, commit: str):
         try:
-            return read_tree(repository, commit)
+            return read_tree(self.repository, commit)
         except GitReadError as exc:  # the repository named is not the one the ledger records
-            raise Refused(f"cannot read {commit} from {repository}: {exc}") from None
+            raise Refused(f"cannot read {commit} from {self.repository}: {exc}") from None
 
-    def doctrine(source: str, path: str) -> bytes | None:
-        """A file of the pinned doctrine source, read at its immutable commit from ``repository`` when that
-        repository holds it (reading E37); None otherwise, and the brief says the text is not rendered."""
+    def doctrine(self, source: str, path: str) -> bytes | None:
+        """A file of the pinned doctrine source, read at its immutable commit from the repository when it holds it
+        (reading E37); None otherwise, and the brief says the text is not rendered."""
 
         try:
-            entry = read_tree(repository, source).get(path)
+            entry = read_tree(self.repository, source).get(path)
         except GitReadError:
             return None
         return entry.data if entry is not None else None
 
-    return Session(HomeAccess(Home(ssds_home()), ledger_id), trees, doctrine)
+    def session(self) -> Session:
+        return Session(self.access, self.trees, self.doctrine)
+
+    def observe(self) -> dict:
+        """``dispatcher serve``'s report at the qualified head (F8, F65)."""
+
+        chain = self.access.chain()
+        witnesses = lineage_witnesses(chain) if chain.genesis is not None else []
+        reports, statements = self.access.witness_reports(witnesses) if witnesses else ({}, {})
+        held = currentness(chain, reports, statements, self.access.high_water())
+        return observe(chain, self.trees, held, self.access.ancestry())
+
+
+def connect(ledger_id: str, repository: Path) -> Session:
+    """A session over a ledger in the SSDS home, its trees read from ``repository``."""
+
+    return Composition(ledger_id, repository).session()
 
 
 #: SSDS operations mounted beside Core's commands; each joins when its owner exists.
@@ -122,12 +150,7 @@ def dispatcher_serve(ledger: str = typer.Option(..., "--ledger", help="the ledge
     """The would-issue set at the qualified head ``H*``, observe-only: nothing is issued, no run ref is written, and
     no operator state changes (F8, F65)."""
 
-    access = HomeAccess(Home(ssds_home()), ledger)
-    chain = access.chain()
-    reports, statements = access.witness_reports(lineage_witnesses(chain)) if chain.genesis is not None else ({}, {})
-    held = currentness(chain, reports, statements, access.high_water())
-    repo = repository.resolve()
-    report = observe(chain, lambda commit: read_tree(repo, commit), held)
+    report = Composition(ledger, repository).observe()
     typer.echo(json.dumps(report, indent=2, sort_keys=True))
     raise typer.Exit(0 if "withheld" not in report else 1)
 

@@ -44,7 +44,7 @@ TRIAL_TREE = "trial:merged"
 
 
 def trial(chain: Chain, trees: TreeSource, entry: Mapping[str, Any],
-          objects: Mapping[str, bytes] | None = None, frame: Any = None) -> Support:
+          objects: Mapping[str, bytes] | None = None, frame: Any = None, ancestry: Any = None) -> Support:
     """``D_{n+1}`` with ``entry`` admitted at ``n+1``: the state Admission reads a request's records in. With the
     ``frame`` of the request's own transformation, the state after it (reading F27): the entry adopts the frame's
     structure and, for an integration (a frame with an enactment), integrates ``X`` with ``M_n(X)`` as the admitted
@@ -57,7 +57,7 @@ def trial(chain: Chain, trees: TreeSource, entry: Mapping[str, Any],
             merged, source = frame.merged, trees
             trees = lambda commit: merged if commit == TRIAL_TREE else source(commit)  # noqa: E731
         entry = dict(entry, admission=admission)
-    return Support(State(History(trial_chain(chain, entry, objects), trees)))
+    return Support(State(History(trial_chain(chain, entry, objects), trees, ancestry=ancestry)))
 
 
 __all__ = ["TRIAL_TREE", "trial", "trial_chain"]
