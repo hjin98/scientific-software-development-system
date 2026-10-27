@@ -33,6 +33,21 @@ class DispatcherHome(Home):
         self.check_ledger_id(ledger_id)
         return ("state", ledger_id, self.JOURNAL)
 
+    def runner_key_parts(self, ledger_id: str, runner_class: str) -> tuple[str, ...]:
+        """A designated runner class's key (reading F114): one key, one class."""
+
+        self.check_ledger_id(ledger_id)
+        self.check_ledger_id(runner_class)  # a class name is a unit-like token too
+        return ("keys", "runner", ledger_id, f"{runner_class}.ed25519")
+
+    def artifact_parts(self, ledger_id: str, digest: str) -> tuple[str, ...]:
+        """A native artifact a runner keeps, by its digest: a crashed run's surviving outputs (F114)."""
+
+        self.check_ledger_id(ledger_id)
+        if not (digest.startswith("sha256:") and len(digest) == 71 and all(c in "0123456789abcdef" for c in digest[7:])):
+            raise HomeRefused(f"{digest!r} is not an artifact digest")
+        return ("runs", ledger_id, "artifacts", digest[7:] + ".json")
+
     def lease_parts(self, ledger_id: str) -> tuple[str, ...]:
         self.check_ledger_id(ledger_id)
         return ("state", ledger_id, self.LEASES)

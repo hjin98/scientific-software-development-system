@@ -64,7 +64,8 @@ def ready(chain: Any, trees: Any, held: Any) -> tuple[Task, ...]:
     return tuple(sorted(out, key=lambda t: t.task_id))
 
 
-def issuable(tasks: Any, open_tasks: Any) -> tuple[tuple[Task, ...], tuple[tuple[Task, str], ...]]:
+def issuable(tasks: Any, open_tasks: Any, closed: frozenset[str] = frozenset()) -> tuple[tuple[Task, ...],
+                                                                                 tuple[tuple[Task, str], ...]]:
     """Scheduling (§9.1-§9.2, reading F67; scheduling only, never correctness): no second task for an obligation
     with one open; at most one open task per serialization surface its write scope meets; at most one open
     coordination task per plan. ``open_tasks`` are the journal's open intents; a task this batch admits counts as
@@ -77,6 +78,9 @@ def issuable(tasks: Any, open_tasks: Any) -> tuple[tuple[Task, ...], tuple[tuple
     for task in tasks:
         if task.obligation_id in obligations:
             held.append((task, "its obligation has a task open"))
+            continue
+        if task.obligation_id in closed:  # a READING closed into the owner's adjudication (reading F115)
+            held.append((task, "closed by the Dispatcher's journal into the owner's adjudication"))
             continue
         busy = [s for s in task.surfaces if s in surfaces]
         if busy:
@@ -101,7 +105,7 @@ def issue(journal: Any, issuer: Any, task: Task, held: Any, *, governs: Any, rou
 
     if not held.current or held.provisional is not None or task.task_id != task_id(task.obligation_id, held.head):
         raise NotIssuable(f"{task.task_id} is not issued at the named head {held.head} (§23.4)")
-    allowed, refused = issuable((task,), journal.open_tasks())
+    allowed, refused = issuable((task,), journal.open_tasks(), journal.closed_readings())
     if not allowed:
         raise NotIssuable(f"{task.task_id} is held: {refused[0][1]} (review 546cc86 N2; reading F67)")
     journal.intent(task.task_id, task.obligation_id, held.head, held.head_digest, task.surfaces, task.plan)

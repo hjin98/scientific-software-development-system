@@ -138,6 +138,46 @@ class Journal:
     def reads(self, task_id: str) -> list[dict[str, Any]]:
         return [e["read"] for e in self.entries() if e["kind"] == "READ" and e["task_id"] == task_id]
 
+    # -- executions (step 9f-ii-iii; reading F114) ----------------------------------------------------------------
+
+    def exec_intent(self, run_id: str, obligation_id: str, hold: str, record: Mapping[str, Any]) -> None:
+        """Before anything runs: the run, its obligation, its hold key and the realization it would record if it
+        ended now, so a restart can report it ``INCOMPLETE CRASHED`` (write-ahead; §6.9)."""
+
+        self._append({"kind": "EXEC_INTENT", "run_id": run_id, "obligation_id": obligation_id, "hold": hold,
+                      "record": dict(record)})
+
+    def exec_started(self, run_id: str) -> None:
+        self._append({"kind": "EXEC_STARTED", "run_id": run_id})
+
+    def exec_ended(self, run_id: str, incomplete: str | None) -> None:
+        self._append({"kind": "EXEC_ENDED", "run_id": run_id, "incomplete": incomplete})
+
+    def attempt(self, obligation_id: str, at: float) -> None:
+        """One attempt at an obligation, for the retry budget (F95, F114)."""
+
+        self._append({"kind": "ATTEMPT", "obligation_id": obligation_id, "at": at})
+
+    def open_executions(self) -> list[dict[str, Any]]:
+        """Executions intended and never ended: running, or lost to a crash."""
+
+        ended = {e["run_id"] for e in self.entries() if e["kind"] == "EXEC_ENDED"}
+        return [e for e in self.entries() if e["kind"] == "EXEC_INTENT" and e["run_id"] not in ended]
+
+    def attempts(self, obligation_id: str) -> list[float]:
+        return [e["at"] for e in self.entries() if e["kind"] == "ATTEMPT" and e["obligation_id"] == obligation_id]
+
+    def close_reading(self, task_id: str, obligation_id: str, failure: str) -> None:
+        """A reviewer's ``READING`` task ended declaring the disagreement: the obligation closes into the owner's
+        adjudication, as journal state only (§3.1; reading F115), and the task holds nothing more."""
+
+        self._append({"kind": "READING_CLOSED", "task_id": task_id, "obligation_id": obligation_id,
+                      "failure": failure})
+        self.finished(task_id)
+
+    def closed_readings(self) -> frozenset[str]:
+        return frozenset(e["obligation_id"] for e in self.entries() if e["kind"] == "READING_CLOSED")
+
     def submitted(self, request: Mapping[str, Any]) -> str:
         rid = request_id(request)
         self._append({"kind": "REQUEST", "request_id": rid, "request": dict(request)})
