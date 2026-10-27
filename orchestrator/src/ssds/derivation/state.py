@@ -48,6 +48,46 @@ def target_key(target: Any) -> str | None:
 
 
 
+#: The kinds of designated runner (catalogue §17.5): one the Dispatcher runs, or an external custody runner.
+RUNNER_CLASS_KINDS = frozenset({"DISPATCHER", "EXTERNAL_CUSTODY"})
+
+
+@dataclass(frozen=True)
+class RunnerClass:
+    """A designated runner class (catalogue §17.5; Phase F step 9a, reading F76): its kind, the runner keys it
+    designates (trust roots, §25.2), the execution attributes it records, and whether it observes every read outside
+    the realization's tree (the read-observation flag)."""
+
+    kind: str
+    keys: tuple[str, ...]
+    attributes: tuple[str, ...]
+    observes_outside_reads: bool
+
+
+def _runners(raw: Any) -> dict[str, RunnerClass]:
+    """``[runners.<class>]``: each designated class, closed."""
+
+    if not isinstance(raw, dict):
+        raise ValueError("[runners] is a table of runner classes")
+    out: dict[str, RunnerClass] = {}
+    for name, table in raw.items():
+        if not isinstance(table, dict) or set(table) != {"kind", "keys", "attributes", "observes_outside_reads"}:
+            raise ValueError(f"[runners.{name}] has exactly kind, keys, attributes and observes_outside_reads")
+        keys, attributes = table["keys"], table["attributes"]
+        if table["kind"] not in RUNNER_CLASS_KINDS:
+            raise ValueError(f"[runners.{name}] kind is one of {sorted(RUNNER_CLASS_KINDS)}")
+        if not isinstance(keys, list) or not keys or not all(isinstance(k, str) and k for k in keys) \
+                or len(set(keys)) != len(keys):
+            raise ValueError(f"[runners.{name}] keys is a non-empty list of distinct runner key ids")
+        if not isinstance(attributes, list) or not all(isinstance(a, str) and a for a in attributes) \
+                or len(set(attributes)) != len(attributes):
+            raise ValueError(f"[runners.{name}] attributes is a list of distinct attribute names")
+        if not isinstance(table["observes_outside_reads"], bool):
+            raise ValueError(f"[runners.{name}] observes_outside_reads is a boolean")
+        out[name] = RunnerClass(table["kind"], tuple(keys), tuple(attributes), table["observes_outside_reads"])
+    return out
+
+
 @dataclass(frozen=True)
 class Policy:
     """Project policy parameters (catalogue §25.3; closed schema 1).
@@ -59,20 +99,21 @@ class Policy:
 
     domains: dict[str, dict[str, Any]]
     workflow: dict[str, Any] = field(default_factory=dict)
+    runners: dict[str, RunnerClass] = field(default_factory=dict)  # ``[runners.<class>]``: designated classes (§17.5)
 
     @classmethod
     def parse(cls, data: bytes | None) -> Policy:
         if not data:
             return cls({})
         raw = tomllib.loads(data.decode("utf-8"))
-        if raw.get("schema") != 1 or not set(raw) <= {"schema", "domains", "workflow"}:
-            raise ValueError("policy schema 1 has only schema, [domains.<D>] and [workflow]")
+        if raw.get("schema") != 1 or not set(raw) <= {"schema", "domains", "workflow", "runners"}:
+            raise ValueError("policy schema 1 has only schema, [domains.<D>], [workflow] and [runners.<class>]")
         allowed = {"owner", "adjudicators", "acceptors", "required_judgments", "gates", "gate_holders", "evidence",
                    "claim_owner", "humans", "unattested_agents"}
         for name, table in raw.get("domains", {}).items():
             if not set(table) <= allowed:
                 raise ValueError(f"unknown policy key in domain {name}")
-        return cls(dict(raw.get("domains", {})), _workflow(raw.get("workflow", {})))
+        return cls(dict(raw.get("domains", {})), _workflow(raw.get("workflow", {})), _runners(raw.get("runners", {})))
 
     def get(self, domain: str | None, key: str, default: Any = ()) -> Any:
         return self.domains.get(domain or "", {}).get(key, default)

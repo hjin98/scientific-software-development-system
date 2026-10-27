@@ -419,8 +419,11 @@ class PlanFacts:
                 spec = dict(verifier.params).get("spec")
                 if verifier.template == "OBLIGATION.required_evidence" and spec is not None and spec not in specs:
                     err("VERIFIER", f"obligation {ob.id} names {spec}, not an evidence specification")
-            elif isinstance(verifier, EvidenceVerifier) and verifier.spec not in specs:
-                err("VERIFIER", f"obligation {ob.id} names {verifier.spec}, not an evidence specification")
+            elif isinstance(verifier, EvidenceVerifier):
+                if verifier.spec not in specs:
+                    err("VERIFIER", f"obligation {ob.id} names {verifier.spec}, not an evidence specification")
+                if verifier.runner not in self.policy.runners:  # Phase E reading E20; Phase F step 9a
+                    err("VERIFIER", f"obligation {ob.id} names runner class {verifier.runner}, not designated in policy")
             for check in ob.secondary:
                 for problem in check_problems(check.template, dict(check.params)):
                     err("VERIFIER", f"obligation {ob.id} secondary: {problem}")

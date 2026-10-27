@@ -1,8 +1,11 @@
-"""Trust roots in force at a position (Manual §25.2; catalogue §25.2): Dispatcher issue keys and human keys.
+"""Trust roots in force at a position (Manual §25.2; catalogue §25.2): Dispatcher issue keys, designated runner keys
+and human keys.
 
 Read from the ledger alone: the genesis trust roots, then each admitted ``KEY_LIFECYCLE`` record in order. A
 retired issue key keeps the envelopes its retirement lists verifiable for never-lost records (§8.3 step 3); a key
-declared compromised is untrusted for envelopes it signed from the named position on.
+declared compromised is untrusted for envelopes it signed from the named position on. A runner key (an external
+custody runner's custody identity included) authenticates runner observations while in force; once retired, rotated
+away or declared compromised it authenticates nothing more (Phase F step 9a, readings F76-F77).
 
 Every action names its key by ``key.id``, and a rotation names the key it replaces by ``key.retires``, for every role
 (Review e6ac009 B6). The reading is total: Admission admits only well-formed lifecycle records, and a stored value
@@ -26,6 +29,8 @@ class TrustRoots:
     humans: dict[str, str] = field(default_factory=dict)  # actor id (human:SHA256:...) -> OpenSSH public key line
     former_humans: frozenset[str] = frozenset()  # human key ids retired, rotated away or compromised
     retired_at: dict[str, int] = field(default_factory=dict)  # retired issue key id -> the position retiring it
+    runners: dict[str, str] = field(default_factory=dict)  # runner key id -> Ed25519 public key (hex), in force
+    former_runners: frozenset[str] = frozenset()  # runner key ids retired, rotated away or compromised
 
 
 def _human(public: Any) -> str | None:
@@ -48,6 +53,8 @@ def trust_roots(entries) -> TrustRoots:
     humans: dict[str, str] = {}
     former: set[str] = set()
     retired_at: dict[str, int] = {}
+    runners: dict[str, str] = {}
+    former_runners: set[str] = set()
     for item in entries:
         lifecycle = item.entry.get("lifecycle")
         fields = lifecycle.get("fields") if isinstance(lifecycle, Mapping) else None
@@ -58,6 +65,9 @@ def trust_roots(entries) -> TrustRoots:
             for key in _keys(roots.get("dispatcher_keys")):
                 if isinstance(key.get("id"), str) and isinstance(key.get("public_key"), str):
                     issue[key["id"]] = key["public_key"]
+            for key in _keys(roots.get("runner_keys")):
+                if isinstance(key.get("id"), str) and isinstance(key.get("public_key"), str):
+                    runners[key["id"]] = key["public_key"]
             for key in _keys(roots.get("human_keys")):
                 if (hid := _human(key.get("public_key"))) is not None:
                     humans[hid] = key["public_key"]
@@ -81,6 +91,17 @@ def trust_roots(entries) -> TrustRoots:
                 start = fields.get("from_position", item.position)
                 start = start if isinstance(start, int) and not isinstance(start, bool) else 0
                 compromised[kid] = min(start, compromised.get(kid, start))  # never relaxed (re-check a71cca2 N1)
+        elif key.get("role") == "RUNNER":
+            if action in ("REGISTER", "ROTATE"):
+                runners[kid] = public
+            old = kid if action in ("RETIRE", "COMPROMISED") else gone if action == "ROTATE" else None
+            if isinstance(old, str) and old in runners:
+                runners.pop(old)
+                former_runners.add(old)
+            if action == "COMPROMISED":
+                start = fields.get("from_position", item.position)
+                start = start if isinstance(start, int) and not isinstance(start, bool) else 0
+                compromised[kid] = min(start, compromised.get(kid, start))
         elif key.get("role") == "HUMAN":
             if action in ("REGISTER", "ROTATE") and _human(public) == kid:
                 humans[kid] = public
@@ -88,7 +109,8 @@ def trust_roots(entries) -> TrustRoots:
             if isinstance(old, str) and old in humans:
                 humans.pop(old)
                 former.add(old)
-    return TrustRoots(issue, retired, compromised, humans, frozenset(former), retired_at)
+    return TrustRoots(issue, retired, compromised, humans, frozenset(former), retired_at, runners,
+                      frozenset(former_runners))
 
 
 __all__ = ["TrustRoots", "trust_roots"]

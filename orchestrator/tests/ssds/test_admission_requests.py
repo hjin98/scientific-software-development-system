@@ -873,7 +873,7 @@ class StepThreeReview(RequestFixture):
                  ("REGISTER", key, {}),
                  ("RETIRE", other, {}),
                  ("ROTATE", {**other, "retires": "ed25519:" + "0" * 64}, {}),
-                 ("REGISTER", {**other, "role": "RUNNER"}, {}),
+                 ("REGISTER", {**other, "role": "ADMISSION"}, {}),  # runner keys pass this path since step 9a
                  ("REGISTER", other, {"from_position": 1}),
                  ("COMPROMISED", key, {"from_position": 10 ** 6})]
         for action, key_object, extra in cases:

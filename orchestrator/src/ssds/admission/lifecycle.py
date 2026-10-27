@@ -13,8 +13,10 @@ key's raw public key, the OpenSSH fingerprint of a human's), so no id is ever bo
 registration or rotation introduces a key never known before; a retirement names a key in force with its public
 key; a compromise names a known key, and declaring it again only moves its position earlier, so no admitted
 compromise is ever relaxed (re-check a71cca2 N1). Only an issue key's retirement or rotation lists outstanding envelopes, and
-only a compromise names a position. Admission host keys and designated runner keys are not rotated through this
-path yet (the engine's own key switch and runner keys are later Phase F steps): those roles are refused.
+only a compromise names a position. A designated runner's key, an external custody runner's custody identity
+included, changes through this path with role ``RUNNER`` (step 9a, reading F76); one key serves one role, so a key
+known in either Ed25519 role is never registered in the other. Admission host keys are not rotated through this path
+yet (the engine's own key switch is a later step): that role is refused.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ from ssds.derivation import TrustRoots
 from ssds.ledger.read import human_key_id, is_digest, is_token, is_unit, ledger_ref, record_id
 
 ACTIONS = frozenset({"REGISTER", "ROTATE", "RETIRE", "COMPROMISED"})
-ROLES = frozenset({"ISSUE", "HUMAN"})
+ROLES = frozenset({"ISSUE", "RUNNER", "HUMAN"})
 _PUBLIC_HEX = re.compile(r"[0-9a-f]{64}")
 
 
@@ -75,13 +77,17 @@ def lifecycle_problems(fields: Any, roots: TrustRoots, position: int) -> list[st
         | ({"from_position"} if action == "COMPROMISED" else set())
     if set(fields) - allowed:
         problems.append(f"a {role} {action} carries only {sorted(allowed)}")
+    runner_keys = set(roots.runners) | set(roots.former_runners)
+    issue_keys = set(roots.issue) | set(roots.retired) | (set(roots.compromised) - runner_keys)
     if role == "ISSUE":
-        in_force = roots.issue
-        known = set(roots.issue) | set(roots.retired) | set(roots.compromised)
+        in_force, known = roots.issue, issue_keys
+    elif role == "RUNNER":
+        in_force, known = roots.runners, runner_keys
     else:
         in_force = roots.humans
         known = set(roots.humans) | set(roots.former_humans)
-    if action in ("REGISTER", "ROTATE") and kid in known:
+    fresh = issue_keys | runner_keys if role != "HUMAN" else known  # one Ed25519 key serves one role
+    if action in ("REGISTER", "ROTATE") and kid in fresh:
         problems.append(f"{kid} is already known; a new key has a new identity")
     if action == "ROTATE" and (not isinstance(key.get("retires"), str) or key["retires"] not in in_force):
         problems.append("a rotation retires a key in force")
@@ -96,7 +102,7 @@ def lifecycle_problems(fields: Any, roots: TrustRoots, position: int) -> list[st
         start = fields.get("from_position", position)
         if not isinstance(start, int) or isinstance(start, bool) or not 0 <= start <= position:
             problems.append("a compromise's position is one the ledger has reached")
-        elif role == "ISSUE" and kid in roots.compromised and start >= roots.compromised[kid]:
+        elif role in ("ISSUE", "RUNNER") and kid in roots.compromised and start >= roots.compromised[kid]:
             problems.append("a key is never un-compromised: a new declaration only moves its position earlier")
     return problems
 

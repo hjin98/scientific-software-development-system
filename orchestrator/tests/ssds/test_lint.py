@@ -99,12 +99,18 @@ def plan_text(block: str, prose: str = "Make the solver adaptive.\n", objective:
             f"```ssds-item\n{block}```\n")
 
 
-def scenario(block: str, policy: str | None = None, **kw: str) -> Scenario:
+#: The plan fixture's verifiers name runner class ``ci``; policy designates it (Phase E reading E20, Phase F step 9a).
+RUNNERS = '[runners.ci]\nkind = "DISPATCHER"\nkeys = ["ed25519:ci"]\nattributes = []\nobserves_outside_reads = false\n'
+DESIGNATED = "schema = 1\n" + RUNNERS
+
+
+def scenario(block: str, policy: str | None = None, designated: bool = True, **kw: str) -> Scenario:
+    policy = (policy or "schema = 1\n") + (RUNNERS if designated else "")
     return Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(block, **kw)}, policy=policy)
 
 
-def findings(block: str, policy: str | None = None, **kw: str) -> set[tuple[str, str]]:
-    d = scenario(block, policy, **kw).derive()
+def findings(block: str, policy: str | None = None, designated: bool = True, **kw: str) -> set[tuple[str, str]]:
+    d = scenario(block, policy, designated, **kw).derive()
     return {(f.code, f.detail) for f in d.s.plans.item_lint("plan.work.item")}
 
 

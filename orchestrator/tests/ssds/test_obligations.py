@@ -23,7 +23,7 @@ from ssds.derivation.workflow import (
 
 from ._scenario import attested
 from ._scenario import HUMAN, HUMAN_B, OWNER, Scenario, challenge, content, judgment, on_record
-from .test_lint import FILES as PLAN_FILES, MANIFEST as PLAN_MANIFEST, item_block, plan_text
+from .test_lint import DESIGNATED, FILES as PLAN_FILES, MANIFEST as PLAN_MANIFEST, RUNNERS, item_block, plan_text
 from .test_runs import MANIFEST as RUN_MANIFEST, RUN_FILES, author
 
 TWO = '''
@@ -331,7 +331,7 @@ class ReviewRepairs(unittest.TestCase):
         # §10.3, §10.5 (B5)
         for kinds, items, issuable in (([], [], False), (["PLAN_ACCEPT"], ["plan.work.item"], True)):
             with self.subTest(kinds=kinds):
-                sc = Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(item_block())})
+                sc = Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(item_block())}, policy=DESIGNATED)
                 acceptance = PlanObligations.acceptance(None, sc)
                 sc.admit(*attested(acceptance))
                 c = challenge({"record": acceptance["id"]})
@@ -381,7 +381,7 @@ class ReviewRepairs(unittest.TestCase):
 class PlanObligations(unittest.TestCase):
     def plan(self, block: str) -> Scenario:
         return Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(block)},
-                        policy='schema = 1\n[domains.plan]\nhumans = ["human:SHA256:alice"]\n')
+                        policy='schema = 1\n[domains.plan]\nhumans = ["human:SHA256:alice"]\n' + RUNNERS)
 
     def acceptance(self, sc: Scenario) -> dict:
         objective, item = sc.rev("plan.work.objective"), sc.rev("plan.work.item")

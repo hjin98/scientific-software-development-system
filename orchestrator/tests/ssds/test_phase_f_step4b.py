@@ -1051,11 +1051,12 @@ class PlanCoverage(unittest.TestCase):
 
         from ._scenario import OWNER, content
         from .test_conformance import SECONDARY
-        from .test_lint import FILES, MANIFEST, item_block, plan_text
+        from .test_lint import DESIGNATED, FILES, MANIFEST, item_block, plan_text
 
         for attest, issuable in ((False, False), (True, True)):
             with self.subTest(attested=attest):
-                sc = Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(item_block(secondary=SECONDARY))})
+                sc = Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(item_block(secondary=SECONDARY))},
+                              policy=DESIGNATED)
                 objective, item = sc.rev("plan.work.objective"), sc.rev("plan.work.item")
                 acceptance = judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
                                       basis=[content("plan.work.objective", objective),

@@ -20,6 +20,14 @@ the envelope's (``AUTH_VERSION``).
 A **human binding** is a signature by a registered human key in the SSH signature format, namespace ``ssds``, over
 the request without its binding; every record it carries is that human's (``AUTH_ACTOR`` otherwise).
 
+A **machinery binding** (Phase F step 9a, readings F76-F77) is a designated runner's: ``{"runner": {"key", "signature"}}``,
+a runner key in force (never one retired, rotated away or declared compromised) signing the request without its
+binding. It authenticates only that runner's observations: each record is of a runner-observation kind
+(``REALIZATION``, ``CHECK_EXECUTION``, ``CUSTODY_ENUMERATION``), unbound, by ``machinery:<component>@<key id>`` of
+class ``MACHINERY`` (``AUTH_ACTOR`` otherwise). An external custody runner's custody identity is such a key. So a
+runner observation, which is never-lost, is admitted only under its runner's key: under any other binding its
+machinery actor is ``AUTH_ACTOR`` and nothing salvages it.
+
 A binding is untrusted input: one canonical JSON cannot encode, or one carrying a secret, authenticates nothing,
 and nothing in it is stored (Manual §24.1, §25.4; Review e6ac009 B2, B4).
 
@@ -57,6 +65,11 @@ from .request import (ATTESTATION_FIELDS, ENVELOPE_FIELDS, ROUTES, attestation_m
 
 TASK_BINDING = frozenset({"envelope", "signature", "attestation", "attestation_signature", "credential_signature"})
 HUMAN_BINDING = frozenset({"actor", "signature"})
+RUNNER_BINDING = frozenset({"key", "signature"})
+#: What a runner key authenticates (catalogue §17.5, §25.1): its observations, and an external custody runner's
+#: enumeration of its runs.
+RUNNER_KINDS = frozenset({"REALIZATION", "CHECK_EXECUTION", "CUSTODY_ENUMERATION"})
+_COMPONENT = re.compile(r"[a-z][a-z0-9_.-]{0,63}")
 _ATTEMPT = re.compile(r"[0-9]{1,9}")
 _PUBLIC_KEY = re.compile(r"[0-9a-f]{64}")
 _SIGNATURE = re.compile(r"[0-9a-f]{128}")
@@ -239,6 +252,8 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         return Authentication(False, frozenset({"SECRET_DETECTED"}))
     if set(binding) == {"human"}:
         return _human(request, binding["human"], records, roots)
+    if set(binding) == {"runner"}:
+        return _runner(request, binding["runner"], records, roots)
     cosigned = set(binding) == TASK_BINDING | {"human"}
     if (set(binding) != TASK_BINDING and not cosigned) or not _envelope(binding["envelope"], head):
         return NOT_AUTHENTICATED
@@ -369,6 +384,26 @@ def _attests(record: Mapping[str, Any], cosigner: str, bound_here: set) -> bool:
         and record.get("binding") is None and isinstance(target, Mapping) and target.get("record") in bound_here
 
 
+def _runner(request: Mapping[str, Any], runner: Any, records: list[dict], roots: TrustRoots) -> Authentication:
+    """A designated runner's binding (reading F77): its key in force signed the request; it covers only its own
+    runner observations."""
+
+    if not isinstance(runner, Mapping) or set(runner) != RUNNER_BINDING or not isinstance(runner["key"], str) \
+            or runner["key"] not in roots.runners or runner["key"] in roots.compromised \
+            or not _verify(roots.runners[runner["key"]], request_message(request), runner["signature"]):
+        return NOT_AUTHENTICATED
+    suffix = "@" + runner["key"]
+    refused = []
+    for record in records:
+        actor = record.get("actor")
+        component = actor[len("machinery:"): -len(suffix)] if isinstance(actor, str) \
+            and actor.startswith("machinery:") and actor.endswith(suffix) else ""
+        if record.get("kind") not in RUNNER_KINDS or record.get("actor_class") != "MACHINERY" \
+                or not _COMPONENT.fullmatch(component) or record.get("binding") is not None:
+            refused.append((record["id"], ("AUTH_ACTOR",)))
+    return Authentication(True, frozenset(), tuple(refused), None, {})
+
+
 def _human(request: Mapping[str, Any], human: Any, records: list[dict], roots: TrustRoots) -> Authentication:
     if not isinstance(human, Mapping) or set(human) != HUMAN_BINDING or not isinstance(human["actor"], str) \
             or human["actor"] not in roots.humans or not isinstance(human["signature"], str) \
@@ -379,5 +414,5 @@ def _human(request: Mapping[str, Any], human: Any, records: list[dict], roots: T
     return Authentication(True, frozenset(), tuple(refused), None, {})
 
 
-__all__ = ["Authentication", "NOT_AUTHENTICATED", "Retained", "authenticate", "lineage_closure", "reissued_tasks",
-           "resubmission", "retained", "stored_attestations"]
+__all__ = ["Authentication", "NOT_AUTHENTICATED", "RUNNER_KINDS", "Retained", "authenticate", "lineage_closure",
+           "reissued_tasks", "resubmission", "retained", "stored_attestations"]
