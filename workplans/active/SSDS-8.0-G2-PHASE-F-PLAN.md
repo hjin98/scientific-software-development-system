@@ -530,7 +530,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
     - every key genesis declares (`admission_keys`, `dispatcher_keys`, `human_keys`, and any further list, such as runner keys);
     - `human_mechanism`.
 
-    The dispatcher and human keys are those in force under the trust-root fold at `A`, each a list of `{id, public_key}` sorted by id. Every other member keeps its genesis value, because no admissible lifecycle path changes it yet: host keys and runner keys are not rotated through `KEY_LIFECYCLE`, and `TRUST_MECHANISM_CHANGE` is not admitted. When a path changes one, the fold is extended there and this form follows it;
+    The dispatcher, runner and human keys are those in force under the trust-root fold at `A`, each a list of `{id, public_key}` sorted by id. Runner keys change through `KEY_LIFECYCLE` since step 9a, so `runner_keys` follows the fold; it is present when genesis declares it or a lifecycle record has named a runner key, so a ledger that never had one keeps genesis's shape (review of 47612014, B1). Every other member keeps its genesis value, because no admissible lifecycle path changes it yet: host keys are not rotated through `KEY_LIFECYCLE`, and `TRUST_MECHANISM_CHANGE` is not admitted. When a path changes one, the fold is extended there and this form follows it;
   - `ruleset`: the ruleset in force at `A`, read from `History`.
 
   It must equal the recomputation, so any change fails closed until a control fold exists (F46).
@@ -2755,3 +2755,18 @@ Its notes are taken up with 8f:
   - the lint.
 - **Mutants.** Fourteen. Thirteen are killed. N07 is equivalent: the binding's compromised check, since a compromise already removes the key from those in force.
 - **Full suite.** It passes: 1497 tests, 6 skipped (the whole `tests` tree; `tests/ssds` alone holds 1091).
+
+**8g's N1 and N2 built (review of 4f5caedb), with a latent 8d defect found on the way.**
+- **N1, route (i).** When a refusal retains a record under an unlisted retired envelope, Admission also retains the co-signer's `HUMAN_ATTESTED_FRESH` attestation of it, which the co-signature authenticated (`authenticate.retained_attestations`). `Retained.attested` reads it back from the refusal entry. A resubmission's class is then accepted on that retained evidence, so the Dispatcher's resubmission stays mechanical (R0) and keeps the original attester. A co-signer's new attestation in the same request remains the fallback.
+- **The 8d defect.**
+  - Authorization judged the co-signer's `LINEAGE_ATTESTATION` under the task envelope's role, refusing it `AUTH_ROLE_KIND`. So on the co-signed route the bound record was admitted as `HUMAN_ATTESTED_FRESH` while its attestation was refused: the ledger held the class without its evidence. 8d's tests checked authentication only.
+  - `authorize` now judges the co-signer's unbound record as the human's own, under no envelope role (`_cosigners`). Authentication admits only that attestation, so nothing else reaches the exemption.
+  - A test now takes a co-signed request through Admission and admits both records.
+- **N2.** Derivation's tightened `_resubmitted` is pinned by step 4b's provenance case, which kills k4's reversion (R06 above).
+- **Tests.**
+  - `test_phase_f_step8g_ii.py`, 20 tests: the retained attestation keeping the resubmission mechanical; and, with retention patched out, a new attestation needed.
+  - `test_phase_f_step8d.py` gains the co-signed request admitted end to end.
+- **Mutants.** Five. Three are killed. Two are equivalent:
+  - Q04, the retained attestation's target check: every retained `HUMAN_ATTESTED_FRESH` record was authenticated with its own attestation.
+  - Q05, the co-signer check in `retained_attestations`: only the co-signer's attestation survives authentication.
+- **Full suite.** It passes: 1499 tests, 6 skipped.

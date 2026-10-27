@@ -167,44 +167,66 @@ class OriginalGone(Retained):
 
 
 class Attested(Fixture):
-    """Review of 26907956, note on (a): a record retained with ``HUMAN_ATTESTED_FRESH`` is resubmitted only with its
-    co-signer's new attestation, so the ledger holds the evidence for its class again."""
+    """A record retained with ``HUMAN_ATTESTED_FRESH`` carries its class on evidence the ledger holds: the
+    co-signer's attestation retained with its refusal, so its resubmission stays mechanical and keeps the attester
+    (review of 4f5caedb, N1, route (i)); failing that, a co-signer's new attestation (review of 26907956)."""
 
-    def test_an_attested_record_is_reattested(self) -> None:
-        from ssds.admission.request import request_message
+    def attest(self, target):
         from ssds.ledger.read import with_id
 
-        from ._fixtures import record, sshsig
+        from ._fixtures import record
 
-        def attest(target):
-            return with_id({**record("LINEAGE_ATTESTATION", target={"record": target["id"]},
-                                     outcome="HUMAN_ATTESTED_FRESH"), "actor": self.human()})
+        return with_id({**record("LINEAGE_ATTESTATION", target={"record": target["id"]},
+                                 outcome="HUMAN_ATTESTED_FRESH"), "actor": self.human()})
 
-        def cosign(issued, req):
-            req["binding"] = {**issued.binding(req), "human": {
-                "actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
-            return req
+    def cosign(self, issued, req):
+        from ssds.admission.request import request_message
+
+        from ._fixtures import sshsig
+
+        req["binding"] = {**issued.binding(req), "human": {
+            "actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+        return req
+
+    def refuse_attested(self):
+        from ssds.ledger.read import with_id
 
         original = self.issue("MANUAL")
         self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
         rec = self.bind(finding(materiality="MATERIAL"), original)
         rec = with_id({**rec, "binding": {**rec["binding"], "lineage_class": "HUMAN_ATTESTED_FRESH"}})
-        req = self.request([rec, attest(rec)], base_position=len(self.entries()) - 1)
-        refused = self.admit(cosign(original, req))
+        attestation = self.attest(rec)
+        refused = self.admit(self.cosign(original, self.request([rec, attestation],
+                                                                base_position=len(self.entries()) - 1)))
         self.assertIn((rec["id"], ("AUTH_ENVELOPE",)), refused.refused, "retained with its class")
         in_force = self.issuer_at("other")
         self.lifecycle("REGISTER", in_force.trust_root())
         ((envelope, kept),) = reissues(self.chain(), self.trees, self.held())
-        issued = reissue(in_force, envelope, self.held())
+        return attestation, reissue(in_force, envelope, self.held()), kept
+
+    def reissue_open(self) -> bool:
+        return bool([o for o in Workflow(derive(self.chain(), self.trees)).obligations if o.kind == "REISSUE"])
+
+    def test_the_retained_attestation_keeps_the_resubmission_mechanical(self) -> None:
+        attestation, issued, kept = self.refuse_attested()
+        stored = {d for e in self.chain().entries for d in e.objects}
+        self.assertIn(attestation["id"], stored, "the co-signer's attestation is retained with the refusal")
+        plain = resubmission(issued, kept, len(self.entries()) - 1, self.baseline)
+        decision = self.admit(plain)
+        self.assertEqual(decision.admitted, (plain["records"][0]["id"],))
+        self.assertFalse(self.reissue_open())
+
+    def test_without_it_a_new_attestation_is_needed(self) -> None:
+        with mock.patch("ssds.admission.engine.retained_attestations", return_value=[]):
+            _, issued, kept = self.refuse_attested()
         plain = resubmission(issued, kept, len(self.entries()) - 1, self.baseline)
         self.assertEqual(dict(self.admit(plain).refused).get(plain["records"][0]["id"]), ("AUTH_ENVELOPE",),
                          "no evidence for its class")
         again = resubmission(issued, kept, len(self.entries()) - 1, self.baseline)
         (resubmitted_rec,) = again["records"]
-        again = cosign(issued, {**again, "records": [resubmitted_rec, attest(resubmitted_rec)]})
-        decision = self.admit(again)
-        self.assertIn(resubmitted_rec["id"], decision.admitted)
-        self.assertFalse([o for o in Workflow(derive(self.chain(), self.trees)).obligations if o.kind == "REISSUE"])
+        again = self.cosign(issued, {**again, "records": [resubmitted_rec, self.attest(resubmitted_rec)]})
+        self.assertIn(resubmitted_rec["id"], self.admit(again).admitted)
+        self.assertFalse(self.reissue_open())
 
 
 class Refused(Retained):

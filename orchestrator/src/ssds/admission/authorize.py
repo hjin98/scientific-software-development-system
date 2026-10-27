@@ -76,12 +76,24 @@ def authorize(request: Mapping[str, Any], records: list[dict], trial: Any, base:
     refused, alone = [], []
     for record in records:
         # step 5's per-record checks share this fixed point (step 4d): a refusal of either removes the record
-        codes = _record_codes(record, envelope, trial, base, obligation, listed) | dependency_codes(record, trial)
+        # a co-signer's attestation is the human's own record, authenticated by the co-signature: no role of the
+        # envelope governs it (step 8d, reading F72; found building review 4f5caedb's N1)
+        own = None if _cosigners(record, binding) else envelope
+        codes = _record_codes(record, own, trial, base, obligation, listed) | dependency_codes(record, trial)
         if codes:
             refused.append((record["id"], tuple(sorted(codes))))
         elif record["kind"] == "ADJUDICATION" and not _adjudication_eligible(record, trial):
             alone.append((record["id"], ("AUTH_ACTOR",)))
     return Authorization(True, frozenset(), tuple(refused), tuple(alone))
+
+
+def _cosigners(record: Mapping[str, Any], binding: Mapping[str, Any]) -> bool:
+    """``record`` is the co-signing human's unbound record under a co-signed task binding (authentication admitted
+    only its ``LINEAGE_ATTESTATION`` of a record bound here, reading F72)."""
+
+    human = binding.get("human") if "envelope" in binding else None
+    return isinstance(human, Mapping) and record.get("actor") == human.get("actor") \
+        and record.get("actor_class") == "HUMAN" and record.get("binding") is None
 
 
 def _cited(record: Mapping[str, Any]) -> Any:

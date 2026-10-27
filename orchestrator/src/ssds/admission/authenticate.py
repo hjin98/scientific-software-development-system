@@ -39,9 +39,10 @@ lists, a record citing one (``provenance.reissue_of``) is authenticated against 
 envelope's launch: its content apart from ``id``, ``binding`` and ``provenance`` equals the retained body, and its
 actor, ``lineage_class`` and ``lineage`` equal the retained record's, which were verified against the original stored
 binding object when it was refused (F9, F11; re-check of 70cef9cf, note 1). Its provenance is exactly the retained
-provenance with ``reissue_of`` added, each identity is cited once per request, and a record whose class is
-``HUMAN_ATTESTED_FRESH`` is re-attested by the co-signer in the same request (8d's path), so the ledger again holds
-the evidence for its class. An envelope of a task that was ever refused under an unlisted retired envelope is a
+provenance with ``reissue_of`` added, and each identity is cited once per request. A record whose class is
+``HUMAN_ATTESTED_FRESH`` carries that class on the evidence the ledger holds: the co-signer's attestation retained
+with its refusal (review of 4f5caedb, N1, route (i)), which keeps the resubmission mechanical and the original
+attester; failing that, a new attestation by a co-signer in the same request (8d's path). An envelope of a task that was ever refused under an unlisted retired envelope is a
 re-issue: it carries nothing but such resubmissions (review of 26907956, B1-B2).
 
 The role, record-kind, write-scope and other authorization checks of step 3 are Phase F step 4's.
@@ -95,6 +96,7 @@ class Retained:
     body: dict[str, Any]  # the retained record, without its id
     envelope: dict[str, Any]  # the original envelope, from the binding object stored with the refusal
     obligation: Any  # the original obligation as derived at the original issue position, or None
+    attested: bool = False  # the co-signer's attestation of it is retained with its refusal (N1, route (i))
 
 
 def retained(history: Any, position: int, objects: Mapping[str, bytes]) -> dict[str, Retained]:
@@ -118,8 +120,42 @@ def retained(history: Any, position: int, objects: Mapping[str, bytes]) -> dict[
                 continue
             at = Workflow.historical(history, original["issued_at_position"])
             obligation = next((x for x in at.obligations if x.id == original["obligation_id"]), None)
-            out[rid] = Retained(body, original, obligation)
+            out[rid] = Retained(body, original, obligation, _attestation_retained(history, position, rid))
     return out
+
+
+def retained_attestations(records: list[dict], binding: Any, retained_here: Mapping[str, Any]) -> list[dict]:
+    """The co-signer's ``HUMAN_ATTESTED_FRESH`` attestations, in a request whose co-signed binding authenticated them,
+    of records this refusal retains (``retained_here``): kept with the refusal (review of 4f5caedb, N1)."""
+
+    human = binding.get("human") if isinstance(binding, Mapping) else None
+    cosigner = human.get("actor") if isinstance(human, Mapping) else None
+    return [r for r in records if cosigner is not None and r.get("binding") is None
+            and r.get("kind") == "LINEAGE_ATTESTATION" and r.get("outcome") == "HUMAN_ATTESTED_FRESH"
+            and r.get("actor") == cosigner and r.get("actor_class") == "HUMAN"
+            and isinstance(r.get("target"), Mapping) and r["target"].get("record") in retained_here]
+
+
+def _attestation_retained(history: Any, position: int, rid: str) -> bool:
+    """Whether the entry that retained ``rid`` also retained a human's attestation of it."""
+
+    for item in history.chain.entries[1: position + 1]:
+        if rid not in item.objects:
+            continue
+        admission = item.entry.get("admission") or {}
+        for refusal in admission.get("refused", []):
+            other = refusal.get("record_id")
+            if other == rid or other not in item.objects or "AUTH_ENVELOPE" not in refusal.get("reasons", []):
+                continue
+            try:
+                body = json.loads(item.objects[other])
+            except ValueError:
+                continue
+            if isinstance(body, dict) and body.get("kind") == "LINEAGE_ATTESTATION" \
+                    and body.get("outcome") == "HUMAN_ATTESTED_FRESH" and body.get("actor_class") == "HUMAN" \
+                    and isinstance(body.get("target"), dict) and body["target"].get("record") == rid:
+                return True
+    return False
 
 
 def reissued_tasks(entries: Any) -> frozenset[str]:
@@ -322,7 +358,8 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
                     or _content(record) != _content(kept.body) \
                     or record["provenance"] != {**(provenance if isinstance(provenance, Mapping) else {}),
                                                 "reissue_of": cited} \
-                    or kb.get("lineage_class") == "HUMAN_ATTESTED_FRESH" and record.get("id") not in attested \
+                    or kb.get("lineage_class") == "HUMAN_ATTESTED_FRESH" and not kept.attested \
+                    and record.get("id") not in attested \
                     or (actor, record.get("actor_class")) != (kept.body.get("actor"), kept.body.get("actor_class")) \
                     or rb.get("envelope") != digest \
                     or {k: v for k, v in rb.items() if k != "envelope"} != \
@@ -415,4 +452,4 @@ def _human(request: Mapping[str, Any], human: Any, records: list[dict], roots: T
 
 
 __all__ = ["Authentication", "NOT_AUTHENTICATED", "RUNNER_KINDS", "Retained", "authenticate", "lineage_closure",
-           "reissued_tasks", "resubmission", "retained", "stored_attestations"]
+           "reissued_tasks", "resubmission", "retained", "retained_attestations", "stored_attestations"]

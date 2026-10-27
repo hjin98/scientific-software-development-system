@@ -130,6 +130,21 @@ class Attestation(RequestFixture):
 
 
 class Admitting(RequestFixture):
+    def test_a_cosigned_request_admits_the_record_and_its_attestation(self) -> None:
+        """Found building the review of 4f5caedb's N1: authorization judged the co-signer's attestation under the
+        envelope's role (AUTH_ROLE_KIND), so the record carried its class with no evidence in the ledger."""
+
+        issued = self.issue("MANUAL")
+        rec = self.bind(finding(note="HUMAN_ATTESTED_FRESH"), issued)
+        rec = with_id({**rec, "binding": {**rec["binding"], "lineage_class": "HUMAN_ATTESTED_FRESH"}})
+        attestation = with_id({**record("LINEAGE_ATTESTATION", target={"record": rec["id"]},
+                                        outcome="HUMAN_ATTESTED_FRESH"), "actor": self.human()})
+        req = self.request([rec, attestation], base_position=len(self.entries()) - 1)
+        req["binding"] = {**issued.binding(req), "human": {
+            "actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+        decision = self.admit(req)
+        self.assertEqual((decision.decision, set(decision.admitted)), ("ACCEPT", {rec["id"], attestation["id"]}))
+
     def test_an_attestation_classifies_only_a_co_submitted_record(self) -> None:
         rec = with_id({**record("LINEAGE_ATTESTATION", target={"record": "sha256:" + "4" * 64},
                                 outcome="HUMAN_ATTESTED_FRESH"), "actor": self.human()})

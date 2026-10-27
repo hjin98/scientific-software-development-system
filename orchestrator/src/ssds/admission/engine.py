@@ -32,7 +32,7 @@ from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Q
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 
-from .authenticate import authenticate, reissued_tasks, retained, stored_attestations
+from .authenticate import authenticate, reissued_tasks, retained, retained_attestations, stored_attestations
 from .authorize import authorize
 from .checks import (content_identity, on_merits, over_bounds, producing_context, record_problems, referenced_objects,
                      referenced_records, referenced_revisions, request_problems, target_references, transformation_named,
@@ -425,6 +425,12 @@ class Admission:
                     body = {k: v for k, v in record.items() if k != "id"}
                     objects[record["id"]] = canonical_json(body)
                     refused.append((record["id"], ("AUTH_ENVELOPE",)))
+            for record in retained_attestations(passing, request.get("binding"), objects):
+                # the co-signer's attestation of a retained record, which the co-signature authenticated: kept with
+                # the refusal as the evidence for its class, so its resubmission stays mechanical and keeps the
+                # attester (review of 4f5caedb, N1, route (i))
+                objects[record["id"]] = canonical_json({k: v for k, v in record.items() if k != "id"})
+                refused.append((record["id"], ("AUTH_ENVELOPE",)))
             objects.update(auth.objects)
         head = entries[-1]
         refused_x = integrating if decision == "REJECT" and auth is not None and auth.ok and on_merits(reasons) \
