@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is built and awaits its review. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1895,3 +1895,19 @@ Its notes:
   - **The surfaced-chain row has no reading to test.** It is disclosed in §6.
 - **Mutants.** Thirteen, over `loss.py` and the engine's report storage: all are killed. X02 (the mark not named) and X04 (no authenticity filter) survived at first and are killed by the two tests added for them.
 - **Full suite.** It passes: 1345 tests, 6 skipped. It ran before the two added tests, which then ran with the step's tests and pass.
+
+**Same-family review of 8bfaaf0f (7c).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Its answers:
+- The three departures are faithful and disclosed:
+  - the loss under `UNQUALIFIED` goes to 7e's redesignation (§23.6, §23.8);
+  - `REQUALIFY` stays at derivation level;
+  - the surfaced-chain row has no reading.
+- `evidence` is faithful to §23.6.
+- The report is deterministic.
+- The controls' shape is right.
+- Sharing one function between prepare and admit leaves no blind spot beyond the design, given the pinning tests.
+
+Its notes:
+- **N2 (taken up).** A head that no witness reports but the mark vouches for was qualified, so held by `q_a` witnesses. Its status is floored at `POSSIBLY_ADMITTED`, and witnesses that lost the checkpoint beyond the fault model can no longer let a fork resolution (7d) abandon it with no boundary. The mark test asserts it, and mutant X14 (no floor) is killed. The SSDS suite passes.
+- **N1 (answered).** A human `ACCEPTANCE` or `REVIEW` of the fixture's `NATIVE` subject is accepted, but derives `current = F` at the head under the fixture's empty policy (probe of this step). So no engine-level loss can withhold a current permissive record here. `REQUALIFY`'s positive case stays at derivation level (`test_s3`, `test_support`), as recorded.
+
+**Step 7c is closed.**

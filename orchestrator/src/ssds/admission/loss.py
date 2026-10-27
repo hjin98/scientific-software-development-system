@@ -61,11 +61,17 @@ def evidence(chain: Any, trees: TreeSource, model: WitnessModel, reports: Mappin
     if mark is not None and off_chain(mark.position, mark.entry_digest):
         heads.add((mark.position, mark.entry_digest))
     silent = len(declared) - len(held)
-    abandoned = [{"position": p, "digest": d,
-                  "status": loss_status(sum(1 for cps in held.values()
-                                            if any(c.position == p and c.entry_digest == d for c in cps)),
-                                        silent, model.f, model.q_a)}
-                 for p, d in sorted(heads)]
+
+    def status(p: int, d: str) -> str:
+        found = loss_status(sum(1 for cps in held.values() if any(c.position == p and c.entry_digest == d for c in cps)),
+                            silent, model.f, model.q_a)
+        if found == "PROVED_NEVER_ADMITTED" and mark is not None and (p, d) == (mark.position, mark.entry_digest):
+            # the mark's head was qualified, so held by q_a: never proved never admitted, even where witnesses lost
+            # its checkpoint beyond the fault model (review 8bfaaf0 N2), so no fork resolution abandons it unbounded
+            return "POSSIBLY_ADMITTED"
+        return found
+
+    abandoned = [{"position": p, "digest": d, "status": status(p, d)} for p, d in sorted(heads)]
     report = canonical_json({
         "ledger_id": chain.ledger_id,
         "replica_head": {"position": last.position, "digest": last.digest},

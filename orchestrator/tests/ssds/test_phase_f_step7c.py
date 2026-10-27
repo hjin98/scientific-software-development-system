@@ -296,6 +296,8 @@ class TeamLoss(RequestFixture):
         admission = self.team({"w0": self.roots["w0"], "w1": self.roots["w1"]})  # w2 does not respond
         abandoned = admission.prepare_loss()["abandoned"]
         self.assertEqual([(a["position"], a["digest"]) for a in abandoned], [(1, "sha256:" + "7" * 64)])
+        # no witness reports it (h = 0, m = 1, f = 0 < q_a), yet the qualified mark floors it (review 8bfaaf0 N2)
+        self.assertEqual(abandoned[0]["status"], "POSSIBLY_ADMITTED")
 
     def test_nothing_abandoned_is_refused(self) -> None:
         admission = self.team({"w0": self.roots["w0"]})
