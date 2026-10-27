@@ -46,7 +46,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d (publication,
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
-             F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement) is next. A10 is accepted (SD-66);
+             F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is built and awaits its
+             same-family review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -395,6 +396,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F46** *`LEDGER_LOSS`'s `controls` (step 7c).* §24.1 lets a loss re-establish the witness model, trust roots and ruleset, but derivation folds controls only from genesis, `KEY_LIFECYCLE` and `RULESET_ADOPTION`. Until a control fold exists, a loss's `controls` must equal the controls in force at the retained head, and any change fails closed. Schema 1 leaves the inner shapes of the recovery fields open, so Admission checks closed shapes for the fields it reads; the schema is unchanged.
 - **F47** *Ref restores (step 7d).* Choosing the side of a fork the replica does not hold, or restoring a recoverable suffix, rewrites the ledger ref, which the append-only compare-and-swap cannot do, and fitness B1 confines Git writes to `ledger.append`. The Manual assigns "replica restore" to the Ledger Store (component table), so this defers a `ledger` function, not only an operator convenience. It is deferred to Phase H, with §24.2's re-encoding. When built, it needs a named extension of fitness B1's single Git-writing exception (plan check of bd515e6, note 2). In Phase F a restore is an operator action outside SSDS, disclosed, and Admission qualifies whatever the replica holds.
 - **F48** *A continuity attestation's designation (step 7f).* §5.2 and §12.5 have a continuity attestation recorded by "a designated human" (R3), but no policy key designates one, and `Support.qualified` reads only the human floor. It stays `SCHEMA_UNSUPPORTED` until a designation exists. On `ssdp-shadow-2` it would follow only a `LEDGER_LOSS`, which F46 makes rare.
+- **F49** *The retired ledger's high-water mark (step 7a).* §24.2's "retire participants' high-water marks for it" sits in the confidentiality path, beside the purge of the old ledger, which needs G5's operation-specific authorization. Read "retired" as frozen, not deleted. A mark rises only when its holder qualifies a head `QUALIFIED`, which `RETIRED` excludes, so after the statement is held no participant raises it again. It stays at the retirement entry, so a replica that later loses the statement and is rewound still reads `ROLLBACK`. Deleting it belongs to that purge.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -1620,3 +1622,46 @@ Its notes are taken up:
 - Each §23.8 row is placed.
 - F45 says where a chainless verifier gets its trust roots.
 - The status line is current.
+
+**Step 7a built (retirement; §3.4, readings F44, F45, F49).**
+- **Statement.** The catalogue's form: `{ledger_id, kind: RETIREMENT, last_position, last_entry_digest, successor_ledger_id, successor_genesis_digest, signatures}`. Its `signatures` hold one host-key signature, under the statement's own domain `ssds.retirement.v1`. The reading side is in the Ledger Store's `qualification` API, which is the only ledger API the Interface may import (fitness F11, Manual §26.2):
+  - `RetirementStatement`;
+  - `FileWitness.statement`;
+  - `retirement_verified`, `retirement_statements` and `retirement_held`.
+
+  Signing and writing are in its `append` API, which only Admission imports: `retirement_statement` and `write_retirement`. The statement is written through `retain`, the fsynced append-only write that `write_checkpoint` now shares.
+  - **Reading.** `FileWitness.statement` takes only a closed-shape regular file. A bare marker, an extra field or a link is no statement.
+  - **Verification.** It needs a signature by a host key of the trust roots and `last_position` at least 1. Where the chain holds `last_position`, the chain's `LINEAGE_RETIREMENT` must be there with that digest. A participant behind the retirement, or one with no chain, verifies by its trust roots alone.
+  - **`RETIRED`.** It needs `q_a` declared witnesses holding a verified statement.
+- **Readers.** Admission's qualification, the CLI's `HomeAccess` and the Interface's `present` compute `RETIRED` from verified statements. `FileWitness.retired`, the bare-marker test, is removed. `LedgerAccess.witness_reports` now returns each witness's statement instead of a flag.
+- **Admission.** `admit_lifecycle` admits `KEY_LIFECYCLE` as before and `LINEAGE_RETIREMENT`; every other lifecycle kind is `EntryInvalid` until 7b-7g. A retirement:
+  - carries `obs = null`, and any other `obs` is refused;
+  - is admitted only at the held head (`QUALIFIED`, any own provisional entry completed first, §24.2's settled head);
+  - passes the trial: at least `q_a` witnesses this host can write. This cannot prove that the write will succeed; one that fails leaves a provisional entry, recovered as in 6b;
+  - is approved by a registered human over the ledger, position, head and record identity (§25.2's gate, as `KEY_LIFECYCLE`);
+  - has a closed successor `{ledger_id, genesis_digest}`, another ledger (F44).
+
+  After the commit, Admission publishes the statement and halts until `q_a` witnesses hold it. `held_head` halts on any held `LINEAGE_RETIREMENT`; when it is the head, it first completes the statement's publication, the crash recovery of a statement as of a checkpoint. Nothing is appended after it.
+- **The successor's genesis digest** is its genesis entry's digest (position 0), which a reader checks against the successor's authenticated chain. It is not the approval digest `prepare` printed.
+- **Operator script** `orchestrator/scripts/retire_shadow.py`. `prepare` builds the record (the genesis record's ruleset and `governs`), reads the successor's genesis digest from its own chain in the SSDS home, and writes the record and approval message to the ledger's workspace (two new workspace names). The stakeholder signs. `admit` admits it with `obs = null` and reports `RETIRED`. An entry admitted between the two moves the head the approval names, and `admit` refuses it.
+- **Tests.** `test_phase_f_step7a.py`, 16 tests:
+  - admission, publication and `RETIRED`;
+  - nothing appended after;
+  - `obs`, the successor's closed shape and the approver;
+  - other recovery kinds refused;
+  - an unqualified ledger; the trial, with a witness readable but not writable;
+  - a crash before the statement, completed at the next start;
+  - a retirement that is not last halts and publishes nothing;
+  - the verifier's cases; the closed file; a witness holding another statement;
+  - the Interface reading `RETIRED`.
+
+  `test_shadow_genesis_script.py`: the bare marker now presents `QUALIFIED`, a stranger's statement too, and a host-signed one `RETIRED`; the operator script end to end on fixture ledgers `demo` and `demo-2`, the repository only read.
+- **Mutants.** All 27 are killed:
+  - Admission, ten: the retirement read, the halt after a retirement, publication only at the head, `obs`, the trial, publication after commit, the kind gate, the successor check, the quorum on publication, and writability;
+  - the statement, eleven: authenticity, ledger, kind, position 0, a behind chain, digest, kind at the position, `q_a`, closed shape, link, and a boolean position;
+  - the successor shape, five;
+  - the Interface, one.
+
+  R02-R05 ran before the move into `qualification`; their code is unchanged.
+- **Fitness.** The first full run failed F11: a new `ledger.retirement` module is no public ledger API. The move into `qualification` and `append` repairs it, with the fitness table unchanged. The full suite then passes: 1316 tests, 6 skipped.
+- **Not run on the real ledger.** Retiring `ssdp-shadow` needs the stakeholder's signature, and Q-F13 first.

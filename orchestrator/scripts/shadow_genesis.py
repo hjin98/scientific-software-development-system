@@ -12,8 +12,8 @@ the first two is the stakeholder's SSH signature, made with their own key:
 workspace and prints the validation report and the genesis digest; nothing is
 published. ``admit`` appends and admits it in the dedicated ledger repository
 in the SSDS home, then derives the ledger end to end and writes that report.
-``derive`` repeats the end-to-end derivation; it qualifies the ledger first (declared witnesses, a
-witness's retirement, the high-water mark) and makes a current assertion only at a current-qualified
+``derive`` repeats the end-to-end derivation; it qualifies the ledger first (declared witnesses,
+their retirement statements, the high-water mark) and makes a current assertion only at a current-qualified
 head ``H*``, which it then keeps as the high-water mark (Manual §23.4); else historical views only. The repository is
 only read: every subject is ``LEGACY(p)`` (the accepted protocol, from
 ``PROTOCOL-RELEASE-STATE.yaml``) or ``UNGOVERNED``.
@@ -95,7 +95,7 @@ def prepare(args: argparse.Namespace) -> int:
 def derivation_report(home: AdmissionHome, ledger_id: str, repository: Path) -> dict:
     """The end-to-end derivation report. Qualification and the current assertion are the Interface's, the one
     owner of presenting anything as current (Phase E plan §2): it qualifies the chain against the declared
-    witnesses, a witness's retirement and the high-water mark, derives the qualified prefix through ``H*`` and
+    witnesses, their retirement statements and the high-water mark, derives the qualified prefix through ``H*`` and
     keeps ``H*`` as the high-water mark (Manual §23.4); with no current-qualified head, historical views only."""
 
     presented = present(HomeAccess(home, ledger_id), lambda commit: read_tree(repository, commit))

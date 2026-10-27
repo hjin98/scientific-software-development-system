@@ -13,6 +13,7 @@ head, or nothing is appended.
 
 from __future__ import annotations
 
+import os
 import secrets
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
@@ -23,9 +24,11 @@ from ssds.core.api.v1 import canonical_json
 from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflow, adoption_codes, adoption_frame,
                              derive, frame_state, outside_scope, passing, protected_touched, transformation_of, trial,
                              trust_roots)
-from ssds.ledger.append import AppendFailed, AppendRefused, append_entry, import_commits, write_checkpoint
+from ssds.ledger.append import (AppendFailed, AppendRefused, append_entry, import_commits, retirement_statement,
+                               write_checkpoint, write_retirement)
 from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Qualification, WitnessModel,
-                                       checkpoint_body, checkpoint_message, qualify)
+                                       checkpoint_body, checkpoint_message, qualify, retirement_held,
+                                       retirement_statements)
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 
@@ -35,7 +38,7 @@ from .checks import (content_identity, on_merits, over_bounds, producing_context
                      referenced_records, referenced_revisions, request_problems, target_references, transformation_named,
                      verified_objects)
 from .genesis import AdmissionHome, host_key
-from .lifecycle import lifecycle_message, lifecycle_problems
+from .lifecycle import lifecycle_message, lifecycle_problems, retirement_problems
 from .currency import Currency
 from .legality import Legality, conformance_alone
 from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
@@ -196,9 +199,15 @@ class Admission:
     def qualification(self, chain) -> Qualification:
         model, files = self.witness_set(chain)
         reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in model.witnesses}
+        host_keys = self.host_keys(chain)
+        retired = retirement_held(retirement_statements(model, self.ledger_id).values(), model.q_a, self.ledger_id,
+                                  host_keys, chain)
+        return qualify(chain, reports, model, host_keys, self.home.high_water(self.ledger_id).get(), retired=retired)
+
+    @staticmethod
+    def host_keys(chain) -> dict[str, str]:
         fields = chain.entries[0].entry["lifecycle"]["fields"]
-        host_keys = {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
-        return qualify(chain, reports, model, host_keys, self.home.high_water(self.ledger_id).get())
+        return {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
 
     def held_head(self):
         """The chain at a qualified head with no provisional entry: Admission appends nothing when the ledger is
@@ -214,7 +223,29 @@ class Admission:
         if not held.current or held.provisional is not None:
             raise AdmissionHalted(f"the ledger is {held.state} at {held.head}, provisional {held.provisional} (§23.4)")
         self.home.high_water(self.ledger_id).set(HighWaterMark(held.head, held.head_digest))
+        if any(_retiring(e) for e in chain.entries[: held.head + 1]):
+            # a held LINEAGE_RETIREMENT is the ledger's last entry: its statement's publication is completed, as a
+            # provisional entry's checkpoint is, and nothing is appended after it (§24.2; reading F45)
+            if _retiring(chain.entries[held.head]):
+                self.publish_retirement(chain)
+            raise AdmissionHalted(f"the ledger is retired at {held.head} (§24.2): Admission appends nothing")
         return chain
+
+    def publish_retirement(self, chain) -> None:
+        """Write the retirement statement for ``chain``'s last entry, its ``LINEAGE_RETIREMENT``, to every witness this
+        host reaches; Admission halts until ``q_a`` of them hold it, and the next start completes it."""
+
+        statement = retirement_statement(self.key, self.ledger_id, chain.entries[-1])
+        model, files = self.witness_set(chain)
+        for witness in files.values():
+            try:
+                write_retirement(witness, statement)
+            except (OSError, AppendFailed):
+                continue  # a witness holding another file holds nothing of this statement
+        if not retirement_held(retirement_statements(model, self.ledger_id).values(), model.q_a, self.ledger_id,
+                               self.host_keys(chain), chain):
+            raise AdmissionHalted("the retirement is admitted but its statement is not yet held by q_a witnesses "
+                                  "(§24.2)")
 
     def distribute(self, appended: LedgerEntry, chain=None) -> None:
         """Write ``appended``'s checkpoint to every witness this host reaches; one that fails holds nothing."""
@@ -359,18 +390,34 @@ class Admission:
 
         return trial(chain, self.trees, entry, objects, frame)
 
-    def admit_lifecycle(self, record: Mapping[str, Any], signature: str, obs: str) -> int:
-        """Admit a human-gated ``KEY_LIFECYCLE`` record (§25.2): its actor is a registered human whose signature over
-        the record, for this ledger at this position after this head, verifies; its key object is well formed for
-        its action (:mod:`.lifecycle`). The approval is kept in the record's provenance. Returns the position."""
+    def admit_lifecycle(self, record: Mapping[str, Any], signature: str, obs: str | None) -> int:
+        """Admit a human-gated lifecycle record (§25.2): its actor is a registered human whose signature over the
+        record, for this ledger at this position after this head, verifies, and its fields are well formed for its
+        kind (:mod:`.lifecycle`). The approval is kept in the record's provenance. Returns the position.
 
+        A ``KEY_LIFECYCLE`` record carries the observed integration head, which must be the expected one. A
+        ``LINEAGE_RETIREMENT`` is a recovery entry with ``obs = null`` (§22.1), admitted only at a settled head (the
+        held head has no provisional entry, §24.2) and only when ``q_a`` witnesses are reachable to hold it; its
+        statement is then published (reading F45), and the ledger reads ``RETIRED``."""
+
+        kind = record.get("kind") if isinstance(record, Mapping) else None
+        if kind not in ("KEY_LIFECYCLE", "LINEAGE_RETIREMENT"):
+            raise EntryInvalid(f"a lifecycle record of kind {kind!r} is not admitted through this path yet")
         chain = self.held_head()
         entries = chain.entries[: chain.readable_through + 1]
-        expected = self.expected_head(entries)
-        if obs != expected:
-            # not absorbed here: the human approval names the ledger head it was signed after, which an absorption
-            # would move; the lifecycle waits until an admission has absorbed obs (review c06f5be N2)
-            raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
+        if kind == "LINEAGE_RETIREMENT":
+            if obs is not None:
+                raise EntryInvalid("a recovery lifecycle entry carries obs = null (§22.1)")
+            model, files = self.witness_set(chain)
+            if sum(1 for w in files.values() if _writable(w, self.ledger_id)) < model.q_a:
+                # the trial qualification: an entry fewer than q_a witnesses can hold would stay provisional
+                raise AdmissionHalted("fewer than q_a witnesses can hold an entry: the retirement would not be held")
+        else:
+            expected = self.expected_head(entries)
+            if obs != expected:
+                # not absorbed here: the human approval names the ledger head it was signed after, which an
+                # absorption would move; the lifecycle waits until an admission has absorbed obs (review c06f5be N2)
+                raise AdmissionHalted(f"the observed head {obs} is not the expected head {expected}")
         roots = trust_roots(entries)
         head = entries[-1]
         position = head.entry["position"] + 1
@@ -379,12 +426,14 @@ class Admission:
         except (ValueError, TypeError, AttributeError):
             raise EntryInvalid("a lifecycle record is a JSON object canonical JSON encodes") from None
         actor = record.get("actor")
-        if record.get("kind") != "KEY_LIFECYCLE" or record.get("actor_class") != "HUMAN" or not isinstance(actor, str) \
+        if record.get("actor_class") != "HUMAN" or not isinstance(actor, str) \
                 or actor not in roots.humans or not isinstance(signature, str) \
                 or not verify_sshsig(roots.humans[actor], message, signature):
             raise EntryInvalid("a lifecycle record needs its named human's verifying approval for this ledger, position "
                                "and head")
-        problems = record_violations(record) + lifecycle_problems(record.get("fields"), roots, position)
+        problems = record_violations(record) + (lifecycle_problems(record.get("fields"), roots, position)
+                                                if kind == "KEY_LIFECYCLE" else
+                                                retirement_problems(record.get("fields"), self.ledger_id))
         identity = record_id({**record, "provenance": None})
         if any(e.lifecycle is not None and record_id({**e.lifecycle, "provenance": None}) == identity for e in entries):
             problems.append("this lifecycle record is already admitted")  # Review e6ac009 B5
@@ -397,7 +446,10 @@ class Admission:
         problems = entry_violations(entry) + record_violations(signed)
         if problems:
             raise EntryInvalid(f"the lifecycle entry would not verify: {problems}")
-        return self.commit(entry, head).position
+        appended = self.commit(entry, head)
+        if kind == "LINEAGE_RETIREMENT":
+            self.publish_retirement(self.chain())
+        return appended.position
 
     def validate(self, request: Any, chain, entries):
         """Steps 1-3: the request-level reasons, the refused records with theirs, the records that passed their own
@@ -660,6 +712,20 @@ def _absorbs(record: Mapping[str, Any]) -> bool:
 
     return record.get("kind") == "INTAKE_DISPOSITION" and record.get("outcome") == "ABSORB" \
         and "delta" in target_type(record)
+
+
+def _writable(witness: FileWitness, ledger_id: str) -> bool:
+    """Whether this host can write ``witness``'s folder for the ledger (or create it)."""
+
+    folder = witness.directory(ledger_id)
+    target = folder if folder.is_dir() else witness.root
+    return target.is_dir() and os.access(target, os.W_OK | os.X_OK)
+
+
+def _retiring(entry: LedgerEntry) -> bool:
+    """A ``LINEAGE_RETIREMENT`` entry: the ledger's last (§24.2)."""
+
+    return entry.lifecycle is not None and entry.lifecycle.get("kind") == "LINEAGE_RETIREMENT"
 
 
 def target_type(record: Mapping[str, Any]) -> set[str]:

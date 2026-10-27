@@ -18,6 +18,7 @@ from pathlib import Path
 from ._fixtures import commit, git, human_key, init_repo
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "shadow_genesis.py"
+RETIRE = SCRIPT.with_name("retire_shadow.py")
 MANIFEST = '''schema = 1
 
 [[unit]]
@@ -78,8 +79,8 @@ class ShadowGenesisScript(unittest.TestCase):
         self.public = root / "approver.pub"
         self.env = {**os.environ, "SSDS_HOME": str(self.home)}
 
-    def run_script(self, *args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run([sys.executable, str(SCRIPT), "--repository", str(self.repo), "--ledger-id", "demo", *args],
+    def run_script(self, *args: str, ledger: str = "demo", script: Path = SCRIPT) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(script), "--repository", str(self.repo), "--ledger-id", ledger, *args],
                               capture_output=True, text=True, env=self.env, timeout=240, check=False)
 
     def test_prepare_sign_admit_derive(self) -> None:
@@ -115,6 +116,43 @@ class ShadowGenesisScript(unittest.TestCase):
         subprocess.run(["ssh-keygen", "-q", "-Y", "sign", "-f", str(self.private), "-n", "ssds", str(message)],
                        check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=60)
         self.assertEqual(self.run_script("admit", "--signature", str(message) + ".sig").returncode, 0)
+
+    def test_retire_prepare_sign_admit(self) -> None:
+        """Step 7a's operator script: the shadow ledger retired, its successor named for discovery only (F44)."""
+
+        from ssds.ledger.qualification import FileWitness
+        from ssds.ledger.read import read_chain
+
+        before = git(self.repo, "for-each-ref"), git(self.repo, "status", "--porcelain", "--ignored")
+        self.admitted()
+        prepared = self.run_script("prepare", "--public-key", str(self.public), ledger="demo-2")
+        message = Path(re.search(r"approval message:\s+(\S+)", prepared.stdout).group(1))
+        subprocess.run(["ssh-keygen", "-q", "-Y", "sign", "-f", str(self.private), "-n", "ssds", str(message)],
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=60)
+        self.assertEqual(self.run_script("admit", "--signature", str(message) + ".sig", ledger="demo-2").returncode, 0)
+
+        prepared = self.run_script("prepare", "--public-key", str(self.public), "--successor", "demo-2",
+                                   script=RETIRE)
+        self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+        message = Path(re.search(r"approval message:\s+(\S+)", prepared.stdout).group(1))
+        subprocess.run(["ssh-keygen", "-q", "-Y", "sign", "-f", str(self.private), "-n", "ssds", str(message)],
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=60)
+        retired = self.run_script("admit", "--signature", str(message) + ".sig", script=RETIRE)
+        self.assertEqual(retired.returncode, 0, retired.stdout + retired.stderr)
+        self.assertIn("qualification:     RETIRED", retired.stdout)
+        chain = read_chain(self.home / "ledgers" / "demo.git", "demo")
+        successor = read_chain(self.home / "ledgers" / "demo-2.git", "demo-2").entries[0].digest
+        self.assertEqual(chain.entries[-1].lifecycle["fields"]["successor"],
+                         {"ledger_id": "demo-2", "genesis_digest": successor})
+        statement = FileWitness(self.home / "witness").statement("demo")
+        self.assertEqual((statement.body["last_position"], statement.body["successor_ledger_id"]), (1, "demo-2"))
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "RETIRED", False))
+        again = self.run_script("admit", "--signature", str(message) + ".sig", script=RETIRE)
+        self.assertEqual(again.returncode, 1, "nothing is appended to a retired ledger")
+        self.assertEqual(len(read_chain(self.home / "ledgers" / "demo.git", "demo").entries), 2)
+        self.assertEqual((git(self.repo, "for-each-ref"), git(self.repo, "status", "--porcelain", "--ignored")), before,
+                         "the repository is only read")
 
     def report(self) -> tuple[int, dict]:
         result = self.run_script("derive")
@@ -225,10 +263,29 @@ class ShadowGenesisScript(unittest.TestCase):
         self.assertEqual((code, report["qualified_head"], report["current_assertion"]), (0, 1, True))
 
     def test_a_retired_witness_lineage_presents_nothing_current(self) -> None:
-        """Review 517af45 NF3: the consumer passes the witness's retirement to qualification."""
+        """Review 517af45 NF3: the consumer passes the witness's retirement to qualification. Since step 7a
+        (reading F45) that is a statement signed by a host key of the trust roots; a bare marker is none."""
+
+        from ssds.ledger.append import HostKey
+        from ssds.ledger.qualification import RetirementStatement, retirement_message
 
         self.admitted()
-        (self.home / "witness" / "demo" / "RETIREMENT").write_text("{}\n")
+        marker = self.home / "witness" / "demo" / "RETIREMENT"
+        marker.write_text("{}\n")
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"], report["current_assertion"]), (0, "QUALIFIED", True))
+        body = {"ledger_id": "demo", "kind": "RETIREMENT", "last_position": 5, "last_entry_digest": "sha256:" + "0" * 64,
+                "successor_ledger_id": "demo-2", "successor_genesis_digest": "sha256:" + "2" * 64}
+
+        def statement(key):
+            return json.dumps(RetirementStatement(body, ((key.key_id, key.sign(
+                retirement_message(body)).hex()),)).to_json())
+
+        marker.write_text(statement(HostKey.generate()))
+        code, report = self.report()
+        self.assertEqual((code, report["qualification"]), (0, "QUALIFIED"), "a key outside the trust roots")
+        key = HostKey.from_private_bytes((self.home / "keys" / "admission" / "demo.ed25519").read_bytes())
+        marker.write_text(statement(key))  # beyond this replica's chain: read from the witness alone
         code, report = self.report()
         self.assertEqual((code, report["qualification"], report["current_assertion"]), (1, "RETIRED", False))
 

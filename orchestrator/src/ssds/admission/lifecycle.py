@@ -1,4 +1,5 @@
-"""Human-gated ``KEY_LIFECYCLE`` records (Manual §25.2; catalogue §25.2; Phase F reading F5).
+"""Human-gated lifecycle records: ``KEY_LIFECYCLE`` (Manual §25.2; catalogue §25.2; Phase F reading F5) and
+``LINEAGE_RETIREMENT`` (catalogue §24.2; step 7a, readings F44-F45; :func:`retirement_problems`).
 
 The human gate signs the record for one place in one ledger: the ledger id, the position the entry will take and
 the digest of the head it extends, with the record's identity without the provenance that carries the approval. A
@@ -23,7 +24,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from ssds.derivation import TrustRoots
-from ssds.ledger.read import human_key_id, record_id
+from ssds.ledger.read import human_key_id, is_digest, is_unit, record_id
 
 ACTIONS = frozenset({"REGISTER", "ROTATE", "RETIRE", "COMPROMISED"})
 ROLES = frozenset({"ISSUE", "HUMAN"})
@@ -99,4 +100,26 @@ def lifecycle_problems(fields: Any, roots: TrustRoots, position: int) -> list[st
     return problems
 
 
-__all__ = ["ACTIONS", "ROLES", "key_identity", "lifecycle_message", "lifecycle_problems"]
+def retirement_problems(fields: Any, ledger_id: str) -> list[str]:
+    """Why a ``LINEAGE_RETIREMENT`` record's fields cannot be admitted to ``ledger_id``; none if they can.
+
+    Its successor is named for discovery only (reading F44, Q-F13): ``{ledger_id, genesis_digest}``, another
+    ledger, with no binding and no claim of equal state, so nothing else is carried.
+    """
+
+    if not isinstance(fields, Mapping) or set(fields) != {"successor"} or not isinstance(fields["successor"], Mapping):
+        return ["a retirement carries exactly its successor"]
+    successor = fields["successor"]
+    problems = []
+    if set(successor) != {"ledger_id", "genesis_digest"}:
+        problems.append("a successor is exactly {ledger_id, genesis_digest}")
+    if not is_unit(successor.get("ledger_id")):
+        problems.append("a successor's ledger_id is a ledger id")
+    elif successor["ledger_id"] == ledger_id:
+        problems.append("a ledger is never its own successor")
+    if not is_digest(successor.get("genesis_digest")):
+        problems.append("a successor's genesis_digest is a digest")
+    return problems
+
+
+__all__ = ["ACTIONS", "ROLES", "key_identity", "lifecycle_message", "lifecycle_problems", "retirement_problems"]

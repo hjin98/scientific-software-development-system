@@ -121,7 +121,7 @@ class AdmissionHome(Home):
 
     #: The files of a ledger's genesis workspace.
     WORKSPACE_FILES = ("proposal.json", "objects.json", "approval-message.txt", "source.json", "report.json",
-                       "derivation.json")
+                       "derivation.json", "retirement.json", "retirement-message.txt")  # the last two: step 7a
 
     def admission_key(self, ledger_id: str) -> Path:
         self.check_ledger_id(ledger_id)

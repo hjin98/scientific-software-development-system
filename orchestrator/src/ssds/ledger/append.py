@@ -5,7 +5,7 @@ previous entry commit, with object and reference fsync requested. The entry
 commit's first parent is the previous entry commit and its further parents are
 the content commits it newly references, so the ledger keeps them reachable.
 Commit metadata is fixed and never read. A checkpoint reaches a file witness
-by an exclusive, fsynced write that never overwrites.
+by an exclusive, fsynced write that never overwrites, as does a retirement statement.
 
 Git before 2.36 has no reference fsync setting; on such a host the ref update's
 durability rests on the operating system, a limit of the host, not of the rule.
@@ -23,7 +23,8 @@ from typing import Any
 
 from ssds.core.api.v1 import canonical_json
 
-from .qualification import Checkpoint, FileWitness, checkpoint_body, checkpoint_message, write_all
+from .qualification import (RETIREMENT_FILE, Checkpoint, FileWitness, RetirementStatement, checkpoint_body,
+                            checkpoint_message, retirement_message, write_all)
 from .read import entry_digest, ledger_head, ledger_ref
 from .signatures import HostKey, entry_message
 
@@ -146,11 +147,34 @@ def write_checkpoint(witness: FileWitness, checkpoint: Checkpoint) -> None:
     complete checkpoint (Review b341109 A-B13). An existing checkpoint of that name must be this one.
     """
 
-    folder = witness.directory(checkpoint.ledger_id)
-    folder.mkdir(parents=True, exist_ok=True)
     name = f"{checkpoint.position:012d}-{checkpoint.entry_digest.removeprefix('sha256:')}.json"
+    retain(witness.directory(checkpoint.ledger_id), name, canonical_json(checkpoint.to_json()))
+
+
+def retirement_statement(key: HostKey, ledger_id: str, last: Any) -> RetirementStatement:
+    """The statement retiring ``ledger_id`` at ``last``, the chain's ``LINEAGE_RETIREMENT`` entry, signed by the
+    Admission host key ``key`` (§24.2; reading F45)."""
+
+    successor = last.lifecycle["fields"]["successor"]
+    body = {"ledger_id": ledger_id, "kind": "RETIREMENT", "last_position": last.position,
+            "last_entry_digest": last.digest, "successor_ledger_id": successor["ledger_id"],
+            "successor_genesis_digest": successor["genesis_digest"]}
+    return RetirementStatement(body, ((key.key_id, key.sign(retirement_message(body)).hex()),))
+
+
+def write_retirement(witness: FileWitness, statement: RetirementStatement) -> None:
+    """Durably retain a retirement statement at a file witness, append-only like a checkpoint: a different
+    statement already there raises ``AppendFailed``."""
+
+    retain(witness.directory(statement.body["ledger_id"]), RETIREMENT_FILE, canonical_json(statement.to_json()))
+
+
+def retain(folder: Path, name: str, data: bytes) -> None:
+    """Durably retain ``data`` at ``folder/name``, append-only (``write_checkpoint``'s discipline): an existing file
+    of that name must hold exactly ``data``."""
+
+    folder.mkdir(parents=True, exist_ok=True)
     path = folder / name
-    data = canonical_json(checkpoint.to_json())
     temporary = folder / f".{name}.{secrets.token_hex(8)}.tmp"
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)  # a new file only
     try:
@@ -174,4 +198,4 @@ def write_checkpoint(witness: FileWitness, checkpoint: Checkpoint) -> None:
 
 
 __all__ = ["AppendFailed", "AppendRefused", "Appended", "HostKey", "append_entry", "create_ledger_repository",
-           "import_commits", "write_checkpoint"]
+           "import_commits", "retain", "retirement_statement", "write_checkpoint", "write_retirement"]

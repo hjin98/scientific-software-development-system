@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from ssds import derivation
-from ssds.ledger.qualification import HighWaterMark, Qualification, WitnessModel, qualify
+from ssds.ledger.qualification import HighWaterMark, Qualification, WitnessModel, qualify, retirement_held
 
 from .render import Doctrine, Renderer
 
@@ -44,8 +44,9 @@ class LedgerAccess(Protocol):
 
     def chain(self) -> Any: ...
 
-    def witness_reports(self, model: WitnessModel) -> tuple[dict[str, Any], bool]:
-        """Each declared witness's report (None when it does not respond), and whether one declares retirement."""
+    def witness_reports(self, model: WitnessModel) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Each declared witness's report (None when it does not respond), and the retirement statement it holds
+        (``FileWitness.statement``; None when it holds none)."""
 
     def high_water(self) -> HighWaterMark | None: ...
 
@@ -88,8 +89,9 @@ def present(access: LedgerAccess, trees: Callable[[str], Any]) -> Presented:
         return Presented(access.ledger_id, len(chain.entries), None, None, ("no readable genesis",))
     fields = chain.genesis["fields"]
     model = WitnessModel.from_json(fields["witnesses"])
-    reports, retired = access.witness_reports(model)
+    reports, statements = access.witness_reports(model)
     host_keys = {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
+    retired = retirement_held(statements.values(), model.q_a, access.ledger_id, host_keys, chain)  # §24.2, F45
     mark = access.high_water()
     qualification = qualify(chain, reports, model, host_keys, mark, retired=retired)
     if qualification.current and qualification.head is not None:

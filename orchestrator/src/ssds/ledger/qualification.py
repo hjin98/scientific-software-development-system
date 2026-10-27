@@ -12,7 +12,7 @@ import json
 import os
 import secrets
 import stat
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -132,8 +132,101 @@ class FileWitness:
                 continue  # unreadable files are not checkpoints; they hold nothing
         return out
 
-    def retired(self, ledger_id: str) -> bool:
-        return (self.directory(ledger_id) / "RETIREMENT").exists()
+    def statement(self, ledger_id: str) -> RetirementStatement | None:
+        """The retirement statement the witness holds for the ledger, or None: an unreachable witness, no file, or one
+        that is not a closed-shape regular file (a bare marker is none)."""
+
+        path = self.directory(ledger_id) / RETIREMENT_FILE
+        if path.is_symlink() or not path.is_file():
+            return None
+        try:
+            return RetirementStatement.from_json(json.loads(path.read_bytes()))
+        except (KeyError, TypeError, ValueError, AttributeError):
+            return None
+
+
+# -- retirement statements (catalogue §23.3-§23.4, §24.2; Phase F step 7a, reading F45) ----------------------------
+#
+# A ledger is retired by a human-gated LINEAGE_RETIREMENT lifecycle entry; Admission then publishes a retirement
+# statement to the witnesses, signed by its host key like a checkpoint, naming that entry as the ledger's last, whose
+# approval the chain carries. A participant reads RETIRED when q_a declared witnesses hold a statement that verifies.
+
+#: Retirement statements are signed apart from entries and checkpoints.
+RETIREMENT_DOMAIN = b"ssds.retirement.v1"
+#: The file a witness retains the statement in, beside the ledger's checkpoints.
+RETIREMENT_FILE = "RETIREMENT"
+_RETIREMENT_BODY = ("ledger_id", "kind", "last_position", "last_entry_digest", "successor_ledger_id",
+                    "successor_genesis_digest")
+
+
+def retirement_message(body: Mapping[str, Any]) -> bytes:
+    return RETIREMENT_DOMAIN + canonical_json(dict(body))
+
+
+@dataclass(frozen=True)
+class RetirementStatement:
+    """``{ledger_id, kind: RETIREMENT, last_position, last_entry_digest, successor_ledger_id,
+    successor_genesis_digest, signatures}`` (§23.3)."""
+
+    body: dict[str, Any]
+    signatures: tuple[tuple[str, str], ...]  # (host key id, hex signature)
+
+    @classmethod
+    def from_json(cls, raw: Mapping[str, Any]) -> RetirementStatement:
+        if set(raw) != {*_RETIREMENT_BODY, "signatures"} or not isinstance(raw["signatures"], list):
+            raise ValueError("not a retirement statement")
+        signatures = tuple((s["key_id"], s["signature"]) for s in raw["signatures"])
+        if not all(isinstance(k, str) and isinstance(v, str) for k, v in signatures):
+            raise ValueError("a signature is a key id and a hex string")
+        return cls({k: raw[k] for k in _RETIREMENT_BODY}, signatures)
+
+    def to_json(self) -> dict[str, Any]:
+        return {**self.body, "signatures": [{"key_id": k, "signature": v} for k, v in self.signatures]}
+
+    def authentic(self, host_keys: Mapping[str, str]) -> bool:
+        """Signed by a host key of the trust roots."""
+
+        message = retirement_message(self.body)
+        for key_id, signature in self.signatures:
+            try:
+                if key_id in host_keys and verify_host(host_keys[key_id], message, bytes.fromhex(signature)):
+                    return True
+            except ValueError:
+                continue
+        return False
+
+
+def retirement_verified(statement: RetirementStatement | None, ledger_id: str, host_keys: Mapping[str, str],
+                        chain: Chain | None = None) -> bool:
+    """Whether ``statement`` retires ``ledger_id``: authentic under the trust roots ``host_keys`` and, where ``chain``
+    holds its last position, naming the ``LINEAGE_RETIREMENT`` entry there. A participant behind the retirement, or
+    one holding no chain (which passes the trust roots of the genesis it pins), verifies by the trust roots alone."""
+
+    if statement is None or statement.body["ledger_id"] != ledger_id or statement.body["kind"] != "RETIREMENT" \
+            or not statement.authentic(host_keys):
+        return False
+    position = statement.body["last_position"]
+    if not isinstance(position, int) or isinstance(position, bool) or position < 1:
+        return False
+    if chain is None or position >= len(chain.entries):
+        return True
+    last = chain.entries[position]
+    lifecycle = last.lifecycle or {}
+    return last.digest == statement.body["last_entry_digest"] and lifecycle.get("kind") == "LINEAGE_RETIREMENT"
+
+
+def retirement_statements(model: WitnessModel, ledger_id: str) -> dict[str, RetirementStatement | None]:
+    """Each declared witness's statement; only ``FILE`` witnesses are reachable here (F3)."""
+
+    return {w.id: FileWitness(Path(w.location)).statement(ledger_id) if w.kind == "FILE" else None
+            for w in model.witnesses}
+
+
+def retirement_held(statements: Iterable[RetirementStatement | None], q_a: int, ledger_id: str,
+                    host_keys: Mapping[str, str], chain: Chain | None = None) -> bool:
+    """``RETIRED``: ``q_a`` witnesses hold a verified statement (§24.2), one statement per witness."""
+
+    return sum(1 for s in statements if retirement_verified(s, ledger_id, host_keys, chain)) >= q_a
 
 
 @dataclass(frozen=True)
@@ -313,9 +406,10 @@ def loss_status(h: int, m: int, f: int, q_a: int) -> str:
 
 __all__ = [
     "Checkpoint", "DEPLOYMENT_CLASSES", "FileWitness", "HighWaterMark", "HighWaterStore", "Home", "HomeRefused",
-    "Qualification",
+    "Qualification", "RETIREMENT_DOMAIN", "RETIREMENT_FILE", "RetirementStatement",
     "STATES", "WitnessModel", "WitnessSpec", "checkpoint_body", "checkpoint_message", "loss_status",
-    "publish_private", "qualify", "write_all",
+    "publish_private", "qualify", "retirement_held", "retirement_message", "retirement_statements",
+    "retirement_verified", "write_all",
     "quorum_sound",
 ]
 
