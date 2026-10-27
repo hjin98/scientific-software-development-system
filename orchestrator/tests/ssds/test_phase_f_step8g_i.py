@@ -85,27 +85,36 @@ class Integration(Fixture):
         return cand
 
     def test_an_integrating_request_is_built_and_refused(self) -> None:
+        """Review of 26907956, B3: §11.5's two requests. The result is its own records-only request (admitted here
+        with SD-70's gate lifted for it alone); the integrating request is the candidate plus references, carrying no
+        record, and reaches the integration checks of the real owner, which SD-70 then refuses."""
+
         issued = self.issue("HARNESS")
         cand = self.candidate()
         x = transformation_id(self.baseline, cand, [])
         result = self.bind(task_result(x, base=self.baseline, candidate=cand, task=issued.envelope["task_id"]), issued)
+        with mock.patch("ssds.admission.engine.gated", return_value=False):
+            first = self.admit(self.signed(issued, [result]))
+        self.assertEqual((first.decision, first.admitted), ("ACCEPT", (result["id"],)))
+        self.assertIn(x, derive(self.chain(), self.trees).s.submissions, "the result is admitted and fixes X")
         position = len(self.entries()) - 1
-        req = integration_request(issued, result, cand, position, self.baseline)
+        req = integration_request(issued, cand, position, self.baseline)
         self.assertEqual((req["candidates"], req["records"], req["base_position"], req["base_commit"]),
-                         ([cand], [result], position, self.baseline))
-        self.assertEqual(req["binding"], issued.binding(req), "signed by the task's credential over the request")
-        before = len(self.entries())
-        decision = self.admit(req)
-        # an integration reads the transformation an admitted result submits, and under SD-70 none is ever admitted,
-        # so the request is refused before SD-70's own gate: the result passed authentication (bound to its task)
-        self.assertEqual((decision.decision, decision.reasons, decision.refused, decision.admitted),
-                         ("REJECT", ("REF_TRANSFORMATION",), (), ()))
-        self.assertEqual(len(self.entries()), before + 1, "a rejection entry; nothing integrates")
+                         ([cand], [], position, self.baseline))
+        self.assertEqual(req["binding"], issued.binding(req), "signed by the producing task's credential")
+        with mock.patch("ssds.admission.engine.gated", return_value=False):
+            lifted = self.admit(req)
+        # the real owner finds the admitted result's X and judges the integration: this fixture's reviewer task has
+        # no contract, so the candidate's own checks refuse it (§8.3 steps 3 and 7); SD-70's gate follows them
+        self.assertEqual(lifted.reasons, ("AUTH_WRITE_SCOPE", "CONFORMANCE_FAILED", "OBLIGATION_PREDICATE_UNMET"))
+        decision = self.admit({**req, "base_position": len(self.entries()) - 1,
+                               "binding": issued.binding({**req, "base_position": len(self.entries()) - 1})})
+        self.assertEqual((decision.decision, decision.admitted), ("REJECT", ()))
+        self.assertNotIn("REF_TRANSFORMATION", decision.reasons)
         support = derive(self.chain(), self.trees)
-        self.assertNotIn(x, support.s.submissions, "the result is not admitted")
+        self.assertFalse(support.s.integrated, "nothing integrates")
         # SD-70 at its owner: even with every built check passing, a request carrying a candidate fails closed
         self.assertTrue(gated(req, req["records"], support, None))
-        self.assertTrue(gated({**req, "records": []}, [], support, None), "the candidate alone is gated")
 
 
 class Rerequest(Dispatching):

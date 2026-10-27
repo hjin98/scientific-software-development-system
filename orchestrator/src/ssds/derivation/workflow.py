@@ -202,15 +202,17 @@ class Workflow:
                 for envelope, records in sorted(pending.items())]
 
     def _resubmitted(self, rid: str, body: dict[str, Any]) -> bool:
-        """An admitted record is the refused one resubmitted: it cites the refusal and is the same record apart from
-        its binding and provenance, by the same actor, with the same lineage class (catalogue §8.3 step 3: "keeping
-        its original actor and lineage class"; review 8d274c4 B2). A citation alone discharges nothing."""
+        """An admitted record is the refused one resubmitted: the same record apart from its binding, by the same
+        actor, with the same lineage class (catalogue §8.3 step 3: "keeping its original actor and lineage class";
+        review 8d274c4 B2), its provenance the retained one with the refusal cited (``reissue_of``; review of 26907956,
+        B2). A citation alone discharges nothing."""
 
         def content(record: dict[str, Any]) -> dict[str, Any]:
             return {k: v for k, v in record.items() if k not in ("id", "binding", "provenance")}
 
         lineage = (body.get("binding") or {}).get("lineage_class")
-        return any((self.s.record(r).get("provenance") or {}).get("reissue_of") == rid
+        kept = body.get("provenance") if isinstance(body.get("provenance"), dict) else {}
+        return any(self.s.record(r).get("provenance") == {**kept, "reissue_of": rid}  # review of 26907956, B2
                    and content(self.s.record(r)) == content(body)
                    and (self.s.record(r).get("binding") or {}).get("lineage_class") == lineage
                    for r in self.s.records)

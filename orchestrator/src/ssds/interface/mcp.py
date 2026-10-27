@@ -46,7 +46,7 @@ TOOLS: dict[str, dict[str, Any]] = {
 def tool_list() -> list[dict[str, Any]]:
     return [{"name": name, "description": spec["description"],
              "inputSchema": {"type": "object", "properties": {**_LEDGER, **spec["properties"]},
-                             "required": ["ledger", *spec["required"]]}}
+                             "required": ["ledger", *spec["required"]], "additionalProperties": False}}
             for name, spec in TOOLS.items()]
 
 

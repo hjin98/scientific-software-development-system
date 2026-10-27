@@ -84,6 +84,15 @@ class Resubmission(Retained):
                 with self.assertRaises(NotIssuable):
                     reissues(self.chain(), self.trees, other)
 
+    def test_another_record_under_the_original_envelope_is_retained_too(self) -> None:
+        """Mutant R10: the original, unlisted envelope is no re-issue; a never-lost record under it is retained."""
+
+        other = self.bind(finding(materiality="CRITICAL"), self.original)
+        decision = self.admit(self.signed(self.original, [other]))
+        self.assertEqual(decision.refused, ((other["id"], ("AUTH_ENVELOPE",)),))
+        (open_,) = self.open_reissues()
+        self.assertEqual(set(open_.params["records"]), {self.orphan["id"], other["id"]})
+
     def test_a_second_resubmission_is_not_listed(self) -> None:
         _, req = self.resubmit()
         self.admit(req)
@@ -92,7 +101,8 @@ class Resubmission(Retained):
                              len(self.entries()) - 1, self.baseline)
         decision = self.admit(again)
         self.assertEqual(decision.admitted, ())
-        self.assertIn("SCHEMA_UNSUPPORTED", dict(decision.refused)[again["records"][0]["id"]])
+        self.assertIn("AUTH_ENVELOPE", dict(decision.refused)[again["records"][0]["id"]],
+                      "no longer listed, and a re-issue carries only listed resubmissions (review of 26907956, B1)")
 
     def test_it_counts_as_the_original_would_have(self) -> None:
         """Plan check of 70cef9cf: the resubmitted report derives what the original would have, had it been admitted
@@ -137,7 +147,7 @@ class OriginalGone(Retained):
         with mock.patch.object(Workflow, "obligations", property(without)):
             self.assertEqual(self.open_reissues(), [], "REISSUE is discharged")
 
-    def test_another_record_under_the_reissue_has_no_obligation(self) -> None:
+    def test_another_record_under_the_reissue_is_refused(self) -> None:
         gone = self.original.envelope["obligation_id"]
         real = Workflow.obligations
 
@@ -152,8 +162,49 @@ class OriginalGone(Retained):
         req["binding"] = issued.binding(req)
         with mock.patch.object(Workflow, "obligations", property(without)):
             decision = self.admit(req)
-        self.assertEqual(decision.admitted, ())
-        self.assertIn("AUTH_ENVELOPE", decision.reasons)
+        self.assertEqual(dict(decision.refused).get(extra["id"]), ("AUTH_ENVELOPE",))
+        self.assertEqual(decision.admitted, (req["records"][0]["id"],), "the resubmission alone")
+
+
+class Attested(Fixture):
+    """Review of 26907956, note on (a): a record retained with ``HUMAN_ATTESTED_FRESH`` is resubmitted only with its
+    co-signer's new attestation, so the ledger holds the evidence for its class again."""
+
+    def test_an_attested_record_is_reattested(self) -> None:
+        from ssds.admission.request import request_message
+        from ssds.ledger.read import with_id
+
+        from ._fixtures import record, sshsig
+
+        def attest(target):
+            return with_id({**record("LINEAGE_ATTESTATION", target={"record": target["id"]},
+                                     outcome="HUMAN_ATTESTED_FRESH"), "actor": self.human()})
+
+        def cosign(issued, req):
+            req["binding"] = {**issued.binding(req), "human": {
+                "actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+            return req
+
+        original = self.issue("MANUAL")
+        self.lifecycle("RETIRE", self.issuer.trust_root(), outstanding=[])
+        rec = self.bind(finding(materiality="MATERIAL"), original)
+        rec = with_id({**rec, "binding": {**rec["binding"], "lineage_class": "HUMAN_ATTESTED_FRESH"}})
+        req = self.request([rec, attest(rec)], base_position=len(self.entries()) - 1)
+        refused = self.admit(cosign(original, req))
+        self.assertIn((rec["id"], ("AUTH_ENVELOPE",)), refused.refused, "retained with its class")
+        in_force = self.issuer_at("other")
+        self.lifecycle("REGISTER", in_force.trust_root())
+        ((envelope, kept),) = reissues(self.chain(), self.trees, self.held())
+        issued = reissue(in_force, envelope, self.held())
+        plain = resubmission(issued, kept, len(self.entries()) - 1, self.baseline)
+        self.assertEqual(dict(self.admit(plain).refused).get(plain["records"][0]["id"]), ("AUTH_ENVELOPE",),
+                         "no evidence for its class")
+        again = resubmission(issued, kept, len(self.entries()) - 1, self.baseline)
+        (resubmitted_rec,) = again["records"]
+        again = cosign(issued, {**again, "records": [resubmitted_rec, attest(resubmitted_rec)]})
+        decision = self.admit(again)
+        self.assertIn(resubmitted_rec["id"], decision.admitted)
+        self.assertFalse([o for o in Workflow(derive(self.chain(), self.trees)).obligations if o.kind == "REISSUE"])
 
 
 class Refused(Retained):
@@ -217,14 +268,50 @@ class Refused(Retained):
         req["binding"] = issued.binding(req)
         self.assertRefused(req)
 
-    def test_an_unlisted_citation_stays_unsupported(self) -> None:
+    def test_a_reissue_carries_only_resubmissions(self) -> None:
+        """Review of 26907956, B1: the original actor is accepted only for the listed identities, while the original
+        obligation stands and after REISSUE is discharged."""
+
+        issued, req = self.resubmit()
+        fresh = self.bind(finding(note="fresh"), issued)
+        self.assertEqual(fresh["actor"], self.orphan["actor"], "the original task's actor namespace")
+        mixed = {**req, "records": [*req["records"], fresh]}
+        mixed["binding"] = issued.binding(mixed)
+        decision = self.admit(mixed)
+        self.assertEqual(dict(decision.refused).get(fresh["id"]), ("AUTH_ENVELOPE",))
+        self.assertEqual(decision.admitted, (req["records"][0]["id"],))
+        self.assertEqual(self.open_reissues(), [], "discharged")
+        alone = resubmission(issued, {}, len(self.entries()) - 1, self.baseline)
+        later = self.bind(finding(note="later"), issued)
+        alone = {**alone, "records": [later]}
+        alone["binding"] = issued.binding(alone)
+        self.assertEqual(dict(self.admit(alone).refused).get(later["id"]), ("AUTH_ENVELOPE",))
+
+    def test_provenance_is_the_retained_one_and_a_citation_counts_once(self) -> None:
+        """Review of 26907956, B2."""
+
+        from ssds.ledger.read import with_id
+
+        issued, req = self.resubmit()
+        (rec,) = req["records"]
+        forged = with_id({**rec, "provenance": {**rec["provenance"], "model_family": "forged"}})
+        twin = with_id({**rec, "provenance": {**rec["provenance"], "note": "twin"}})
+        for records in ([forged], [rec, twin]):
+            with self.subTest(records=len(records)):
+                bad = {**req, "records": records}
+                bad["binding"] = issued.binding(bad)
+                decision = self.admit(bad)
+                self.assertEqual(dict(decision.refused).get(records[-1]["id"]), ("AUTH_ENVELOPE",))
+                self.assertEqual(decision.admitted, tuple(r["id"] for r in records[:-1]))
+
+    def test_an_unlisted_citation_is_refused(self) -> None:
         issued, _ = self.resubmit()
         stray = resubmitted({k: v for k, v in self.orphan.items() if k != "id"}, "sha256:" + "ab" * 32,
                             binding_digest(issued.binding()))
         req = resubmission(issued, {}, len(self.entries()) - 1, self.baseline)
         req = {**req, "records": [stray]}
         req["binding"] = issued.binding(req)
-        self.assertRefused(req, "SCHEMA_UNSUPPORTED")
+        self.assertRefused(req, "AUTH_ENVELOPE")  # under a re-issue (B1); elsewhere SCHEMA_UNSUPPORTED (step 4b-ii)
 
 
 if __name__ == "__main__":

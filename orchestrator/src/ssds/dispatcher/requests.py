@@ -1,9 +1,11 @@
 """The Dispatcher's requests: integration requests and the re-request of an overtaken basis (catalogue §9.1, §11.5;
 Phase F step 8g-i, reading F73).
 
-An integrating request is §11.5 (3)'s: the candidate, the task's bound ``TASK_RESULT`` naming its transformation, and
-the references the ledger already holds (F32), signed by the task's credential. Under SD-70 Admission refuses it
-``SCHEMA_UNSUPPORTED`` until A10's D4; it is built so the refusal is exercised at Admission's entry.
+An integrating request is §11.5 (3)'s: "the candidate plus references to those admitted records", carrying no new
+judgment. The task's ``TASK_RESULT`` is its own records-only request, admitted first (§11.5 (1)); the integrating
+request carries no record, and Admission reads the transformation that admitted result submits, with its judgments,
+from the ledger (F32), signed by the producing task's credential. Under SD-70 Admission refuses it
+``SCHEMA_UNSUPPORTED`` until A10's D4 (review of 26907956, B3).
 
 A request whose basis is overtaken is revalidated, never silently admitted (§9.1). Admission revalidates first: its
 step 9 absorbs the observed head and revalidates the same request there. The Dispatcher acts only on that outcome:
@@ -30,12 +32,12 @@ from ssds.derivation import Workflow, derive
 from .schedule import NotIssuable, Task, ready
 
 
-def integration_request(issued: Any, result: dict[str, Any], candidate: str, base_position: int,
-                        base_commit: str) -> dict[str, Any]:
-    """The integrating request of a task whose result submits ``candidate`` on ``base_commit`` (§11.5 (3))."""
+def integration_request(issued: Any, candidate: str, base_position: int, base_commit: str) -> dict[str, Any]:
+    """The integrating request for ``candidate``, which the producing task ``issued``'s admitted result submits
+    (§11.5 (3)): no record, the references read from the ledger."""
 
     request: dict[str, Any] = {"binding": None, "claims": [], "base_position": base_position, "base_commit": base_commit,
-                               "candidates": [candidate], "adopted_deltas": [], "records": [result], "objects": {}}
+                               "candidates": [candidate], "adopted_deltas": [], "records": [], "objects": {}}
     request["binding"] = issued.binding(request)
     return request
 

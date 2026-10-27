@@ -32,7 +32,7 @@ from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Q
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 
-from .authenticate import authenticate, retained, stored_attestations
+from .authenticate import authenticate, reissued_tasks, retained, stored_attestations
 from .authorize import authorize
 from .checks import (content_identity, on_merits, over_bounds, producing_context, record_problems, referenced_objects,
                      referenced_records, referenced_revisions, request_problems, target_references, transformation_named,
@@ -694,7 +694,7 @@ class Admission:
             listed = retained(s.h, position, stored) if "REF_BASE" not in reasons and isinstance(position, int) \
                 and not isinstance(position, bool) and 0 <= position <= s.n else {}
             auth = authenticate(request, passing, trust_roots(entries), s.n, stored_attestations(stored, bindings),
-                                listed)
+                                listed, reissued_tasks(entries))
             reasons |= auth.reasons
             covered = {rid for rid, _ in auth.refused}
             refused += list(auth.refused)

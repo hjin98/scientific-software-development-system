@@ -947,7 +947,9 @@ class Reissue(RequestFixture):
                  "another actor": (with_id({**orphan, "actor": "agent:someone/1", "binding": rebound,
                                             "provenance": {"reissue_of": orphan["id"]}}), True),
                  "another lineage class": (with_id({**orphan, "binding": {**rebound, "lineage_class": "ATTESTED_FRESH"},
-                                                    "provenance": {"reissue_of": orphan["id"]}}), True)}
+                                                    "provenance": {"reissue_of": orphan["id"]}}), True),
+                 "another provenance": (with_id({**orphan, "binding": rebound,  # review of 26907956, B2
+                                                 "provenance": {"reissue_of": orphan["id"], "note": "x"}}), True)}
         for name, (resubmitted, still_open) in cases.items():
             with self.subTest(name=name):
                 entry = self.admission.admission_entry(head, self.baseline, "sha256:" + "0" * 64, "ACCEPT", [],

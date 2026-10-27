@@ -70,7 +70,7 @@ class GitEnvelope(RequestFixture):
         publish(self.scratch, self.product, issued.binding(), b"brief")
         with self.assertRaisesRegex(TransportRefused, "already exists"):
             publish(self.scratch, self.product, issued.binding(), b"another brief")
-        for bad in ("", "../x", "a b", "a:b", "/x", "x.lock", "a/", "a.", "a@{b", "a//b", "a/.b", "a\x01b"):
+        for bad in ("", "../x", "a b", "a:b", "/x", "x.lock", "a/", "a.", "a@{b", "a//b", "a/.b", "a\x01b", "x/y"):
             with self.subTest(task=bad), self.assertRaises(TransportRefused):
                 run_ref(bad)
         self.assertTrue(run_ref("task-1-x").startswith(RUN_REF))
@@ -94,6 +94,19 @@ class GitEnvelope(RequestFixture):
             publish(self.scratch, self.product, issued.binding(), b"brief")
         self.assertEqual(git(self.product, "count-objects", "-v"), before, "no object reaches the product's store")
         self.assertTrue(git(self.scratch, "rev-parse", run_ref(issued.envelope["task_id"])))
+
+    def test_the_scratch_repositorys_hooks_do_not_run(self) -> None:
+        """Review of 7be4890d, note 2: a hook planted in the scratch repository never runs."""
+
+        hooks = self.scratch / ".git" / "hooks"
+        hooks.mkdir(exist_ok=True)
+        marker = self.root / "hook-ran"
+        hook = hooks / "reference-transaction"
+        hook.write_text(f"#!/bin/sh\ntouch {marker}\nexit 1\n")
+        hook.chmod(0o755)
+        issued = self.issue("GIT_ENVELOPE")
+        publish(self.scratch, self.product, issued.binding(), b"brief")
+        self.assertFalse(marker.exists())
 
     def test_a_sha256_scratch_repository(self) -> None:
         sha256 = self.root / "sha256"
@@ -135,6 +148,7 @@ class Mcp(RequestFixture):
         self.assertEqual({t["name"] for t in listed}, {command_name(c) for c in SSDS_COMMANDS})
         for tool in listed:
             self.assertIn("ledger", tool["inputSchema"]["required"])
+            self.assertIs(tool["inputSchema"]["additionalProperties"], False, "as strict as the server (note 1)")
 
     def test_a_call_answers_as_the_session_does(self) -> None:
         response = self.call("status")

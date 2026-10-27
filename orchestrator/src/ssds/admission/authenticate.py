@@ -30,7 +30,11 @@ role, contract revision and ``governs``. For exactly the identities a ``REISSUE`
 lists, a record citing one (``provenance.reissue_of``) is authenticated against the retained record instead of the
 envelope's launch: its content apart from ``id``, ``binding`` and ``provenance`` equals the retained body, and its
 actor, ``lineage_class`` and ``lineage`` equal the retained record's, which were verified against the original stored
-binding object when it was refused (F9, F11; re-check of 70cef9cf, note 1).
+binding object when it was refused (F9, F11; re-check of 70cef9cf, note 1). Its provenance is exactly the retained
+provenance with ``reissue_of`` added, each identity is cited once per request, and a record whose class is
+``HUMAN_ATTESTED_FRESH`` is re-attested by the co-signer in the same request (8d's path), so the ledger again holds
+the evidence for its class. An envelope of a task that was ever refused under an unlisted retired envelope is a
+re-issue: it carries nothing but such resubmissions (review of 26907956, B1-B2).
 
 The role, record-kind, write-scope and other authorization checks of step 3 are Phase F step 4's.
 """
@@ -103,6 +107,28 @@ def retained(history: Any, position: int, objects: Mapping[str, bytes]) -> dict[
             obligation = next((x for x in at.obligations if x.id == original["obligation_id"]), None)
             out[rid] = Retained(body, original, obligation)
     return out
+
+
+def reissued_tasks(entries: Any) -> frozenset[str]:
+    """The tasks whose envelopes a refusal retained a record under (an unlisted retired envelope): an envelope of
+    such a task under a key in force is a re-issue, which carries only resubmissions (review of 26907956, B1). Read
+    from the refusal entries' stored binding objects, so a task stays one after its ``REISSUE`` is discharged."""
+
+    out: set[str] = set()
+    for item in entries:
+        admission = item.entry.get("admission") if isinstance(item.entry, Mapping) else None
+        for refusal in (admission or {}).get("refused", []) if isinstance(admission, Mapping) else []:
+            rid = refusal.get("record_id") if isinstance(refusal, Mapping) else None
+            if "AUTH_ENVELOPE" not in (refusal.get("reasons") or []) or rid not in item.objects:
+                continue
+            try:
+                body = json.loads(item.objects[rid])
+                original = json.loads(item.objects[body["binding"]["envelope"]])["envelope"]
+            except (KeyError, TypeError, ValueError):
+                continue
+            if isinstance(original, Mapping) and isinstance(original.get("task_id"), str):
+                out.add(original["task_id"])
+    return frozenset(out)
 
 
 def resubmission(record: Mapping[str, Any], listed: Mapping[str, Retained]) -> Retained | None:
@@ -205,7 +231,7 @@ def stored_attestations(objects: Mapping[str, bytes], bindings: set[str]) -> dic
 
 def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRoots, head: int,
                  attestations: Mapping[str, list[str]] | None = None,
-                 listed: Mapping[str, Retained] | None = None) -> Authentication:
+                 listed: Mapping[str, Retained] | None = None, reissued: frozenset[str] = frozenset()) -> Authentication:
     binding = request.get("binding")
     if not isinstance(binding, Mapping) or not _encodable(binding):
         return NOT_AUTHENTICATED
@@ -262,6 +288,7 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         if lineage == "ATTESTED_FRESH" else []
     refused = []
     resubmitted: dict[str, Retained] = {}
+    reissue = envelope["task_id"] in reissued and not retired  # a re-issued task's envelope (B1)
     for record in records:
         own = []
         actor = record.get("actor")
@@ -274,15 +301,23 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
             original, rb, kb = kept.envelope, record.get("binding"), kept.body.get("binding")
             rb, kb = (rb if isinstance(rb, Mapping) else {}), (kb if isinstance(kb, Mapping) else {})
             fields = ("task_id", "obligation_id", "role", "contract_revision", "governs")
-            if retired or any(envelope[k] != original[k] for k in fields) \
+            cited = record["provenance"]["reissue_of"]
+            provenance = kept.body.get("provenance")
+            if retired or any(envelope[k] != original[k] for k in fields) or cited in resubmitted \
                     or _content(record) != _content(kept.body) \
+                    or record["provenance"] != {**(provenance if isinstance(provenance, Mapping) else {}),
+                                                "reissue_of": cited} \
+                    or kb.get("lineage_class") == "HUMAN_ATTESTED_FRESH" and record.get("id") not in attested \
                     or (actor, record.get("actor_class")) != (kept.body.get("actor"), kept.body.get("actor_class")) \
                     or rb.get("envelope") != digest \
                     or {k: v for k, v in rb.items() if k != "envelope"} != \
                     {k: v for k, v in kb.items() if k != "envelope"}:
                 refused.append((record["id"], ("AUTH_ENVELOPE",)))
             else:
-                resubmitted[record["provenance"]["reissue_of"]] = kept
+                resubmitted[cited] = kept
+            continue
+        if reissue:
+            refused.append((record["id"], ("AUTH_ENVELOPE",)))  # a re-issue carries only resubmissions (B1)
             continue
         if record.get("id") in attested:
             expected = "HUMAN_ATTESTED_FRESH"  # fixed at admission by the co-submitted attestation (§5.10 (a))
@@ -344,5 +379,5 @@ def _human(request: Mapping[str, Any], human: Any, records: list[dict], roots: T
     return Authentication(True, frozenset(), tuple(refused), None, {})
 
 
-__all__ = ["Authentication", "NOT_AUTHENTICATED", "Retained", "authenticate", "lineage_closure", "resubmission",
-           "retained", "stored_attestations"]
+__all__ = ["Authentication", "NOT_AUTHENTICATED", "Retained", "authenticate", "lineage_closure", "reissued_tasks",
+           "resubmission", "retained", "stored_attestations"]
