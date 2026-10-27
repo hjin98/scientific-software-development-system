@@ -80,7 +80,7 @@ class Live(unittest.TestCase):
         threading.Thread(target=lambda: listener.accept(), daemon=True).start()
         setup = (f"import os; os.environ['CANARY'] = {str(self.canary)!r}; os.environ['AGENT'] = {agent!r}; "
                  f"os.environ['PORT'] = '{port}'; exec(open('/work/probe.py').read())")
-        provider = RunnerProvider(argv=("/usr/bin/python3", "-I", "-c", setup))
+        provider = RunnerProvider(argv=("/usr/bin/python3", "-I", "-c", setup), components=(("/usr", "host-usr"),))
         ws = self.workspaces.materialize("demo", self.tree)
         found = Sandbox(self.workspaces, (self.home.root,)).execute(ws, self.tree, provider, 60.0)
         self.assertIsNone(found.incomplete, found.detail)
@@ -113,7 +113,8 @@ class Live(unittest.TestCase):
 
         import time
 
-        provider = RunnerProvider(argv=("/bin/sh", "-c", "while :; do date +%s%N > /out/tick; sleep 0.1; done"))
+        provider = RunnerProvider(argv=("/bin/sh", "-c", "while :; do date +%s%N > /out/tick; sleep 0.1; done"),
+                                  components=(("/usr", "host-usr"),))
         ws = self.workspaces.materialize("demo", self.tree)
         found = Sandbox(self.workspaces, (self.home.root,)).execute(ws, self.tree, provider, 1.0)
         self.assertEqual(found.incomplete, "TIME_BOUND")

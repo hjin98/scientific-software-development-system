@@ -23,9 +23,12 @@ entry's Git mode and bytes, and imports no content model.
 
 from __future__ import annotations
 
+import ctypes
+import hashlib
 import inspect
 import json
 import os
+import resource
 import secrets
 import shutil
 import signal
@@ -292,12 +295,21 @@ _MERGED_USR = (("usr/bin", "/bin"), ("usr/lib", "/lib"), ("usr/lib64", "/lib64")
 class RunnerProvider:
     """What a designated runner class runs (F113; Manual §26.3's runner provider contract, re-exported by
     ``ssds.spi.v1``): the argv inside the sandbox, run in ``/work``; the system directories bound read-only at their
-    own paths; the execution attributes it records; and the output convention, ``/out/outputs.json``. It writes only
-    to ``/tmp`` or ``/out``: the tree is read-only."""
+    own paths, each with its declared identity in ``components`` (F118: a directory bound without one is an
+    undeclared environment component, and the run is held); the execution attributes it records beyond the
+    environment's; and the output convention, ``/out/outputs.json``. It writes only to ``/tmp`` or ``/out``: the
+    tree is read-only."""
 
     argv: tuple[str, ...]
     system: tuple[str, ...] = ("/usr",)
     attributes: tuple[tuple[str, str], ...] = ()
+    components: tuple[tuple[str, str], ...] = ()
+
+    def undeclared(self) -> list[str]:
+        """The bound directories with no declared identity (F118)."""
+
+        declared = dict(self.components)
+        return [d for d in self.system if not declared.get(d)]
 
 
 @dataclass(frozen=True)
@@ -312,16 +324,140 @@ class Execution:
     raw: bytes | None = field(default=None, repr=False)  # a surviving outcome's bytes, kept for the owner
 
 
+# -- the confined environment (step 9g-iii; reading F118) ----------------------------------------------------------
+#
+# Everything the process inherits from the Executor is either fixed here or recorded as an execution attribute
+# (re-check of fdfd99c9, R1). Fixed: the user and group ids, the hostname, the environment, the umask, the signal
+# mask and dispositions (``restore_signals``), the descriptors (only those bound), the soft resource limits, the
+# scheduling priority (never lowered below the Executor's, which needs a privilege) and the personality (Linux's
+# default, address-space randomization on). Recorded: each bound component's declared identity, ``/dev``, the
+# sandbox's version, the kernel, the architecture, the processor, the usable processors, the memory, the fixed
+# environment, the provider, the identity and the limits. Unrecorded and disclosed (§6.5): ``/dev/urandom``,
+# address-space randomization, wall-clock time (Q-F27) and a host quota the process cannot read.
+
+RUNNER_UID = RUNNER_GID = 1000
+HOSTNAME = "ssds-runner"
+UMASK = 0o022
+NICE = 0
+ENVIRONMENT = (("PATH", "/usr/bin:/bin"), ("HOME", RUNNER_HOME), ("LANG", "C.UTF-8"), ("TMPDIR", "/tmp"))
+#: The soft limits a run starts with (``None``: unlimited), each lowered to the host's hard limit where that is
+#: lower; the hard limits are the host's, recorded.
+LIMITS = (("RLIMIT_STACK", 8 << 20), ("RLIMIT_NOFILE", 1024), ("RLIMIT_AS", None), ("RLIMIT_CORE", 0),
+          ("RLIMIT_NPROC", None), ("RLIMIT_FSIZE", None), ("RLIMIT_CPU", None), ("RLIMIT_DATA", None),
+          ("RLIMIT_MEMLOCK", 64 << 10))
+#: ``personality(2)``'s ``PER_LINUX``: no flag set, so address-space randomization is on.
+PER_LINUX = 0
+
+
+def run_limits(getrlimit: Callable[[int], tuple[int, int]] = resource.getrlimit) -> tuple[tuple[str, int, int], ...]:
+    """Each limit as ``(name, soft, hard)``: the class's soft value lowered to the host's hard limit (F118)."""
+
+    infinity = resource.RLIM_INFINITY
+    out = []
+    for name, wanted in LIMITS:
+        _, hard = getrlimit(getattr(resource, name))
+        if wanted is None:
+            soft = hard
+        else:
+            soft = wanted if hard == infinity else min(wanted, hard)
+        out.append((name, soft, hard))
+    return tuple(out)
+
+
+def run_priority(getpriority: Callable[[int, int], int] = os.getpriority) -> int:
+    """The scheduling priority a run starts with: the class's, unless the Executor's is lower (a higher nice value),
+    which only a privilege could undo."""
+
+    return max(NICE, getpriority(os.PRIO_PROCESS, 0))
+
+
+def _personality() -> Callable[[int], int]:
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.personality.argtypes, libc.personality.restype = [ctypes.c_ulong], ctypes.c_int
+    return libc.personality
+
+
+def child_setup(limits: tuple[tuple[str, int, int], ...], nice: int) -> Callable[[], None]:
+    """What the spawned child fixes before it execs ``bwrap`` (F118). Everything it calls is resolved here, before the
+    fork; the Executor runs one execution at a time, so no lock is held across it."""
+
+    personality = _personality()
+    settings = [(getattr(resource, name), soft, hard) for name, soft, hard in limits]
+
+    def setup() -> None:
+        signal.pthread_sigmask(signal.SIG_SETMASK, ())
+        os.umask(UMASK)
+        for which, soft, hard in settings:
+            resource.setrlimit(which, (soft, hard))
+        os.setpriority(os.PRIO_PROCESS, 0, nice)
+        if personality(PER_LINUX) == -1:
+            raise OSError(ctypes.get_errno(), "personality")
+
+    return setup
+
+
+def _cpu_identity() -> str:
+    """The processor's model and features, as a digest of the first processor's ``/proc/cpuinfo`` lines that name
+    them, read by the Executor on the host (the sandbox mounts no ``/proc``)."""
+
+    keys = ("vendor_id", "cpu family", "model", "model name", "stepping", "flags", "Features", "CPU implementer",
+            "CPU architecture", "CPU variant", "CPU part")
+    try:
+        text = Path("/proc/cpuinfo").read_text(errors="replace")
+    except OSError:
+        return "unknown"
+    first = text.split("\n\n", 1)[0]
+    lines = sorted(line.split(":", 1)[0].strip() + ":" + line.split(":", 1)[1].strip()
+                   for line in first.splitlines() if ":" in line and line.split(":", 1)[0].strip() in keys)
+    return "sha256:" + hashlib.sha256("\n".join(lines).encode()).hexdigest()
+
+
+def _canonical(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+
+def bubblewrap_version() -> str:
+    """The host's ``bubblewrap`` package version (SD-86), or ``unknown``."""
+
+    try:
+        found = subprocess.run(["dpkg-query", "-W", "-f=${Version}", "bubblewrap"], capture_output=True, text=True,
+                               timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    return found.stdout.strip() if found.returncode == 0 and found.stdout.strip() else "unknown"
+
+
+def environment_attributes(provider: RunnerProvider, version: str, limits: tuple[tuple[str, int, int], ...],
+                           nice: int) -> tuple[tuple[str, str], ...]:
+    """The execution attributes a run in this sandbox records (F118), each ``[name, value]`` with a string value."""
+
+    uname = os.uname()
+    declared = dict(provider.components)
+    identity = {"uid": RUNNER_UID, "gid": RUNNER_GID, "hostname": HOSTNAME, "umask": f"{UMASK:04o}", "nice": nice,
+                "personality": PER_LINUX, "capabilities": []}  # bwrap keeps none in its user namespace
+    shown = {"argv": list(provider.argv), "system": list(provider.system),
+             "components": sorted(map(list, declared.items()))}
+    return (*((f"env:{d}", declared[d]) for d in provider.system),
+            ("dev", "bwrap-minimal"), ("sandbox", version), ("kernel", f"{uname.release} {uname.version}"),
+            ("machine", uname.machine), ("cpu", _cpu_identity()), ("cpus", str(len(os.sched_getaffinity(0)))),
+            ("memory", str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES"))),
+            ("environment", _canonical(dict(ENVIRONMENT))),
+            ("provider", "sha256:" + hashlib.sha256(_canonical(shown).encode()).hexdigest()),
+            ("identity", _canonical(identity)), ("limits", _canonical({n: [s, h] for n, s, h in limits})))
+
+
 def sandbox_argv(provider: RunnerProvider, tree_fd: int, out_fd: int, status_fd: int,
                  bwrap: str = "/usr/bin/bwrap") -> list[str]:
     """The ``bwrap`` command on an allowlisted root (F113). Every mount destination sits on bwrap's own tmpfs root
     and none lies beneath the workspace, the design rule the host package's dropped link-resolution fix requires
     (Q-F26). The user's home, the SSDS home and ``/run`` are never bound; ``/proc`` and ``/sys`` are not mounted;
-    ``--unshare-all`` leaves no network."""
+    ``--unshare-all`` leaves no network. The ids and the hostname are the class's (F118)."""
 
     argv = [bwrap, "--unshare-all", "--die-with-parent", "--new-session", "--clearenv",
-            "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "HOME", RUNNER_HOME, "--setenv", "LANG", "C.UTF-8",
-            "--setenv", "TMPDIR", "/tmp", "--json-status-fd", str(status_fd)]
+            "--uid", str(RUNNER_UID), "--gid", str(RUNNER_GID), "--hostname", HOSTNAME]
+    for name, value in ENVIRONMENT:
+        argv += ["--setenv", name, value]
+    argv += ["--json-status-fd", str(status_fd)]
     for directory in provider.system:
         argv += ["--ro-bind", directory, directory]
     for target, link in _MERGED_USR:
@@ -343,7 +479,8 @@ def mount_destinations(argv: list[str]) -> list[str]:
         if flag in ("--tmpfs", "--dev"):
             out.append(argv[i + 1])
         i += 3 if flag in takes_two | {"--ro-bind-fd", "--bind-fd"} else 2 if flag in ("--tmpfs", "--dev", "--chdir",
-                                                                          "--json-status-fd") else 1
+                                                                          "--json-status-fd", "--uid", "--gid",
+                                                                          "--hostname") else 1
     return out
 
 
@@ -371,15 +508,30 @@ class Sandbox:
 
     def __init__(self, workspaces: Workspaces, forbidden: tuple[Path, ...], *, bwrap: str = "/usr/bin/bwrap",
                  clock: Callable[[], float] = time.monotonic, popen: Callable[..., Any] = subprocess.Popen,
-                 poll_seconds: float = 0.05) -> None:
+                 poll_seconds: float = 0.05, version: Callable[[], str] = bubblewrap_version) -> None:
         self.workspaces, self.forbidden, self.bwrap = workspaces, forbidden, bwrap
         self.clock, self.popen, self.poll_seconds = clock, popen, poll_seconds
+        self._version, self._read_version = None, version
+
+    @property
+    def version(self) -> str:
+        if self._version is None:
+            self._version = self._read_version()
+        return self._version
+
+    def attributes(self, provider: RunnerProvider) -> tuple[tuple[str, str], ...]:
+        """What a run of ``provider`` here records: the environment's attributes, then the provider's own (F118)."""
+
+        return (*environment_attributes(provider, self.version, run_limits(), run_priority()), *provider.attributes)
 
     def execute(self, workspace: Workspace, tree: Mapping[str, Any], provider: RunnerProvider,
                 bound_seconds: float) -> Execution:
         refused = refused_sources(provider, self.forbidden)
         if refused:
             return Execution(None, "FAILED_TO_START", detail=f"bound sources inside a forbidden tree: {refused}")
+        if provider.undeclared():
+            return Execution(None, "FAILED_TO_START",
+                             detail=f"an undeclared environment component: {provider.undeclared()} (F118)")
         try:
             top = self.workspaces._tree(workspace)
         except HomeRefused as exc:
@@ -406,9 +558,12 @@ class Sandbox:
             try:
                 argv = sandbox_argv(provider, top, out, write_status, self.bwrap)
                 try:
+                    # what the run inherits is fixed in the child before it execs (F118); recorded by attributes()
+                    setup = child_setup(run_limits(), run_priority())
                     process = self.popen(argv, pass_fds=(top, out, write_status), start_new_session=True,
                                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                         stderr=subprocess.DEVNULL)
+                                         stderr=subprocess.DEVNULL, close_fds=True, restore_signals=True,
+                                         preexec_fn=setup)
                 except OSError as exc:
                     return Execution(None, "FAILED_TO_START", detail=f"the sandbox could not start: {exc}")
             finally:
@@ -513,5 +668,7 @@ def _outputs(out: int) -> bytes | None:
     return data if len(data) <= MAX_OUTPUT_BYTES else None
 
 
-__all__ = ["Execution", "MaterializeRefused", "OUT", "RUNS", "RunnerProvider", "Sandbox", "WORK", "Workspace",
-           "Workspaces", "mount_destinations", "reads_as_git", "refused_sources", "sandbox_argv"]
+__all__ = ["ENVIRONMENT", "Execution", "HOSTNAME", "LIMITS", "MaterializeRefused", "OUT", "RUNNER_GID", "RUNNER_UID",
+           "RUNS", "RunnerProvider", "Sandbox", "UMASK", "WORK", "Workspace", "Workspaces", "bubblewrap_version",
+           "child_setup", "environment_attributes", "mount_destinations", "reads_as_git", "refused_sources",
+           "run_limits", "run_priority", "sandbox_argv"]

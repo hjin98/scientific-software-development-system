@@ -144,12 +144,15 @@ class Executor:
             return "no provider for the class here"
         if RunnerKey(self.home, self.ledger_id, runner_class).key_id not in cls.keys:
             return "this Dispatcher holds no key the class designates"
+        provider = self.providers[runner_class]
+        if provider.undeclared():
+            return f"an undeclared environment component: {provider.undeclared()} (F118)"
         if o.kind == "RERUN":
             basis = support.a.basis(real)
-            provider = self.providers[runner_class]
             if not cls.observes_outside_reads:
                 return "the class does not observe outside reads: every run here is unpinnable, none ext-equal"
-            if basis.get("pins") or dict(map(tuple, basis.get("attributes") or [])) != dict(provider.attributes):
+            if basis.get("pins") or dict(map(tuple, basis.get("attributes") or [])) \
+                    != dict(self.sandbox.attributes(provider)):
                 return "no run here records real(a⁻)'s pins and attributes: none ext-equal"
         if self._hold_key(o, spec) in outstanding:
             return "an execution of this configuration is outstanding"
@@ -207,7 +210,7 @@ class Executor:
         run_id = secrets.token_hex(16)
         n = support.s.n
         execution = {**basis, "runner": {"class": runner_class, "key": key.key_id},
-                     "attributes": [list(a) for a in provider.attributes], "pins": [],
+                     "attributes": [list(a) for a in self.sandbox.attributes(provider)], "pins": [],
                      "unpinnable": not basis["observes_outside_reads"], "start": n, "end": n}
         view = at.s.view
         target = {"spec": {"unit": spec, "rev": view.rev(spec)}, "claim": [{"unit": c, "rev": view.rev(c)} for c in claims]}

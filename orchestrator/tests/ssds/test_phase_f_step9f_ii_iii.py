@@ -23,13 +23,16 @@ from ssds.ledger.qualification import Home
 from . import test_phase_f_step9d_iii as harness
 
 GOVERNS = {"mode": "LEGACY", "protocol": "7.2.1"}
-PROVIDER = RunnerProvider(argv=("/bin/true",))
+PROVIDER = RunnerProvider(argv=("/bin/true",), components=(("/usr", "host-usr"),))
 
 
 class FakeSandbox:
     def __init__(self, *results: Execution) -> None:
         self.results = list(results)
         self.calls = 0
+
+    def attributes(self, provider):
+        return tuple(provider.attributes)
 
     def execute(self, workspace, tree, provider, bound_seconds):
         self.calls += 1
@@ -312,7 +315,8 @@ class ReadingClose(Fixture):
                      "needs user namespaces: run on the host with SSDS_LIVE_SANDBOX=1 (F113's live tests)")
 class LiveEndToEnd(Fixture):
     def test_a_realize_run_in_the_sandbox_and_admitted(self) -> None:
-        provider = RunnerProvider(argv=("/bin/sh", "-c", "printf '{\"x\":2,\"x_verdict\":\"PASS\"}' > /out/outputs.json"))
+        provider = RunnerProvider(argv=("/bin/sh", "-c", "printf '{\"x\":2,\"x_verdict\":\"PASS\"}' > /out/outputs.json"),
+                                  components=(("/usr", "host-usr"),))
         ex = Executor(Home(self.home.root), "demo", self.chain, self.trees, {"ci": provider},
                       lambda req: self.admission.admit(req, self.head()), governs=GOVERNS)
         item = next(r for r in ex.runs(self.derive()) if r.obligation.kind == "REALIZE")

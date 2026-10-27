@@ -176,7 +176,8 @@ class AdmittedRuns(GenesisFixture):
             self.completeness[head] = c["id"]
         return self.completeness[head]
 
-    def realize(self, head: str, outcome: dict, *, pins=("p1",), attributes=(), unpinnable=False, bounded=True) -> dict:
+    def realize(self, head: str, outcome: dict, *, pins=("p1",), attributes=(), unpinnable=False, bounded=True,
+                class_attributes=()) -> dict:
         s = self.derive().s
         k = max(p for p in range(s.n + 1) if s.h.head(p) == head)
         view, t = s.h.view(k), self.trees(head)
@@ -197,7 +198,7 @@ class AdmittedRuns(GenesisFixture):
         text = canonical_json(outcome).decode()
         digest = "sha256:" + hashlib.sha256(text.encode()).hexdigest()
         execution = {**basis, "start": s.n, "end": s.n, "runner": {"class": "ci", "key": self.runner.key_id},
-                     "class_attributes": [], "observes_outside_reads": True}
+                     "class_attributes": list(class_attributes), "observes_outside_reads": True}
         self.attempts += 1
         real = with_id({**record("REALIZATION", target={"spec": {"unit": "spec", "rev": view.rev("spec")},
                                                         "claim": [{"unit": "code", "rev": view.rev("code")}]},

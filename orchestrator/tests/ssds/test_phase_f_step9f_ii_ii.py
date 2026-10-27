@@ -25,7 +25,7 @@ from ssds.dispatcher.runner import (OUT, WORK, RunnerProvider, Sandbox, Workspac
                                     refused_sources, sandbox_argv)
 
 TREE = Tree({"a.py": Entry("100644", b"v = 1\n"), "run.sh": Entry("100755", b"#!/bin/sh\n")})
-PROVIDER = RunnerProvider(argv=("/bin/sh", "run.sh"))
+PROVIDER = RunnerProvider(argv=("/bin/sh", "run.sh"), components=(("/usr", "host-usr"),))
 
 
 class Argv(unittest.TestCase):
