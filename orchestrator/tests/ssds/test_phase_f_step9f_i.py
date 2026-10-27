@@ -101,6 +101,25 @@ class Materialized(Fixture):
         with mock.patch.object(runner.os, "lstat", swapped), self.assertRaisesRegex(MaterializeRefused, "replaced"):
             self.workspaces.verify(ws, GROUP1)
 
+    def test_a_file_that_cannot_be_opened_any_more(self) -> None:
+        """Re-check of 088ed1bf: a socket swapped in (``ENXIO``) refuses in the materializer's own type."""
+
+        import errno
+        from unittest import mock
+
+        from ssds.dispatcher import runner
+
+        ws = self.workspaces.materialize("demo", GROUP1)
+        real = os.open
+
+        def gone(name, flags, *args, **kwargs):
+            if name == "empty":
+                raise OSError(errno.ENXIO, "No such device or address")
+            return real(name, flags, *args, **kwargs)
+
+        with mock.patch.object(runner.os, "open", gone), self.assertRaisesRegex(MaterializeRefused, "replaced"):
+            self.workspaces.verify(ws, GROUP1)
+
     def test_a_cleanup_that_fails_is_never_silent(self) -> None:
         """Review of dad8e4cd, note 3: the refusal carries the cleanup failure, and is not masked by it."""
 
@@ -111,12 +130,38 @@ class Materialized(Fixture):
         def failing(path, *, dir_fd=None, onexc=None):
             onexc(os.rmdir, path, OSError("busy"))
 
-        failing.avoids_symlink_attacks = True
+        def failing_311(path, ignore_errors=False, onerror=None, *, dir_fd=None):
+            """Python 3.11's signature: no ``onexc`` (re-check of 088ed1bf, B2)."""
+
+            onerror(os.rmdir, path, (OSError, OSError("busy"), None))
+
+        for stand_in in (failing, failing_311):
+            stand_in.avoids_symlink_attacks = True
+            with self.subTest(rmtree=stand_in.__name__), \
+                    mock.patch.object(runner, "write_all", lambda descriptor, data: os.write(descriptor, data[:-1])), \
+                    mock.patch.object(runner.shutil, "rmtree", stand_in), \
+                    self.assertRaises(MaterializeRefused) as caught:
+                self.workspaces.materialize("demo", GROUP1)
+            self.assertTrue(any("not fully removed" in note for note in getattr(caught.exception, "__notes__", [])))
+
+    def test_a_refusal_is_cleaned_up_under_either_signature(self) -> None:
+        """Re-check of 088ed1bf, B2: on 3.11's ``rmtree`` the refusal is neither masked nor leaves the run behind."""
+
+        import shutil
+        from unittest import mock
+
+        from ssds.dispatcher import runner
+
+        real = shutil.rmtree  # captured before the module attribute is patched
+
+        def rmtree_311(path, ignore_errors=False, onerror=None, *, dir_fd=None):
+            real(path, ignore_errors=ignore_errors, dir_fd=dir_fd)
+
+        rmtree_311.avoids_symlink_attacks = True
         with mock.patch.object(runner, "write_all", lambda descriptor, data: os.write(descriptor, data[:-1])), \
-                mock.patch.object(runner.shutil, "rmtree", failing), \
-                self.assertRaises(MaterializeRefused) as caught:
+                mock.patch.object(runner.shutil, "rmtree", rmtree_311), self.assertRaises(MaterializeRefused):
             self.workspaces.materialize("demo", GROUP1)
-        self.assertTrue(any("not fully removed" in note for note in getattr(caught.exception, "__notes__", [])))
+        self.assertEqual(os.listdir(self.home.root / "runs" / "demo"), [], "nothing left behind")
 
     def test_a_changed_workspace_fails_verification(self) -> None:
         ws = self.workspaces.materialize("demo", GROUP1)

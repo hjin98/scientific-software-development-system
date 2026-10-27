@@ -23,6 +23,7 @@ entry's Git mode and bytes, and imports no content model.
 
 from __future__ import annotations
 
+import inspect
 import os
 import secrets
 import shutil
@@ -100,7 +101,7 @@ class Workspaces:
         except BaseException as exc:
             failures: list[str] = []
             if shutil.rmtree.avoids_symlink_attacks:
-                shutil.rmtree(run_id, dir_fd=runs, onexc=lambda _f, path, error: failures.append(f"{path}: {error}"))
+                _rmtree_collecting(run_id, runs, failures)
             else:
                 failures.append("this platform cannot remove a tree without following links")
             if failures:  # never silent (review of dad8e4cd, note 3), never masking the refusal
@@ -139,6 +140,16 @@ class Workspaces:
         if runs is None:
             raise MaterializeRefused(f"no workspace for run {workspace.run_id}")
         return runs
+
+
+def _rmtree_collecting(name: str, directory: int, failures: list[str]) -> None:
+    """``rmtree`` through a descriptor, each failure collected: ``onexc`` where this Python has it (3.12 onward),
+    ``onerror`` on 3.11, which the project supports (re-check of 088ed1bf, B2)."""
+
+    if "onexc" in inspect.signature(shutil.rmtree).parameters:
+        shutil.rmtree(name, dir_fd=directory, onexc=lambda _f, path, error: failures.append(f"{path}: {error}"))
+    else:
+        shutil.rmtree(name, dir_fd=directory, onerror=lambda _f, path, info: failures.append(f"{path}: {info[1]}"))
 
 
 def _admissible(path: str, entry: Any) -> None:
@@ -212,7 +223,11 @@ def _read_back(top: int) -> dict[str, tuple[str, bytes]]:
                     mode = {0o644: "100644", 0o755: "100755"}.get(stat.S_IMODE(info.st_mode), oct(info.st_mode))
                     # a file swapped for a FIFO never blocks the read, and the one opened is the one examined
                     # (review of dad8e4cd, note 1); a second name would share the inode outside (note 2)
-                    descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+                    try:
+                        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+                    except OSError:  # swapped for a socket or removed since it was examined (re-check of 088ed1bf)
+                        found[path] = ("replaced", b"")
+                        continue
                     with os.fdopen(descriptor, "rb") as handle:
                         opened = os.fstat(handle.fileno())
                         if (opened.st_ino, opened.st_dev) != (info.st_ino, info.st_dev) \
