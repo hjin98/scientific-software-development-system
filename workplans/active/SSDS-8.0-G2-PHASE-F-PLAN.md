@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 28 details steps 7f and 7g with readings F63-F64; revision 27 bounds F59's held test after the re-check of 3b6ebcc0; revision 26 repairs F59 and F62 after the check of c36b278e and withdraws Q-F15; revision 25 splits step 7e into 7e-i and 7e-ii with readings F59-F62 and Q-F15; revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 29 repairs F63-F64 after the check of 66ac030b, with Q-F16; revision 28 details steps 7f and 7g with readings F63-F64; revision 27 bounds F59's held test after the re-check of 3b6ebcc0; revision 26 repairs F59 and F62 after the check of c36b278e and withdraws Q-F15; revision 25 splits step 7e into 7e-i and 7e-ii with readings F59-F62 and Q-F15; revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F14 settled (SD-64, SD-67 to SD-75; Q-F15 withdrawn). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F14 settled (SD-64, SD-67 to SD-75; Q-F15 withdrawn); Q-F16 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revision 28 details 7f and 7g (readings F63-F64) and awaits its plan check. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16); revision 29 awaits its re-check. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -74,7 +74,7 @@ The Phase D threat boundary for the SSDS home (SD-59; Phase D plan §2) holds fo
 
 **What Phase F does not build** (each later phase's, with reason):
 - intake, the migration path and external units (Phase G), except SD-69's adoption path: an `ABSORB` adopting quarantined declaration keys, built in step 4c-iv so that step 10 can repair `ssdp-shadow-2` in place (Q-F7). Every other §18.3 disposition, and §18.4's effects of `QUARANTINE` and of contrary dispositions, stay Phase G's;
-- adversarial, privacy and fault harnesses beyond the failure points group 4 names (Phase H). §24.2's breach protocol stays in Phase F, as the G2 row places §22-§25 there. Its replacement lineage, re-encoding and private pseudonym mapping run on fixture ledgers only;
+- adversarial, privacy and fault harnesses beyond the failure points group 4 names (Phase H). §24.2's breach protocol stays in Phase F, as the G2 row places §22-§25 there. Its rotation branch's `REDACTION_NOTICE` is built in 7g. Its replacement lineage, re-encoding and private pseudonym mapping, and with them `LINEAGE_MIGRATION`, are placed by Q-F16 (revision 29);
 - any live agent trajectory or measurement spend, including the Dispatcher's harness route with a real model (a campaign, G2 workplan §5.1 item 7);
 - moving any subject to `NATIVE` (a cutover, G4).
 
@@ -299,11 +299,11 @@ Derivation already folds a loss's boundary, `cont`, and `REQUALIFY` (Phase D), a
 
 Both are small, and both fail closed where F48 and SD-75 say.
 - **7f** (F63).
-  - Tests: each of the attestation's codes beside `SCHEMA_UNSUPPORTED`, on the trial over a fixture loss; a well-formed attestation refused only `SCHEMA_UNSUPPORTED`; a challenge of an attestation permitted on derivation facts.
+  - Tests: each of the attestation's codes, asserted beside `SCHEMA_UNSUPPORTED` and not instead of it, on the trial over a fixture loss; a well-formed attestation refused only `SCHEMA_UNSUPPORTED`; a challenge of an attestation, whose target exists only on the trial's derivation facts, permitted.
   - Fails closed: the attestation itself (F48).
 - **7g** (F64).
-  - Tests: each kind's field problems and its deferral; a well-formed record refused with the deferral alone.
-  - Fails closed: all three kinds' admission (SD-75, disclosed).
+  - Tests: each kind's field problems; a well-formed `REDACTION_NOTICE` admitted with no derived effect; a well-formed replica redesignation refused at the gate; a well-formed migration refused naming Q-F16.
+  - Fails closed: `REPLICA_REDESIGNATION` (SD-75); `LINEAGE_MIGRATION` (Q-F16).
 
 Discriminators: S5 §23 `loss_bounds` and `qualification_states` at Admission; each §23.8 row as a fixture history; a stale-consistent restore; a fresh clone; a redesignation over a provisional entry; `deployment_classes_sound` at redesignation; §31.4's retired lineage and stale mirror reading `RETIRED`; and §4's "recovery authorization and authenticated witness retirement".
 
@@ -538,17 +538,17 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   - A redesignation with evidence of a later head is still refused, naming the loss as the route.
 - **F63** *A continuity attestation's checks (step 7f).* Step 5 (`dependency_codes`) judges the record as §23.7 and §3.4 define it, instead of refusing it outright:
   - `target.loss` names an admitted `LEDGER_LOSS`: `REF_TARGET` when it names no record, `DEP_TARGET_KIND` when it names another kind, and `DEP_TARGET_ORDER` unless the loss is strictly earlier;
-  - every `listed` id is a unit of the structure or a known record (`REF_TARGET`);
-  - every `evidence` digest is a content reference the ledger stores or the request carries (`REF_TARGET`);
+  - every `listed` id is a subject of the structure or a known record (`REF_TARGET`). §23.7's scope lists "subject ids, record ids", and a part has no meaning for `exposed` (check of 66ac030b, note 1);
+  - every `evidence` digest is a content reference the ledger stores or the request carries (`REF_OBJECT`, the code for an unstored ledger object). This is a conservative choice: §23.7's evidence may live elsewhere, but Phase F requires it stored;
   - its actor is human, under the human floor that `Support` already enforces.
 
   The record is then `SCHEMA_UNSUPPORTED` anyway, because no policy key designates its actor (F48). Its other codes are reported beside that, so the refusal says what else is wrong.
 
   A `CHALLENGE` of a continuity attestation is permitted (§3.4: "any qualified actor may challenge it"), so its `SCHEMA_UNSUPPORTED` is lifted. It is unreachable while no attestation can be admitted, and is tested on the trial's derivation facts.
-- **F64** *The rest of the recovery kinds (step 7g).* Field checks only, as functions in `admission/lifecycle.py` run by `admit_lifecycle`. Each refusal names the deferral beside any field problem.
-  - **`REPLICA_REDESIGNATION`.** `location` is closed to `{repository, ref}`, the ref is this ledger's ref, and the repository is a token that differs from the location in force. The gate still refuses it in every state. Admitting it would name a new authoritative replica while Admission keeps writing the one in the SSDS home, which would make the record false. It waits for Phase H's replica restore (SD-75).
-  - **`LINEAGE_MIGRATION`.** `predecessor` is closed to `{ledger_id, last_position, last_entry_digest}`, naming another ledger. It is refused: the qualification that the replacement derives the same state is Phase H's re-encoding (§24.2, SD-75).
-  - **`REDACTION_NOTICE`.** `objects` is a non-empty list of digests the chain stores. It is refused: a redaction halts derivation over the redacted objects (§24), which Phase F does not build. Disclosed.
+- **F64** *The rest of the recovery kinds (step 7g; revision 29 after the check of 66ac030b, B1).* Each has its field checks, as functions in `admission/lifecycle.py` run by `admit_lifecycle`, and a placement:
+  - **`REPLICA_REDESIGNATION`: refused, by SD-75.** `location` is closed to `{repository, ref}`, genesis's own `location` shape, with this ledger's ref and a repository that differs from the location in force. The gate still refuses it in every state. Admitting it would record a new authoritative replica while Admission keeps writing the one in the SSDS home, so the record would be false. §23.8 pairs it with the replica restore, which SD-75 hands to Phase H.
+  - **`REDACTION_NOTICE`: built and admitted.** It is §24.2's rotation branch ("keep history; append a `REDACTION_NOTICE`; no guarantee yields"): a recorded, human-gated act with no derived effect. `objects` is a non-empty list of distinct digests the chain stores. It is not a recovery kind (§22.1), so it carries the expected head as `obs` and goes through the held head, as a `KEY_LIFECYCLE` does. Revision 28's "a redaction halts derivation" had no textual basis and is withdrawn: §24.2's halt belongs to the incident, not to the notice.
+  - **`LINEAGE_MIGRATION`: refused until Q-F16.** `predecessor` is closed to `{ledger_id, last_position, last_entry_digest}`, naming another ledger. Admitting it needs §24.2's qualification that the replacement derives the same state up to renaming, which is the replacement lineage's re-encoding. The G2 workplan places §24 in Phase F, and §1 says the re-encoding runs on fixture ledgers, while §6 has long said it is not built until Phase H. Moving it is the stakeholder's decision (Q-F16), so until then the kind is refused, naming the question.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -559,7 +559,7 @@ Until Q-F3, real-runner execution is limited to fixtures that hold no secret.
 
 Until Phase G admits intake records, an `INTAKE_*` record's `paths` target uses the token grammar; Phase G gives it a validated, repository-contained relative path (Manual §25.4; review 8230421 N3). Until Phase G, a change of unknown provenance on the real shadow ledger is absorbed and goes no further than its §18 intake obligations, which are derived but not routed beyond `INTAKE`. The exception is SD-69's: step 10's human `ABSORB` adoption of the two reserved leaves (F1).
 
-Until Phase H, failure points beyond those group 4 names are untested, and §24.2's replacement-lineage re-encoding is not built.
+Until Phase H, failure points beyond those group 4 names are untested. Until Q-F16 is answered, §24.2's replacement-lineage re-encoding is not built and `LINEAGE_MIGRATION` is refused (reading F64; this corrects the older wording, which put the re-encoding in Phase H without a decision).
 
 Until an authorized campaign, no live agent submits to Admission.
 
@@ -715,6 +715,10 @@ SD-64 already decided that `ssdp-shadow` is retired, so the question is only how
 Until it is answered, both stay unbuilt and are disclosed: Admission appends nothing under `INTEGRITY_HALT`, and a restore is an operator action outside SSDS.
 
 **Q-F15 (withdrawn by revision 26).** Revision 25 asked how a redesignation could carry a `LEDGER_LOSS`. The check of c36b278e showed that schema 1 expresses it as a loss whose `controls.witnesses` re-establishes the set (F62). 7e-ii builds it, and there is nothing to ask.
+
+**Q-F16. Where §24.2's replacement lineage is built (F64).** The G2 workplan places §24's breach protocol in Phase F, and §1 says its replacement lineage, re-encoding and pseudonym mapping run on fixture ledgers. §6's older wording, and revision 28, put it in Phase H without a decision (check of 66ac030b, B1). The rotation branch's `REDACTION_NOTICE` is built in 7g either way.
+- **Recommended:** (a) hand the replacement lineage to Phase H with its privacy harnesses: the re-encoding with sensitive fields replaced, the commit identity mapping, the private pseudonym mapping, and `LINEAGE_MIGRATION`'s equal-state qualification. Do this by an extension of SD-75 that widens the G2 Phase H row. Phase F keeps `LINEAGE_MIGRATION`'s field checks and refuses it meanwhile. The confidentiality incident is privacy work, which Phase H's row already names, and no Phase F step needs it.
+- **Alternative:** (b) build it in Phase F, as a further part of step 7 on fixture ledgers, as §1 reads.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -2134,3 +2138,13 @@ Its notes:
 **Revision 28: steps 7f and 7g in detail (§3.4, readings F63-F64).**
 - **7f.** A continuity attestation's own checks run (target, listed ids, evidence, human actor), and the record stays `SCHEMA_UNSUPPORTED` until a designation exists (F48). A challenge of an attestation is permitted.
 - **7g.** Field checks for the replica redesignation, the lineage migration and the redaction notice. Each refusal names its deferral: the replica restore and re-encoding to Phase H (SD-75), and the redaction's halt disclosed.
+
+**Plan check of 66ac030b (revision 28).** No SERIOUS CHALLENGE. **NO PASS**, on one blocker.
+- **B1.** SD-75 hands Phase H only the ref restore and §5.7's route. Deferring `LINEAGE_MIGRATION` and `REDACTION_NOTICE` under it moved Phase F work with no decision behind it. Revision 28's "a redaction halts" has no textual basis.
+
+It confirmed F63's codes, keeping `REPLICA_REDESIGNATION` refused under SD-75, and F64's shapes. It noted that listed ids are subjects or records, and that evidence uses `REF_OBJECT`.
+
+**Revision 29 repairs it.**
+- **`REDACTION_NOTICE`** is built as §24.2's rotation-branch notice, with no derived effect, and the halt rationale is withdrawn.
+- **`LINEAGE_MIGRATION`** keeps its field checks and is refused until Q-F16, a new question on where §24.2's replacement lineage is built. §1 and §6 are reconciled with it.
+- **F63** takes both refinements, and 7f's tests assert the attestation's codes beside `SCHEMA_UNSUPPORTED`.
