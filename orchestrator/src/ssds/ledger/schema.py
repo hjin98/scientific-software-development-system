@@ -276,7 +276,9 @@ _ENVELOPE_REQUIRED: dict[str, Check] = {
     "binding": optional(shape(
         {"task": is_token, "obligation": is_token, "role": is_token, "lineage": list_of(is_token),
          "lineage_class": one_of("ATTESTED_FRESH", "HUMAN_ATTESTED_FRESH", "UNKNOWN")},
-        {"item": shape({"unit": is_unit, "rev": is_digest}), "item_key": is_digest, "write_scope": list_of(is_unit),
+        {"item": lambda v: shape({"unit": is_unit, "rev": is_digest})(v)
+         or shape({"system": is_token, "version": is_token})(v),  # SD-77: a system contract id, in place
+         "item_key": is_digest, "write_scope": list_of(is_unit),
          "envelope": is_digest})),
     "governs": lambda v: shape({"mode": one_of("NATIVE"), "ruleset": is_token})(v)
     or shape({"mode": one_of("LEGACY"), "protocol": is_token})(v),

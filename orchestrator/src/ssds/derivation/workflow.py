@@ -696,6 +696,16 @@ class Workflow:
 
         return Briefing(self)
 
+    def contract_revision(self, o: Obligation) -> dict[str, str]:
+        """The contract a task for ``o`` binds (§12.2; SD-77; Phase F reading F66): an item's ``{unit, rev}`` at this
+        state, or the system contract id ``{system: <obligation kind>, version: <system version in force>}``, that
+        kind's entry in the system version's table (§13.6) under the ruleset in force here."""
+
+        item = self.item_of(o)
+        if item is not None:
+            return {"unit": item.unit, "rev": self.s.view.rev(item.unit)}
+        return {"system": o.kind, "version": self.s.h.ruleset(self.s.n)["system"]}
+
     def item_of(self, o: Obligation) -> Any:
         """The item or part obligation ``o`` is, or None."""
 

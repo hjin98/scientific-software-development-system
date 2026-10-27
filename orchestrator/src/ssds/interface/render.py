@@ -113,6 +113,13 @@ def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, ensure_ascii=False)
 
 
+def brief_digest(data: bytes) -> str:
+    """A rendered brief's content identity: the one formula the Issuer's envelope and the renderer share (§16.4;
+    Phase F step 8b)."""
+
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
 @dataclass(frozen=True)
 class Brief:
     """One rendered brief: its form, the obligation, the version it is bound to, the duties compiled into it and
@@ -135,7 +142,7 @@ class Brief:
     def digest(self) -> str:
         """The brief's content identity, as an issued envelope records it (§16.4)."""
 
-        return "sha256:" + hashlib.sha256(self.text.encode("utf-8")).hexdigest()
+        return brief_digest(self.text.encode("utf-8"))
 
     def to_json(self) -> dict[str, Any]:
         return {"form": self.form, "obligation": self.obligation, "governs": self.governs, "duties": list(self.duties),
@@ -896,4 +903,4 @@ def _contract_json(contract: Any) -> dict[str, Any]:
             "obligations": [[o.id, repr(o.verifier)] for o in contract.obligations], "slots": list(contract.slots)}
 
 
-__all__ = ["Brief", "Doctrine", "NOT_ISSUED", "Renderer"]
+__all__ = ["Brief", "Doctrine", "NOT_ISSUED", "Renderer", "brief_digest"]

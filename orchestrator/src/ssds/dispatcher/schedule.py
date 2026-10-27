@@ -26,9 +26,9 @@ class Task:
     obligation_id: str
     kind: str
     holder: str
-    contract: str  # "item" or "system": a system contract's id waits on Q-F17 (reading F66)
+    contract_revision: dict[str, str]  # the item's {unit, rev}, or the system contract id (SD-77, reading F66)
 
-    def to_json(self) -> dict[str, str]:
+    def to_json(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
 
@@ -49,15 +49,15 @@ def would_issue(chain: Any, trees: Any, held: Any) -> tuple[Task, ...]:
     out = []
     for o in workflow.obligations:
         if o.holder in AGENT_ROLES and workflow.readiness(o).state == READY:
-            contract = "item" if workflow.item_of(o) is not None else "system"
-            out.append(Task(task_id(o.id, held.head), o.id, o.kind, o.holder, contract))
+            out.append(Task(task_id(o.id, held.head), o.id, o.kind, o.holder, workflow.contract_revision(o)))
     return tuple(sorted(out, key=lambda t: t.task_id))
 
 
-def issue(journal: Any, issuer: Any, task: Task, held: Any, *, contract_revision: Any, governs: Any, route: str,
+def issue(journal: Any, issuer: Any, task: Task, held: Any, *, governs: Any, route: str,
           brief: bytes | None = None) -> Any:
     """Issue ``task`` at ``held``'s head, written ahead (reading F65): the intent, then the signed envelope, then
-    its hand-out. A crash before the hand-out leaves an intent that ``Journal.recover`` abandons."""
+    its hand-out. A crash before the hand-out leaves an intent that ``Journal.recover`` abandons. The envelope carries
+    the task's contract revision, which each record bound to it copies (step 8b, reading F66; SD-77)."""
 
     if not held.current or held.provisional is not None or task.task_id != task_id(task.obligation_id, held.head):
         raise NotIssuable(f"{task.task_id} is not issued at the named head {held.head} (§23.4)")
@@ -65,7 +65,7 @@ def issue(journal: Any, issuer: Any, task: Task, held: Any, *, contract_revision
         raise NotIssuable(f"{task.obligation_id} already has a task handed out (review 546cc86 N2)")
     journal.intent(task.task_id, task.obligation_id, held.head, held.head_digest)
     issued = issuer.issue(task_id=task.task_id, obligation_id=task.obligation_id, role=task.holder,
-                          contract_revision=contract_revision, governs=governs, route=route,
+                          contract_revision=task.contract_revision, governs=governs, route=route,
                           issued_at_position=held.head, brief=brief)
     journal.issued(task.task_id, issued.binding())
     journal.handed(task.task_id)

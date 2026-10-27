@@ -21,6 +21,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
 
 from ssds.admission.request import ROUTES, attestation_message, envelope_digest, envelope_message, request_message
+from ssds.interface.render import brief_digest
 from ssds.ledger.qualification import Home
 
 from .home import DispatcherHome
@@ -111,7 +112,7 @@ class Issuer:
                     "lineage_class": "ATTESTED_FRESH" if harness else "UNKNOWN", "input_sessions": list(input_sessions),
                     "issued_at_position": issued_at_position, "issue_key_id": self.key_id,
                     "predecessors": dict(predecessors) if predecessors else None,
-                    "brief": "sha256:" + hashlib.sha256(brief).hexdigest() if brief is not None else None}
+                    "brief": brief_digest(brief) if brief is not None else None}
         signature = self._key.sign(envelope_message(envelope)).hex()
         if not harness:
             return Issued(envelope, signature, None, None, None)

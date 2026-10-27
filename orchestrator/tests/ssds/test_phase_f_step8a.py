@@ -78,7 +78,8 @@ class WouldIssue(Fixture):
         self.assertEqual(sorted(t.obligation_id for t in tasks), expected)
         for t in tasks:
             self.assertEqual(t.task_id, task_id(t.obligation_id, held.head), "stable across a restart")
-            self.assertIn(t.contract, ("item", "system"))
+            self.assertEqual(t.contract_revision, {"system": t.kind, "version": "ssds-rules/1"} if "unit" not in
+                             t.contract_revision else t.contract_revision)
 
     def test_only_ready_agent_held_obligations_become_tasks(self) -> None:
         from types import SimpleNamespace
@@ -89,11 +90,12 @@ class WouldIssue(Fixture):
              ("IMPLEMENT", "IMPLEMENTER")))]
         states = {made[0].id: READY, made[1].id: "WAITING", made[2].id: READY, made[3].id: READY, made[4].id: READY}
         fake = SimpleNamespace(obligations=made, readiness=lambda o: SimpleNamespace(state=states[o.id]),
-                               item_of=lambda o: object() if o.kind == "IMPLEMENT" else None)
+                               contract_revision=lambda o: {"unit": "u", "rev": "r"} if o.kind == "IMPLEMENT" else
+                               {"system": o.kind, "version": "v"})
         with mock.patch("ssds.dispatcher.schedule.Workflow", return_value=fake):
             tasks = would_issue(self.chain(), self.trees, held)
-        self.assertEqual([(t.kind, t.contract) for t in sorted(tasks, key=lambda t: t.kind)],
-                         [("ACCEPT", "system"), ("IMPLEMENT", "item")])
+        self.assertEqual([(t.kind, t.contract_revision) for t in sorted(tasks, key=lambda t: t.kind)],
+                         [("ACCEPT", {"system": "ACCEPT", "version": "v"}), ("IMPLEMENT", {"unit": "u", "rev": "r"})])
 
     def test_nothing_is_issued_from_a_head_that_is_not_named(self) -> None:
         for held in (Qualification("UNQUALIFIED"), Qualification("ROLLBACK"), Qualification("RETIRED"),
@@ -141,7 +143,7 @@ class WriteAhead(Fixture):
 
     def issue(self, task=None, held=None):
         return issue(Journal(self.home, "demo"), self.issuer, task or self.task(), held or self.held(),
-                     contract_revision=None, governs={"mode": "LEGACY", "protocol": "7.2.1"}, route="MANUAL")
+                     governs={"mode": "LEGACY", "protocol": "7.2.1"}, route="MANUAL")
 
     def test_intent_then_effect_then_hand_out(self) -> None:
         issued = self.issue()
@@ -177,7 +179,7 @@ class WriteAhead(Fixture):
         self.issue(task)
         held = self.held()
         later = Task(task_id(task.obligation_id, held.head + 1), task.obligation_id, task.kind, task.holder,
-                     task.contract)
+                     task.contract_revision)
         moved = Qualification("QUALIFIED", held.head + 1, "sha256:" + "1" * 64)
         with self.assertRaisesRegex(NotIssuable, "already has a task"):
             self.issue(later, moved)

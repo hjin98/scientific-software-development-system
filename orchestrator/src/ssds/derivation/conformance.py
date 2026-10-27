@@ -114,7 +114,8 @@ def _scientific_review(w: Any, bound: Any) -> bool:
     if result is None:
         return False
     named = (w.s.record(result).get("binding") or {}).get("item")
-    found = w.s.plans.item_at(named["unit"], named["rev"]) if isinstance(named, dict) else None
+    found = w.s.plans.item_at(named["unit"], named["rev"]) \
+        if isinstance(named, dict) and {"unit", "rev"} <= set(named) else None  # a system contract id names no item
     return bool(found and isinstance(found[1].parsed, Item) and found[1].parsed.contract is not None
                 and found[1].parsed.contract.scientific == "APPLIES")
 

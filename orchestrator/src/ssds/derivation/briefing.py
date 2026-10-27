@@ -60,7 +60,8 @@ class Briefing:
             result = w.submitting_result(o.target["transformation"])
             binding = (s.record(result).get("binding") or {}) if result else {}
             named = binding.get("item")
-            found = s.plans.item_at(named["unit"], named["rev"]) if isinstance(named, dict) else None
+            found = s.plans.item_at(named["unit"], named["rev"]) \
+                if isinstance(named, dict) and {"unit", "rev"} <= set(named) else None  # a system id names no item
             if found is not None and isinstance(found[1].parsed, Item):
                 item, part = found[1].parsed, found[1]
                 plan = structure.subj(named["unit"]) if named["unit"] in structure.units else plan
