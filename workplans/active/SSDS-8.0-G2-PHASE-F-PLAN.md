@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00); 7c (`LEDGER_LOSS`) is next. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revision 23 details 7c (`LEDGER_LOSS`, readings F54-F57) and awaits its plan check. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -268,6 +268,22 @@ Step 10 and SD-64 need `ssdp-shadow`'s retirement first, so step 7 builds it fir
   - the composition root never passing the fixture map;
   - 7a's tests unchanged.
 
+#### 7c in detail (revision 23)
+
+Derivation already folds a loss's boundary, `cont`, and `REQUALIFY` (Phase D), and qualification already reads a loss's abandoned digests. 7c is therefore Admission's content check for a `LEDGER_LOSS` and the means to prepare one.
+- **`Admission.prepare_loss()`** computes the record's fields from what this host reads (F54-F56): the retained head, the abandoned heads with their statuses, the report object and its digest, and the controls in force. The operator, or a test, puts these fields in the record the human signs.
+- **At admission**, the gate (F50) and the trial (F51) run as in 7b. The content check recomputes every field and requires the record's fields to equal it exactly (F57). The report object is stored in the entry by its digest.
+- **Tests.**
+  - §23.8's three loss rows on fixture ledgers: a truncated ledger with a newer product, the next entry absorbing it (6a); ledger and product restored to one stale snapshot; and ledger objects lost while the witness checkpoints are intact.
+  - A stale-consistent restore resurrecting nothing: a permissive record before the boundary is not current after it, and a `REQUALIFY` is derived.
+  - A fresh clone with no high-water mark qualifying at the loss.
+  - An abandoned chain surfacing later: never merged, the boundary stays.
+  - Refusals:
+    - each field not equal to its recomputation (a missing or extra abandoned head, a wrong status, a stale report, changed controls);
+    - every abandoned head proved never admitted;
+    - nothing abandoned;
+    - the compare-and-swap refused when the ref is past the readable prefix (plan check of 31b3ed34, note 1; review 7d2d1c0 N2).
+
 Discriminators: S5 §23 `loss_bounds` and `qualification_states` at Admission; each §23.8 row as a fixture history; a stale-consistent restore; a fresh clone; a redesignation over a provisional entry; `deployment_classes_sound` at redesignation; §31.4's retired lineage and stale mirror reading `RETIRED`; and §4's "recovery authorization and authenticated witness retirement".
 
 ## 4. Acceptance groups: cases and discriminators carried
@@ -428,6 +444,31 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F51** *The trial qualification (step 7b).* Before any recovery append, Admission builds the entry and signs it. Ed25519 is deterministic, so the digest is the one the append will produce. Admission then qualifies the extended chain: the reachable witnesses' reports, plus the entry's checkpoint at each witness this host can write, under the retained high-water mark. The append proceeds only when that trial is `QUALIFIED` at the new position with no provisional entry. So a recovery record is admitted only if it actually repairs what it claims: its abandonment explains every mark, and a quorum can hold it. The trial is not proof that the writes will succeed. A write that fails leaves a provisional entry, which 6b's recovery completes, and the commit's own re-qualification decides what is reported. For a retirement, the trial is the extended chain still `QUALIFIED`; its statement is published after the commit (7a). A redesignation's trial qualifies under the new set and the old one where reachable, which needs the model per position (F52), so it is 7e's: 7b builds no genesis-only trial for that kind.
 - **F52** *The witness model in force per position (moved to 7e).* Only a `WITNESS_SET_REDESIGNATION` changes the model (F46 holds a loss's `controls` to the retained ones), and none can be admitted before 7e. Until then every chain's model in force is its genesis model. The fold, and its dual-quorum admission under old and new sets, are therefore 7e's. 7b keeps qualification on the genesis model, and every reader keeps calling the one owner, `Admission.witness_set` (the Interface reads genesis too), so 7e changes one place per reader.
 - **F53** *Fixture witnesses (step 7b; F3).* `TEAM` and `HARDENED` forbid `FILE` witnesses (`WitnessModel.validate`), and this host reaches no `GIT` or `LOG` witness. For tests only, Admission takes an optional map from declared witness id to a fixture witness: a directory, read and written as a file witness, or a file-witness object, so that a test can give a witness that holds a checkpoint and denies it (`f` denying, note 4). The composition root never passes it, and a test guards that, so the real ledger's witnesses are exactly its `FILE` ones (F3).
+- **F54** *A loss's retained and abandoned heads (step 7c).* `retained` is `{position, digest}` of the replica's last readable entry `A`: the retained authenticated chain from genesis (§23.6), which F50 appends after. `abandoned` is computed from the witness reports Admission reads and its own high-water mark:
+  - every distinct `(position, digest)` of an authentic checkpoint, from a declared witness, that lies beyond `A` or differs from the chain at its position;
+  - the mark, when it lies beyond `A` or conflicts with the chain.
+
+  Each head carries `{position, digest, status}`. Its status is `loss_status(h, m, f, q_a)` (§23.6), where `h` counts the responding witnesses holding it and `m` the witnesses not responding.
+
+  The record must name exactly this set, ordered by position and digest. A head known only from another replica cannot be verified here; Phase F has one replica per ledger and one mark per home (F3).
+
+  A loss is refused in two cases:
+  - **Every abandoned head proved never admitted.** That is a `FORK_RESOLUTION` with no boundary (§23.6), which is 7d's.
+  - **Nothing abandoned.** An intact head that has lost its witnesses is §23.8's redesignation (7e).
+- **F55** *The report (step 7c).* `report` is the content reference of "the qualification report gathering those reports" (§23.6). It is the canonical JSON of:
+  - `ledger_id`;
+  - the replica head;
+  - the retained high-water mark, or null;
+  - each declared witness's report: its authentic checkpoints for the ledger, sorted, or null when it does not respond.
+
+  Admission recomputes it at admission, requires the record's digest to match, and stores the object in the entry by its digest. A witness that changes between preparing and admitting changes the report, so the record is refused and is prepared again.
+- **F56** *The controls (step 7c; F46 made concrete).* `controls` is `{witnesses, trust_roots, ruleset}` in force at `A`:
+  - `witnesses`: the witness model in force, genesis's until 7e (F52);
+  - `trust_roots`: `{admission_keys, dispatcher_keys, human_keys}`, each a list of `{id, public_key}` sorted by id. The admission keys are genesis's, since no path rotates a host key yet. The dispatcher and human keys are those in force under `trust_roots` at `A`;
+  - `ruleset`: the ruleset in force at `A`, read from `History`.
+
+  It must equal the recomputation, so any change fails closed until a control fold exists (F46).
+- **F57** *After a loss (step 7c).* Qualification reads the named heads as abandoned through its existing `_abandoned`, once the loss is inside a quorum-held prefix. The trial (F51) therefore shows that the loss explains every mark. Derivation's boundary at the loss's position withholds permissive records and relaxers before it unless they are held, derives `REQUALIFY`, and never revives a record from agreement between product and ledger (§23.6, Phase D). The next ordinary entry absorbs a newer product (6a). An abandoned chain that surfaces later is never merged; the boundary stays.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -1782,3 +1823,10 @@ Its notes:
 - **N2 (to 7c).** An append when the ref points past the readable prefix is refused by the compare-and-swap. Note 1 of the plan check already moved that test to 7c, the first part whose kind reaches the commit.
 
 **Step 7b is closed.**
+
+**Revision 23: step 7c in detail (§3.4, readings F54-F57).** A survey found that derivation already folds a loss's boundary, `cont` and `REQUALIFY`, and that qualification reads its abandoned digests. 7c is therefore Admission's content check, and `prepare_loss` computes the fields the human signs:
+- the retained head and the exact abandoned set with recomputed statuses (F54);
+- the stored qualification report (F55);
+- the controls in force, required unchanged (F56).
+
+A loss that abandons only proved-never-admitted heads is a fork resolution (7d), and one that abandons nothing is a redesignation (7e).
