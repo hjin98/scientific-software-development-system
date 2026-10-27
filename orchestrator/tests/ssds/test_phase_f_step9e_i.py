@@ -45,5 +45,19 @@ class NamingNone(unittest.TestCase):
                          "the verdict carrier included (plan check of beaa9e46, note 1)")
 
 
+    def test_a_genuine_fix_of_an_embedded_failure_naming_none(self) -> None:
+        """Review of 3f976498, note 1: the carrier in F(a⁻) is judged by the output it carries, so the mechanical stop
+        stays (as test_assessment's genuine fix, naming none)."""
+
+        from .test_assessment import BAD, GOOD, Runs
+
+        r = Runs()
+        t0, t1 = r.tree("T0"), r.tree("T1", **{"a.py": "v = 2\n"})
+        failing = unnamed_failure(r, r.run(t0, BAD))
+        r.run(t0, BAD)
+        r.run(t1, GOOD)
+        self.assertTrue(r.stale(failing, "T1"))
+
+
 if __name__ == "__main__":
     unittest.main()

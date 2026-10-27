@@ -453,6 +453,9 @@ class Assessments:
                 if self._in_force_at_base(rid, unit, x):
                     return True
                 continue
+            if any(v.embedded == name for v in found.verdicts):
+                continue  # an embedded verdict's carrier is judged by the output it carries (F85, F105; review of
+                # 3f976498, note 1): in (4) it is no output of its own; (1) and (2) still compare it
             if found.oracle == "ASSESSOR_READ":
                 return True  # yielded unless a standing discriminating reading covers it, none until 9e (§6.6)
             verdict = found.verdict(name)
