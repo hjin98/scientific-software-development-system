@@ -208,6 +208,10 @@ class Retirement(RequestFixture):
         self.assertTrue(retirement_verified(good, "demo", keys), "a chainless participant, its genesis pinned")
         self.assertFalse(retirement_held([good], 2, "demo", keys, chain))
         self.assertFalse(retirement_held([forged, None], 1, "demo", keys, chain))
+        self.assertTrue(retirement_held([good, good], 2, "demo", keys, chain))
+        other = RetirementStatement({**good.body, "successor_ledger_id": "demo-9"}, ((key.key_id, key.sign(
+            retirement_message({**good.body, "successor_ledger_id": "demo-9"})).hex()),))
+        self.assertFalse(retirement_held([good, other], 2, "demo", keys, chain), "distinct statements (749b37d N2)")
 
         def signed_body(**changes):
             body = {**good.body, **changes}

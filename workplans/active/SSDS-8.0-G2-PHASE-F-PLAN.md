@@ -46,8 +46,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d (publication,
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
-             F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is built and awaits its
-             same-family review. A10 is accepted (SD-66);
+             F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
+             taken up); 7b (recovery skeleton) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1665,3 +1665,18 @@ Its notes are taken up:
   R02-R05 ran before the move into `qualification`; their code is unchanged.
 - **Fitness.** The first full run failed F11: a new `ledger.retirement` module is no public ledger API. The move into `qualification` and `append` repairs it, with the fitness table unchanged. The full suite then passes: 1316 tests, 6 skipped.
 - **Not run on the real ledger.** Retiring `ssdp-shadow` needs the stakeholder's signature, and Q-F13 first.
+
+**Same-family review of 749b37d3 (7a).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Its answers:
+- A participant behind the retirement reads `RETIRED` by the trust roots alone, as §23.4's "from any mirror" and the stale-mirror drill require.
+- The writable-witness trial is an adequate stand-in for a trial qualification. The commit's re-qualification decides, so nothing is reported early.
+- F49 is faithful.
+- The successor's genesis entry digest is the right identity.
+- §22.1, §23.4, §24.2's settled head and §25.2's gate are met.
+
+Its notes:
+- **N2 (taken up).** `retirement_held` counted verified statements without requiring them to be the same statement, so distinct statements could add up to `q_a` for a chainless participant. It now needs `q_a` witnesses holding one identical statement. A test is added; mutant R12 (count across distinct statements) is killed, and R08's anchor is replaced by it. The SSDS suite passes, 923 tests with 6 skipped.
+- **N2's conflict signal (disclosed, to 7b).** Two different authentic statements for one ledger mean that a host key signed conflicting retirements, like two checkpoints at one position. Today each witness holding another statement counts as holding nothing, and no quorum forms; nothing is reported current wrongly. Raising it as an integrity state belongs with 7b's recovery skeleton, which generalizes `FORK` and the critical flag.
+- **N1 (recorded).** Statements are verified against the genesis `admission_keys`, as checkpoints are. No path yet retires or compromises an Admission host key: `KEY_LIFECYCLE` refuses that role. The genesis keys are therefore exactly the keys in force. Folding host-key lifecycle into retirement and checkpoint verification, and excluding compromised keys, belongs to the step that builds host-key rotation.
+- **N3 (put to the stakeholder with Q-F13).** Any registered human may approve the retirement, as for `KEY_LIFECYCLE`. The ledger has one registered human, the stakeholder, so this is the stakeholder's approval. Whether a later ledger should name the deciding role is asked with Q-F13.
+
+**Step 7a is closed.** 7b (the recovery skeleton) is next.

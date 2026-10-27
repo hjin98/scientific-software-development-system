@@ -224,9 +224,15 @@ def retirement_statements(model: WitnessModel, ledger_id: str) -> dict[str, Reti
 
 def retirement_held(statements: Iterable[RetirementStatement | None], q_a: int, ledger_id: str,
                     host_keys: Mapping[str, str], chain: Chain | None = None) -> bool:
-    """``RETIRED``: ``q_a`` witnesses hold a verified statement (§24.2), one statement per witness."""
+    """``RETIRED``: ``q_a`` witnesses hold one and the same verified statement (§24.2), one statement per witness;
+    distinct statements never add up to a quorum (review 749b37d N2)."""
 
-    return sum(1 for s in statements if retirement_verified(s, ledger_id, host_keys, chain)) >= q_a
+    held: dict[bytes, int] = {}
+    for s in statements:
+        if retirement_verified(s, ledger_id, host_keys, chain):
+            identity = canonical_json(s.to_json())
+            held[identity] = held.get(identity, 0) + 1
+    return max(held.values(), default=0) >= q_a
 
 
 @dataclass(frozen=True)
