@@ -4,7 +4,25 @@ The live tests of reading F113 need unprivileged user namespaces, which the impl
 They were run on the host, in the operator's terminal session, as plan check of 23d2f5f2 (answer 3) requires. A
 review checks that the commit below is the one it reviews.
 
-## Step 9g-iii run (F118)
+## Step 9g-iii run, after its repair
+
+| Field | Value |
+|---|---|
+| Commit under test | `e83c74b3d1bfb26f9972fb532c7bbfcbde683718` (worktree clean under `src` and `tests`) |
+| Command | as the run below |
+| Date | 2026-10-27T23:38:24Z |
+
+| Test | Result |
+|---|---|
+| `test_phase_f_step9f_ii_ii_live.Live.test_the_f2_properties` | ok |
+| `test_phase_f_step9f_ii_ii_live.Live.test_a_reached_time_bound` | ok |
+| `test_phase_f_step9f_ii_iii.LiveEndToEnd.test_a_realize_run_in_the_sandbox_and_admitted` | ok |
+| `test_phase_f_step9g_iii.LiveEnvironment.test_what_the_run_sees_is_what_is_recorded` | ok |
+
+Exit status 0; 4 tests in 3.229 s. The probe now also compares every resource limit the platform defines (each once)
+and the supplementary group count with what is recorded (review of a235ad1a, B1).
+
+## Step 9g-iii run (F118), before its repair (superseded)
 
 | Field | Value |
 |---|---|
