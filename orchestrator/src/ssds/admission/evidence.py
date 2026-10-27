@@ -112,4 +112,14 @@ def assessment_references(record: Mapping[str, Any], s: Any, passing: Mapping[st
     return sorted(set(codes))
 
 
-__all__ = ["assessment_references", "realization_references", "realization_shape"]
+def custody_problems(record: Mapping[str, Any]) -> list[str]:
+    """A ``CUSTODY_ENUMERATION`` lists each run once (step 9d-iii; reading F102). Its runs need not be admitted (F81):
+    derivation blocks the stop until each is, so they are no record references."""
+
+    if record.get("kind") != "CUSTODY_ENUMERATION":
+        return []
+    runs = (record.get("fields") or {}).get("runs") or []
+    return ["SCHEMA_RECORD"] if len(set(runs)) != len(runs) else []
+
+
+__all__ = ["assessment_references", "custody_problems", "realization_references", "realization_shape"]

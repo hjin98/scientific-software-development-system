@@ -245,10 +245,13 @@ class Judgments:
         elif record["kind"] == "PLAN_ACCEPTANCE":
             units = [i["unit"] for i in record["fields"]["items"]]
         elif record["kind"] in ("EVIDENCE_ASSESSMENT", "IMMATERIALITY"):
-            assessment = record["id"] if record["kind"] == "EVIDENCE_ASSESSMENT" else (target["records"] or [None])[0]
-            realization = self.s.record(assessment)["target"]["realization"] if assessment in self.s.records else None
-            if realization in self.s.records:
-                units = [c["unit"] for c in self.s.record(realization)["target"]["claim"]]
+            # every named failure's claim, never the first's only (re-check of 1baf2c77, note)
+            assessments = [record["id"]] if record["kind"] == "EVIDENCE_ASSESSMENT" else list(target["records"] or [])
+            for assessment in assessments:
+                realization = self.s.record(assessment)["target"]["realization"] if assessment in self.s.records \
+                    else None
+                if realization in self.s.records:
+                    units += [c["unit"] for c in self.s.record(realization)["target"]["claim"] if c["unit"] not in units]
         elif isinstance(target, dict):
             subject = target.get("subject")
             if isinstance(subject, dict):

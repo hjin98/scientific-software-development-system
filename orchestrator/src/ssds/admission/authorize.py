@@ -135,6 +135,8 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
         codes.add("AUTH_ACTOR")  # §6.8: disposing of a D1/D2 failure is R3, a human's (reading F101)
     if kind == "IMMATERIALITY" and not _immateriality_actor(record, trial, obligation):
         codes.add("AUTH_ACTOR")
+    if kind == "CUSTODY_ENUMERATION" and not _custody_actor(record, trial):
+        codes.add("AUTH_ACTOR")
     if kind in ("ACCEPTANCE", "LEGACY_ACCEPTANCE"):
         # a legacy import "supplies the acceptance for that (subject, scope_id, rev)" (§19.2), so it meets the same
         # target rules, on a subject the protocol it imports governs (review c80fc6a B1)
@@ -165,6 +167,15 @@ def _immateriality_actor(record: dict, trial: Any, obligation: Any) -> bool:
         if record["actor"] != owner and not bound:
             return False
     return True
+
+
+def _custody_actor(record: dict, trial: Any) -> bool:
+    """An enumeration is its class's (reading F102): ``target.runner`` names an ``EXTERNAL_CUSTODY`` class the policy
+    in force designates, whose keys include the signing key, the actor's ``@<key id>``."""
+
+    runner = trial.s.policy.runners.get((record.get("target") or {}).get("runner"))
+    key = str(record.get("actor", "")).rsplit("@", 1)[-1]
+    return runner is not None and runner.kind == "EXTERNAL_CUSTODY" and key in runner.keys
 
 
 def _supersession_unbuilt(superseded: str, trial: Any) -> bool:

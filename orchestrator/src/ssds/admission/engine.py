@@ -43,7 +43,7 @@ from .lifecycle import (lifecycle_message, lifecycle_problems, migration_problem
 from .loss import evidence as loss_evidence, in_force as loss_in_force, loss_problems, redesignation_problems, \
     report_ref, resolution_problems
 from .currency import Currency
-from .evidence import assessment_references, realization_references, realization_shape
+from .evidence import assessment_references, custody_problems, realization_references, realization_shape
 from .legality import Legality, conformance_alone
 from .request import REPORT_KINDS, never_lost, request_id
 
@@ -58,10 +58,10 @@ def salvageable(record: Mapping[str, Any]) -> bool:
     """A never-lost record is salvaged only when every check it owes is built (Phase F plan §3.1, step 5a): a
     report, a challenge or an adverse judgment, whose own step-3 and step-5 checks now exist (steps 4b-4d; step 6
     exempts them). A runner's realization and a failing assessment are salvaged once their checks exist (steps
-    9d-i and 9d-ii, F99). A custody enumeration owes 9d-iii's checks, and a check execution stays unsupported
-    (Q-F19), so they are still refused by identity as unsupported (plan review b10018de B1)."""
+    9d-i and 9d-ii, F99). A check execution stays unsupported (Q-F19), so it is still refused by identity as
+    unsupported (plan review b10018de B1)."""
 
-    return record.get("kind") not in ("CHECK_EXECUTION", "CUSTODY_ENUMERATION")
+    return record.get("kind") != "CHECK_EXECUTION"
 
 
 def blocking(refused: Iterable[tuple[str, tuple[str, ...]]], alone: Iterable[tuple[str, tuple[str, ...]]]) -> list:
@@ -632,7 +632,7 @@ class Admission:
             for record in records:
                 own = record_problems(record, record_violations)
                 if not own:
-                    own += realization_shape(record)  # step 1: its closed execution shape (F78)
+                    own += realization_shape(record) + custody_problems(record)  # step 1 (F78, F102)
                 if not own:
                     rid = record["id"]
                     if rid in known or any(p["id"] == rid for p in passing):
@@ -969,6 +969,7 @@ _ACCEPTED = {
     "REALIZATION": {"spec"},  # step 9d-i: a runner's observation of an admitted head (F97)
     # step 9d-ii (F99-F101): an ordinary assessment, a completeness judgment, an immateriality judgment
     "EVIDENCE_ASSESSMENT": {"realization"}, "COMPLETENESS": {"completeness"}, "IMMATERIALITY": {"records"},
+    "CUSTODY_ENUMERATION": {"custody"},  # step 9d-iii: an external custody runner's enumeration (F102)
 }
 
 
@@ -982,7 +983,7 @@ def _shape(target: Any) -> str | None:
                           ("delta", {"absorption", "key"}), ("record", {"record"}), ("records", {"records"}),
                           ("units", {"units"}), ("spec", {"spec", "claim"}),
                           ("realization", {"realization", "obligation"}),
-                          ("completeness", {"scope", "classes", "membership"})):
+                          ("completeness", {"scope", "classes", "membership"}), ("custody", {"runner"})):
         if needed <= keys:
             return shape
     return None

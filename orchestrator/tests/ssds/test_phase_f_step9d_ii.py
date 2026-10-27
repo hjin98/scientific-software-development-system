@@ -190,6 +190,18 @@ class Dispositions(unittest.TestCase):
         rec = judgment("IMMATERIALITY", {"records": [own["id"]]}, "IMMATERIAL", actor=reviewer, actor_class="AGENT")
         self.assertTrue(r.sc.derive().a.disposition_needs_human(rec))
 
+    def test_an_immateriality_judges_every_named_failures_claim(self) -> None:
+        """Re-check of 1baf2c77, note: its units are the union over every failure it names, never the first's."""
+
+        r, real, failing = self.failing()
+        view = r.sc.view(r.trees["T0"])
+        other = with_id({**real, "target": {**real["target"], "claim": [{"unit": "spec", "rev": view.rev("spec")}]},
+                         "provenance": {"attempt": 99}})
+        r.sc.admit(other)
+        second = r.fail(other)
+        rec = judgment("IMMATERIALITY", {"records": [failing["id"], second["id"]]}, "IMMATERIAL", actor=OWNER)
+        self.assertEqual(sorted(r.sc.derive().j._policy_units(rec)), ["code", "spec"])
+
     def test_through_authorize_an_agents_d2_disposition(self) -> None:
         for kind, expected in (("D2", True), ("D4", False)):
             with self.subTest(kind=kind):
