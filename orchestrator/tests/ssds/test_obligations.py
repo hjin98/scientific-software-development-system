@@ -371,7 +371,8 @@ class ReviewRepairs(unittest.TestCase):
         self.assertEqual(wf(sc).of_kind("ADJUDICATE_DISAGREEMENT"), [])
 
     def test_a_contract_waits_on_no_judge(self) -> None:
-        sc = Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(item_block(budget=11))})
+        sc = Scenario(PLAN_MANIFEST, {**PLAN_FILES, "plans/work.md": plan_text(item_block(budget=11))},
+                      policy=DESIGNATED)  # the budget lint alone (review of 47612014, N1)
         sc.admit(*attested(PlanObligations.acceptance(None, sc)))
         w = wf(sc)
         (contract,) = w.of_kind("CONTRACT")

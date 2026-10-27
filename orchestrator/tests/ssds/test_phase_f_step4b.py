@@ -494,9 +494,9 @@ class OneAuthorshipRule(unittest.TestCase):
 
         from ._scenario import OWNER, agent, content
         from .test_conformance import SECONDARY, realize, submit
-        from .test_lint import FILES, MANIFEST, item_block, plan_text
+        from .test_lint import FILES, MANIFEST, RUNNERS, item_block, plan_text
 
-        policy = 'schema = 1\n[domains.""]\nhumans = ["%s", "%s"]\n' % (HUMAN, HUMAN_B)
+        policy = 'schema = 1\n[domains.""]\nhumans = ["%s", "%s"]\n' % (HUMAN, HUMAN_B) + RUNNERS
         sc = Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(item_block(secondary=SECONDARY))}, policy=policy)
         objective, item = sc.rev("plan.work.objective"), sc.rev("plan.work.item")
         sc.admit(*attested(judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,

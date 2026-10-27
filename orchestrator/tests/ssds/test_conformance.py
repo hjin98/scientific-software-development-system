@@ -15,7 +15,7 @@ from ssds.ledger.read import transformation_id, with_id
 from ._scenario import attested
 from ._fixtures import record, tree
 from ._scenario import OWNER, Scenario, agent, content, fresh, judgment
-from .test_lint import FILES, MANIFEST, item_block, plan_text
+from .test_lint import DESIGNATED, FILES, MANIFEST, item_block, plan_text
 
 SECONDARY = '[ { check = "BOUNDARY.write_scope" }, { check = "TEST_INTEGRITY.evidence_specs_untouched" } ]'
 SLOTS = {"claims": [{"claim": "the solver adapts", "records": []}], "unverified_assumptions": {"none": "NONE_MADE"},
@@ -23,7 +23,8 @@ SLOTS = {"claims": [{"claim": "the solver adapts", "records": []}], "unverified_
 
 
 def accepted_plan(block: str | None = None) -> Scenario:
-    sc = Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(block or item_block(secondary=SECONDARY))})
+    sc = Scenario(MANIFEST, {**FILES, "plans/work.md": plan_text(block or item_block(secondary=SECONDARY))},
+                  policy=DESIGNATED)  # its verifier's runner class is designated (E20; review of 47612014, N1)
     objective, item = sc.rev("plan.work.objective"), sc.rev("plan.work.item")
     sc.admit(*attested(judgment("PLAN_ACCEPTANCE", {"units": ["plan.work"]}, "ACCEPTED", actor=OWNER,
                                 basis=[content("plan.work.objective", objective),

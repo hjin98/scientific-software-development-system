@@ -98,6 +98,49 @@ class Keys(Fixture):
             with self.subTest(action=action, role=key["role"]), self.assertRaises(EntryInvalid):
                 self.lifecycle(action, key, **extra)
 
+    def test_a_compromise_names_its_roles_key_and_never_moves_later(self) -> None:
+        """Review of 47612014, N3 (n6, n11)."""
+
+        from ssds.admission.engine import EntryInvalid
+
+        self.lifecycle("REGISTER", self.runner.trust_root())
+        position = len(self.entries())
+        self.lifecycle("COMPROMISED", self.runner.trust_root(), from_position=position - 1)
+        with self.assertRaises(EntryInvalid):
+            # a compromised runner key named as an issue key, at an earlier position, so only the role rule refuses it
+            self.lifecycle("COMPROMISED", {**self.runner.trust_root(), "role": "ISSUE"}, from_position=position - 2)
+        with self.assertRaises(EntryInvalid):
+            self.lifecycle("COMPROMISED", self.runner.trust_root(), from_position=position)  # later: never relaxed
+        self.lifecycle("COMPROMISED", self.runner.trust_root(), from_position=position - 2)  # earlier: allowed
+
+    def test_a_loss_records_the_runner_keys_in_force(self) -> None:
+        """Review of 47612014, B1: F56's controls follow the runner-key fold; a ledger that never had one keeps
+        genesis's shape."""
+
+        from unittest import mock
+
+        from ssds.admission.loss import controls
+        from ssds.ledger.read import Chain, read_chain
+
+        def keys():
+            chain = read_chain(self.home.ledger_repository("demo"), "demo")
+            return controls(chain, self.trees)["trust_roots"].get("runner_keys")
+
+        self.assertIsNone(keys(), "genesis's shape")
+        self.lifecycle("REGISTER", self.runner.trust_root())
+        self.assertEqual(keys(), [{"id": self.runner.key_id, "public_key": self.runner.public_hex}])
+        new = RunnerKey()
+        self.lifecycle("ROTATE", {**new.trust_root(), "retires": self.runner.key_id})
+        self.assertEqual(keys(), [{"id": new.key_id, "public_key": new.public_hex}])
+        self.lifecycle("COMPROMISED", new.trust_root())
+        self.assertEqual(keys(), [], "a compromised key is in force no more")
+        declared = RunnerKey()
+        genesis = dict(read_chain(self.home.ledger_repository("demo"), "demo").genesis)
+        genesis["fields"] = {**genesis["fields"], "trust_roots": {**genesis["fields"]["trust_roots"],
+                                                                  "runner_keys": [declared.trust_root()]}}
+        with mock.patch.object(Chain, "genesis", new_callable=mock.PropertyMock, return_value=genesis):
+            self.assertEqual(keys(), [], "a genesis-declared key the fold does not hold is not copied")
+
     def test_genesis_runner_keys_are_read_and_the_reader_is_total(self) -> None:
         key = self.runner.trust_root()
         genesis = _Item(0, {"kind": "GENESIS", "fields": {"trust_roots": {"runner_keys": [key, 7, {"id": 1}]}}})

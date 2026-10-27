@@ -30,13 +30,16 @@ def controls(chain: Any, trees: TreeSource) -> dict[str, Any]:
     entries = chain.entries[: chain.readable_through + 1]
     genesis = chain.genesis["fields"]
     roots = trust_roots(entries)
-    # genesis's complete trust-root shape (Manual §25.2; revision 24): the folded dispatcher and human keys, and every
-    # other member, human_mechanism and any further key list included, at its genesis value, which no admissible
-    # lifecycle path changes yet
+    # genesis's complete trust-root shape (Manual §25.2; revision 24): the folded dispatcher, runner and human keys,
+    # and every other member, human_mechanism and the host keys included, at its genesis value, which no admissible
+    # lifecycle path changes yet; runner keys follow the fold since step 9a, present when genesis declares them or a
+    # lifecycle record named one, so a ledger that never had one keeps genesis's shape (review of 47612014, B1)
+    runners = {"runner_keys": _sorted_keys(roots.runners)} \
+        if "runner_keys" in genesis["trust_roots"] or roots.runners or roots.former_runners else {}
     return {
         "witnesses": in_force(chain).to_json(),
         "trust_roots": {**genesis["trust_roots"], "dispatcher_keys": _sorted_keys(roots.issue),
-                        "human_keys": _sorted_keys(roots.humans)},
+                        "human_keys": _sorted_keys(roots.humans), **runners},
         "ruleset": dict(History(chain, trees).ruleset(len(entries) - 1)),
     }
 
