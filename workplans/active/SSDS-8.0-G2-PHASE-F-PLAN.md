@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F12 settled (SD-64, SD-67 to SD-73); Q-F13 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F12 settled (SD-64, SD-67 to SD-73); Q-F13 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -46,7 +46,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d (publication,
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
-             F44-F48, Q-F13), under plan check; 7a (retirement) is next. A10 is accepted (SD-66);
+             F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -230,6 +230,26 @@ Step 10 and SD-64 need `ssdp-shadow`'s retirement first, so step 7 builds it fir
 | **7f** `CONTINUITY_ATTESTATION` | Its target, listed records, evidence and authentication; challenges of it | the policy designation of its actor, which no policy key expresses: still `SCHEMA_UNSUPPORTED` (F48) |
 | **7g** the rest | `REPLICA_REDESIGNATION`, `LINEAGE_MIGRATION` and `REDACTION_NOTICE`: field checks on fixtures | the equal-state qualification, which is Phase H's re-encoding, and a redaction's halt: disclosed |
 
+§23.8's rows are placed as follows (plan check note 3):
+- **Built earlier.**
+  - Crash after append: 6b's recovery.
+  - Stale product restore: 6a's absorption.
+  - Witnesses below read quorum: 6b's halt.
+- **7c, `LEDGER_LOSS`.**
+  - Ledger truncated with newer product: 7c's loss; the next entry's absorption is 6a's.
+  - Ledger and product restored to one stale snapshot.
+  - Ledger objects lost.
+- **7d, `FORK_RESOLUTION`.** Only proved-never-admitted entries lost; a fork or conflicting witnesses.
+- **7e.** Witnesses lost beyond the fault bound.
+- **Partly built.**
+  - Authoritative replica lost: 7g's field checks; the restore is F47's deferral.
+  - Ledger ref rewound with a recoverable suffix: F47's deferral; Admission halts at `ROLLBACK` (6b).
+- **Owned elsewhere.**
+  - Abandoned entries later surfacing: never merged, an integrity finding; derivation's existing abandonment reading, with a 7c test.
+  - Lost local store: 6b re-establishes the high-water mark by qualification.
+  - Corrupted derived state: re-derivation, which is derivation's default.
+  - Content objects unavailable: the `UNAVAILABLE` binding health of Phase D's content model.
+
 Discriminators: S5 §23 `loss_bounds` and `qualification_states` at Admission; each §23.8 row as a fixture history; a stale-consistent restore; a fresh clone; a redesignation over a provisional entry; `deployment_classes_sound` at redesignation; §31.4's retired lineage and stale mirror reading `RETIRED`; and §4's "recovery authorization and authenticated witness retirement".
 
 ## 4. Acceptance groups: cases and discriminators carried
@@ -371,9 +391,9 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 - **F42** *Step 8 and an adoption (step 6c).* SD-71 deferred 5f because step 8 was taken to judge only integrating requests. But catalogue §8.3 step 8 says "This step concerns the request's content and structural changes", and a records-only adoption changes `Σ`. Until 5f is built, an adoption is `SCHEMA_UNSUPPORTED` while any admitted realization's execution basis or reading reads a unit the adoption changes. Those are the units in its effect-keyed write set: 4c-i's owner, applied to `X = (B, B, A)` with `Σ_n` against `Σ_{n+1}` on `T_n`. They include a unit whose bytes leave it for a newly declared unit, not only the units it re-declares (plan check of 97d9824 B2). That never holds for `ssdp-shadow-2`, which has no realizations, so step 10's repair proceeds. The correction to SD-71's premise is put to the stakeholder (Q-F11).
 - **F43** *Publication and the commit graph (step 6d).* §22.2 classifies by reachability ("`C_n` or an equivalent publication is reachable from `obs`"), so derivation needs a commit-graph reader. `History` takes an optional `ancestry`, which the composition root supplies over the ledger repository; that repository keeps every observed commit reachable (§8.6). Without it, a publication that is not `obs` itself is `UNKNOWN`, and the entry-shape rule reads `obs` against `E` strictly, since no equivalence can be shown. Reachability of `C_n` stands for reachability of an equivalent publication. A deeper equivalent publication, below an `obs` that neither is nor reaches `C_n`, is not searched, so such an admission reads `OVERTAKEN`: the conservative class, which re-evaluates it and can raise `LATE_PUBLICATION`. "Derivation treats a violating entry as corrupt" (§8.6) is an `ENTRY_SHAPE` integrity finding with `CRITICAL` attention, like `LATE_PUBLICATION`. Truncating derivation at a corrupt entry is a ledger-level halt, which this reading leaves to Stage S.
 - **F44** *A retirement whose successor is no migration (step 7a; Q-F13).* §24.2 defines retirement inside a replacement lineage, whose new genesis carries a `LINEAGE_MIGRATION` and is qualified to derive the same state up to renaming. `ssdp-shadow-2` is no such lineage: SD-61 replaced the shadow by a new genesis with another baseline and structure. Read SD-61 and SD-64 as warranting a non-breach retirement. Its `LINEAGE_RETIREMENT` names its successor (`ledger_id` and genesis digest) for discovery only: no binding, no claim of equal state, and nothing carried over. The old ledger's records stay readable as history and are imported nowhere. This is a candidate for the Manual clarification batch, and the stakeholder confirms it (Q-F13).
-- **F45** *The retirement statement and its signers (step 7a).* §24.2: "Publish an authenticated retirement statement to the old witnesses, held by `q_a` of them". The human approves once: the `LINEAGE_RETIREMENT` record, through §25.2's lifecycle gate, signed over the ledger, position, previous entry and record identity. The statement `{ledger_id, kind: RETIREMENT, last_position, last_entry_digest, successor_ledger_id, successor_genesis_digest}` is then signed by the ledger's Admission host key, like a checkpoint. It names that retirement entry as the last, whose human approval the chain carries. A verifier accepts it only when the host key is in the trust roots, its last entry is the chain's `LINEAGE_RETIREMENT` (where the chain is present), and `q_a` witnesses hold it. A bare marker file is no retirement.
+- **F45** *The retirement statement and its signers (step 7a).* §24.2: "Publish an authenticated retirement statement to the old witnesses, held by `q_a` of them". The human approves once: the `LINEAGE_RETIREMENT` record, through §25.2's lifecycle gate, signed over the ledger, position, previous entry and record identity. The statement `{ledger_id, kind: RETIREMENT, last_position, last_entry_digest, successor_ledger_id, successor_genesis_digest}` is then signed by the ledger's Admission host key, like a checkpoint. It names that retirement entry as the last, whose human approval the chain carries. A verifier accepts it only when the host key is in the trust roots, its last entry is the chain's `LINEAGE_RETIREMENT` (where the chain is present), and `q_a` witnesses hold it. A participant holding no chain, a mirror that must still read `RETIRED`, takes the trust roots from the genesis it pins: the genesis digest and admission keys in its operator state, as qualification's high-water mark is (plan check note 4). A bare marker file is no retirement.
 - **F46** *`LEDGER_LOSS`'s `controls` (step 7c).* §24.1 lets a loss re-establish the witness model, trust roots and ruleset, but derivation folds controls only from genesis, `KEY_LIFECYCLE` and `RULESET_ADOPTION`. Until a control fold exists, a loss's `controls` must equal the controls in force at the retained head, and any change fails closed. Schema 1 leaves the inner shapes of the recovery fields open, so Admission checks closed shapes for the fields it reads; the schema is unchanged.
-- **F47** *Ref restores (step 7d).* Choosing the side of a fork the replica does not hold, or restoring a recoverable suffix, rewrites the ledger ref, which the append-only compare-and-swap cannot do, and fitness B1 confines Git writes to `ledger.append`. In Phase F these are operator actions outside SSDS, disclosed. Admission then qualifies whatever the replica holds.
+- **F47** *Ref restores (step 7d).* Choosing the side of a fork the replica does not hold, or restoring a recoverable suffix, rewrites the ledger ref, which the append-only compare-and-swap cannot do, and fitness B1 confines Git writes to `ledger.append`. The Manual assigns "replica restore" to the Ledger Store (component table), so this defers a `ledger` function, not only an operator convenience. It is deferred to Phase H, with §24.2's re-encoding. When built, it needs a named extension of fitness B1's single Git-writing exception (plan check of bd515e6, note 2). In Phase F a restore is an operator action outside SSDS, disclosed, and Admission qualifies whatever the replica holds.
 - **F48** *A continuity attestation's designation (step 7f).* §5.2 and §12.5 have a continuity attestation recorded by "a designated human" (R3), but no policy key designates one, and `Support.qualified` reads only the human floor. It stays `SCHEMA_UNSUPPORTED` until a designation exists. On `ssdp-shadow-2` it would follow only a `LEDGER_LOSS`, which F46 makes rare.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
@@ -524,7 +544,8 @@ Clause (f) is part of clean conformance, re-derived "at every revalidation of an
 **Q-F13. `ssdp-shadow`'s retirement and its successor (F44, F45).** §24.2 defines retirement inside a replacement lineage that carries a `LINEAGE_MIGRATION` and derives the same state. `ssdp-shadow-2` is a new genesis, not a migration.
 - **Recommended:** (a) a non-breach retirement naming `ssdp-shadow-2` as successor for discovery only, with no binding or claim of equal state (F44). The stakeholder signs one approval, the `LINEAGE_RETIREMENT` record, and the host key signs the published statement (F45). The reading goes to the Manual clarification batch.
 - **Alternative:** (b) a retirement naming no successor at all.
-- **Alternative:** (c) treat §24.2 as the only route: then `ssdp-shadow` cannot be retired in Phase F, and stays as it is, unused.
+
+SD-64 already decided that `ssdp-shadow` is retired, so the question is only how its successor is named (plan check of bd515e6, note 1).
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -1587,3 +1608,15 @@ Cases pin N2 and N4.
 **SD-73 (item 67): Q-F12 (a).** Step 6f is deferred with 6g, 5e and 5f. **Step 6 is closed for Phase F**: 6a-6e built, 6f and 6g deferred and disclosed.
 
 **Revision 20: step 7 in parts (§3.4, readings F44-F48, Q-F13).** A read-only survey of catalogue §22.1, §23-§24 and §25.2 against the code found the gaps §3.4 lists. Step 7 is split into 7a-7g, with retirement first because step 10 and SD-64 need it. Its possible challenge is §24.2 defining retirement only inside a migration. It is read as F44 and put to the stakeholder as Q-F13, not raised as a SERIOUS CHALLENGE: SD-61 and SD-64 already chose the new genesis, and the reading only names it.
+
+**Plan check of bd515e60 (revision 20).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Its answers:
+- F44 is a defensible D4 reading. §23.4 defines `RETIRED` generically, §22.1 lists `LINEAGE_RETIREMENT` among the recovery entries, and SD-64 already decided the retirement.
+- F45 is faithful, a host-key statement anchored in the human-approved chain entry.
+- 7a's gate, F46-F48 and the ordering are right.
+
+Its notes are taken up:
+- Q-F13's option (c) is dropped, since it would reverse SD-64.
+- F47 names its deferred `ledger` function and its phase.
+- Each §23.8 row is placed.
+- F45 says where a chainless verifier gets its trust roots.
+- The status line is current.
