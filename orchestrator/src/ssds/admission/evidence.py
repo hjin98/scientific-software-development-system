@@ -6,8 +6,9 @@ derivation's one reader (``read_realization``, ``on_minus``; F88), never re-impl
 
 - **Step 1.** An execution outside the closed shape is ``SCHEMA_RECORD`` (F78).
 - **Step 2.** The record is in the admitted state and ``tree(o)`` is the head of an admitted position ``k``; otherwise
-  it is evidence on a candidate or merged tree, ``SCHEMA_UNSUPPORTED`` (SD-70). A late run on an older admitted head is
-  admitted (§6.9). The specification's and every claim's revision are ``view(k)``'s (``REF_TARGET``); every recorded
+  it is evidence on a candidate or merged tree, ``SCHEMA_UNSUPPORTED`` (SD-70). ``k`` is the latest such position no
+  later than ``start``. A late run on an older admitted head is admitted (§6.9). The specification's and every
+  claim's revision are ``view(k)``'s (``REF_TARGET``); every recorded
   term re-resolves in ``tree(o)`` (``REF_EXECUTION``), a recorded context the host lacks being ``SCHEMA_UNSUPPORTED``
   (§6.3); each bounding judgment is admitted (``REF_RECORD``); ``k ≤ start ≤ end ≤ n`` (``REF_EXECUTION``); and the
   evaluated outcome is a stored or co-submitted JSON object (``REF_OBJECT``, ``SCHEMA_OBJECT``).
@@ -41,9 +42,13 @@ def realization_references(record: Mapping[str, Any], s: Any, known: Container[s
     execution = record["fields"]["execution"]
     if record.get("frame") != "ADMITTED":
         return ["SCHEMA_UNSUPPORTED"]  # frame evidence (SD-70)
-    k = next((p for p in range(s.n + 1) if s.h.head(p) == execution["tree"]), None)
-    if k is None:
+    heads = [p for p in range(s.n + 1) if s.h.head(p) == execution["tree"]]
+    if not heads:
         return ["SCHEMA_UNSUPPORTED"]  # a candidate's or merged tree's evidence (SD-70)
+    # k: the state the run started from, the latest admitted position no later than its start whose head is its
+    # tree, so a recurring tree is read under the structure then (review of 885a949c, note 1)
+    started = [p for p in heads if p <= execution["start"]]
+    k = started[-1] if started else heads[0]
     codes = []
     view = s.h.view(k)
     target = record["target"]
@@ -59,7 +64,7 @@ def realization_references(record: Mapping[str, Any], s: Any, known: Container[s
     bounded = execution["bounded_by"]
     if isinstance(bounded, list) and any(c not in known for c in bounded):
         codes.append("REF_RECORD")
-    if not k <= execution["start"] <= execution["end"] <= s.n:
+    if not started or not execution["start"] <= execution["end"] <= s.n:
         codes.append("REF_EXECUTION")  # a run starts on a tree only once it is admitted, and ends by the head
     data = objects.get(record["fields"].get("evaluated"))
     if data is not None:  # an absent one is REF_OBJECT, by referenced_objects
