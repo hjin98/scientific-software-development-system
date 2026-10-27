@@ -44,7 +44,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a and 6b are closed (PASS at c06f5be5 and
              e78d0cf7); 6c (accepting) is closed (PASS at ab0b790d). Admission now accepts records-only
              requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d (publication,
-             F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is next. A10 is accepted (SD-66);
+             F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is built and under review; 6f is
+             next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1528,3 +1529,15 @@ Its notes:
 - N1 and N3, placed in step 10's row: wire `ancestry` into the composition root or report publication as `UNKNOWN`, and expect `LATE_PUBLICATION` after a force-push rewind and advance.
 
 Cases pin N2 and N4.
+
+**Step 6e built.**
+- **Derivation.** `History` registers an integration whenever an accepted admission carries `integrates`, or when the head moves. An empty transformation (`C = B`) therefore agrees with its trial (plan check of 0d92c731). A rejection naming `X` integrates nothing (F35), and an adoption never carries `integrates` (6c).
+- **No version change.** No ledger holds an accepted entry carrying `integrates`, since integrations are not accepted in Phase F. Existing histories derive as before, so `DERIVATION_VERSION` is unchanged.
+- **Tests.** `test_phase_f_step6e.py`:
+  - an empty integration registered, agreeing with its trial;
+  - a rejection naming `X`;
+  - an admission with neither;
+  - the checkpoint round trip.
+
+  The full suite is the fixture regression.
+- **Mutants.** One: killed.

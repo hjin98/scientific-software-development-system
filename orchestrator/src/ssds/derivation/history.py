@@ -109,7 +109,10 @@ class History:
             if kind == "ADMISSION":
                 admission = body["admission"]
                 if admission["decision"] == "ACCEPT":
-                    if admission["admitted_commit"] != head or admission["base_commit"] != head:
+                    # an integration whenever the entry says so, an empty transformation (C = B) included, so it
+                    # agrees with its trial (plan step 6e; plan check of 0d92c731), or when the head moves
+                    if admission.get("integrates") or admission["admitted_commit"] != head \
+                            or admission["base_commit"] != head:
                         self.integrations[entry.position] = Integration(
                             entry.position, admission.get("integrates"), admission["base_commit"],
                             admission["admitted_commit"])
