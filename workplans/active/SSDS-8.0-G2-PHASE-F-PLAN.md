@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72) and awaits its plan check. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is built and awaits its review; 8d is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2408,3 +2408,37 @@ Its notes, recorded:
 - **N1.** A surface nested only dynamically inside a written unit, with no membership relation, is not detected. That is acceptable for scheduling.
 - **N2.** `Leases.acquire` reads, then appends, unlocked. Phase F runs one Dispatcher process per ledger, and a second process could double-lease, which changes scheduling only.
 - **N3.** A joint-invariant review is a judgment, which writes nothing and carries no surfaces, so no surface ever holds it. Its scheduling is that of any judgment, which 8c's joint-invariant test shows.
+
+**Plan check of 8f1c948f (revision 31).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Its answers:
+- The co-signature is a faithful D4 realization of §5.10 (a)'s "co-submitted attestation", needing no stakeholder decision. It changes the request binding (F9), not the ledger schema.
+- Its authentication rules are tight.
+- An empty `input_sessions` is the right fresh context.
+- Keeping the judge's facts in provenance is acceptable.
+
+Its notes, taken up in 8d:
+- **1.** The co-signature is bound to this task's envelope.
+- **2.** The `input_sessions` reading is disclosed and sent to the Manual clarification batch.
+- **3.** Unverified judge facts decide nothing, and a model-family requirement fails closed.
+- **4.** An attesting human who is an author is stated and tested.
+- **5.** The manual-route human judge follows §5.10 (f)'s human rule.
+
+**Step 8e built (the task-bound interface; reading F69).**
+- **The Interface.** It gains a `TaskAccess` protocol (`envelope`, `record_read`), which the Dispatcher's `Journal` satisfies, so the Interface imports no Dispatcher module.
+  - `Session.open_task(task, tasks)` renders the task's brief at its basis, the envelope's `issued_at_position`, through `Workflow.at`. It refuses a task never handed out, a basis outside the qualified prefix, and a brief whose digest is not the envelope's.
+  - `Session.read_task` answers at the basis and records `(unit, rev)` or the path's content digest in the task's basis. A refused read records nothing.
+  - `Session.changed_since_basis` is `ask(changed)` from the basis over the task's work's subjects.
+- **The renderer.** It takes an issued task's `{task_id, route}`. The brief's status reads `ISSUED task … on route …`, and its reads notice says whether the route observes reads (harness) or not (manual, Git-envelope; §16.4). An unissued brief keeps `NOT ISSUED`.
+- **The Dispatcher.**
+  - `brief_for` renders a task's brief at its head with the task and route named, so the envelope's digest covers bytes that `open(task)` reproduces.
+  - The journal's `ISSUED` entry keeps the public, signed envelope object.
+  - `Journal.envelope` returns it only once the task is handed out.
+  - `Journal.record_read` and `reads` hold the task's reads.
+- **Tests.** `test_phase_f_step8e.py`, 7 tests:
+  - the issued brief reproduced at its basis;
+  - a brief whose digest differs refused;
+  - an unknown task, and one never handed out, refused;
+  - answers staying at the basis after the head moves: the product absorbed a change, and a read at the basis returns the old content, with the same brief and `changed` from the basis;
+  - unit and path reads recorded, and a refused read recording nothing;
+  - the reads notice per route.
+- **Mutants.** Six: all are killed. E2, answering at the presented head, survived at first and is killed by the absorption test.
+- **Full suite.** It passes: 1432 tests, 6 skipped.

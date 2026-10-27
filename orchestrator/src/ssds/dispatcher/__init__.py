@@ -4,6 +4,6 @@ scheduling constraints, per-worktree leases, suspension and resumption.
 """
 
 from .leases import Leases
-from .schedule import NotIssuable, Task, issuable, issue, observe, ready, task_id, would_issue
+from .schedule import NotIssuable, Task, brief_for, issuable, issue, observe, ready, task_id, would_issue
 
-__all__ = ["Leases", "NotIssuable", "Task", "issuable", "issue", "observe", "ready", "task_id", "would_issue"]
+__all__ = ["Leases", "NotIssuable", "Task", "brief_for", "issuable", "issue", "observe", "ready", "task_id", "would_issue"]

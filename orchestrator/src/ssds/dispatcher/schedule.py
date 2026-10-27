@@ -113,6 +113,21 @@ def issue(journal: Any, issuer: Any, task: Task, held: Any, *, governs: Any, rou
     return issued
 
 
+def brief_for(chain: Any, trees: Any, held: Any, task: Task, route: str, doctrine: Any = None) -> bytes:
+    """The rendered brief a task is issued with (§16.4; reading F69): its obligation's brief at the head it is
+    issued at, naming the task and its route, so ``open(task)`` reproduces these bytes at the task's basis."""
+
+    from ssds.interface.render import Renderer
+
+    prefix = dataclasses.replace(chain, entries=chain.entries[: held.head + 1])
+    workflow = Workflow(derive(prefix, trees))
+    o = next(o for o in workflow.obligations if o.id == task.obligation_id)
+    head = {"label": "QUALIFIED", "position": held.head, "digest": held.head_digest}
+    renderer = Renderer(workflow, head, doctrine or (lambda source, path: None),
+                        {"task_id": task.task_id, "route": route})
+    return renderer.brief(o).text.encode("utf-8")
+
+
 def observe(chain: Any, trees: Any, held: Any) -> dict[str, Any]:
     """``dispatcher serve`` on a shadow ledger: the would-issue set at ``H*``, issuing nothing and writing no run ref
     (reading F8)."""
@@ -129,4 +144,4 @@ def observe(chain: Any, trees: Any, held: Any) -> dict[str, Any]:
     return report
 
 
-__all__ = ["NotIssuable", "Task", "issuable", "issue", "observe", "ready", "task_id", "would_issue"]
+__all__ = ["NotIssuable", "Task", "brief_for", "issuable", "issue", "observe", "ready", "task_id", "would_issue"]

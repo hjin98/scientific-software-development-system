@@ -152,12 +152,16 @@ class Brief:
 class Renderer:
     """Briefs and the inspector view over one presented state."""
 
-    def __init__(self, workflow: Any, head: dict[str, Any], doctrine: Doctrine) -> None:
+    def __init__(self, workflow: Any, head: dict[str, Any], doctrine: Doctrine,
+                 task: dict[str, Any] | None = None) -> None:
         self.w = workflow
         self.s = workflow.s
         self.d = workflow.d
         self.head = head
         self.read_doctrine = doctrine
+        #: an issued task's brief (Phase F step 8e, reading F69): ``{task_id, route}``, named before its envelope is
+        #: signed, so the rendered bytes the envelope's digest covers are reproduced exactly at the task's basis
+        self.issued = task
 
     # -- version binding (§16.9) ----------------------------------------------------------------------
 
@@ -215,11 +219,26 @@ class Renderer:
             doctrine += f" (no doctrine text rendered: {problem})"
         return f"NATIVE: ruleset {governs['ruleset']}; doctrine {doctrine}"
 
+    def _status(self) -> str:
+        if self.issued is None:
+            return NOT_ISSUED
+        return f"ISSUED task {self.issued['task_id']} on route {self.issued['route']}"
+
+    def _reads(self) -> str:
+        """§16.4: a harness observes reads into the task's basis; the manual and Git-envelope routes cannot."""
+
+        if self.issued is None:
+            return "reads not observed (Phase E: no harness route)"
+        if self.issued["route"] == "HARNESS":
+            return "reads observed: each read through this route is recorded in the task's basis (§16.4)"
+        return (f"reads not observed (route {self.issued['route']}): the basis is the mechanical minimum, the reads "
+                f"recorded through read, and declared reliance (§16.4)")
+
     def _header(self, o: Any, form: str, governs: dict[str, Any]) -> str:
         head = self.head
         return "\n".join([
             f"Governing version: {self._version_section(governs)}",
-            f"Status: {NOT_ISSUED}",
+            f"Status: {self._status()}",
             f"Obligation: {o.kind} {o.id}",
             f"Target: {o.target_json}",
             f"Holder: {o.holder}" + (f"; plan {o.plan}" if o.plan else ""),
@@ -381,7 +400,7 @@ class Renderer:
                 widening = derivation.queries.depends(self.w, subject, cls)["widening"]
                 if widening != "EXACT":
                     notices.append(f"{cls} prerequisites of {subject}: {widening}")
-        notices.append("reads not observed (Phase E: no harness route)")
+        notices.append(self._reads())
         notices.append(f"qualified head: {self.head.get('label')} at position {self.head.get('position')}")
         return "\n".join(f"- {n}" for n in notices)
 

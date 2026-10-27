@@ -118,7 +118,25 @@ class Journal:
 
     def issued(self, task_id: str, binding: Mapping[str, Any]) -> None:
         self._append({"kind": "ISSUED", "task_id": task_id, "envelope": binding_digest(binding),
-                      "issue_key_id": binding["envelope"]["issue_key_id"]})
+                      "issue_key_id": binding["envelope"]["issue_key_id"],
+                      "envelope_object": dict(binding["envelope"])})  # public, signed: what open(task) reads (F69)
+
+    def envelope(self, task_id: str) -> dict[str, Any] | None:
+        """The envelope issued for ``task_id`` and handed out, or None (reading F69)."""
+
+        entries = self.entries()
+        if task_id not in {e["task_id"] for e in entries if e["kind"] == "HANDED"}:
+            return None
+        return next((e.get("envelope_object") for e in entries if e["kind"] == "ISSUED" and e["task_id"] == task_id),
+                    None)
+
+    def record_read(self, task_id: str, read: Mapping[str, Any]) -> None:
+        """A read through ``read`` during the task: its basis, as §16.4 records it."""
+
+        self._append({"kind": "READ", "task_id": task_id, "read": dict(read)})
+
+    def reads(self, task_id: str) -> list[dict[str, Any]]:
+        return [e["read"] for e in self.entries() if e["kind"] == "READ" and e["task_id"] == task_id]
 
     def submitted(self, request: Mapping[str, Any]) -> str:
         rid = request_id(request)

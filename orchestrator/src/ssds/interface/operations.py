@@ -21,7 +21,8 @@ can answer about is :class:`Refused`.
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable, Iterable
+import hashlib
+from collections.abc import Callable, Iterable, Mapping
 import inspect
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -51,6 +52,15 @@ class LedgerAccess(Protocol):
     def high_water(self) -> HighWaterMark | None: ...
 
     def raise_high_water(self, mark: HighWaterMark) -> None: ...
+
+
+class TaskAccess(Protocol):
+    """An issued task's envelope and its recorded reads, supplied by the composition root from the Dispatcher's
+    journal (Phase F step 8e, reading F69); the Interface imports no Dispatcher module."""
+
+    def envelope(self, task_id: str) -> Mapping[str, Any] | None: ...
+
+    def record_read(self, task_id: str, read: Mapping[str, Any]) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -175,6 +185,62 @@ class Session:
         if found is None:
             raise Refused(f"{obligation} is not an obligation derived at the presented head")
         return self._answer("open", Renderer(w, self.presented.head, self.doctrine).brief(found).to_json())
+
+    # -- an issued task (Phase F step 8e, reading F69) ----------------------------------------------------------
+
+    def _task(self, task_id: str, tasks: TaskAccess) -> tuple[Mapping[str, Any], Any, dict[str, Any]]:
+        """The task's envelope, the workflow at its basis (``issued_at_position``) and that head, or ``Refused``."""
+
+        envelope = tasks.envelope(task_id)
+        if envelope is None:
+            raise Refused(f"{task_id} is no task the Dispatcher issued")
+        w = self.presented.workflow
+        basis = envelope["issued_at_position"]
+        if w is None or not isinstance(basis, int) or basis > w.s.n:
+            raise Refused(f"{task_id}'s basis {basis} is not within the presented qualified prefix")
+        at = w.at(basis)
+        head = {"label": "QUALIFIED", "position": basis, "digest": at.s.h.chain.entries[basis].digest}
+        return envelope, at, head
+
+    def open_task(self, task_id: str, tasks: TaskAccess) -> dict[str, Any]:
+        """The issued task's brief at its basis; refused unless it is the brief the envelope's digest names."""
+
+        envelope, at, head = self._task(task_id, tasks)
+        found = next((o for o in at.obligations if o.id == envelope["obligation_id"]), None)
+        if found is None:
+            raise Refused(f"{envelope['obligation_id']} is not derived at {task_id}'s basis")
+        brief = Renderer(at, head, self.doctrine, {"task_id": task_id, "route": envelope["route"]}).brief(found)
+        if envelope.get("brief") is not None and brief.digest != envelope["brief"]:
+            raise Refused(f"{task_id}'s brief renders to {brief.digest}, not the {envelope['brief']} it was issued")
+        return {"query": "open", "task": task_id, "head": head, "answer": brief.to_json()}
+
+    def read_task(self, task_id: str, ref: str, tasks: TaskAccess) -> dict[str, Any]:
+        """Content at the task's basis, the read recorded in its basis (§16.4)."""
+
+        _, at, head = self._task(task_id, tasks)
+        view = at.s.view
+        if ref in view.structure.units:
+            region = view.regions.get(ref) or ()
+            text = b"".join(view.tree[s.path].data[s.start:s.end] for s in region).decode("utf-8", "replace")
+            answer, read = {"unit": ref, "rev": view.rev(ref), "content": text}, {"unit": ref, "rev": view.rev(ref)}
+        elif ref in view.tree:
+            data = view.tree[ref].data
+            answer = {"path": ref, "content": data.decode("utf-8", "replace")}
+            read = {"path": ref, "digest": "sha256:" + hashlib.sha256(data).hexdigest()}
+        else:
+            raise Refused(f"{ref} is neither a unit nor a path at {task_id}'s basis")
+        tasks.record_read(task_id, read)
+        return {"query": "read", "task": task_id, "head": head, "answer": answer}
+
+    def changed_since_basis(self, task_id: str, tasks: TaskAccess, units: list[str] | None = None) -> dict[str, Any]:
+        """``ask(changed)`` for a task: since its basis, over its work's subjects unless ``units`` are named."""
+
+        envelope, at, _ = self._task(task_id, tasks)
+        w = self.presented.workflow
+        if units is None:
+            found = next((o for o in at.obligations if o.id == envelope["obligation_id"]), None)
+            units = sorted(at.briefing.work(found).subjects) if found is not None else None
+        return self._answer("changed", derivation.queries.changed(w, envelope["issued_at_position"], units))
 
     def inspect(self) -> dict[str, Any]:
         """The inspector view: open human attention by ``(-w, c, p, id)``, then the digest (§16.8)."""
