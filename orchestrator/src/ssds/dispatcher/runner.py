@@ -97,8 +97,14 @@ class Workspaces:
             difference = _difference(tree, found)
             if difference:
                 raise MaterializeRefused(f"the workspace is not the tree: {difference}")
-        except BaseException:
-            shutil.rmtree(run_id, dir_fd=runs, ignore_errors=True)
+        except BaseException as exc:
+            failures: list[str] = []
+            if shutil.rmtree.avoids_symlink_attacks:
+                shutil.rmtree(run_id, dir_fd=runs, onexc=lambda _f, path, error: failures.append(f"{path}: {error}"))
+            else:
+                failures.append("this platform cannot remove a tree without following links")
+            if failures:  # never silent (review of dad8e4cd, note 3), never masking the refusal
+                exc.add_note(f"run directory {run_id} not fully removed: {'; '.join(failures)}")
             raise
         finally:
             os.close(runs)
@@ -136,6 +142,11 @@ class Workspaces:
 
 
 def _admissible(path: str, entry: Any) -> None:
+    # containment is this module's whatever mapping it is handed (review of dad8e4cd, B1): a relative path of
+    # named components only, as ``content.check_path`` requires of a Tree
+    if not isinstance(path, str) or not path or path.startswith("/") or "\\" in path or "\0" in path \
+            or any(part in ("", ".", "..") for part in path.split("/")):
+        raise MaterializeRefused(f"{path!r} is not a relative path of named components")
     if any(reads_as_git(part) for part in path.split("/")):
         raise MaterializeRefused(f"{path!r} names a .git component; a workspace is no repository")
     if entry.mode not in (*_FILE_MODES, LINK, GITLINK):
@@ -199,9 +210,18 @@ def _read_back(top: int) -> dict[str, tuple[str, bytes]]:
                     pending.append((path + "/", inner))
                 elif stat.S_ISREG(info.st_mode):
                     mode = {0o644: "100644", 0o755: "100755"}.get(stat.S_IMODE(info.st_mode), oct(info.st_mode))
-                    descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
+                    # a file swapped for a FIFO never blocks the read, and the one opened is the one examined
+                    # (review of dad8e4cd, note 1); a second name would share the inode outside (note 2)
+                    descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
                     with os.fdopen(descriptor, "rb") as handle:
-                        found[path] = (mode, handle.read())
+                        opened = os.fstat(handle.fileno())
+                        if (opened.st_ino, opened.st_dev) != (info.st_ino, info.st_dev) \
+                                or not stat.S_ISREG(opened.st_mode):
+                            found[path] = ("replaced", b"")
+                        elif opened.st_nlink != 1:
+                            found[path] = ("linked", b"")
+                        else:
+                            found[path] = (mode, handle.read())
                 else:
                     found[path] = (oct(info.st_mode), b"")
         finally:

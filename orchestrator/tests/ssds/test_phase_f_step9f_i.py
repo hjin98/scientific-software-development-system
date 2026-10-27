@@ -82,13 +82,51 @@ class Materialized(Fixture):
             self.workspaces.materialize("demo", GROUP1)
         self.assertEqual(os.listdir(self.home.root / "runs" / "demo"), [], "nothing left behind")
 
+    def test_a_file_swapped_after_it_was_examined(self) -> None:
+        """Review of dad8e4cd, note 1: the file opened must be the one ``lstat`` examined."""
+
+        from unittest import mock
+
+        from ssds.dispatcher import runner
+
+        ws = self.workspaces.materialize("demo", GROUP1)
+        real = os.lstat
+
+        def swapped(name, *, dir_fd=None):
+            info = real(name, dir_fd=dir_fd)
+            if name == "empty":  # as if another inode stood there when it was examined
+                return os.stat_result((info.st_mode, info.st_ino + 1, *tuple(info)[2:10]))
+            return info
+
+        with mock.patch.object(runner.os, "lstat", swapped), self.assertRaisesRegex(MaterializeRefused, "replaced"):
+            self.workspaces.verify(ws, GROUP1)
+
+    def test_a_cleanup_that_fails_is_never_silent(self) -> None:
+        """Review of dad8e4cd, note 3: the refusal carries the cleanup failure, and is not masked by it."""
+
+        from unittest import mock
+
+        from ssds.dispatcher import runner
+
+        def failing(path, *, dir_fd=None, onexc=None):
+            onexc(os.rmdir, path, OSError("busy"))
+
+        failing.avoids_symlink_attacks = True
+        with mock.patch.object(runner, "write_all", lambda descriptor, data: os.write(descriptor, data[:-1])), \
+                mock.patch.object(runner.shutil, "rmtree", failing), \
+                self.assertRaises(MaterializeRefused) as caught:
+            self.workspaces.materialize("demo", GROUP1)
+        self.assertTrue(any("not fully removed" in note for note in getattr(caught.exception, "__notes__", [])))
+
     def test_a_changed_workspace_fails_verification(self) -> None:
         ws = self.workspaces.materialize("demo", GROUP1)
         for change in (lambda r: (r / "crlf.txt").write_bytes(b"one\ntwo\n"),
                        lambda r: os.chmod(r / "bin" / "run.sh", 0o644),
                        lambda r: (r / "extra").write_bytes(b"x"),
                        lambda r: (r / "vendor" / "lib" / "x").write_bytes(b"x"),
-                       lambda r: (os.unlink(r / "link"), os.symlink("elsewhere", r / "link"))):
+                       lambda r: (os.unlink(r / "link"), os.symlink("elsewhere", r / "link")),
+                       # a second name for a file: its inode is shared outside (review of dad8e4cd, note 2)
+                       lambda r: os.link(r / "empty", Path(self._tmp.name) / f"hard-{os.urandom(4).hex()}")):
             with self.subTest(change=change):
                 fresh = self.workspaces.materialize("demo", GROUP1)
                 change(fresh.root)
@@ -120,6 +158,17 @@ class Refused(Fixture):
             Tree({"bad\udcff": b"x"})
         with self.assertRaises(MaterializeRefused):
             self.workspaces.materialize("demo", Tree({"l": Entry("120000", b"a\0b")}))
+
+    def test_a_mapping_cannot_climb_out(self) -> None:
+        """Review of dad8e4cd, B1: containment is the materializer's, whatever mapping it is handed."""
+
+        from types import SimpleNamespace
+
+        entry = SimpleNamespace(mode="100644", data=b"x")
+        for path in ("../x", "../../escaped.txt", "a/./b", "a//b", "a/../../b", "/abs", "", "a\\b", "a\0b"):
+            with self.subTest(path=path), self.assertRaises(MaterializeRefused):
+                self.workspaces.materialize("demo", {path: entry})
+        self.assertEqual(list(Path(self._tmp.name).rglob("*")), [], "refused before anything is created, anywhere")
 
     def test_an_entry_mode_no_workspace_holds(self) -> None:
         """The composition root supplies the tree; the materializer reads only Git modes and bytes."""
