@@ -7,7 +7,9 @@ request's records exist:
   catalogue §3.4 permits (``DEP_TARGET_KIND``): a ``CHALLENGE`` of a support-tier record, a triple, an adjudication
   or a risk override; an ``ADJUDICATION`` or ``RISK_OVERRIDE`` of a challenge; a ``WITHDRAWAL`` of a challenge or
   report its own actor raised (§15.2; another actor's is ``AUTH_ACTOR``). A ``CHALLENGE`` of a ``CHALLENGE`` is
-  ``DEP_COUNTER_CHALLENGE`` (F25); a ``CONTINUITY_ATTESTATION``, and a challenge of one, are step 7's;
+  ``DEP_COUNTER_CHALLENGE`` (F25), and a ``CHALLENGE`` of a ``CONTINUITY_ATTESTATION`` is permitted (§23.7). A
+  ``CONTINUITY_ATTESTATION`` targets an earlier ``LEDGER_LOSS`` and stays ``SCHEMA_UNSUPPORTED``: no policy key
+  designates its actor (step 7f, readings F48, F63);
 - no ``validity`` entry on one of the record's own subjects (``DEP_OWN_SUBJECT``, F22);
 - no ``EQUIVALENCE`` with a ``validity`` entry on a consumer of its unit (``DEP_CONSUMER``, F23).
 
@@ -36,21 +38,26 @@ def dependency_codes(record: Mapping[str, Any], trial: Any) -> set[str]:
     s = trial.s
     kind = record["kind"]
     codes: set[str] = set()
-    if kind == "CONTINUITY_ATTESTATION":
-        return {"SCHEMA_UNSUPPORTED"}  # a recovery record, step 7's
     target = record["target"] if isinstance(record["target"], Mapping) else {}
     targeted = target.get("record")
+    if kind == "CONTINUITY_ATTESTATION":
+        # §23.7: it targets an earlier admitted loss (step 7f, reading F63); and it stays unsupported, since no policy
+        # key designates its actor (F48)
+        codes.add("SCHEMA_UNSUPPORTED")
+        targeted = target.get("loss")
     if kind in CHALLENGE_TIER and isinstance(targeted, str) and targeted in s.records:
         if s.position_of(targeted) >= s.position_of(record["id"]):
             codes.add("DEP_TARGET_ORDER")  # strictly earlier (§8.5): a co-submitted target never is
         aimed = s.record(targeted)
         target_kind = aimed["kind"]
-        if kind == "CHALLENGE":
+        if kind == "CONTINUITY_ATTESTATION":
+            if target_kind != "LEDGER_LOSS":
+                codes.add("DEP_TARGET_KIND")
+        elif kind == "CHALLENGE":
             if target_kind == "CHALLENGE":
                 codes.add("DEP_COUNTER_CHALLENGE")
-            elif target_kind == "CONTINUITY_ATTESTATION":
-                codes.add("SCHEMA_UNSUPPORTED")  # permitted (§3.4), but step 7's
-            elif target_kind not in SUPPORT_TIER and target_kind not in ("ADJUDICATION", "RISK_OVERRIDE"):
+            elif target_kind not in SUPPORT_TIER and target_kind not in (
+                    "ADJUDICATION", "RISK_OVERRIDE", "CONTINUITY_ATTESTATION"):  # §3.4, §23.7: any may challenge it
                 codes.add("DEP_TARGET_KIND")
         elif kind in ("ADJUDICATION", "RISK_OVERRIDE"):
             if target_kind != "CHALLENGE":

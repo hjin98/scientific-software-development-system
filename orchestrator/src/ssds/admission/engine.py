@@ -38,7 +38,8 @@ from .checks import (content_identity, on_merits, over_bounds, producing_context
                      referenced_records, referenced_revisions, request_problems, target_references, transformation_named,
                      verified_objects)
 from .genesis import AdmissionHome, host_key
-from .lifecycle import lifecycle_message, lifecycle_problems, retirement_problems
+from .lifecycle import (lifecycle_message, lifecycle_problems, migration_problems, redaction_problems,
+                        retirement_problems)
 from .loss import evidence as loss_evidence, in_force as loss_in_force, loss_problems, redesignation_problems, \
     report_ref, resolution_problems
 from .currency import Currency
@@ -483,9 +484,9 @@ class Admission:
         supplies its content check."""
 
         kind = record.get("kind") if isinstance(record, Mapping) else None
-        if kind != "KEY_LIFECYCLE" and kind not in RECOVERY_STATES:
+        if kind not in _HEAD_KINDS and kind not in RECOVERY_STATES:
             raise EntryInvalid(f"a lifecycle record of kind {kind!r} is not admitted through this path")
-        if kind == "KEY_LIFECYCLE":
+        if kind in _HEAD_KINDS:
             chain = self.held_head()
             expected = self.expected_head(chain.entries[: chain.readable_through + 1])
             if obs != expected:
@@ -537,6 +538,11 @@ class Admission:
         elif kind == "FORK_RESOLUTION":
             problems = record_violations(record) + resolution_problems(record.get("fields"),
                                                                        self.loss_evidence(chain)[0])
+        elif kind == "REDACTION_NOTICE":
+            stored = {d for e in entries for d in e.objects}
+            problems = record_violations(record) + redaction_problems(record.get("fields"), stored)
+        elif kind == "LINEAGE_MIGRATION":
+            problems = record_violations(record) + migration_problems(record.get("fields"), self.ledger_id)
         elif kind == "WITNESS_SET_REDESIGNATION":
             expected, report = self.loss_evidence(chain)
             unqualified = held.state == "UNQUALIFIED"
@@ -559,7 +565,7 @@ class Admission:
         problems = entry_violations(entry) + record_violations(signed)
         if problems:
             raise EntryInvalid(f"the lifecycle entry would not verify: {problems}")
-        if kind != "KEY_LIFECYCLE":
+        if kind not in _HEAD_KINDS:
             trial = self.trial_qualification(chain, entry)
             if not trial.current or trial.head != position or trial.provisional is not None:
                 raise AdmissionHalted(f"the trial qualification of this {kind} is {trial.state} at {trial.head}: "
@@ -652,6 +658,9 @@ class Admission:
                         if record["kind"] == "MATERIALITY_RECLASSIFICATION" and aimed is not None \
                                 and aimed["kind"] not in (*REPORT_KINDS, "CHALLENGE"):
                             own.append("REF_TARGET")  # it reclassifies a report or a challenge (§15.2)
+                        if record["kind"] == "CONTINUITY_ATTESTATION":
+                            own.extend(attestation_references(record, known, passing, s.view.structure.units,
+                                                              stored | set(good)))
                     context = producing_context(record)
                     if context is not None:
                         earlier = admitted_contexts.get(context[0], set()) | {
@@ -853,6 +862,9 @@ RECOVERY_STATES: dict[str, frozenset[str]] = {
     "WITNESS_SET_REDESIGNATION": frozenset({"QUALIFIED", "QUALIFIED+PROVISIONAL", "UNQUALIFIED"}),  # 7e
     "REPLICA_REDESIGNATION": frozenset(),  # 7g
 }
+#: Lifecycle kinds that are not recovery entries (§22.1): they carry the expected head as ``obs`` and are admitted at
+#: the held head, as a ``KEY_LIFECYCLE`` is (step 7g, reading F64).
+_HEAD_KINDS = frozenset({"KEY_LIFECYCLE", "REDACTION_NOTICE", "LINEAGE_MIGRATION"})
 #: The step of Phase F that supplies each recovery kind's content check; until then it is refused.
 _UNBUILT: dict[str, str] = {}
 
@@ -870,6 +882,21 @@ def _content_problems(kind: str, fields: Any, roots: Any, position: int, ledger_
     if kind == "LINEAGE_RETIREMENT":
         return retirement_problems(fields, ledger_id)
     return [f"a {kind} is not admitted until Phase F step {_UNBUILT.get(kind, '7g')} builds its checks"]
+
+
+def attestation_references(record: Mapping[str, Any], known: Any, passing: list, units: Any, objects: set) -> list[str]:
+    """A continuity attestation's references (step 7f, reading F63; §23.7): its loss and every listed id exist, a
+    record or a subject, and its evidence is content the ledger stores or the request carries (``REF_OBJECT``)."""
+
+    fields = record.get("fields") if isinstance(record.get("fields"), Mapping) else {}
+    ids = known | {p["id"] for p in passing}
+    codes = []
+    subjects = {u for u, unit in units.items() if unit.subject}  # §23.7's scope: subject ids and record ids
+    if record["target"].get("loss") not in ids or any(x not in ids and x not in subjects for x in fields.get("listed") or []):
+        codes.append("REF_TARGET")
+    if set(fields.get("evidence") or []) - objects:
+        codes.append("REF_OBJECT")
+    return codes
 
 
 def _retiring(entry: LedgerEntry) -> bool:

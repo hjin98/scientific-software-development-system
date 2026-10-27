@@ -119,7 +119,9 @@ class TargetRules(unittest.TestCase):
         self.assertEqual(self.codes(judgment("WITHDRAWAL", {"record": self.review["id"]}, None, actor=HUMAN_B)),
                          {"DEP_TARGET_KIND"}, "a review is neither a challenge nor a report")
 
-    def test_a_continuity_attestation_and_a_challenge_of_one_are_step_7s(self) -> None:
+    def test_a_continuity_attestation_stays_unsupported(self) -> None:
+        """Step 7f (F48, F63): its own checks run beside ``SCHEMA_UNSUPPORTED`` (test_phase_f_step7f)."""
+
         attest = judgment("CONTINUITY_ATTESTATION", {"loss": "sha256:" + "a" * 64}, None, actor=OWNER,
                           fields={"scope_form": "COMPLEMENT", "listed": [], "evidence": []})
         self.assertEqual(dependency_codes(attest, self.sc.derive()), {"SCHEMA_UNSUPPORTED"})

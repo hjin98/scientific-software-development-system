@@ -1,5 +1,6 @@
-"""Human-gated lifecycle records: ``KEY_LIFECYCLE`` (Manual §25.2; catalogue §25.2; Phase F reading F5) and
-``LINEAGE_RETIREMENT`` (catalogue §24.2; step 7a, readings F44-F45; :func:`retirement_problems`).
+"""Human-gated lifecycle records: ``KEY_LIFECYCLE`` (Manual §25.2; catalogue §25.2; Phase F reading F5),
+``LINEAGE_RETIREMENT`` (catalogue §24.2; step 7a, readings F44-F45; :func:`retirement_problems`), and step 7g's
+field checks (reading F64): :func:`replica_problems`, :func:`migration_problems`, :func:`redaction_problems`.
 
 The human gate signs the record for one place in one ledger: the ledger id, the position the entry will take and
 the digest of the head it extends, with the record's identity without the provenance that carries the approval. A
@@ -24,7 +25,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from ssds.derivation import TrustRoots
-from ssds.ledger.read import human_key_id, is_digest, is_unit, record_id
+from ssds.ledger.read import human_key_id, is_digest, is_token, is_unit, ledger_ref, record_id
 
 ACTIONS = frozenset({"REGISTER", "ROTATE", "RETIRE", "COMPROMISED"})
 ROLES = frozenset({"ISSUE", "HUMAN"})
@@ -122,4 +123,61 @@ def retirement_problems(fields: Any, ledger_id: str) -> list[str]:
     return problems
 
 
-__all__ = ["ACTIONS", "ROLES", "key_identity", "lifecycle_message", "lifecycle_problems", "retirement_problems"]
+def replica_problems(fields: Any, ledger_id: str, current: Any) -> list[str]:
+    """A ``REPLICA_REDESIGNATION``'s fields (step 7g, reading F64): exactly a ``location`` of genesis's shape,
+    ``{repository, ref}``, on this ledger's ref, naming a repository other than the one in force. The gate refuses
+    the kind until Phase H's replica restore (SD-75)."""
+
+    if not isinstance(fields, Mapping) or set(fields) != {"location"} or not isinstance(fields["location"], Mapping):
+        return ["a replica redesignation carries exactly its location"]
+    location = fields["location"]
+    problems = []
+    if set(location) != {"repository", "ref"}:
+        problems.append("a location is exactly {repository, ref}")
+    if location.get("ref") != ledger_ref(ledger_id):
+        problems.append("a location names this ledger's ref")
+    if not is_token(location.get("repository")):
+        problems.append("a location's repository is a token")
+    elif isinstance(current, Mapping) and location["repository"] == current.get("repository"):
+        problems.append("the replica named is the one in force")
+    return problems
+
+
+def migration_problems(fields: Any, ledger_id: str) -> list[str]:
+    """A ``LINEAGE_MIGRATION``'s fields (step 7g, reading F64): exactly a ``predecessor`` ``{ledger_id,
+    last_position, last_entry_digest}`` naming another ledger. It is refused until Q-F16 places §24.2's
+    equal-state qualification, the replacement lineage's re-encoding."""
+
+    problems = ["a lineage migration needs §24.2's equal-state qualification, which Q-F16 places"]
+    if not isinstance(fields, Mapping) or set(fields) != {"predecessor"} or not isinstance(fields["predecessor"], Mapping):
+        return problems + ["a lineage migration carries exactly its predecessor"]
+    predecessor = fields["predecessor"]
+    if set(predecessor) != {"ledger_id", "last_position", "last_entry_digest"}:
+        problems.append("a predecessor is exactly {ledger_id, last_position, last_entry_digest}")
+    if not is_unit(predecessor.get("ledger_id")) or predecessor.get("ledger_id") == ledger_id:
+        problems.append("a predecessor is another ledger")
+    position = predecessor.get("last_position")
+    if not isinstance(position, int) or isinstance(position, bool) or position < 0:
+        problems.append("a predecessor's last_position is a position")
+    if not is_digest(predecessor.get("last_entry_digest")):
+        problems.append("a predecessor's last_entry_digest is a digest")
+    return problems
+
+
+def redaction_problems(fields: Any, stored: Any) -> list[str]:
+    """A ``REDACTION_NOTICE``'s fields (step 7g, reading F64; §24.2's rotation branch): exactly ``objects``, a
+    non-empty list of distinct digests the ledger stores. The notice is recorded; nothing is derived from it."""
+
+    if not isinstance(fields, Mapping) or set(fields) != {"objects"} or not isinstance(fields["objects"], list):
+        return ["a redaction notice carries exactly its objects"]
+    objects = fields["objects"]
+    problems = []
+    if not objects or len(set(objects)) != len(objects):
+        problems.append("a redaction notice names distinct objects, at least one")
+    if any(d not in stored for d in objects):
+        problems.append("a redaction notice names only objects the ledger stores")
+    return problems
+
+
+__all__ = ["ACTIONS", "ROLES", "key_identity", "lifecycle_message", "lifecycle_problems", "migration_problems",
+           "redaction_problems", "replica_problems", "retirement_problems"]

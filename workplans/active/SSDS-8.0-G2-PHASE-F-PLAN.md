@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16); revision 29 awaits its re-check. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are built and await their review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2148,3 +2148,26 @@ It confirmed F63's codes, keeping `REPLICA_REDESIGNATION` refused under SD-75, a
 - **`REDACTION_NOTICE`** is built as §24.2's rotation-branch notice, with no derived effect, and the halt rationale is withdrawn.
 - **`LINEAGE_MIGRATION`** keeps its field checks and is refused until Q-F16, a new question on where §24.2's replacement lineage is built. §1 and §6 are reconciled with it.
 - **F63** takes both refinements, and 7f's tests assert the attestation's codes beside `SCHEMA_UNSUPPORTED`.
+
+**Re-check of 2d01eb22 (revision 29).** No SERIOUS CHALLENGE. **PASS**: B1 is closed and the notes are taken up. Its notes:
+- **1 (recorded).** Any registered human approves a `REDACTION_NOTICE`, though §24.2 places the rotation branch "under the security owner". Whether a later ledger names that role goes to the Manual clarification batch, as SD-74 sent the retirement's.
+- **2 (recorded).** In Phase F a notice names ledger objects only. A sensitive value in pinned product content, a repository blob, is not nameable by it; that goes with Q-F16's replacement lineage.
+
+**Steps 7f and 7g built (readings F63, F64).**
+- **7f.**
+  - **Step 5 (`dependency_codes`).** It judges a continuity attestation's target: an earlier `LEDGER_LOSS` (`DEP_TARGET_KIND`, `DEP_TARGET_ORDER`). It always adds `SCHEMA_UNSUPPORTED` beside them (F48). A `CHALLENGE` of an attestation is permitted.
+  - **Step 2 (`attestation_references`).** The loss and every listed id are known records or subjects (`REF_TARGET`), and the evidence is stored or carried (`REF_OBJECT`).
+  - **4d's test** is renamed to say the attestation stays unsupported.
+- **7g.**
+  - **`admission/lifecycle.py`** gains `replica_problems`, `migration_problems` (always naming Q-F16) and `redaction_problems`.
+  - **`admit_lifecycle`.** `REDACTION_NOTICE` and `LINEAGE_MIGRATION` join `KEY_LIFECYCLE` as head kinds (`_HEAD_KINDS`): they carry the expected head and go through the held head, with no trial. The notice is admitted when its fields are good, and the migration is always refused. `REPLICA_REDESIGNATION` stays refused at the gate.
+- **Tests.** `test_phase_f_step7f.py`, 11 tests, cover:
+  - an attestation that is well formed (only `SCHEMA_UNSUPPORTED`), has a wrong target kind, or targets a loss in the same entry;
+  - a challenge of an attestation, permitted;
+  - the step-2 references (a part is no subject; unstored evidence);
+  - a submitted attestation refused with `REF_TARGET`;
+  - each kind's field checks;
+  - a redaction notice admitted with `obs` and no derived effect (the derived obligations and findings are unchanged), and one naming an unstored object refused;
+  - a migration refused naming Q-F16, and a replica redesignation refused at the gate.
+- **Mutants.** Fourteen: all are killed. G04 was first written as a text-only change that still named Q-F16; re-run as the real mutation, dropping the refusal, it is killed.
+- **The test environment.** After the stakeholder's restart, `/tmp/claude-1000/ssds-venv` was gone. It was recreated from miniconda's Python 3.13 with `pyproject.toml`'s declared dependencies (`requires-python >= 3.11`) and `orchestrator/requirements-dev.txt`. A first full run without the latter failed two Core tests for want of `hypothesis` and `build`. That was an environment gap, not a code defect, and both pass with them. With them, the full suite passes: 1389 tests, 6 skipped.
