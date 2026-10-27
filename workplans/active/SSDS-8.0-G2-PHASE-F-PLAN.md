@@ -2823,3 +2823,36 @@ Its notes are taken up with 8f:
 - **Note 1.** The 9b row's fail-closed cell now holds `SET_EQUAL` for a collection form, not for Q-F21.
 - **Note 2.** The 9b row's tests list revision 38's checks.
 - **Note 3.** `MONOTONE` names at least two outputs (F84).
+
+**Step 9b-i built (the specification declaration, canonical values and the specification lint; readings F79, F84, F86).** 9b is built in two commits: 9b-i, then 9b-ii (the outcome shape and `EXACT`).
+- **`content.spec`.**
+  - `spec_declaration(view, unit)` finds exactly one declaration: a fenced `ssds-spec` block in the unit's Markdown regions, or a `*.ssds-spec.toml` file the unit holds whole. None, more than one, or a declaration file held only in part is a failure. `plan.fenced_blocks` is shared with the item parser.
+  - `parse_spec` is closed. It checks §17.1's keys, the oracles, the runner, a positive finite bound, outputs of §17.3's scalar forms, and verdicts:
+    - an embedded verdict names an `enum` output (`PASS`, `FAIL`) carrying it;
+    - a declarative verdict names one of the seven templates, with the obvious parameter constraints (F84);
+    - an assessor-read specification declares none.
+
+    It also checks `fixed`, `granularity` and `output_renames`.
+  - The canonical texts are an implementation reading of §17.3's forms:
+    - `binary64-hex` is `0x` and 16 lower-case hexadecimal digits of the bit pattern;
+    - `decimal-shortest` is Python's shortest round-trip `repr`;
+    - `rounded:<n>` is the exact decimal value rounded half-even to `n` significant digits, as `Decimal` writes it (`6.67e-1`).
+
+    `is_canonical`, `float_of` and `canonical_reference` read them; `EXACT`'s reference under `rounded:<n>` must already be canonical text.
+- **`derivation.specs`** (`State.specs`).
+  - It holds each specification unit's declaration, and a revision's declaration from the latest admitted view holding it.
+  - `defective` is true for a static error or an unknown revision.
+  - `lint` reports `SPEC` (a static error), `RUNNER` (a class policy does not designate), `BOUND` (a Dispatcher class's bound above 168 h) and `FIXED` (a fixed attribute the class does not record).
+  - Deriving no `REALIZE` for a defective specification is 9c-ii's, where `REALIZE` is derived. 9b-ii makes no assessment under one admissible.
+- **Tests.** `test_phase_f_step9b_i.py`, 9 tests:
+  - the three oracles;
+  - thirty-four refusals;
+  - `ULP_TOL` on a rounded output, and `EXACT`'s reference under rounding;
+  - the float forms and their fixed points;
+  - each type's canonical values;
+  - a block and a file;
+  - none, two or a bad declaration being defective;
+  - lint against policy, an external custody class excepted from the 168 h bound;
+  - an earlier revision's declaration.
+- **Mutants.** Sixteen: all are killed. S16, one verdict per output, survived at first and is killed by an added refusal case.
+- **Full suite.** It passes: 1510 tests, 6 skipped.

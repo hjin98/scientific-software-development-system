@@ -373,6 +373,14 @@ class State:
         return PlanFacts(self)
 
     @cached_property
+    def specs(self) -> Any:
+        """Evidence specifications, their declarations, defects and lint (§17.1; step 9b)."""
+
+        from .specs import SpecFacts
+
+        return SpecFacts(self)
+
+    @cached_property
     def runs(self) -> Any:
         """The revision runs of this state (§10.2)."""
 

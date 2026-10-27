@@ -233,6 +233,12 @@ def plans(view: TreeView) -> dict[str, Plan]:
 def _item_blocks(data: bytes, span: Span) -> list[tuple[Span, Span]]:
     """The fenced ``ssds-item`` blocks inside ``span``: (whole fence, body)."""
 
+    return fenced_blocks(data, span, ITEM_INFO)
+
+
+def fenced_blocks(data: bytes, span: Span, info_string: str) -> list[tuple[Span, Span]]:
+    """The fenced blocks with info string ``info_string`` inside ``span``: (whole fence, body)."""
+
     found: list[tuple[Span, Span]] = []
     fence: tuple[str, int, bool] | None = None  # marker, start offset, is an item block
     body_start = 0
@@ -242,7 +248,7 @@ def _item_blocks(data: bytes, span: Span) -> list[tuple[Span, Span]]:
         if fence is None:
             if marker:
                 info = text.strip()[len(marker.group(1)) :].strip()
-                fence = (marker.group(1), span.start + line.start, info == ITEM_INFO)
+                fence = (marker.group(1), span.start + line.start, info == info_string)
                 body_start = span.start + line.end
             continue
         closes = marker and marker.group(1)[0] == fence[0][0] and len(marker.group(1)) >= len(fence[0])
