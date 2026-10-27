@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is built and awaits its review. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00); 7c (`LEDGER_LOSS`) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1767,3 +1767,18 @@ F51-F53 are judged faithful. Notes 1-5 ask for:
 - **Not testable in 7b.** The compare-and-swap refused when the ref is not at `A` (note 1) needs a recovery kind that passes its content check, so it moves to 7c's tests.
 - **Mutants.** Thirteen: twelve are killed. G05, the trial's head-position clause, is equivalent: a trial `QUALIFIED` below the new position always has the new entry provisional. G13, a kind outside the path reaching the state read, survived at first and is killed by the added test.
 - **Full suite.** It passes: 1332 tests, 6 skipped (run before G13's test was added; that test then ran alone and passes).
+
+**Same-family review of 7d2d1c00 (7b).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Its answers:
+- The gate and the trial are faithful to F50 and F51.
+- The placeholder commit is inert, since `qualify` matches by position and digest.
+- The entry's abandonment enters `_abandoned` only once the trial holds it.
+- A conflicting checkpoint at the new position makes the trial `FORK`, which refuses conservatively.
+- Settling an own provisional entry first is right.
+- The fixture boundary holds.
+- G05 is equivalent.
+
+Its notes:
+- **N1 (to 7e).** `distribute` halts over another host's provisional entry. §22.4's one exception, a `WITNESS_SET_REDESIGNATION` appended over a provisional entry, must not be stopped by it, so 7e's redesignation path tolerates that halt.
+- **N2 (to 7c).** An append when the ref points past the readable prefix is refused by the compare-and-swap. Note 1 of the plan check already moved that test to 7c, the first part whose kind reaches the commit.
+
+**Step 7b is closed.**
