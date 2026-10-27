@@ -105,6 +105,22 @@ class Segments(unittest.TestCase):
         held = self.qualify(self.chain(P + 1), reports)
         self.assertEqual((held.state, held.head, held.provisional), ("QUALIFIED", P - 1, P))
 
+    def test_a_third_segment_unheld_is_provisional_over_the_second(self) -> None:
+        """Review ae5ab38 B1: S0 TEAM from 0, S1 HARDENED from 3, S2 TEAM from 5; S1 holds 3-5, S2 holds nothing."""
+
+        third = WitnessModel("TEAM", 3, 2, 2, 0, tuple(WitnessSpec(f"t{i}", "GIT", f"third{i}") for i in range(3)))
+        base = self.chain(6)
+        chain = Chain("demo", base.entries[:5] + (LedgerEntry(5, f"{5:040x}", (), {"lifecycle": {
+            "kind": "WITNESS_SET_REDESIGNATION", "fields": {"witnesses": third.to_json()}}}, b"", b"",
+            f"sha256:{5:064x}", {}),))
+        self.assertEqual([s for s, _ in segments(chain)], [0, P, 5])
+        reports = {**self.old_through(P), **{f"n{i}": self.holds(P, 4, 5) for i in range(3)}, "n3": None,
+                   **{f"t{i}": [] for i in range(3)}}
+        held = self.qualify(chain, reports)
+        self.assertEqual((held.state, held.head, held.provisional), ("QUALIFIED", 4, 5))
+        held = self.qualify(chain, {**reports, **{f"t{i}": self.holds(5) for i in range(2)}})
+        self.assertEqual((held.state, held.head, held.provisional), ("QUALIFIED", 5, None), "once the third set holds it")
+
     def test_forged_new_checkpoints_hold_nothing(self) -> None:
         stranger = HostKey.generate()
         body = checkpoint_body("demo", P, f"sha256:{P:064x}", f"{P:040x}", stranger.key_id)

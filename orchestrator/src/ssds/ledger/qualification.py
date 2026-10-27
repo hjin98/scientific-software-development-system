@@ -484,12 +484,13 @@ def qualify_segments(
             h = sum(1 for cps in responders if any(c.ledger_id == chain.ledger_id and c.position >= start
                                                    and c.authentic(host_keys) for c in cps))
             m = len(declared) - len(responders)
-            if loss_status(h, m, model.f, model.q_a) != "PROVED_NEVER_ADMITTED":
-                return verdict  # possibly held from its start: its verdict governs, FORK and ROLLBACK included
-            continue  # proved never held from its start: the older segment reads the redesignation as provisional
-        end = found[1][0] if len(found) > 1 else None
+            if loss_status(h, m, model.f, model.q_a) == "PROVED_NEVER_ADMITTED":
+                continue  # proved never held from its start: the older segment reads the redesignation as provisional
+        # this segment governs, FORK and ROLLBACK included; when a newer one was skipped, its start is the end of this
+        # one's range, whatever this segment is (review ae5ab38 B1)
+        end = found[i + 1][0] if i + 1 < len(found) else None
         if verdict.current and end is not None and verdict.head is not None and verdict.head >= end:
-            # the genesis set holds the redesignation (or beyond), its successor does not: the redesignation is
+            # this set holds the next redesignation (or beyond), its successor does not: the redesignation is
             # provisional over the head before it
             digests = chain.digests()
             critical = ("more than one entry beyond the qualified head",) if len(digests) - 1 > end else ()

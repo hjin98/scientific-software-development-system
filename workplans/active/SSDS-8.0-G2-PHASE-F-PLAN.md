@@ -2035,3 +2035,16 @@ B2 is closed.
 - **Mutants.** Nine: all are killed. S8, the held count without an authenticity filter, survived at first and is killed by the forged-checkpoint test.
 - **Full suite.** It passes: 1366 tests, 6 skipped. It ran before the forged-checkpoint test, which then ran with the step's tests and passes.
 - **Deferred to 7e-ii.** `RETIRED` under the last segment, on a ledger where a redesignation was admitted. The readers agreeing over another host's provisional entry. The trial's checkpoint going only to the new position's segments (exercised by the dual trial).
+
+**Same-family review of ae5ab380 (7e-i).** No SERIOUS CHALLENGE. **NO PASS**, on one blocker. Its answers otherwise confirm:
+- `qualify_segments`' order, bound, mark and authenticity filter;
+- reading `segments` over the readable chain rather than the held prefix;
+- that no reader is left on the genesis model.
+
+**B1, repaired.** A probe with three segments showed the range conversion running only for the genesis segment. With S2's redesignation unheld, S1's verdict presented position 5 as `QUALIFIED`, instead of provisional over 4.
+- **Repair.** Whichever segment governs after a newer one is skipped is converted: a head at or past the skipped segment's start becomes `QUALIFIED` at the position before, with the redesignation provisional.
+- **Test.** The three-segment case is added, and it reads `QUALIFIED` at 5 once the third set holds it.
+- **Mutants.** S10 (conversion for genesis only) is killed. S4-S6, S8 and S9, re-anchored to the rewritten test, are killed.
+- **Suite.** The SSDS suite passes: 975 tests, 6 skipped.
+
+**N1 (to 7e-ii).** `loss_evidence` counts each head's status over the last segment's witnesses only. 7e-ii counts each head over the segment its position lies in, and reports every segment's witnesses, with tests, since it is the first part to admit a loss that changes the set.
