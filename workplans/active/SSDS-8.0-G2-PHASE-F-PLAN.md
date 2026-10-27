@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F11 settled (SD-64, SD-67 to SD-72). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 18 (step 5 in six parts, §3.2); questions Q-F1 to Q-F11 settled (SD-64, SD-67 to SD-72); Q-F12 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -44,8 +44,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a and 6b are closed (PASS at c06f5be5 and
              e78d0cf7); 6c (accepting) is closed (PASS at ab0b790d). Admission now accepts records-only
              requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d (publication,
-             F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is built and under review; 6f is
-             next. A10 is accepted (SD-66);
+             F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is built and under review. Q-F12
+             asks whether 6f (fences and settlement) waits with 5e and 5f; step 7 follows. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -485,6 +485,10 @@ Clause (f) is part of clean conformance, re-derived "at every revalidation of an
 - **Alternative:** (b) build 5f's step 8 for adoptions in Phase F.
 
 **Resolved by SD-72 (item 66):** (a). F42's fail-closed rule is SD-71's complement.
+
+**Q-F12. Step 6f after SD-70 and SD-71.** Step 6f derives fences, settlement, the fence-attention obligation, the kept-fence route (E15) and `NOT_SETTLED`, on hand-built fixture ledgers. Every one of these arises only from an integration's publication effect. A records-only admission has no effect and is never fenced (F1), and under SD-70 and SD-71 no integration is accepted in Phase F. So no fence can arise on any Phase F ledger, as with 5e and 5f.
+- **Recommended:** (a) defer 6f to the phase that lifts SD-70's gate for integrations, with 6g's publisher side and 5e and 5f. Its discriminators (362af9f N6, 61cd09b N6, 730490d N2's fence form, the five S3 kept-fence cases, and `NOT_SETTLED`) are reported unexecuted at the exit. Step 6 then closes with 6a-6e, and Phase F proceeds to step 7 (loss and recovery), which the old ledger's retirement statement needs.
+- **Alternative:** (b) build 6f now, tested on hand-built fixture ledgers only.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
