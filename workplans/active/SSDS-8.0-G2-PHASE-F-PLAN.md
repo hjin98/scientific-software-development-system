@@ -3328,6 +3328,19 @@ Its proposed readings D1-D8 are F89 (the obligation's revision, the policy at ad
 - **Full suite.** It passes: 1610 tests, 6 skipped.
 - **Recorded for 9f-ii's exit.** The Dispatcher's retry budget (F95, retries) is built and tested before any live dispatch: `REALIZE` and `RERUN` stay open after an `INCOMPLETE` run.
 
+**Re-check of 2136fb90 (9c-ii-iv's notes).** No SERIOUS CHALLENGE. **PASS**, with three notes.
+- **Note 1.** "Recorded and standing" is a safe scheduling approximation of `bound(o, tree(o))`. At worst it schedules one unserving run, which `_rerun_done` ends. `Assessments.bound` already evaluates the exact predicate.
+- **Note 2.** A mutant dropping `READING`'s `root_authors(a⁻)` survived: no test had `a⁻`'s claim revision differ from the observation's.
+- **Note 3.** Record that after a claim edit the `FAILING` rerun stands while `HERE` waits for a current completeness judgment, so that 9f-ii's Dispatcher does not take a waiting `HERE` for a stuck obligation.
+
+**The re-check's notes taken up.**
+- **Note 1.** `_bounded(real, "FAILING")` is `Assessments.bound(real, tree_of(real), …)`, the one owner's predicate.
+- **Note 2.** A test has `a⁻` on one claim revision and the observation on another, each with its own authors, and asserts both are judged authors.
+- **Note 3.** Recorded for 9f-ii: a `HERE` rerun with no current completeness judgment of the head is not derived, so nothing waits. It is derived once a current completeness judgment bounds the closure. The Dispatcher schedules only what is derived.
+- **Mutants.** K3 (no `root_authors(a⁻)`) and K7 (the failing tree's bound replaced by a recorded list) are killed.
+- **Full suite.** It passes: 1611 tests, 6 skipped.
+- **9c-ii-iv is closed.**
+
 **Revision 42: step 9d in three parts (readings F96-F103).** From a read-only survey of Admission, derivation's realization reader and the fitness rules. It found:
 - the reader checks no basis member's type, so `on_minus` can raise on an untrusted basis (F96);
 - `fields.evaluated` is never stored by Admission, so every admitted realization would fail §17.4 (c) (F97);

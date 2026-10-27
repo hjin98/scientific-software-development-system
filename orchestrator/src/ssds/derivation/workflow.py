@@ -273,15 +273,14 @@ class Workflow:
 
     def _bounded(self, real: str, on: str) -> bool:
         """A completeness judgment bounds the configuration's execution closure where the rerun would run (§6.9;
-        plan check note 3; review of affd87fa, N3): on the failing tree, the judgments the realization recorded,
-        which held there while they still stand (a later edit elsewhere leaves them holding for that tree); here, a
-        current one."""
+        plan check note 3; review of affd87fa, N3): on the failing tree, ``bound(o, tree(o))``, the judgments the
+        realization recorded checked there by the one owner (re-check of 2136fb90, note 1); here, a current one."""
 
-        basis = self.d.a.basis(real)
+        a = self.d.a
+        basis = a.basis(real)
         bounded = basis.get("bounded_by")
         if on == "FAILING":
-            return isinstance(bounded, list) and bool(bounded) and \
-                all(c in self.s.records and self.d.base(c) > F for c in bounded)
+            return a.bound(real, a.tree_of(real), self.d.base, self._value)
         if isinstance(bounded, list) and bounded and all(c in self.s.records and self.d.current(c) > F for c in bounded):
             return True
         units = {u.get("unit") for u in basis.get("units", []) if isinstance(u, dict)}

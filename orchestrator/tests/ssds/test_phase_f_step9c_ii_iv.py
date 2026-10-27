@@ -271,6 +271,30 @@ class Reading(unittest.TestCase):
         self.assertIn("machinery:dispatcher@ed25519:test", w.judged_authors(reading),
                       "the observation's lineage, and a⁻'s root authors")
 
+    def test_the_failing_revisions_authors_never_judge_it(self) -> None:
+        """Re-check of 2136fb90, note 2: a⁻'s claim revision and the observation's differ, so a⁻'s root authors are
+        needed beside the observation's."""
+
+        from unittest import mock
+
+        from ssds.derivation.judgment import Judgments
+        from ssds.derivation.state import State
+
+        def by_rev(self, unit, rev, *rest):
+            return frozenset({f"human:author-{rev[:8]}"})
+
+        r = Declared(ASSESSOR_READ)
+        t0, t1 = r.tree("T0"), r.tree("T1", **{"a.py": "v = 2\n"})
+        r.fail(r.run(t0, {"x": 1}))
+        r.sc.absorb({"a.py": "v = 2\n"})
+        r.run(t1, {"x": 1})
+        before, after = r.sc.view(t0).rev("code"), r.sc.view(t1).rev("code")
+        with mock.patch.object(State, "authors", by_rev), mock.patch.object(Judgments, "piece_authors", by_rev):
+            w = Workflow(r.sc.derive())
+            (reading,) = [o for o in w.obligations if o.kind == "READING"]
+            self.assertLessEqual({f"human:author-{before[:8]}", f"human:author-{after[:8]}"},
+                                 set(w.judged_authors(reading)))
+
     def test_a_class_r3_reading_is_a_humans(self) -> None:
         """Review of affd87fa, N4: at its class, R3 for a D1 or D2 subject (§3.4)."""
 
