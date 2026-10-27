@@ -4,6 +4,28 @@ The live tests of reading F113 need unprivileged user namespaces, which the impl
 They were run on the host, in the operator's terminal session, as plan check of 23d2f5f2 (answer 3) requires. A
 review checks that the commit below is the one it reviews.
 
+## Step 9g-iii run (F118)
+
+| Field | Value |
+|---|---|
+| Commit under test | `a235ad1a1f1d431478f9e6a2d114411e37ca3fea` (worktree clean under `src` and `tests`) |
+| Command | `SSDS_LIVE_SANDBOX=1 PYTHONPATH=src python -m unittest tests.ssds.test_phase_f_step9f_ii_ii_live tests.ssds.test_phase_f_step9f_ii_iii.LiveEndToEnd tests.ssds.test_phase_f_step9g_iii.LiveEnvironment -v` (in `orchestrator/`) |
+| Date | 2026-10-27T23:21:45Z |
+| Run by, host, `bubblewrap`, Python | as the 9f-ii-ii run below |
+
+| Test | Result |
+|---|---|
+| `test_phase_f_step9f_ii_ii_live.Live.test_the_f2_properties` | ok |
+| `test_phase_f_step9f_ii_ii_live.Live.test_a_reached_time_bound` | ok |
+| `test_phase_f_step9f_ii_iii.LiveEndToEnd.test_a_realize_run_in_the_sandbox_and_admitted` | ok |
+| `test_phase_f_step9g_iii.LiveEnvironment.test_what_the_run_sees_is_what_is_recorded` | ok |
+
+Exit status 0; 4 tests in 3.230 s. The 9g-iii test runs a probe in the real sandbox and compares what it sees with
+the attributes recorded for it: the class's user and group ids, the fixed hostname (the host's never read), the
+umask, the priority, an empty signal mask and every resource limit as recorded; `setuid(0)` and `chown` refused (no
+capability kept); the `bubblewrap` version read on the host. The three earlier tests pass with the fixed ids,
+hostname and child setup in place.
+
 ## Step 9f-ii-iii run, after its repair
 
 | Field | Value |
