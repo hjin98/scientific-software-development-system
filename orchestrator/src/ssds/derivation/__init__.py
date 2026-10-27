@@ -11,6 +11,8 @@ and equals derivation from scratch; storing it is its caller's.
 
 from . import queries
 from .baseline import BaselineStructure, baseline_structure, genesis_structure_problems
+from .execution import configuration as run_configuration
+from .execution import effective_bound_hours, execution_basis, outcome_problems
 from .frames import Frame, Transformation, frame_state, transformation_of
 from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
 from .outcomes import adverse, passing
@@ -52,4 +54,5 @@ __all__ = [
     "derive", "trial", "ROLE_TEMPLATES", "role_permits", "supersession_target", "triple_key",
     "Frame", "Transformation", "frame_state", "transformation_of", "outside_scope", "protected_touched",
     "adoption_codes", "adoption_frame", "AGENT_ROLES", "READY", "UNKNOWN", "on_minus", "read_realization", "is_reading", "read_reading",
+    "execution_basis", "run_configuration", "outcome_problems", "effective_bound_hours",
 ]
