@@ -24,12 +24,16 @@ entry's Git mode and bytes, and imports no content model.
 from __future__ import annotations
 
 import inspect
+import json
 import os
 import secrets
 import shutil
+import signal
 import stat
-from collections.abc import Mapping
-from dataclasses import dataclass
+import subprocess
+import time
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -260,4 +264,210 @@ def _difference(tree: Mapping[str, Any], found: dict[str, tuple[str, bytes]]) ->
     return None
 
 
-__all__ = ["MaterializeRefused", "RUNS", "Workspace", "Workspaces", "reads_as_git"]
+# -- execution in the sandbox (step 9f-ii-ii; reading F113) ---------------------------------------------------------
+
+#: The sandbox's fixed places: the workspace, read-only; the one writable directory; a home of its own.
+WORK, OUT, RUNNER_HOME = "/work", "/out", "/home/runner"
+OUTPUTS = "outputs.json"
+#: An outcome object larger than this is no outcome (§25.4: readers are total over untrusted input).
+MAX_OUTPUT_BYTES = 1 << 20
+_MERGED_USR = (("usr/bin", "/bin"), ("usr/lib", "/lib"), ("usr/lib64", "/lib64"), ("usr/sbin", "/sbin"))
+
+
+@dataclass(frozen=True)
+class RunnerProvider:
+    """What a designated runner class runs (F113; Manual §26.3's runner provider contract, re-exported by
+    ``ssds.spi.v1``): the argv inside the sandbox, run in ``/work``; the system directories bound read-only at their
+    own paths; the execution attributes it records; and the output convention, ``/out/outputs.json``. It writes only
+    to ``/tmp`` or ``/out``: the tree is read-only."""
+
+    argv: tuple[str, ...]
+    system: tuple[str, ...] = ("/usr",)
+    attributes: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class Execution:
+    """One execution's result: the outcome object read from ``/out`` (or ``None``), the ``INCOMPLETE`` reason
+    (or ``None`` when complete) and the exit status, which never decides admissibility (§17.2)."""
+
+    outcome: dict[str, Any] | None
+    incomplete: str | None
+    exit_status: int | None = None
+    detail: str = ""
+    raw: bytes | None = field(default=None, repr=False)  # a surviving outcome's bytes, kept for the owner
+
+
+def sandbox_argv(provider: RunnerProvider, tree_fd: int, out_dir: str, status_fd: int,
+                 bwrap: str = "/usr/bin/bwrap") -> list[str]:
+    """The ``bwrap`` command on an allowlisted root (F113). Every mount destination sits on bwrap's own tmpfs root
+    and none lies beneath the workspace, the design rule the host package's dropped link-resolution fix requires
+    (Q-F26). The user's home, the SSDS home and ``/run`` are never bound; ``/proc`` and ``/sys`` are not mounted;
+    ``--unshare-all`` leaves no network."""
+
+    argv = [bwrap, "--unshare-all", "--die-with-parent", "--new-session", "--clearenv",
+            "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "HOME", RUNNER_HOME, "--setenv", "LANG", "C.UTF-8",
+            "--setenv", "TMPDIR", "/tmp", "--json-status-fd", str(status_fd)]
+    for directory in provider.system:
+        argv += ["--ro-bind", directory, directory]
+    for target, link in _MERGED_USR:
+        argv += ["--symlink", target, link]
+    argv += ["--ro-bind-fd", str(tree_fd), WORK, "--bind", out_dir, OUT, "--tmpfs", "/tmp", "--tmpfs", RUNNER_HOME,
+             "--dev", "/dev", "--chdir", WORK, "--", *provider.argv]
+    return argv
+
+
+def mount_destinations(argv: list[str]) -> list[str]:
+    """Every mount destination a ``sandbox_argv`` names, for the design rule's check."""
+
+    takes_two = {"--ro-bind", "--bind", "--symlink", "--setenv"}
+    out, i = [], 1
+    while i < len(argv) and argv[i] != "--":
+        flag = argv[i]
+        if flag in ("--ro-bind", "--bind", "--symlink", "--ro-bind-fd"):
+            out.append(argv[i + 2])
+        if flag in ("--tmpfs", "--dev"):
+            out.append(argv[i + 1])
+        i += 3 if flag in takes_two | {"--ro-bind-fd"} else 2 if flag in ("--tmpfs", "--dev", "--chdir",
+                                                                          "--json-status-fd") else 1
+    return out
+
+
+def refused_sources(provider: RunnerProvider, forbidden: tuple[Path, ...]) -> list[str]:
+    """The provider's bound directories that resolve inside a forbidden tree: the SSDS home or the product repository
+    (F113's check before spawning; the workspace itself is bound by descriptor, never by path)."""
+
+    out = []
+    for directory in provider.system:
+        resolved = Path(directory).resolve()
+        if not Path(directory).is_absolute() or any(resolved == f.resolve() or resolved.is_relative_to(f.resolve())
+                                                    or f.resolve().is_relative_to(resolved) for f in forbidden):
+            out.append(directory)
+    return out
+
+
+class Sandbox:
+    """Runs a provider over a verified workspace under ``bwrap`` (F113). The workspace is verified through the
+    descriptor that is bound, immediately before execution, and re-verified after it exits (review of dad8e4cd,
+    note 4). Time runs on the injected monotonic ``clock`` from the spawn; reaching the bound kills the sandbox's
+    process group. ``popen`` is injected for tests."""
+
+    def __init__(self, workspaces: Workspaces, forbidden: tuple[Path, ...], *, bwrap: str = "/usr/bin/bwrap",
+                 clock: Callable[[], float] = time.monotonic, popen: Callable[..., Any] = subprocess.Popen,
+                 poll_seconds: float = 0.05) -> None:
+        self.workspaces, self.forbidden, self.bwrap = workspaces, forbidden, bwrap
+        self.clock, self.popen, self.poll_seconds = clock, popen, poll_seconds
+
+    def execute(self, workspace: Workspace, tree: Mapping[str, Any], provider: RunnerProvider,
+                bound_seconds: float) -> Execution:
+        refused = refused_sources(provider, self.forbidden)
+        if refused:
+            return Execution(None, "FAILED_TO_START", detail=f"bound sources inside a forbidden tree: {refused}")
+        try:
+            top = self.workspaces._tree(workspace)
+        except HomeRefused as exc:
+            return Execution(None, "FAILED_TO_START", detail=str(exc))
+        try:
+            difference = _difference(tree, _read_back(top))
+            if difference:  # verified through the descriptor that is bound, immediately before execution
+                return Execution(None, "FAILED_TO_START", detail=f"the workspace is not the tree: {difference}")
+            try:
+                out = self._out(workspace)
+            except MaterializeRefused as exc:
+                return Execution(None, "FAILED_TO_START", detail=str(exc))
+            read_status, write_status = os.pipe()
+            try:
+                argv = sandbox_argv(provider, top, str(out), write_status, self.bwrap)
+                try:
+                    process = self.popen(argv, pass_fds=(top, write_status), start_new_session=True,
+                                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                         stderr=subprocess.DEVNULL)
+                except OSError as exc:
+                    return Execution(None, "FAILED_TO_START", detail=f"the sandbox could not start: {exc}")
+            finally:
+                os.close(write_status)
+            timed_out = self._wait(process, bound_seconds)
+            status = _status(read_status)
+            exit_status = process.returncode
+            if "child-pid" not in status:
+                return Execution(None, "FAILED_TO_START", exit_status, "the sandbox could not be set up")
+            raw = _outputs(out)
+            if timed_out:
+                return Execution(None, "TIME_BOUND", exit_status, raw=raw)
+            after = _difference(tree, _read_back(top))
+            if after:
+                return Execution(None, "CRASHED", exit_status, f"the workspace changed: {after}", raw=raw)
+            if raw is None:
+                if exit_status is not None and exit_status < 0:
+                    return Execution(None, "CRASHED", exit_status, "ended by a signal with no outputs")
+                return Execution(None, "MALFORMED_OUTPUT", exit_status, "no outputs")
+            try:
+                outcome = json.loads(raw)
+            except (ValueError, UnicodeDecodeError):
+                return Execution(None, "MALFORMED_OUTPUT", exit_status, "outputs are not JSON", raw=raw)
+            if not isinstance(outcome, dict):
+                return Execution(None, "MALFORMED_OUTPUT", exit_status, "outputs are not an object", raw=raw)
+            return Execution(outcome, None, exit_status, raw=raw)  # the exit status decides nothing (§17.2)
+        finally:
+            os.close(top)
+
+    def _out(self, workspace: Workspace) -> Path:
+        run = self.workspaces.home._directory((RUNS, workspace.ledger_id, workspace.run_id), create=False)
+        if run is None:
+            raise MaterializeRefused(f"no run directory for {workspace.run_id}")
+        try:
+            try:
+                os.mkdir("out", 0o700, dir_fd=run)  # one execution per workspace: no earlier outputs survive
+            except FileExistsError:
+                raise MaterializeRefused(f"run {workspace.run_id} has executed already") from None
+        finally:
+            os.close(run)
+        return workspace.root.parent / "out"
+
+    def _wait(self, process: Any, bound_seconds: float) -> bool:
+        """Waits for the sandbox; on reaching the bound kills its process group and reports it."""
+
+        started = self.clock()
+        while process.poll() is None:
+            if self.clock() - started >= bound_seconds:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+                process.wait()
+                return True
+            time.sleep(self.poll_seconds)
+        return False
+
+
+def _status(descriptor: int) -> dict[str, Any]:
+    """bwrap's JSON status lines, merged; empty when it could not set the sandbox up."""
+
+    out: dict[str, Any] = {}
+    with os.fdopen(descriptor, "rb") as handle:
+        for line in handle.read(1 << 16).splitlines():
+            try:
+                item = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(item, dict):
+                out.update(item)
+    return out
+
+
+def _outputs(out: Path) -> bytes | None:
+    """``/out/outputs.json``'s bytes, read without following a link and capped, or ``None``."""
+
+    try:
+        descriptor = os.open(out / OUTPUTS, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    with os.fdopen(descriptor, "rb") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            return None
+        data = handle.read(MAX_OUTPUT_BYTES + 1)
+    return data if len(data) <= MAX_OUTPUT_BYTES else None
+
+
+__all__ = ["Execution", "MaterializeRefused", "OUT", "RUNS", "RunnerProvider", "Sandbox", "WORK", "Workspace",
+           "Workspaces", "mount_destinations", "reads_as_git", "refused_sources", "sandbox_argv"]
