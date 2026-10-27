@@ -27,8 +27,8 @@ from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflo
 from ssds.ledger.append import (AppendFailed, AppendRefused, append_entry, import_commits, retirement_statement, seal,
                                write_checkpoint, write_retirement)
 from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Qualification, WitnessModel,
-                                       checkpoint_body, checkpoint_message, currentness, host_keys, lineage_witnesses, qualify,
-                                       segment_witnesses, segments)
+                                       checkpoint_body, checkpoint_message, currentness, host_keys, lineage_witnesses,
+                                       qualify, segment_witnesses, segments)
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 

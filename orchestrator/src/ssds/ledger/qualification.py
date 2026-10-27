@@ -518,7 +518,8 @@ def currentness(chain: Chain, reports: Mapping[str, Sequence[Checkpoint] | None]
     if not chain.entries or chain.genesis is None:
         return Qualification("UNQUALIFIED")
     found = [m for _, m in segments(chain)]
-    model = found[-1] if found and found[-1] is not None else WitnessModel.from_json(chain.genesis["fields"]["witnesses"])
+    model = found[-1] if found and found[-1] is not None else \
+        WitnessModel.from_json(chain.genesis["fields"]["witnesses"])
     keys = host_keys(chain)
     in_force = {w.id for w in model.witnesses}
     retired = retirement_held([s for w, s in statements.items() if w in in_force], model.q_a, chain.ledger_id, keys,
@@ -540,7 +541,8 @@ __all__ = [
     "Checkpoint", "DEPLOYMENT_CLASSES", "FileWitness", "HighWaterMark", "HighWaterStore", "Home", "HomeRefused",
     "Qualification", "RETIREMENT_DOMAIN", "RETIREMENT_FILE", "RetirementStatement",
     "STATES", "WitnessModel", "WitnessSpec", "checkpoint_body", "checkpoint_message", "loss_status",
-    "currentness", "host_keys", "lineage_witnesses", "publish_private", "qualify", "qualify_segments", "retirement_held", "segment_witnesses",
+    "currentness", "host_keys", "lineage_witnesses", "publish_private", "qualify", "qualify_segments",
+    "retirement_held", "segment_witnesses",
     "segments", "retirement_message", "retirement_statements",
     "retirement_verified", "write_all",
     "quorum_sound",
