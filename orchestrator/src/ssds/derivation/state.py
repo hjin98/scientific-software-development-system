@@ -30,6 +30,8 @@ ACCEPTANCE_KINDS = {"NATIVE": ("ACCEPTANCE",), "LEGACY": ("LEGACY_ACCEPTANCE",),
 #: System floors: kinds that need an authenticated human, whatever policy says (catalogue §3.5).
 HUMAN_FLOOR = frozenset({"GATE_DECISION", "RISK_OVERRIDE", "CONTINUITY_ATTESTATION", "PRODUCT_SCOPE_ACCEPTANCE",
                          "HUMAN_DECISION", "LINEAGE_ATTESTATION", "NON_AUTHORSHIP_ATTESTATION"})
+#: Kinds only machinery produces (catalogue §3.4 "produced by machinery", §17.5; Phase F reading F98).
+MACHINERY_FLOOR = frozenset({"REALIZATION", "CHECK_EXECUTION", "CUSTODY_ENUMERATION"})
 
 
 def triple_key(subject: str, scope_id: str, rev: str) -> str:

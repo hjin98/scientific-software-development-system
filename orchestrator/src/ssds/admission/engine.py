@@ -43,8 +43,9 @@ from .lifecycle import (lifecycle_message, lifecycle_problems, migration_problem
 from .loss import evidence as loss_evidence, in_force as loss_in_force, loss_problems, redesignation_problems, \
     report_ref, resolution_problems
 from .currency import Currency
+from .evidence import realization_references, realization_shape
 from .legality import Legality, conformance_alone
-from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
+from .request import REPORT_KINDS, never_lost, request_id
 
 #: How many times a writer that loses the ledger's compare-and-swap re-reads and revalidates before it halts.
 _CAS_ATTEMPTS = 3
@@ -56,10 +57,11 @@ UNREALIZED_STEPS = ("regression",)  # step 8, deferred by SD-71 and SD-72
 def salvageable(record: Mapping[str, Any]) -> bool:
     """A never-lost record is salvaged only when every check it owes is built (Phase F plan §3.1, step 5a): a
     report, a challenge or an adverse judgment, whose own step-3 and step-5 checks now exist (steps 4b-4d; step 6
-    exempts them). A failing assessment and a runner's observation owe step 9's realization checks, so they are
-    still refused by identity as unsupported (plan review b10018de B1)."""
+    exempts them). A runner's realization is salvaged once its checks exist (step 9d-i, F99). A failing assessment
+    owes 9d-ii's checks, a custody enumeration 9d-iii's, and a check execution stays unsupported (Q-F19), so they
+    are still refused by identity as unsupported (plan review b10018de B1)."""
 
-    return record.get("kind") not in ("EVIDENCE_ASSESSMENT", *RUNNER_OBSERVATIONS)
+    return record.get("kind") not in ("EVIDENCE_ASSESSMENT", "CHECK_EXECUTION", "CUSTODY_ENUMERATION")
 
 
 def blocking(refused: Iterable[tuple[str, tuple[str, ...]]], alone: Iterable[tuple[str, tuple[str, ...]]]) -> list:
@@ -619,6 +621,7 @@ class Admission:
                                          for u, unit in s.h.view(k).structure.units.items() if unit.subject})
                 return seen_triples[0]
             stored = {d for e in entries for d in e.objects}
+            stored_objects = {d: o for e in entries for d, o in e.objects.items()}
             good = verified_objects(request.get("objects") if isinstance(request, Mapping) else None)[0]
             admitted_contexts = {}
             for rid_ in s.of_kind("TASK_RESULT"):
@@ -628,6 +631,8 @@ class Admission:
             fixed = self._fixed_transformations(s, records)
             for record in records:
                 own = record_problems(record, record_violations)
+                if not own:
+                    own += realization_shape(record)  # step 1: its closed execution shape (F78)
                 if not own:
                     rid = record["id"]
                     if rid in known or any(p["id"] == rid for p in passing):
@@ -654,6 +659,8 @@ class Admission:
                         own.append("REF_REVISION")  # a frame record's revisions may also be its frame's
                     if referenced_objects(record) - stored - set(good):
                         own.append("REF_OBJECT")
+                    own.extend(realization_references(record, s, known | {p["id"] for p in passing},
+                                                      {**stored_objects, **good}))  # F97
                     if record["frame"] == "ADMITTED":  # a frame record's target is its frame's (§7.5)
                         units, pairs, named_triples = target_references(record)
                         if record["kind"] in ("ACCEPTANCE", "LEGACY_ACCEPTANCE"):
@@ -958,6 +965,7 @@ _ACCEPTED = {
     "COORDINATION_DECISION": {"records", "units"}, "ACCEPTANCE": {"triple"}, "LEGACY_ACCEPTANCE": {"triple"},
     "REVIEW": {"triple"}, "EQUIVALENCE": {"equivalence"}, "INTAKE_DISPOSITION": {"delta"},
     "LINEAGE_ATTESTATION": {"record"},  # step 8d: a human's attestation of a co-submitted record (F72)
+    "REALIZATION": {"spec"},  # step 9d-i: a runner's observation of an admitted head (F97)
 }
 
 
@@ -969,7 +977,7 @@ def _shape(target: Any) -> str | None:
     keys = set(target)
     for shape, needed in (("triple", {"subject", "scope_id", "rev"}), ("equivalence", {"unit", "from", "to"}),
                           ("delta", {"absorption", "key"}), ("record", {"record"}), ("records", {"records"}),
-                          ("units", {"units"})):
+                          ("units", {"units"}), ("spec", {"spec", "claim"})):
         if needed <= keys:
             return shape
     return None

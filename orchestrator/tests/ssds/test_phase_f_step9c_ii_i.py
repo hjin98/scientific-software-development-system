@@ -28,7 +28,9 @@ class Fixture(Declared):
                     execution=None, **extra):
         view = self.sc.view(self.trees["T0"])
         basis = {**designated({"tree": self.trees["T0"], "units": [], "reads": [], "pins": [], "unpinnable": False,
-                               "attributes": [list(a) for a in attributes]}), **(execution or {})}
+                               "attributes": [list(a) for a in attributes], "bounded_by": "UNBOUNDED",
+                               "context": {"system": "ssds-rules/1", "ignore": [],
+                                           "analyzers": ["ssds.analyzer.python/1"]}}), **(execution or {})}
         fields = {"execution": basis, "configuration": {}}
         if outcome_record == "COMPLETE":
             fields["evaluated"] = store(self.sc, outcome or {"x": 2, "y": "0.0"})
@@ -194,6 +196,18 @@ class Reader(unittest.TestCase):
             with self.subTest(case=name):
                 self.assertFalse(read("x", r.realization(execution=execution)).well_formed)
         self.assertFalse(read("x", r.realization(actor_key="ed25519:other")).well_formed, "the actor's key")
+
+    def test_a_basis_outside_its_types_is_never_indexed(self) -> None:
+        """Step 9d-i (F96): currency reads F and ``on⁻`` links adversely, neither indexing the malformed basis."""
+
+        from ssds.derivation import F
+
+        r = Fixture(DECLARATIVE)
+        real = r.realization(execution={"units": [{"unit": "code"}]})
+        self.assertFalse(read(real["id"], real).well_formed)
+        d = r.sc.derive()
+        self.assertEqual(d.current(real["id"]), F)
+        self.assertTrue(d.a.on_minus(real["id"], d.a.tree_of(real["id"])))
 
     def test_a_class_that_does_not_observe_leaves_it_unpinnable(self) -> None:
         r = Fixture(DECLARATIVE)

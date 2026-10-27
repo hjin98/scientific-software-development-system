@@ -26,6 +26,11 @@ from .test_admission_requests import RequestFixture, _Item, finding
 from .test_lint import findings, item_block
 
 
+#: An evaluated outcome in §17.3's shape, stored beside a realization (F97).
+OUTCOME_TEXT = '{"x":1}'
+OUTCOME_DIGEST = "sha256:" + __import__("hashlib").sha256(OUTCOME_TEXT.encode()).hexdigest()
+
+
 class RunnerKey:
     def __init__(self) -> None:
         self.private = Ed25519PrivateKey.generate()
@@ -58,13 +63,28 @@ class Fixture(RequestFixture):
         return {"spec": {"unit": "guide", "rev": rev}, "claim": []}
 
     def observation(self, kind="REALIZATION", component="dispatcher", key=None, **changes) -> dict:
+        """A runner observation; a realization in its closed shape on the head (step 9d-i, F96-F97), its outcome
+        co-submitted by ``signed``."""
+
+        from .test_phase_f_step4b import derive_state
+
         target = self.target()
+        fields = {"execution": {}}
+        if kind == "REALIZATION":
+            s = derive_state(self)
+            fields = {"execution": {"tree": s.h.head(s.n), "units": [], "bounded_by": "UNBOUNDED", "start": s.n,
+                                    "end": s.n, "runner": {"class": "ci", "key": key or self.runner.key_id},
+                                    "class_attributes": [], "observes_outside_reads": True,
+                                    "context": {"system": "ssds-rules/1", "ignore": [],
+                                                "analyzers": sorted(s.analyzer_set)}},
+                      "configuration": {}, "evaluated": OUTCOME_DIGEST}
         rec = record(kind, target=target, outcome="COMPLETE", actor=f"machinery:{component}@{key or self.runner.key_id}",
-                     actor_class="MACHINERY", fields={"execution": {}})
+                     actor_class="MACHINERY", fields=fields)
         return with_id({**rec, **changes})
 
     def signed(self, records, runner=None):
-        return (runner or self.runner).sign(self.request(records, base_position=self.head()))
+        return (runner or self.runner).sign(self.request(records, base_position=self.head(),
+                                                         objects={OUTCOME_DIGEST: OUTCOME_TEXT}))
 
     def authenticated(self, req):
         return authenticate(req, req["records"], self.roots(), self.head())
@@ -194,7 +214,7 @@ class Binding(Fixture):
 
     def test_a_machinery_actor_under_another_binding_is_never_salvaged(self) -> None:
         obs = self.observation()
-        req = self.request([obs], base_position=self.head())
+        req = self.request([obs], base_position=self.head(), objects={OUTCOME_DIGEST: OUTCOME_TEXT})
         req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
         decision = self.admit(req)
         self.assertEqual((decision.admitted, dict(decision.refused).get(obs["id"])), ((), ("AUTH_ACTOR",)))
@@ -207,12 +227,12 @@ class Binding(Fixture):
         self.assertEqual(decision.admitted, ())
         self.assertIn(reported["id"], dict(decision.refused))
 
-    def test_through_admission_runner_observations_wait_for_step_9d(self) -> None:
+    def test_through_admission_a_realization_is_accepted(self) -> None:
+        """Step 9d-i (F97; plan §3.6's moved test): 6c's gate no longer holds a realization."""
+
         obs = self.observation()
         decision = self.admit(self.signed([obs]))
-        self.assertEqual(decision.admitted, ())
-        codes = set(decision.reasons) | set(dict(decision.refused).get(obs["id"], ()))
-        self.assertEqual(codes, {"SCHEMA_UNSUPPORTED"}, "authenticated; 6c's gate holds evidence kinds until 9d")
+        self.assertEqual((decision.admitted, decision.reasons, decision.refused), ((obs["id"],), (), ()))
 
 
 class Designation(unittest.TestCase):

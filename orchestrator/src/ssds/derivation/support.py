@@ -17,8 +17,9 @@ from .assessment import Assessments
 from .frames import Frame, frame_of, frame_state, role_sat, transformation_of
 from .judgment import Judgments
 from .outcomes import PASSING, covers
+from .realization import basis_problems
 from .s0 import nontrivial, strongly_connected
-from .state import ACCEPTANCE_KINDS, HUMAN_FLOOR, F, P, State, T, triple_key
+from .state import ACCEPTANCE_KINDS, HUMAN_FLOOR, MACHINERY_FLOOR, F, P, State, T, triple_key
 
 Node = tuple[str, str]
 
@@ -87,7 +88,7 @@ class Support:
                         subject = self.s.view.structure.subj(target["unit"])
                         if subject:
                             out.add(("valid", subject))
-                elif mode == "execution":
+                elif mode == "execution" and not basis_problems(target):
                     for unit_entry in target.get("units", []):
                         out.update(("current", q) for q in self.equivalences(unit_entry["unit"]))
                     bounded = target.get("bounded_by", [])
@@ -138,7 +139,8 @@ class Support:
             for entry in self.entries(key):
                 target = entry["target"]
                 units = [target.get("unit")] if entry["mode"] in ("content", "validity") else \
-                    [u.get("unit") for u in target.get("units", [])] if entry["mode"] == "execution" else []
+                    [u.get("unit") for u in target.get("units", [])] if entry["mode"] == "execution" \
+                    and not basis_problems(target) else []
                 for unit in units:
                     out.update(("current", q) for q in s.of_kind("EQUIVALENCE") if s.record(q)["target"]["unit"] == unit)
             return out
@@ -389,6 +391,8 @@ class Support:
         kind = record["kind"]
         if (kind in HUMAN_FLOOR or (kind == "ACCEPTANCE" and domain in ("D1", "D2"))) and record["actor_class"] != "HUMAN":
             return False
+        if kind in MACHINERY_FLOOR and record["actor_class"] != "MACHINERY":
+            return False  # an observation is machinery's (§3.4, §17.5; F98)
         if kind == "LEGACY_ACCEPTANCE":
             return True
         acceptors = self.s.policy.get(domain, "acceptors", None)

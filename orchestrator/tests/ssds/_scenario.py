@@ -193,13 +193,16 @@ def structure_deltas(before, after) -> list[dict]:
 
 
 def designated(execution: dict, runner_class: str = "ci") -> dict:
-    """A realization's execution as the fixtures' designated runner records it (§17.2, §17.5; reading F88): its runner
-    and the class facts ``test_lint.RUNNERS`` designates, by value."""
+    """A realization's execution as the fixtures' designated runner records it (§17.2, §17.5; readings F88, F96): its
+    runner, the class facts ``test_lint.RUNNERS`` designates, by value, and the members F96 requires that a fixture
+    leaves out (an empty, unbounded basis under the fixtures' context)."""
 
     from ._fixtures import RUNNER_KEY
 
-    return {**execution, "runner": {"class": runner_class, "key": RUNNER_KEY}, "class_attributes": [],
-            "observes_outside_reads": True}
+    recorded = {"start": 0, "end": 0, "units": [], "bounded_by": "UNBOUNDED",
+                "context": {"system": "ssds-rules/1", "ignore": [], "analyzers": ["ssds.analyzer.python/1"]}}
+    return {**recorded, **execution, "runner": {"class": runner_class, "key": RUNNER_KEY},
+            "class_attributes": [], "observes_outside_reads": True}
 
 
 def submit(sc: Scenario, files: dict[str, str], producer: str, task: str, manifest: str | None = None,

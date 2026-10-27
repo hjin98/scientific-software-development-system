@@ -28,7 +28,7 @@ REASONS = frozenset({
     "SCHEMA_REQUEST", "SCHEMA_RECORD", "SCHEMA_BOUND", "SCHEMA_OBJECT", "SCHEMA_UNSUPPORTED", "SECRET_DETECTED",
     # step 2
     "REF_BASE", "REF_RECORD", "REF_REVISION", "REF_OBJECT", "REF_OBLIGATION", "REF_DUPLICATE",
-    "REF_PRODUCING_CONTEXT", "REF_TRANSFORMATION", "REF_DELTA", "REF_ADOPTION", "REF_TARGET",
+    "REF_PRODUCING_CONTEXT", "REF_TRANSFORMATION", "REF_DELTA", "REF_ADOPTION", "REF_TARGET", "REF_EXECUTION",
     # step 3: authentication and authorization (Phase F steps 3-4)
     "AUTH_ENVELOPE", "AUTH_ACTOR", "AUTH_VERSION", "AUTH_ROLE_KIND", "AUTH_TARGET_PART", "AUTH_TARGET_REVOKED",
     "AUTH_ILL_FORMED", "AUTH_TARGET_NOT_CURRENT", "AUTH_TARGET_NOT_EFFECTIVE", "AUTH_SUPERSEDES",
@@ -320,6 +320,9 @@ def target_references(record: Mapping[str, Any]) -> tuple[set[str], set[tuple[st
         named = target.get(key)
         if isinstance(named, Mapping) and isinstance(named.get("unit"), str) and isinstance(named.get("rev"), str):
             pairs.add((named["unit"], named["rev"]))
+    for claim in target.get("claim") if isinstance(target.get("claim"), list) else []:  # a realization's (F97)
+        if isinstance(claim, Mapping) and isinstance(claim.get("unit"), str) and isinstance(claim.get("rev"), str):
+            pairs.add((claim["unit"], claim["rev"]))
     return units, pairs, triples
 
 
@@ -336,9 +339,14 @@ def referenced_revisions(record: Mapping[str, Any]) -> set[tuple[str, str]]:
 
 
 def referenced_objects(record: Mapping[str, Any]) -> set[str]:
-    """The ``LEDGER``-store object digests a record's refs name."""
+    """The ``LEDGER``-store object digests a record's refs name, and a realization's evaluated outcome, which the
+    ledger stores beside it (§17.3; Phase F reading F97)."""
 
-    return {r["digest"] for r in record.get("refs") or [] if isinstance(r, Mapping) and r.get("store") == "LEDGER"}
+    out = {r["digest"] for r in record.get("refs") or [] if isinstance(r, Mapping) and r.get("store") == "LEDGER"}
+    fields = record.get("fields") if isinstance(record.get("fields"), Mapping) else {}
+    if record.get("kind") == "REALIZATION" and is_digest(fields.get("evaluated")):
+        out.add(fields["evaluated"])
+    return out
 
 
 def transformation_named(record: Mapping[str, Any]) -> str | None:

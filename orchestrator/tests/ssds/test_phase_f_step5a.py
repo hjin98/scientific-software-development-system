@@ -101,9 +101,9 @@ class Salvage(unittest.TestCase):
     def test_salvageable_kinds(self) -> None:
         from ssds.admission.engine import salvageable
 
-        for kind in ("FINDING", "CHALLENGE", "REVIEW", "ACCEPTANCE", "GATE_DECISION"):
+        for kind in ("FINDING", "CHALLENGE", "REVIEW", "ACCEPTANCE", "GATE_DECISION", "REALIZATION"):  # 9d-i (F99)
             self.assertTrue(salvageable({"kind": kind}), kind)
-        for kind in ("EVIDENCE_ASSESSMENT", "REALIZATION", "CHECK_EXECUTION"):
+        for kind in ("EVIDENCE_ASSESSMENT", "CHECK_EXECUTION", "CUSTODY_ENUMERATION"):
             self.assertFalse(salvageable({"kind": kind}), kind)
 
     def test_an_adverse_judgment_is_salvaged_through_the_engine(self) -> None:

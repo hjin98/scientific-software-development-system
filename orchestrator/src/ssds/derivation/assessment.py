@@ -34,6 +34,7 @@ from typing import Any
 from ssds.content import SpecDeclaration, TreeView, canonical_reference, is_canonical, jcs, recorded_identity
 
 from .frames import transformation_of
+from .realization import basis_problems, context_available, on_minus
 from .state import F, P, State, T
 
 SYSTEM_RULESET = "ssds-rules/1"
@@ -259,20 +260,17 @@ class Assessments:
         return self.s.record(observation)["fields"]["execution"]
 
     def _context_available(self, basis: dict[str, Any]) -> bool:
-        context = basis.get("context", {})
-        return context.get("system", SYSTEM_RULESET) == SYSTEM_RULESET and \
-            set(context.get("analyzers", ())) <= set(self.s.analyzer_set)
+        return not basis_problems(basis) and context_available(basis, self.s.analyzer_set)
 
     def on_minus(self, observation: str, tree) -> bool:
-        """``on⁻``: every recorded tree-resident term re-resolves, under the record's own context, to its identity."""
+        """``on⁻``: every recorded tree-resident term re-resolves, under the record's own context, to its identity
+        (``realization.on_minus``, the one owner; F97)."""
 
         basis = self.basis(observation)
-        if not self._context_available(basis):
-            return True  # a host lacking the recorded context asserts nothing permissive; adversely it links
-        ignore = tuple(basis.get("context", {}).get("ignore", ()))
-        terms = [t for entry in basis.get("units", []) for t in entry["terms"]]
-        terms += list(basis.get("reads", [])) + list(basis.get("widened", []))
-        return all(recorded_identity(tree, term, ignore) == cid for term, cid in terms)
+        if basis_problems(basis):
+            return True  # a basis outside its types asserts nothing permissive; adversely it links (F88, F96)
+        found = on_minus(basis, tree, self.s.analyzer_set)
+        return True if found is None else found  # a host lacking the recorded context asserts nothing permissive
 
     def ext(self, o: str, x: str) -> bool:
         bo, bx = self.basis(o), self.basis(x)
@@ -708,8 +706,10 @@ class Assessments:
 
     def execution_current(self, basis: dict[str, Any], content_sat: Callable[[str, str], int],
                           value: Callable[[Any], int]) -> int:
+        if basis_problems(basis):
+            return F  # an execution basis outside its types re-resolves nothing (F96)
         tree = self.s.view.tree
-        ignore = tuple(basis.get("context", {}).get("ignore", ()))
+        ignore = tuple(basis["context"]["ignore"])
         result = T
         for unit_entry in basis.get("units", []):
             if all(recorded_identity(tree, term, ignore) == cid for term, cid in unit_entry["terms"]):

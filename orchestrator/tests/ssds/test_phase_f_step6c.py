@@ -220,13 +220,15 @@ class Gate(unittest.TestCase):
             self.assertTrue(gated({}, [{"kind": "TASK_RESULT", "target": {"task": "t"}}], support, None))
             self.assertTrue(gated({"candidates": ["c"]}, [], support, None))
             for kind, target in (("EVIDENCE_ASSESSMENT", {"realization": "r", "obligation": "o"}),
-                                 ("REALIZATION", {"spec": {}, "claim": []}), ("HUMAN_DECISION", {"obligation": "o"}),
+                                 ("HUMAN_DECISION", {"obligation": "o"}),
                                  ("AVAILABILITY", {"digest": "d"}), ("CUSTODY_ENUMERATION", {"runner": "r"}),
                                  ("EXTERNAL_CONSULTATION", {"external": "e"}), ("RISK_OVERRIDE", {"record": "r"}),
                                  ("GATE_DECISION", {"gate": "g", "subject": {}, "core": "c"}),
                                  ("REVIEW", {"integrated": "ITEM", "of": "k"}),
                                  ("RECONSTRUCTION_PROPOSAL", {"units": ["guide"]})):
                 self.assertTrue(gated({}, [{"kind": kind, "target": target}], support, None), kind)
+            self.assertFalse(gated({}, [{"kind": "REALIZATION", "target": {"spec": {}, "claim": []}}], support, None),
+                             "step 9d-i (F99)")
             self.assertTrue(gated({"claims": ["item"]}, [], support, None), "an item obligation reads conformance")
             self.assertFalse(gated({"claims": ["other"]}, [], support, None))
 
