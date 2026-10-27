@@ -14,7 +14,7 @@ from ssds.ledger.read import transformation_id, with_id
 
 from ._scenario import attested
 from ._fixtures import record, tree
-from ._scenario import OWNER, Scenario, agent, content, fresh, judgment
+from ._scenario import OWNER, Scenario, agent, content, designated, fresh, judgment, store
 from .test_lint import DESIGNATED, FILES, MANIFEST, item_block, plan_text
 
 SECONDARY = '[ { check = "BOUNDARY.write_scope" }, { check = "TEST_INTEGRITY.evidence_specs_untouched" } ]'
@@ -50,11 +50,13 @@ def submit(sc: Scenario, files: dict[str, str], slots: dict | None = None, outco
     return x, cand, result
 
 
-def realize(sc: Scenario, candidate: str, outcome: str = "PASS") -> None:
+def realize(sc: Scenario, candidate: str, outcome: str = "PASS", key: str = "ed25519:test") -> None:
     spec_rev = sc.rev("tests.conv")
     real = with_id(record("REALIZATION", target={"spec": {"unit": "tests.conv", "rev": spec_rev}, "claim": []},
-                          outcome="COMPLETE", actor="machinery:runner-ci", actor_class="MACHINERY",
-                          fields={"execution": {"tree": candidate, "units": [], "reads": []}, "configuration": {}}))
+                          outcome="COMPLETE", actor=f"machinery:runner-ci@{key}", actor_class="MACHINERY",
+                          fields={"execution": {**designated({"tree": candidate, "units": [], "reads": []}),
+                                                "runner": {"class": "ci", "key": key}},
+                                  "configuration": {}, "evaluated": store(sc, {"x": 2, "x_verdict": "PASS"})}))
     sc.admit(real)
     sc.admit(judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": "o1"}, outcome,
                       actor=OWNER, fields={"mode": "ORDINARY", "reading": {"unit": "tests.conv", "rev": spec_rev}}))
@@ -74,6 +76,15 @@ class Classes(unittest.TestCase):
         self.assertEqual(c.classes, frozenset({CLEAN}), c.hits)
         (review,) = w.of_kind("REVIEW")
         self.assertEqual((review.target, w.readiness(review).state), ({"transformation": x}, READY))
+
+    def test_an_undesignated_runners_realization_is_no_required_evidence(self) -> None:
+        """Reading F89: conformance's required evidence reads the one admissibility owner, not the actor class."""
+
+        sc = accepted_plan()
+        x, cand, result = submit(sc, {"src/solver.py": "def step():\n    return 2\n"})
+        realize(sc, cand, key="ed25519:stranger")
+        w, c = conformance(sc, result)
+        self.assertIn("INCOMPLETE", c.classes, c.hits)
 
     def test_missing_evidence_is_incomplete_and_a_complete_outcome_then_discrepant(self) -> None:
         sc = accepted_plan()

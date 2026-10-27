@@ -171,13 +171,74 @@ class Assessments:
         return within and not within_home
 
     def admissible(self, rid: str, obligation: str) -> bool:
-        if self.s.record(rid)["target"]["obligation"] != obligation:
+        """§17.4 (reading F89): the assessment names ``obligation`` and reads its specification, and its realization
+        passes ``realization_ok``. A passing assessment needs every check and a usable declaration (9b-ii); a failing
+        one keeps counting under a defective declaration and under its key's compromise, since failing evidence is
+        never dropped (§6; F41): the owner disposes of it, first by an upheld challenge against its realization."""
+
+        record = self.s.record(rid)
+        if record["target"]["obligation"] != obligation:
             return False
-        if self.failing(rid):
-            return True  # failing evidence is never dropped (§6): a defect of its specification does not hide it
-        real = self.realization(rid)
-        spec = (real or {}).get("target", {}).get("spec") or {}
-        return real is not None and not self.s.specs.defective(spec.get("unit"), spec.get("rev"))
+        real = self.real(rid)
+        if real is None:
+            return False
+        reading = (record["fields"].get("reading") or {}).get("unit")
+        spec = self.s.record(real)["target"]["spec"]["unit"]
+        if reading is None or self.s.evidence.root(reading) != self.s.evidence.root(spec):
+            return False
+        return self.realization_ok(real, obligation, adverse=self.failing(rid))
+
+    def realization_ok(self, real: str, obligation: str | None, adverse: bool = False) -> bool:
+        """The one owner of §17.4's admissibility of a realization for ``obligation`` (reading F89): (a) its
+        specification and a claim of its target give the obligation, (b) every fixed attribute of the instantiated
+        revision's declaration is recorded with that value, (c) it is complete, its outcome stored, (d) a designated
+        runner of the declaration's class ran it, its key a runner trust root designated for the class by the policy
+        in force at its admission, its recorded class facts that class's, and (e) its key was not compromised at or
+        before its admission. ``adverse``: a failing use, which (e) and a defective declaration do not drop.
+        ``obligation`` None: (b)-(e) only, as conformance's required evidence reads them (§14.3)."""
+
+        from .realization import read
+
+        record = self.s.record(real)
+        r = read(real, record)
+        if not r.well_formed or record["actor_class"] != "MACHINERY":
+            return False
+        if obligation is not None and not any(self.s.evidence.token(claim, r.spec) == obligation for claim, _ in r.claims):
+            return False  # (a); conformance's required evidence names a specification, not an obligation (None)
+        if r.outcome != "COMPLETE" or self.outcome(real) is None:
+            return False  # (c)
+        declared = self.s.specs.declaration_at(r.spec, r.spec_rev)
+        if not isinstance(declared, SpecDeclaration):
+            return adverse  # 9b-ii: a defective declaration admits no passing assessment, and drops no failing one
+        if any(r.attributes.get(k) != v for k, v in declared.fixed.items()):
+            return False  # (b)
+        position = self.s.position_of(real)
+        designated = self.designated(r, declared.runner, position)
+        if not designated:
+            return False  # (d)
+        compromised = self.trust.compromised.get(r.runner_key)
+        return adverse or compromised is None or position < compromised  # (e)
+
+    def designated(self, r: Any, runner_class: str, position: int) -> bool:
+        """F89 (d): the runner, its key and its recorded class facts, as the policy and trust roots at
+        ``position`` designate them (§6.3: decided at realization, recorded by value; §17.5, §25.2)."""
+
+        from .state import Policy
+        from .trust import trust_roots
+
+        if r.runner_class != runner_class:
+            return False
+        policy = Policy.parse(self.s.h.objects.get(self.s.h.ruleset(position)["policy"]))
+        cls = policy.runners.get(runner_class)
+        roots = trust_roots(self.s.h.chain.entries[: position + 1])
+        return cls is not None and r.runner_key in cls.keys and r.runner_key in roots.runners \
+            and tuple(r.class_attributes) == cls.attributes and r.observes_outside_reads == cls.observes_outside_reads
+
+    @cached_property
+    def trust(self) -> Any:
+        from .trust import trust_roots
+
+        return trust_roots(self.s.h.chain.entries[: self.s.n + 1])
 
     # -- matching (§6.5) --------------------------------------------------------------------------
 
@@ -212,11 +273,22 @@ class Assessments:
 
     def ext(self, o: str, x: str) -> bool:
         bo, bx = self.basis(o), self.basis(x)
-        if bo.get("unpinnable", True) or bx.get("unpinnable", True):
+        if self.unpinnable(o) or self.unpinnable(x):
             return False
         pins = lambda b: sorted(map(tuple, b.get("pins", [])))  # noqa: E731
         attributes = lambda b: dict(map(tuple, b.get("attributes", [])))  # noqa: E731
         return pins(bo) == pins(bx) and attributes(bo) == attributes(bx)
+
+    def unpinnable(self, observation: str) -> bool:
+        """Counts as having an unpinnable read (§6.3, §17.5; reading F90): it recorded one, its class does not observe
+        every read outside the tree, it lacks a recorded attribute its class records, or its execution is outside
+        the closed shape (F88)."""
+
+        from .realization import read
+
+        r = read(observation, self.s.record(observation))
+        return not r.well_formed or r.unpinnable or not r.observes_outside_reads \
+            or not set(r.class_attributes) <= set(r.attributes)
 
     def bound(self, observation: str, tree, base: Callable[[str], int], value: Callable[[Any], int] | None = None) -> bool:
         """``bound(o, K)`` (catalogue §6.5 as amended by SD-58, Manual A8).

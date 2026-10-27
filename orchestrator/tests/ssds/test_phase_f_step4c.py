@@ -14,6 +14,7 @@ from ssds.derivation.conformance import CLEAN
 from ssds.derivation.frames import Frame, Transformation, frame_of, transformation_of
 from ssds.ledger.read import read_chain, transformation_id, with_id
 
+from ._scenario import designated, store
 from ._fixtures import manifest, record, tree
 from ._scenario import OWNER, Scenario, agent, attested, fresh, integrate, judgment
 from ._scenario import submit as submit_x
@@ -27,8 +28,9 @@ def framed_evidence(sc, x: str, candidate: str) -> None:
 
     spec_rev = sc.rev("tests.conv")
     real = with_id(record("REALIZATION", target={"spec": {"unit": "tests.conv", "rev": spec_rev}, "claim": []},
-                          outcome="COMPLETE", actor="machinery:runner-ci", actor_class="MACHINERY",
-                          fields={"execution": {"tree": candidate, "units": [], "reads": []}, "configuration": {}},
+                          outcome="COMPLETE", actor="machinery:runner-ci@ed25519:test", actor_class="MACHINERY",
+                          fields={"execution": designated({"tree": candidate, "units": [], "reads": []}),
+                                  "configuration": {}, "evaluated": store(sc, {"x": 2, "x_verdict": "PASS"})},
                           frame={"transformation": x}))
     sc.admit(real)
     sc.admit(judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": "o1"}, "PASS", actor=OWNER,

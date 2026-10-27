@@ -310,7 +310,7 @@ class Floors(unittest.TestCase):
         from .test_assessment import Runs
 
         with mock.patch.object(ta, "UNITS", ta.UNITS.replace('kind = "D4"', 'kind = "D2"')), \
-                mock.patch.object(ta, "POLICY", 'schema = 1\n[domains.D2]\nevidence = true\n'):
+                mock.patch.object(ta, "POLICY", 'schema = 1\n[domains.D2]\nevidence = true\n' + ta.RUNNERS):
             r = Runs()
             t0, t1 = r.tree("T0"), r.tree("T1", **{"a.py": "v = 2\n"})
             failing = r.fail(r.run(t0, ta.BAD))

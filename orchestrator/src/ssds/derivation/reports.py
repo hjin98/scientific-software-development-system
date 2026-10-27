@@ -425,11 +425,11 @@ class Reports:
     def _disagreement_holds(rid: str, d: Any) -> bool:
         a = d.a
         value = lambda node: d.values.get(node, F)  # noqa: E731
-        for _obligation, records in a.by_obligation.items():
-            if rid not in records or not any(a.passing(r) for r in records):
+        for obligation, records in a.by_obligation.items():
+            if rid not in records or not any(a.passing(r) and a.admissible(r, obligation) for r in records):
                 continue
-            if not (a.failing(rid) and a.starts(rid)) or a.stale(rid, d.base, value):
-                return False
+            if not (a.failing(rid) and a.starts(rid) and a.admissible(rid, obligation)) or a.stale(rid, d.base, value):
+                return False  # an inadmissible assessment enters neither side (§6.2; reading F89)
             return a.disposition(rid, value, d.base, d.j.nonind) == F
         return False
 

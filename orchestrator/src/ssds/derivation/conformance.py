@@ -448,8 +448,9 @@ class Conformance:
             record = self.s.record(rid)
             if record["target"]["spec"]["unit"] != spec or (record["fields"].get("execution") or {}).get("tree") != candidate:
                 continue
-            if record["actor_class"] != "MACHINERY":
-                continue  # by a designated runner (§14.3, §17.5); an agent's own realization is never evidence (B10)
+            if not self.w.d.a.realization_ok(rid, None):
+                continue  # by a designated runner, complete, its fixed attributes as declared (§14.3, §17.4-§17.5;
+                # reading F89); an agent's own realization is never evidence (B10)
             realized = True
             for a in self.s.of_kind("EVIDENCE_ASSESSMENT"):
                 assessment = self.s.record(a)
@@ -459,7 +460,7 @@ class Conformance:
             return [f"required evidence {spec} is not realized on the exact candidate"]
         return [f"required evidence {spec} has no current passing assessment on the exact candidate"]
 
-    _t_obligation_evidence_basis_fields = None  # §17's admissibility of the realization basis (Phase F)
+    _t_obligation_evidence_basis_fields = None  # the realization's shape is F88's reader's; Admission checks it (9d)
 
     # -- FAITHFULNESS ----------------------------------------------------------------------------
 

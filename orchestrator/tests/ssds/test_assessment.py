@@ -17,7 +17,8 @@ from ._fixtures import manifest, tree
 from ssds.derivation import F
 from ssds.derivation.evidence import obligation_token
 
-from ._scenario import HUMAN_B, Scenario, challenge, content, judgment, on_record, store
+from ._scenario import HUMAN_B, Scenario, challenge, content, designated, judgment, on_record, store
+from .test_lint import RUNNERS
 
 UNITS = '''
     [[unit]]
@@ -38,7 +39,7 @@ time_bound_hours = 24
 outputs = [{ name = "x", type = "int" }, { name = "x_verdict", type = "enum", values = ["PASS", "FAIL"] }]
 verdicts = [{ output = "x", embedded = "x_verdict" }]
 """
-POLICY = 'schema = 1\n[domains.D4]\nevidence = true\n'
+POLICY = 'schema = 1\n[domains.D4]\nevidence = true\n' + RUNNERS
 #: The evidence obligation the specification's EVIDENCES relation to ``code`` derives (§10.2; Phase F reading F87).
 OBL = obligation_token("code", "spec")
 CODE_TERM = {"path": "a.py"}
@@ -92,7 +93,8 @@ class Runs:
         realization = judgment("REALIZATION", {"spec": {"unit": "spec", "rev": view.rev("spec")},
                                                "claim": [{"unit": "code", "rev": view.rev("code")}]}, "COMPLETE",
                                actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY",
-                               fields={"execution": basis, "configuration": {"regime": "default"}, "evaluated": digest})
+                               fields={"execution": designated(basis), "configuration": {"regime": "default"},
+                                       "evaluated": digest})
         from ssds.ledger.read import with_id
 
         self.attempts = getattr(self, "attempts", 0) + 1

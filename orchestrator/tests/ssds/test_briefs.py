@@ -396,8 +396,10 @@ class StepSevenReview(unittest.TestCase):
         return r, ta
 
     def test_b6_and_b7_the_gate_core_and_the_inspector(self) -> None:
+        from .test_lint import RUNNERS
+
         r, ta = self.gate_runs('schema = 1\n[domains.D4]\nevidence = true\ngates = ["g"]\n'
-                               'gate_holders = ["human:SHA256:alice"]\nhumans = ["human:SHA256:alice"]\n')
+                               'gate_holders = ["human:SHA256:alice"]\nhumans = ["human:SHA256:alice"]\n' + RUNNERS)
         r.fail(r.run(r.tree("T0"), ta.BAD))
         w = Workflow(r.sc.derive())
         (gate,) = [g for g in w.of_kind("GATE") if g.target["subject"]["subject"] == "code"]

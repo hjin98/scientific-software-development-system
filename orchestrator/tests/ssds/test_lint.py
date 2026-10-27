@@ -108,7 +108,7 @@ def plan_text(block: str, prose: str = "Make the solver adaptive.\n", objective:
 
 
 #: The plan fixture's verifiers name runner class ``ci``; policy designates it (Phase E reading E20, Phase F step 9a).
-RUNNERS = '[runners.ci]\nkind = "DISPATCHER"\nkeys = ["ed25519:ci"]\nattributes = []\nobserves_outside_reads = false\n'
+RUNNERS = '[runners.ci]\nkind = "DISPATCHER"\nkeys = ["ed25519:test"]\nattributes = []\nobserves_outside_reads = true\n'
 DESIGNATED = "schema = 1\n" + RUNNERS
 
 

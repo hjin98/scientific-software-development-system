@@ -192,6 +192,16 @@ def structure_deltas(before, after) -> list[dict]:
     return out
 
 
+def designated(execution: dict, runner_class: str = "ci") -> dict:
+    """A realization's execution as the fixtures' designated runner records it (§17.2, §17.5; reading F88): its runner
+    and the class facts ``test_lint.RUNNERS`` designates, by value."""
+
+    from ._fixtures import RUNNER_KEY
+
+    return {**execution, "runner": {"class": runner_class, "key": RUNNER_KEY}, "class_attributes": [],
+            "observes_outside_reads": True}
+
+
 def submit(sc: Scenario, files: dict[str, str], producer: str, task: str, manifest: str | None = None,
            base: str | None = None) -> tuple[str, str, dict]:
     """A task result submitting a candidate: (transformation, candidate commit, result record)."""

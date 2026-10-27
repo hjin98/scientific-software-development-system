@@ -15,13 +15,14 @@ from ssds.derivation import Workflow, queries
 from ssds.ledger.read import transformation_id, with_id
 
 from ssds.derivation.evidence import obligation_token
+from ._scenario import designated, store
 from ._scenario import attested
 from . import test_assessment as ta
 from . import test_step5_review
 from ._fixtures import record
 from ._scenario import HUMAN, Scenario, challenge, content, judgment, on_record
 from .test_briefs import renderer, section
-from .test_lint import CONV_DECLARATION, FILES, MANIFEST
+from .test_lint import CONV_DECLARATION, FILES, MANIFEST, RUNNERS
 from .test_obligations import TWO
 from .test_routes import Flow, document_item
 
@@ -38,7 +39,7 @@ class EvidenceFlow(Flow):
     def __init__(self) -> None:
         text = document_item().replace("secondary = []", 'secondary = [{ check = "TEST_INTEGRITY.no_skips" }, '
                                                          '{ check = "BOUNDARY.write_scope" }]')
-        self.sc = Scenario(D4_RECORDS, {**EVIDENCED, "plans/work.md": text}, policy='schema = 1\n[domains.D4]\nevidence = true\n')
+        self.sc = Scenario(D4_RECORDS, {**EVIDENCED, "plans/work.md": text}, policy='schema = 1\n[domains.D4]\nevidence = true\n' + RUNNERS)
         self.counter = 0
         self.accept_plan()
 
@@ -59,8 +60,9 @@ class Discharge(unittest.TestCase):
         view = f.sc.view(cand)
         real = with_id(record("REALIZATION", target={"spec": {"unit": "tests.conv", "rev": f.sc.rev("tests.conv")},
                                                      "claim": [{"unit": "records", "rev": view.rev("records")}]},
-                              outcome="COMPLETE", actor="machinery:runner-ci", actor_class="MACHINERY",
-                              fields={"execution": {"tree": cand, "units": [], "reads": []}, "configuration": {}}))
+                              outcome="COMPLETE", actor="machinery:runner-ci@ed25519:test", actor_class="MACHINERY",
+                              fields={"execution": designated({"tree": cand, "units": [], "reads": []}),
+                                      "configuration": {}, "evaluated": store(f.sc, {"x": 2, "x_verdict": "PASS"})}))
         f.sc.admit(real)
         f.assessment(real, "PASS")
         f.review(x, cand, "PASS")
@@ -195,8 +197,9 @@ def _submit(f: Flow, changes: dict, tree_edit=None) -> tuple[str, str]:
 def _realization(f, unit: str = "records") -> dict:
     real = with_id(record("REALIZATION", target={"spec": {"unit": "tests.conv", "rev": f.sc.rev("tests.conv")},
                                                  "claim": [{"unit": unit, "rev": f.sc.rev(unit)}]},
-                          outcome="COMPLETE", actor="machinery:runner-ci", actor_class="MACHINERY",
-                          fields={"execution": {"tree": f.sc.head, "units": [], "reads": []}, "configuration": {}}))
+                          outcome="COMPLETE", actor="machinery:runner-ci@ed25519:test", actor_class="MACHINERY",
+                          fields={"execution": designated({"tree": f.sc.head, "units": [], "reads": []}),
+                                  "configuration": {}, "evaluated": store(f.sc, {"x": 2, "x_verdict": "PASS"})}))
     f.sc.admit(real)
     return real
 
@@ -208,7 +211,7 @@ def _partitioned_with_evidence():
     text = plan().replace('verifier = "REVIEW"', 'verifier = "REVIEW"\nsecondary = [{check="TEST_INTEGRITY.no_skips"}, '
                                                  '{check="BOUNDARY.write_scope"}]')
     f.sc = Scenario(D4_RECORDS + NOTES, {**EVIDENCED, "plans/work.md": text, "notes/a.md": "a\n", "notes/b.md": "b\n"},
-                    policy='schema = 1\n[domains.D4]\nevidence = true\n')
+                    policy='schema = 1\n[domains.D4]\nevidence = true\n' + RUNNERS)
     f.counter = 0
     f.accept_plan()
     f.spend(f.item().obligation)
@@ -354,7 +357,7 @@ def _retained_flow():
         def __init__(self) -> None:
             self.sc = Scenario(D4_RECORDS + NOTES + FOLLOWUP_UNIT, {**EVIDENCED, "plans/work.md": text, "notes/a.md": "a\n",
                                                                     "notes/b.md": "b\n"},
-                               policy='schema = 1\n[domains.D4]\nevidence = true\n')
+                               policy='schema = 1\n[domains.D4]\nevidence = true\n' + RUNNERS)
             self.counter = 0
             from ._scenario import OWNER
 

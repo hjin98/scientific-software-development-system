@@ -202,10 +202,15 @@ def chain_of(ledger_id: str, entries: list[dict], objects: dict[int, dict[str, b
     return Chain(ledger_id, tuple(out))
 
 
+#: The fixtures' designated runner key, a runner trust root at every scenario's genesis (Phase F step 9c-ii-i, F89).
+RUNNER_KEY = "ed25519:test"
+RUNNER_ROOT = {"id": RUNNER_KEY, "public_key": "00" * 32}
+
+
 def genesis_body(baseline: str, structure: dict, modes: dict | None = None, ruleset: dict | None = None,
                  manifest_path: str = ".ssds/manifest.toml") -> dict:
     fields = {
-        "project": "demo", "ledger_id": "demo", "location": {}, "trust_roots": {"admission_keys": []},
+        "project": "demo", "ledger_id": "demo", "location": {}, "trust_roots": {"admission_keys": [], "runner_keys": [RUNNER_ROOT]},
         "witnesses": {}, "structure": structure, "modes": modes or {}, "baseline_commit": baseline,
         "deployment_class": "LOCAL_TRUST", "manifest_path": manifest_path, "policy_path": ".ssds/policy.toml",
         "approval": {},

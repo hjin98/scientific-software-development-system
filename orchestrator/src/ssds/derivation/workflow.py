@@ -304,8 +304,9 @@ class Workflow:
                 out.append(make("ADJUDICATE_DISAGREEMENT", {"record": x}, {"vetoes": z}, holder=REVIEWER))
         for obligation, records in sorted(self.d.a.by_obligation.items()):
             for a in records:
-                if not (self.d.a.failing(a) and self.d.a.starts(a)) or self.d.a.stale(a, self.d.base, self._value):
-                    continue
+                if not (self.d.a.failing(a) and self.d.a.starts(a) and self.d.a.admissible(a, obligation)) \
+                        or self.d.a.stale(a, self.d.base, self._value):
+                    continue  # an inadmissible assessment enters neither side (§6.2; reading F89)
                 if self.d.a.disposition(a, self._value, self.d.base, self.d.j.nonind) == F:
                     out.append(make("ADJUDICATE_DISAGREEMENT", {"record": a}, {"obligation": obligation}, holder=REVIEWER))
         return out

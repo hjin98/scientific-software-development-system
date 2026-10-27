@@ -12,7 +12,8 @@ import unittest
 from ssds.derivation import F, P, T
 
 from ssds.derivation.evidence import obligation_token
-from .test_lint import CONV_DECLARATION
+from ._scenario import designated, store
+from .test_lint import CONV_DECLARATION, RUNNERS
 from ._fixtures import lifecycle_body, record
 from ._scenario import (
     attested,
@@ -268,7 +269,7 @@ class TargetConditionsAndIndependence(unittest.TestCase):
 POLICY_EVIDENCE = '''schema = 1
 [domains.D3]
 evidence = true
-'''
+''' + RUNNERS
 #: spec.md's EVIDENCES relation to arch derives the obligation (§10.2; Phase F reading F87).
 ARCH_CHECK = obligation_token("arch", "spec")
 
@@ -286,7 +287,8 @@ class EvidenceTerm(unittest.TestCase):
         self.real = judgment("REALIZATION", {"spec": {"unit": "spec", "rev": sc.rev("spec")},
                                              "claim": [{"unit": "arch", "rev": sc.rev("arch")}]}, "COMPLETE",
                              actor="machinery:dispatcher@ed25519:test", actor_class="MACHINERY",
-                             basis=[content("arch", sc.rev("arch"))], fields={"execution": {}})
+                             basis=[content("arch", sc.rev("arch"))],
+                             fields={"execution": designated({"tree": sc.head}), "evaluated": store(sc, {"x": 2, "x_verdict": "PASS"})})
         sc.admit(*attested(accept(sc, "arch"), self.real))
 
     def assessment(self, outcome: str, actor: str = HUMAN_B) -> dict:
