@@ -24,6 +24,8 @@ from ssds.ledger.read import submits
 
 from .frames import Frame, Transformation, transformation_of
 from .outcomes import ADVERSE, PASSING, adverse, covers, passing
+from .reading import is_reading
+from .reading import read as read_reading
 from .state import UNKNOWN, State, target_key, triple_key
 
 #: Kinds whose records carry an independence requirement (§5.10 (f)); machinery records never do.
@@ -341,6 +343,16 @@ class Judgments:
             return self._authors_of(sorted(self.judged_content(rid)), authors)
         if kind == "PLAN_ACCEPTANCE":
             return self._authors_of([(i["unit"], i["rev"]) for i in record["fields"]["items"]], authors)
+        if kind == "EVIDENCE_ASSESSMENT" and is_reading(record):
+            # a discriminating reading: the claim authors of both observations, and a⁻'s root authors (F108)
+            r = read_reading(rid, record)
+            out = set()
+            for o in (r.passing, r.failing):
+                if o in s.records and s.record(o)["kind"] == "REALIZATION":
+                    out |= self._authors_of([(c["unit"], c["rev"]) for c in s.record(o)["target"]["claim"]], authors)
+            if r.failure in s.records and s.record(r.failure)["kind"] == "EVIDENCE_ASSESSMENT":
+                out |= self._claim_authors(r.failure, authors)
+            return frozenset(out) or frozenset({UNKNOWN})
         if kind == "EVIDENCE_ASSESSMENT":
             return self._claim_authors(rid, authors)
         if kind == "REALIZATION" and isinstance(target.get("claim"), list):
@@ -589,7 +601,7 @@ class Judgments:
             return False
         if record["kind"] in ("EQUIVALENCE", "COMPLETENESS", "INTAKE_DISPOSITION") and record["actor_class"] == "ADMISSION":
             return False
-        return record["kind"] in REQUIREMENT or self.disposes_failing(record)
+        return record["kind"] in REQUIREMENT or self.disposes_failing(record) or is_reading(record)  # F108
 
     def disposes_failing(self, record: dict[str, Any]) -> bool:
         """A disposition of a failing assessment (§6.7), which carries an independence requirement (§6.8)."""

@@ -177,15 +177,9 @@ class Assessments:
         disposition (review of e643fa07, B1); "another actor's" restricts supersessions and adjudications, not an
         ``IMMATERIALITY``. The one predicate Admission reads."""
 
-        structure = self.s.view.structure
-        subjects = [u for u, unit in structure.units.items() if unit.subject]
         disposed = [x for x in self.j.disposed_failures(record)
                     if record["kind"] == "IMMATERIALITY" or self.s.record(x)["actor"] != record["actor"]]
-        for x in disposed:
-            about = set(self.home(x)) | {u for u in subjects if self.about(x, u)}
-            if any(self.s.ever_authority(u) for u in about):
-                return True
-        return False
+        return any(self.needs_r3(x) for x in disposed)
 
     def admissible(self, rid: str, obligation: str) -> bool:
         """§17.4 (reading F89): the assessment names ``obligation`` and reads its specification, and its realization
@@ -440,6 +434,7 @@ class Assessments:
             return True  # a defective or unknown reading computes nothing (fail closed)
         own_reading = self.s.record(rid)["fields"].get("reading") or {}
         own = self.s.specs.declaration_at(own_reading.get("unit"), own_reading.get("rev"))
+        read_by_assessor = False
         for x in self.failing_outputs(rid):
             if not isinstance(own, SpecDeclaration) or own.output(x) is None:
                 return True  # F(a⁻) is "the declared outputs it found failing" (§6.5): a name outside a⁻'s own
@@ -457,7 +452,8 @@ class Assessments:
                 continue  # an embedded verdict's carrier is judged by the output it carries (F85, F105; review of
                 # 3f976498, note 1): in (4) it is no output of its own; (1) and (2) still compare it
             if found.oracle == "ASSESSOR_READ":
-                return True  # yielded unless a standing discriminating reading covers it, none until 9e (§6.6)
+                read_by_assessor = True  # yielded unless a standing discriminating reading covers it: decided once,
+                continue  # over the whole F(a⁻), below (§6.6; reading F107)
             verdict = found.verdict(name)
             if verdict is None:
                 return True  # a mechanical reading with no verdict on a declared output: not computable (§6.5)
@@ -475,7 +471,72 @@ class Assessments:
                     return True
             else:
                 return True  # not computable until Q-F21 settles it (F86)
+        return read_by_assessor and not self.covered(observation, rid, unit, rev)
+
+    # -- discriminating readings (§6.6; readings F106-F108) -----------------------------------------------------
+
+    @cached_property
+    def _readings(self) -> dict[str, list[str]]:
+        """Each failure's well-formed discriminating readings, by the failure they name."""
+
+        from .reading import is_reading, read
+
+        out: dict[str, list[str]] = {}
+        for rid in self.s.of_kind("EVIDENCE_ASSESSMENT"):
+            record = self.s.record(rid)
+            if is_reading(record):
+                r = read(rid, record)
+                if r.well_formed:
+                    out.setdefault(r.failure, []).append(rid)
+        return out
+
+    def readings(self, rid: str) -> list[str]:
+        return self._readings.get(rid, [])
+
+    def reading_stands(self, d: str) -> bool:
+        """§6.6: ``cont(d)``, not superseded, ``status1(d)`` ``CLEAR`` (stricter than "not ``REVOKED`` or
+        ``BLOCKED``": an overridden reading covers nothing, as s1 requires; a Stage S note), independent (it carries a
+        requirement, F108), and both observations it reads standing."""
+
+        from .reading import read
+
+        s = self.s
+        r = read(d, s.record(d))
+        return s.acts(d) and s.cont(d) and not s.superseded(d) and s.status1(d) == "CLEAR" and not self.j.nonind(d) \
+            and all(o in s.records and s.record(o)["kind"] == "REALIZATION" and self.standing(o)
+                    for o in (r.passing, r.failing))
+
+    def covered(self, observation: str, rid: str, unit: str, rev: str | None) -> bool:
+        """A standing reading of ``rid`` covers ``observation`` under reading ``(unit, rev)``: it read ``PASS`` under
+        that specification revision an outcome identical to the observation's on ``F(a⁻)`` ("content identity plays
+        no part"; s1 Y1), and no revision it read under is held only by absorption (§6.6; reading F107)."""
+
+        from .reading import read
+
+        failing = self.failing_outputs(rid)
+        outcome = self.restricted(observation, failing)
+        if outcome is None:
+            return False
+        for d in self.readings(rid):
+            r = read(d, self.s.record(d))
+            if r.pass_reading != (unit, rev) or not self.reading_stands(d):
+                continue
+            claims = [(c["unit"], c["rev"]) for c in self.s.record(r.passing)["target"].get("claim") or []]
+            if not all(self.s.specs.revision_integrated(u, v) for u, v in [r.pass_reading, *claims]):
+                continue  # a reading under a revision held only by absorption covers nothing there (§6.6)
+            if self.restricted(r.passing, failing) == outcome:
+                return True
         return False
+
+    def needs_r3(self, rid: str) -> bool:
+        """§6.8's R3: a subject failure ``rid`` is about is, or has been, D1 or D2 (its home, and ``about``), the one
+        predicate dispositions, readings and ``READING`` read (reading F108). The candidate-own exception is failed
+        closed: under SD-70 every reachable failure is admitted-state evidence."""
+
+        structure = self.s.view.structure
+        subjects = [u for u, unit in structure.units.items() if unit.subject]
+        about = set(self.home(rid)) | {u for u in subjects if self.about(rid, u)}
+        return any(self.s.ever_authority(u) for u in about)
 
     def standing(self, observation: str) -> bool:
         s = self.s
@@ -617,7 +678,8 @@ class Assessments:
         def links(o: str, tree) -> list[str]:
             return [other for other in anchors if self.on_minus(other, tree) and self.on_minus(other, self.tree_of(o))]
 
-        out: dict[str, Any] = {"reproduced": [], "differed": [], "observed_here": [], "yielding_here": [], "links": []}
+        out: dict[str, Any] = {"reproduced": [], "differed": [], "observed_here": [], "yielding_here": [], "links": [],
+                               "readings": [d for d in self.readings(rid) if self.reading_stands(d)]}
         if real is None:
             return out
         for o in configuration:

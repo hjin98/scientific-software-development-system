@@ -69,6 +69,21 @@ class SpecFacts:
         genesis = h.view(0)
         return genesis.rev(uid) if uid in genesis.structure.units else None
 
+    def revision_integrated(self, uid: str, rev: str | None) -> bool:
+        """``uid``'s revision ``rev`` was produced at genesis or by an integration, so a reading under it may cover
+        (§6.6's absorption clause; reading F107). The per-revision form of ``integrated_rev``."""
+
+        h = self.s.h
+        genesis = h.view(0)
+        if uid in genesis.structure.units and genesis.rev(uid) == rev:
+            return True
+        for k in (k for k in h.integrations if 0 < k <= self.s.n):
+            after, before = h.view(k), h.view(k - 1)
+            now = after.rev(uid) if uid in after.structure.units else None
+            if now == rev and now != (before.rev(uid) if uid in before.structure.units else None):
+                return True
+        return False
+
     def defective(self, uid: str, rev: str | None = None) -> bool:
         found = self.declaration(uid) if rev is None else self.declaration_at(uid, rev)
         return not isinstance(found, SpecDeclaration)

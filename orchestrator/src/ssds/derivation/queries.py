@@ -245,7 +245,7 @@ def evidence(w: Any, claim: str) -> list[dict[str, Any]]:
             if status == "unavailable":
                 entry["reason"] = "the assessment is not current at this head"
             if a.failing(rid):
-                entry["failing_outputs"] = a.failing_outputs(rid)  # the discriminating observations
+                entry["failing_outputs"] = a.failing_outputs(rid)  # F(a⁻): the outputs it found failing (§6.5)
             out.append(entry)
     if subject is not None:
         for obligation in s.evidence.required(subject):

@@ -253,7 +253,7 @@ class Reading(unittest.TestCase):
         self.assertEqual(kinds(r, "READING"), [], "a failing assessment of the outcome answers it")
 
     def test_only_a_failing_assessment_ends_it(self) -> None:
-        """Review of affd87fa, N5 (q10); and N1: it waits on 9e's discriminating readings; N4: a judgment."""
+        """Review of affd87fa, N5 (q10); N4: a judgment. (N1's wait on 9e is lifted by 9e-i, reading F110.)"""
 
         r = Declared(ASSESSOR_READ)
         t0 = r.tree("T0")
@@ -267,7 +267,8 @@ class Reading(unittest.TestCase):
                             fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}}))
         (reading,) = kinds(r, "READING")
         w = Workflow(r.sc.derive())
-        self.assertEqual(w.readiness(reading).waiting_on, ("discriminating readings are step 9e's", "no eligible judge"))
+        self.assertEqual(w.readiness(reading).waiting_on, ("no eligible judge",),
+                         "9e lifted its wait (F110): only the judge is lacking, the claim's authorship being unknown")
         self.assertIn("machinery:dispatcher@ed25519:test", w.judged_authors(reading),
                       "the observation's lineage, and a⁻'s root authors")
 

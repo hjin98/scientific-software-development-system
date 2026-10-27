@@ -260,14 +260,16 @@ class Workflow:
                     if lacking and self._bounded(real, on) and not self._rerun_done(x, real, tree):
                         out.append(make("RERUN", {"record": x, "on": on}, {"tree": tree}, holder=DISPATCHER))
                 declared = a.declaration(real)
-                here = [o for o in found["observed_here"] if o != real]  # another run: the failing one is read
+                unit = s.record(x)["fields"]["reading"]["unit"]
+                rev = s.cur(unit) if unit in structure.units else None
+                # another run here that no standing reading covers under G's reading: the failing one is read
+                # (§6.9; reading F110)
+                here = [o for o in found["observed_here"] if o != real and not a.covered(o, x, unit, rev)]
                 if isinstance(declared, SpecDeclaration) and declared.oracle == "ASSESSOR_READ" and here:
                     o = here[0]  # one observation names the obligation; any other run here would serve (N2)
                     if not any(s.acts(y) and s.record(y)["target"].get("realization") == o and a.failing(y)
                                for y in s.of_kind("EVIDENCE_ASSESSMENT")):
-                        about = [u for u in subjects if a.about(x, u)]
-                        # §3.4's class read from the subjects the failure is about, not the chain (N2; 9e owns the rule)
-                        cls = "R3" if any(structure.kind(u) in ("D1", "D2") for u in about) else "R2"
+                        cls = "R3" if a.needs_r3(x) else "R2"  # §6.8's class, the one predicate (F108)
                         out.append(make("READING", {"record": x}, {"observation": o, "class": cls}, holder=REVIEWER))
         return out
 
@@ -745,8 +747,6 @@ class Workflow:
         if o.kind in ANSWER_KIND and self.answer(o) is not None:
             return Readiness(ANSWERED)
         waiting: list[str] = []
-        if o.kind == "READING":  # a reviewer who reads the outcome as passing records a discriminating reading (9e)
-            waiting.append("discriminating readings are step 9e's")
         if o.kind == "REALIZE":  # no designated runner of the specification's class: nothing can realize it (F95)
             from ssds.content import SpecDeclaration
 
