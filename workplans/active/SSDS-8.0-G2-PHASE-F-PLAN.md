@@ -687,7 +687,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   - **(c) Completeness.** The realization is `COMPLETE`, with its evaluated outcome stored.
   - **(d) The designated runner.** It is `MACHINERY`. Its key is a runner trust root at the realization's admission position, designated for the declaration's runner class by the policy in force there (§6.3: decided at realization, recorded by value).
   - **(e) The compromise discount.** An observation admitted at or after its key's compromise position is untrusted.
-  - **The two sides.** A passing assessment needs (a)-(e) and a usable declaration (9b-ii). A failing one needs (a)-(d), keeps 9b-ii's narrowing for a defective declaration, and keeps counting under (e): a forged failure is disposed of by the owner (`IMMATERIALITY`), so failing evidence is never dropped (§6; F41).
+  - **The two sides.** A passing assessment needs (a)-(e) and a usable declaration (9b-ii). A failing one needs (a)-(d), keeps 9b-ii's narrowing for a defective declaration, and keeps counting under (e): a forged failure is disposed of by the owner, first by an upheld challenge against its realization on the ground that the key was compromised (Manual §6.7), or by `IMMATERIALITY`, so failing evidence is never dropped (§6; F41; plan check of 4432948d, note 1).
   - **Consumers.** `ADJUDICATE_DISAGREEMENT` (`workflow.py`) and the §6.8 disagreement (`reports.py`) read admissibility too, since today they derive from a failing assessment unchecked.
 - **F90** *Permissive matching reads the class (step 9c-ii-i; §6.3, §17.5).* `ext` treats a realization as having an unpinnable read when it recorded one, when its class does not observe every read outside the tree, or when it lacks a recorded attribute its class records. `standing` also needs the observation trusted (F89 (d)-(e)) and its references available (F92).
 - **F91** *A realization's currency (step 9c-ii-ii; §17.4).* A `REALIZATION`'s support node carries three implicit entries:
@@ -697,7 +697,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 
   `execution_current` reads the bounding judgments' currency. Stale passing evidence then never discharges.
 - **F92** *Binding health (step 9c-ii-ii; §17.4).* A reference is unavailable when the latest acting `AVAILABILITY` record on its digest says `UNAVAILABLE`. That covers a realization's evaluated outcome and its envelope's references.
-  - A passing assessment whose realization needs such a reference contributes at most `P` to `ev` ("not `T`").
+  - A passing assessment whose realization needs such a reference contributes at most `P` to `ev` ("not `T`"). `P` is the minimal faithful reading: discharge outside a risk override's scope stays open at `P` (§10.4, §10.5), and `F` would also block a human's risk-override continuation, for which the text gives no warrant (plan check of 4432948d, answer 4).
   - Its observation is not standing, and `REALIZE` treats the realization as not current.
   - Adverse uses are unchanged.
 - **F93** *Completing `stale` (step 9c-ii-iii; §6.6, §6.9, §17.5; F81).*
@@ -709,13 +709,15 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
     - it lists the observation itself.
 - **F94** *The "either" clause and renames (step 9c-ii-iii; §6.5, §6.6).*
   - **The "either" clause.** Where an observation lacks `x`, or G's reading has no verdict on `x`, the failure is yielded only if `a⁻`'s check on `x` was in force at `a⁻`'s base. A defective declaration there counts as in force (fail closed).
-  - **Renames.** `output_renames` maps a name one hop, through the later revision's own renames. An unmapped name is not evaluated. `restricted` and `failing_outputs` use the same mapping.
+  - **Renames.** `output_renames` maps a name one hop, through the later revision's own renames. An unmapped name is not evaluated. `restricted` and `failing_outputs` use the same mapping. Composing renames along the revision lineage would keep a twice-renamed output evaluable; one hop is coarser and safe (such a failure is yielded through the "either" clause), and it is disclosed (note 2).
 - **F95** *The evidence obligations (step 9c-ii-iv; §10.2, §6.8-§6.9).* They are derived in the admitted state only: a frame derives none (SD-70).
   - **`REALIZE(e)`, Dispatcher.** Derived for a required `e` with no current, complete realization passing F89 that instantiates the current specification revision on the current claim revision. It is not derived for a defective specification, and waits when the runner class is undesignated. It ends once such a realization exists; an `INCOMPLETE` one never ends it. A target change is reviewed through `REALIZE` and then `ASSESS`, with no new kind.
   - **`ASSESS(realization, e)`, reviewer.** Derived for an admitted, complete realization passing F89 with no acting assessment of it for `e`, whatever its currency, so an unassessed failure is never lost. It is answered by the first acting assessment, of any outcome.
-  - **`RERUN(a⁻, on)`, Dispatcher.** Derived for each of conditions (1) and (3) that a counting, admissible, unstale failure without a disposition lacks (§6.9). It is not derived when (2) failed or the basis is `UNBOUNDED`. It ends once any admitted observation of `conf(a⁻)` on that tree with `ext`-equal pins and attributes exists, so an unserving run never loops. The failure then stays with its owner.
+  - **`RERUN(a⁻, on)`, Dispatcher.** Derived for each of conditions (1) and (3) that a counting, admissible, unstale failure without a disposition lacks (§6.9). It is not derived when (2) failed or when no current completeness judgment bounds the configuration's execution closure (§6.9's condition, which also covers a bounded basis whose bounding judgment is no longer current; note 3). It ends once a complete admitted observation of `conf(a⁻)` on that tree with `ext`-equal pins and attributes exists, so an unserving run never loops and the failure then stays with its owner; an `INCOMPLETE` rerun (a crash, a failure to start) does not end it (note 4).
   - **`READING(a⁻)`, reviewer at §6.8's class.** Derived as `RERUN` for an assessor-read failure whose condition (3) observation no standing discriminating reading covers. It is answered by a discriminating reading (9e) or a failing assessment of that outcome.
+  - **Retries.** `REALIZE` and `RERUN` stay open after an `INCOMPLETE` run. The Dispatcher bounds its re-attempts operationally, by a budget with backoff journaled per obligation, so a runner that never starts does not loop without limit (9f-ii; note 5).
   - **The floor.** The `INCOMPLETE` trigger of §6.8's floor is subsumed by Phase E's E34 floor, which every disjunct shares; a test pins it.
+  - **Expected values.** No Stage S case covers admissibility, custody or these obligations. The expected values of 9c-ii's tests for them come from the cited text alone (§6, §10.2, §17), and the exit lists those cases as authority-derived, not Stage-S-derived (note 6).
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -3071,3 +3073,11 @@ The parts are:
 - **9c-ii-iv** the four obligations.
 
 Its proposed readings D1-D8 are F89 (the obligation's revision, the policy at admission, the failing side under a compromise), F92 ("not `T`" as `P`), F93 (custody per class) and F95 (`ASSESS` whatever the currency, a target change through `REALIZE`, the floor subsumed). Each is a reading, put to the plan check.
+
+**Plan check of 4432948d (revision 41).** No SERIOUS CHALLENGE. **PASS**, with six notes, taken up.
+- **Faithfulness.** The split and its order are sound. F89 is faithful: its reading of "the revision `e` names" is §17.4's own parenthesis, and the failing side under a compromise is conservative and needs no stakeholder decision. F90-F94 are faithful and safe, and `P` for "not `T`" is right. F95 is faithful.
+- **The notes.**
+  - The upheld challenge is named first as the route for a forged failure.
+  - One-hop renames are disclosed as the coarser, safe choice.
+  - `RERUN` takes §6.9's non-derivation condition, ends only on a complete observation, and the Dispatcher bounds retries operationally.
+  - 9c-ii's invented cases are marked authority-derived for the exit.
