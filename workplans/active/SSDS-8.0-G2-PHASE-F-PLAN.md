@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revision 23 details 7c (`LEDGER_LOSS`, readings F54-F57) and awaits its plan check. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57); revision 24 awaits its re-check. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -277,7 +277,11 @@ Derivation already folds a loss's boundary, `cont`, and `REQUALIFY` (Phase D), a
   - §23.8's three loss rows on fixture ledgers: a truncated ledger with a newer product, the next entry absorbing it (6a); ledger and product restored to one stale snapshot; and ledger objects lost while the witness checkpoints are intact.
   - A stale-consistent restore resurrecting nothing: a permissive record before the boundary is not current after it, and a `REQUALIFY` is derived.
   - A fresh clone with no high-water mark qualifying at the loss.
-  - An abandoned chain surfacing later: never merged, the boundary stays.
+  - An abandoned chain surfacing later: never merged, the boundary stays, and its integrity obligation is asserted.
+  - A loss under `FORK` whose abandoned side holds an admitted entry, and one under `UNQUALIFIED` with evidence of a later head not proved never admitted (§23.8's witness-loss row).
+  - A mixed set, one head proved never admitted and one possibly admitted, admitted with both named.
+  - A mark's own head is never proved never admitted within the fault model (note 2).
+  - §23.8's "authoritative replica lost, none extends the checkpoint" row: with nothing readable there is no `A` to append after. Its restore is F47's, and Admission refuses with no readable genesis. It is disclosed, not tested as a loss.
   - Refusals:
     - each field not equal to its recomputation (a missing or extra abandoned head, a wrong status, a stale report, changed controls);
     - every abandoned head proved never admitted;
@@ -450,7 +454,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 
   Each head carries `{position, digest, status}`. Its status is `loss_status(h, m, f, q_a)` (§23.6), where `h` counts the responding witnesses holding it and `m` the witnesses not responding.
 
-  The record must name exactly this set, ordered by position and digest. A head known only from another replica cannot be verified here; Phase F has one replica per ledger and one mark per home (F3).
+  The record must name exactly this set, ordered by position and digest. A head known only from another replica cannot be verified here; Phase F has one replica per ledger and one mark per home (F3). Exact equality is Phase F's single-home form (check of 8f10d755, note 1). With several replicas or homes, the record would name a superset of the recomputed set, whose extra heads arrive with authentic evidence.
 
   A loss is refused in two cases:
   - **Every abandoned head proved never admitted.** That is a `FORK_RESOLUTION` with no boundary (§23.6), which is 7d's.
@@ -464,7 +468,11 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   Admission recomputes it at admission, requires the record's digest to match, and stores the object in the entry by its digest. A witness that changes between preparing and admitting changes the report, so the record is refused and is prepared again.
 - **F56** *The controls (step 7c; F46 made concrete).* `controls` is `{witnesses, trust_roots, ruleset}` in force at `A`:
   - `witnesses`: the witness model in force, genesis's until 7e (F52);
-  - `trust_roots`: `{admission_keys, dispatcher_keys, human_keys}`, each a list of `{id, public_key}` sorted by id. The admission keys are genesis's, since no path rotates a host key yet. The dispatcher and human keys are those in force under `trust_roots` at `A`;
+  - `trust_roots`: the complete trust-root set in force at `A`, in genesis's shape (revision 24, after the check of 8f10d755, B1). That shape covers Manual §25.2's list:
+    - every key genesis declares (`admission_keys`, `dispatcher_keys`, `human_keys`, and any further list, such as runner keys);
+    - `human_mechanism`.
+
+    The dispatcher and human keys are those in force under the trust-root fold at `A`, each a list of `{id, public_key}` sorted by id. Every other member keeps its genesis value, because no admissible lifecycle path changes it yet: host keys and runner keys are not rotated through `KEY_LIFECYCLE`, and `TRUST_MECHANISM_CHANGE` is not admitted. When a path changes one, the fold is extended there and this form follows it;
   - `ruleset`: the ruleset in force at `A`, read from `History`.
 
   It must equal the recomputation, so any change fails closed until a control fold exists (F46).
@@ -1830,3 +1838,21 @@ Its notes:
 - the controls in force, required unchanged (F56).
 
 A loss that abandons only proved-never-admitted heads is a fork resolution (7d), and one that abandons nothing is a redesignation (7e).
+
+**Plan check of 8f10d755 (revision 23).** No SERIOUS CHALLENGE. **NO PASS**, on one blocker.
+- **B1.** F56's `trust_roots` form omitted two of Manual §25.2's trust roots: `human_mechanism`, and the runner keys still to come.
+
+Its answers confirm the rest:
+- F54's exact set and its two refusals;
+- F55's report;
+- F57's reliance on derivation.
+
+Its notes:
+- Five more test cases.
+- Exact equality is the single-home form (note 1).
+- A test that a mark's head is never proved never admitted (note 2).
+
+**Revision 24 repairs it.**
+- **F56.** `trust_roots` is genesis's complete shape, with the folded dispatcher and human keys.
+- **F54.** It records the single-home form.
+- **7c's tests.** They add the five cases and note 2, and place the replica-lost row as disclosed.
