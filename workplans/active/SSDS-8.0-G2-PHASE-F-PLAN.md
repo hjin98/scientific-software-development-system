@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii (admitting a redesignation, with review ae5ab38 N1) is built and awaits its review. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. 7f (`CONTINUITY_ATTESTATION`) and 7g are next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -515,6 +515,8 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   A redesignation is admitted over a provisional entry (§22.4); its admission settles that prefix.
   - **Own provisional entry.** 6b's completion runs first. If it succeeds the head is settled, and the redesignation is routine.
   - **Another host's provisional entry.** The completion is skipped rather than halting (review 7d2d1c0 N1).
+
+  A provisional entry whose checkpoint reached some witnesses, but fewer than `q_a`, reads `UNQUALIFIED` rather than provisional, since `H*` must extend every observed checkpoint (§23.4). It takes the `UNQUALIFIED` route: the record names its report, and `continues_from` is that entry. The "`QUALIFIED` with a provisional entry" route is the case where no witness holds its checkpoint, as after a crash before distribution. Both routes admit (review 00b4c1a N1).
 
   Until the redesignation is held, the chain carries two entries beyond `H*`. §23.4 exempts that one case from the critical flag, and qualification exempts it when the newest entry is a redesignation appended directly over the provisional one.
 - **F62** *A loss that re-establishes the witness set (7e-ii; revision 26 after the check of c36b278e, B2).* §23.8: "any evidence of a later head not proved never admitted makes the record carry a `LEDGER_LOSS`". Schema 1 expresses that. §23.6's loss carries "the global control facts re-established from its position — witness model and set, ...", and is "admitted under the quorum it re-establishes (and the old one where reachable)". So a `LEDGER_LOSS` whose `controls.witnesses` names a new set is the redesignation that carries a loss. Revision 25's claim that schema 1 could not express it, and Q-F15, are withdrawn.
@@ -2091,3 +2093,15 @@ The real retirement waits for the stakeholder's run of `retire_shadow.py`. Its `
 - **Mutants.** Thirteen: all are killed. W11 (no dual trial for a loss) and W12 (statuses over the last segment) survived at first and are killed by the two tests added for them.
 - **Full suite.** It passes: 1376 tests, 6 skipped. It ran before the two added tests, which then ran with the step's tests and pass.
 - **Found while testing.** A provisional entry whose checkpoint reached fewer than `q_a` witnesses reads `UNQUALIFIED`, not provisional, because H* must extend every observed checkpoint (§23.4). So "over a provisional entry" is the case with no checkpoint yet: a crash between the append and the distribution.
+
+**Same-family review of 00b4c1ac (7e-ii).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Its answers:
+- The content check, the amended controls and the per-segment evidence are faithful to §22.4, §23.4 and §23.8.
+- Skipping the old set below `r` is §23.8's "where the old is reachable".
+- Admitting over another host's provisional entry is §22.4's sanctioned exception: the compare-and-swap prevents a race, and that host's later distribution only holds its entry below the redesignation.
+- The exemption's condition is exactly §23.4's one case.
+
+Its notes:
+- **N1 (taken up).** F61 states that a partly distributed provisional entry takes the `UNQUALIFIED` route.
+- **N2 (recorded).** Any registered human may approve a redesignation, as for a retirement. Whether a ledger names the deciding role goes to the Manual clarification batch, consistent with SD-74.
+
+**Step 7e is closed.**
