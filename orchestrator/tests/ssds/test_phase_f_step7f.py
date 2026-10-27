@@ -154,9 +154,14 @@ class Admission(RequestFixture):
 
     def test_a_lineage_migration_and_a_replica_redesignation_are_refused(self) -> None:
         before = len(self.entries())
-        with self.assertRaisesRegex(EntryInvalid, "Q-F16"):
+        from unittest import mock
+
+        from ssds.admission.engine import Admission as Engine
+
+        with mock.patch.object(Engine, "held_head") as held_head, self.assertRaisesRegex(EntryInvalid, "Q-F16"):
             self.lifecycle_record("LINEAGE_MIGRATION", {"predecessor": {
                 "ledger_id": "old", "last_position": 3, "last_entry_digest": "sha256:" + "3" * 64}})
+        held_head.assert_not_called()  # refused before any state is read (review 80222c2 N1)
         with self.assertRaisesRegex(AdmissionHalted, "reading F50"):
             rec = record("REPLICA_REDESIGNATION", target=None, actor=self.human(),
                          fields={"location": {"repository": "mirror:demo", "ref": ledger_ref("demo")}})

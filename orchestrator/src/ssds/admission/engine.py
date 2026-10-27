@@ -484,6 +484,11 @@ class Admission:
         supplies its content check."""
 
         kind = record.get("kind") if isinstance(record, Mapping) else None
+        if kind == "LINEAGE_MIGRATION":
+            # refused before any state is read until Q-F16 places it; its field checks still say what else is wrong
+            # (review 80222c2 N1): §24.2's migration binds a new genesis, so its path may not be the held head at all
+            problems = migration_problems(record.get("fields"), self.ledger_id)
+            raise EntryInvalid(f"the lifecycle record cannot be admitted: {problems}")
         if kind not in _HEAD_KINDS and kind not in RECOVERY_STATES:
             raise EntryInvalid(f"a lifecycle record of kind {kind!r} is not admitted through this path")
         if kind in _HEAD_KINDS:
@@ -541,8 +546,6 @@ class Admission:
         elif kind == "REDACTION_NOTICE":
             stored = {d for e in entries for d in e.objects}
             problems = record_violations(record) + redaction_problems(record.get("fields"), stored)
-        elif kind == "LINEAGE_MIGRATION":
-            problems = record_violations(record) + migration_problems(record.get("fields"), self.ledger_id)
         elif kind == "WITNESS_SET_REDESIGNATION":
             expected, report = self.loss_evidence(chain)
             unqualified = held.state == "UNQUALIFIED"
@@ -658,7 +661,7 @@ class Admission:
                         if record["kind"] == "MATERIALITY_RECLASSIFICATION" and aimed is not None \
                                 and aimed["kind"] not in (*REPORT_KINDS, "CHALLENGE"):
                             own.append("REF_TARGET")  # it reclassifies a report or a challenge (§15.2)
-                        if record["kind"] == "CONTINUITY_ATTESTATION":
+                        if record["kind"] == "CONTINUITY_ATTESTATION":  # one declaring a frame is REF_TRANSFORMATION
                             own.extend(attestation_references(record, known, passing, s.view.structure.units,
                                                               stored | set(good)))
                     context = producing_context(record)
@@ -864,7 +867,7 @@ RECOVERY_STATES: dict[str, frozenset[str]] = {
 }
 #: Lifecycle kinds that are not recovery entries (§22.1): they carry the expected head as ``obs`` and are admitted at
 #: the held head, as a ``KEY_LIFECYCLE`` is (step 7g, reading F64).
-_HEAD_KINDS = frozenset({"KEY_LIFECYCLE", "REDACTION_NOTICE", "LINEAGE_MIGRATION"})
+_HEAD_KINDS = frozenset({"KEY_LIFECYCLE", "REDACTION_NOTICE"})
 #: The step of Phase F that supplies each recovery kind's content check; until then it is refused.
 _UNBUILT: dict[str, str] = {}
 

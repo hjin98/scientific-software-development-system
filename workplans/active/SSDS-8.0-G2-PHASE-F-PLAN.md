@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are built and await their review. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Step 8 is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2171,3 +2171,19 @@ It confirmed F63's codes, keeping `REPLICA_REDESIGNATION` refused under SD-75, a
   - a migration refused naming Q-F16, and a replica redesignation refused at the gate.
 - **Mutants.** Fourteen: all are killed. G04 was first written as a text-only change that still named Q-F16; re-run as the real mutation, dropping the refusal, it is killed.
 - **The test environment.** After the stakeholder's restart, `/tmp/claude-1000/ssds-venv` was gone. It was recreated from miniconda's Python 3.13 with `pyproject.toml`'s declared dependencies (`requires-python >= 3.11`) and `orchestrator/requirements-dev.txt`. A first full run without the latter failed two Core tests for want of `hypothesis` and `build`. That was an environment gap, not a code defect, and both pass with them. With them, the full suite passes: 1389 tests, 6 skipped.
+
+**Same-family review of 80222c23 (7f and 7g).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Its answers:
+- The steps are faithful to §3.4, §22.1, §23.7 and §24.2.
+- A notice rightly skips the trial: head kinds are admitted at the held head, and the commit's re-qualification decides.
+- The attestation's step-2 and step-5 codes cannot double-report or conflict.
+
+Its notes:
+- **N1 (taken up).** `LINEAGE_MIGRATION` is refused before any state is read, still naming its field problems and Q-F16, and it leaves `_HEAD_KINDS`. §24.2's migration binds a new genesis, so its eventual path may not be the held head. The test asserts that the held head is not read. The SSDS suite passes: 996 tests.
+- **N2 (recorded).** A `REDACTION_NOTICE`'s approver goes to the Manual clarification batch with SD-74's, as the re-check of 2d01eb22 recorded.
+- **N3 (taken up).** A comment says a frame-declaring attestation is refused `REF_TRANSFORMATION`.
+
+**Step 7 is closed for Phase F.**
+- **Built:** 7a-7g.
+- **Disclosed and handed off:** the ref and replica restore and §5.7's route to Phase H (SD-75).
+- **Waiting on Q-F16:** `LINEAGE_MIGRATION` and §24.2's replacement lineage.
+- **Unbuilt by F48:** a continuity attestation.
