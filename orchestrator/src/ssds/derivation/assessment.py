@@ -435,7 +435,8 @@ class Assessments:
         own_reading = self.s.record(rid)["fields"].get("reading") or {}
         own = self.s.specs.declaration_at(own_reading.get("unit"), own_reading.get("rev"))
         read_by_assessor = False
-        for x in self.failing_outputs(rid):
+        failing = self.failing_outputs(rid)
+        for x in failing:
             if not isinstance(own, SpecDeclaration) or own.output(x) is None:
                 return True  # F(a⁻) is "the declared outputs it found failing" (§6.5): a name outside a⁻'s own
                 # reading, or an unusable one, fails closed (re-check of 9031b16d)
@@ -448,9 +449,13 @@ class Assessments:
                 if self._in_force_at_base(rid, unit, x):
                     return True
                 continue
-            if any(v.embedded == name for v in found.verdicts):
-                continue  # an embedded verdict's carrier is judged by the output it carries (F85, F105; review of
-                # 3f976498, note 1): in (4) it is no output of its own; (1) and (2) still compare it
+            carried = next((v.output for v in found.verdicts if v.embedded == name), None)
+            if carried is not None:  # an embedded verdict's carrier is judged by the output it carries (F85, F105;
+                # review of 3f976498, note 1); (1) and (2) still compare it
+                if carried in {_renamed(found, y) for y in failing}:
+                    continue  # the carried output's own turn decides
+                name = carried  # named alone, it is decided here by the carried output's verdict (review of
+                # 70a5e7d8, B1)
             if found.oracle == "ASSESSOR_READ":
                 read_by_assessor = True  # yielded unless a standing discriminating reading covers it: decided once,
                 continue  # over the whole F(a⁻), below (§6.6; reading F107)
@@ -515,11 +520,20 @@ class Assessments:
 
         failing = self.failing_outputs(rid)
         outcome = self.restricted(observation, failing)
-        if outcome is None:
+        real = self.real(rid)
+        own = self.s.record(rid)["fields"].get("reading") or {}
+        if outcome is None or real is None:
             return False
         for d in self.readings(rid):
             r = read(d, self.s.record(d))
             if r.pass_reading != (unit, rev) or not self.reading_stands(d):
+                continue
+            # the facts Admission checks are the owner's too (review of f02dc944, note 1): the failing item reads
+            # under a⁻'s reading and shows a⁻'s outcome, and one outcome is never read both ways under one reading
+            if r.fail_reading != (own.get("unit"), own.get("rev")) \
+                    or self.restricted(r.failing, failing) != self.restricted(real, failing) \
+                    or (r.pass_reading == r.fail_reading
+                        and self.restricted(r.passing, failing) == self.restricted(r.failing, failing)):
                 continue
             claims = [(c["unit"], c["rev"]) for c in self.s.record(r.passing)["target"].get("claim") or []]
             if not all(self.s.specs.revision_integrated(u, v) for u, v in [r.pass_reading, *claims]):

@@ -58,6 +58,27 @@ class NamingNone(unittest.TestCase):
         r.run(t1, GOOD)
         self.assertTrue(r.stale(failing, "T1"))
 
+    def test_a_failure_naming_only_the_carrier_is_decided_by_the_carried_output(self) -> None:
+        """Review of 70a5e7d8, B1: named alone, the carrier is judged by the verdict it carries, so a failure still
+        reproduced on the new content is never dropped, and a genuine fix still stops it."""
+
+        from .test_assessment import BAD, GOOD, OBL, Runs
+
+        for after, stale in ((BAD, False), (GOOD, True)):
+            with self.subTest(after=after):
+                r = Runs()
+                t0, t1 = r.tree("T0"), r.tree("T1", **{"a.py": "v = 2\n"})
+                view = r.sc.view(t0)
+                real = r.run(t0, BAD)
+                failing = judgment("EVIDENCE_ASSESSMENT", {"realization": real["id"], "obligation": OBL}, "FAIL",
+                                   actor=HUMAN_B, basis=[on_record(real["id"]), content("spec", view.rev("spec"))],
+                                   fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")},
+                                           "failing_outputs": ["x_verdict"]})
+                r.sc.admit(failing)
+                r.run(t0, BAD)
+                r.run(t1, after)
+                self.assertEqual(r.stale(failing, "T1"), stale)
+
 
 
 class Readings(Declared):
@@ -102,13 +123,13 @@ class Readings(Declared):
         self.latest = real
         return real
 
-    def dual(self, o: int, attest: bool = True) -> dict:
+    def dual(self, o: int, attest: bool = True, fail_reading: str = "a⁻'s") -> dict:
         from ._scenario import judgment as make
 
         p, q = self.exec(o), self.reproduction
         view = self.sc.view(self.sc.head)
         now = {"unit": "spec", "rev": view.rev("spec")}
-        then = self.failure["fields"]["reading"]
+        then = self.failure["fields"]["reading"] if fail_reading == "a⁻'s" else now
         failing = {"observation": q["id"], "reading": then, "verdict": "FAIL", "assessment": self.failure["id"]}
         if now != then:
             failing |= {"reason": "READING_REVISED", "reference": "sha256:" + "6" * 64}
@@ -347,6 +368,40 @@ class Coverage(unittest.TestCase):
         with mock.patch.object(State, "authors", by_rev), mock.patch.object(Judgments, "piece_authors", by_rev):
             authors = r.sc.derive().j.judged_authors(reading["id"])
         self.assertIn(f"human:author-{failure_rev[:8]}", authors)
+
+
+class Contradiction(unittest.TestCase):
+    """Review of f02dc944, note 1: coverage reads the facts Admission checks (F109)."""
+
+    def test_a_self_contradictory_reading_covers_nothing(self) -> None:
+        # s1: "a reading that passes the outcome it fails, under one reading, is refused" (... DUAL(1, 1)) -> P
+        from ssds.derivation import P
+
+        r = Readings()
+        r.exec(1, old=True), r.dual(1), r.pass_()
+        self.assertEqual(r.ev(), P)
+
+    def test_a_reading_whose_failing_item_is_not_the_failure(self) -> None:
+        from ssds.derivation import P
+
+        r = Readings()
+        r.exec(1, old=True), r.move()  # (1) holds: a⁻ reproduced on its own tree
+        r.reproduction = r.exec(2)  # but the reading's failing item shows another outcome than a⁻'s
+        r.dual(0), r.move(), r.exec(0), r.pass_()
+        self.assertEqual(r.ev(), P)
+
+    def test_a_reading_whose_failing_item_is_read_under_another_reading(self) -> None:
+        from ssds.derivation import P
+
+        from ssds.derivation import T
+
+        for fail_reading, expected in (("a⁻'s", T), ("now", P)):
+            with self.subTest(fail_reading=fail_reading):
+                r = Readings()
+                # the reading in force is no longer a⁻'s; the claim moves, so p differs from the failing content
+                r.exec(1, old=True), r.oracle(), r.move()
+                r.dual(0, fail_reading=fail_reading), r.move(), r.exec(0), r.pass_()
+                self.assertEqual(r.ev(), expected)
 
 
 class Shape(unittest.TestCase):
