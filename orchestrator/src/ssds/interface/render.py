@@ -540,6 +540,11 @@ class Renderer:
         work = self.w.briefing.work(o)
         slots = self.w.briefing.owed_slots(o)
         ids, duty_texts, notices = self.duties(o, governs, slots)
+        if derivation.UNKNOWN in self.w.judged_authors(o):
+            # §5.10 (f) and §16.5 (Phase F step 8d, reading F72): the judged content's authorship is unknown
+            notices.append("the judged content's authorship is unknown: an agent's answer is never independent of it; "
+                           "a human judge's is independent only with a NON_AUTHORSHIP_ATTESTATION (the human rule, "
+                           "§5.10 (f)), or is the owner's")
         x = o.target.get("transformation") if isinstance(o.target, dict) else None
         result = self.w.submitting_result(x) if x else None
         conformance = self.w.conformance(result) if result else None

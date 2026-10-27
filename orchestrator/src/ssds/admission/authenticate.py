@@ -154,7 +154,8 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         return Authentication(False, frozenset({"SECRET_DETECTED"}))
     if set(binding) == {"human"}:
         return _human(request, binding["human"], records, roots)
-    if set(binding) != TASK_BINDING or not _envelope(binding["envelope"], head):
+    cosigned = set(binding) == TASK_BINDING | {"human"}
+    if (set(binding) != TASK_BINDING and not cosigned) or not _envelope(binding["envelope"], head):
         return NOT_AUTHENTICATED
     envelope = binding["envelope"]
     key_id = envelope["issue_key_id"]
@@ -181,6 +182,21 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         return NOT_AUTHENTICATED
     else:
         lineage = "UNKNOWN"
+    cosigner = None
+    if cosigned:
+        # step 8d, reading F72: on the manual or Git-envelope route, the human who ran the fresh session co-signs the
+        # request, whose bound records name this envelope, so the signature is this task's; it authenticates only that
+        # human's LINEAGE_ATTESTATION of a record bound here, which alone lets that record carry HUMAN_ATTESTED_FRESH
+        human = binding["human"]
+        if lineage != "UNKNOWN" or not isinstance(human, Mapping) or set(human) != HUMAN_BINDING \
+                or not isinstance(human["actor"], str) or human["actor"] not in roots.humans \
+                or not isinstance(human["signature"], str) \
+                or not verify_sshsig(roots.humans[human["actor"]], request_message(request), human["signature"]):
+            return NOT_AUTHENTICATED
+        cosigner = human["actor"]
+    bound_here = {r.get("id") for r in records if isinstance(r.get("binding"), Mapping)
+                  and r["binding"].get("envelope") == digest}
+    attested = {r["target"].get("record") for r in records if cosigner is not None and _attests(r, cosigner, bound_here)}
     agent = f"agent:{envelope['task_id']}/"
     attestation = binding["attestation"]
     lineage_list = lineage_closure(attestation["session"], attestation["input_sessions"], attestations or {}) \
@@ -189,13 +205,19 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
     for record in records:
         own = []
         actor = record.get("actor")
+        if cosigner is not None and _attests(record, cosigner, bound_here):
+            continue  # the co-signer's own attestation, authenticated by the co-signature
+        if record.get("id") in attested:
+            expected = "HUMAN_ATTESTED_FRESH"  # fixed at admission by the co-submitted attestation (§5.10 (a))
+        else:
+            expected = lineage
         if record.get("actor_class") != "AGENT" or not isinstance(actor, str) or not actor.startswith(agent) \
                 or not _ATTEMPT.fullmatch(actor[len(agent):]):
             own.append("AUTH_ACTOR")
         rb = record.get("binding")
         rb = rb if isinstance(rb, Mapping) else {}
         if (rb.get("envelope"), rb.get("task"), rb.get("obligation"), rb.get("role"), rb.get("lineage_class")) != \
-                (digest, envelope["task_id"], envelope["obligation_id"], envelope["role"], lineage):
+                (digest, envelope["task_id"], envelope["obligation_id"], envelope["role"], expected):
             own.append("AUTH_ENVELOPE")
         if rb.get("item") != envelope.get("contract_revision"):
             # the contract revision a record works under is the envelope's, never self-declared: conformance and
@@ -221,6 +243,15 @@ def authenticate(request: Mapping[str, Any], records: list[dict], roots: TrustRo
         return Authentication(False, frozenset({"AUTH_ENVELOPE"}), tuple(refused), lineage, {digest: obj}, retired,
                               reissue=digest)
     return Authentication(True, frozenset(), tuple(refused), lineage, {digest: obj}, retired)
+
+
+def _attests(record: Mapping[str, Any], cosigner: str, bound_here: set) -> bool:
+    """The co-signer's ``LINEAGE_ATTESTATION`` of a record bound to this task in this request (reading F72)."""
+
+    target = record.get("target")
+    return record.get("kind") == "LINEAGE_ATTESTATION" and record.get("outcome") == "HUMAN_ATTESTED_FRESH" \
+        and record.get("actor") == cosigner and record.get("actor_class") == "HUMAN" \
+        and record.get("binding") is None and isinstance(target, Mapping) and target.get("record") in bound_here
 
 
 def _human(request: Mapping[str, Any], human: Any, records: list[dict], roots: TrustRoots) -> Authentication:

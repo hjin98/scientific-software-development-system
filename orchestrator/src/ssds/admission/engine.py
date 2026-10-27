@@ -659,6 +659,9 @@ class Admission:
                         if record["kind"] == "MATERIALITY_RECLASSIFICATION" and aimed is not None \
                                 and aimed["kind"] not in (*REPORT_KINDS, "CHALLENGE"):
                             own.append("REF_TARGET")  # it reclassifies a report or a challenge (§15.2)
+                        if record["kind"] == "LINEAGE_ATTESTATION" and not any(
+                                r.get("id") == target.get("record") for r in records if r is not record):
+                            own.append("REF_TARGET")  # only a co-submitted attestation classifies (§5.10 (a); F72)
                         if record["kind"] == "CONTINUITY_ATTESTATION":  # one declaring a frame is REF_TRANSFORMATION
                             own.extend(attestation_references(record, known, passing, s.view.structure.units,
                                                               stored | set(good)))
@@ -941,6 +944,7 @@ _ACCEPTED = {
     "NON_AUTHORSHIP_ATTESTATION": {"record"}, "MATERIALITY_RECLASSIFICATION": {"record"},
     "COORDINATION_DECISION": {"records", "units"}, "ACCEPTANCE": {"triple"}, "LEGACY_ACCEPTANCE": {"triple"},
     "REVIEW": {"triple"}, "EQUIVALENCE": {"equivalence"}, "INTAKE_DISPOSITION": {"delta"},
+    "LINEAGE_ATTESTATION": {"record"},  # step 8d: a human's attestation of a co-submitted record (F72)
 }
 
 

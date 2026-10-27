@@ -21,16 +21,20 @@ from .test_phase_f_step8a import Fixture
 GOVERNS = {"mode": "LEGACY", "protocol": "7.2.1"}
 
 
+def DOCTRINE(source, path):  # the one doctrine reader issue and open share (review 041c6c9 N1)
+    return None
+
+
 class TaskBound(Fixture):
     def issued(self, route: str = "MANUAL", brief: bytes | None = None):
         task = would_issue(self.chain(), self.trees, self.held())[0]
-        text = brief if brief is not None else brief_for(self.chain(), self.trees, self.held(), task, route)
+        text = brief if brief is not None else brief_for(self.chain(), self.trees, self.held(), task, route, DOCTRINE)
         issued = issue(Journal(self.home, "demo"), self.issuer, task, self.held(), governs=GOVERNS, route=route,
                        brief=text)
         return task, issued
 
     def session(self) -> Session:
-        return Session(HomeAccess(self.home, "demo"), self.trees)
+        return Session(HomeAccess(self.home, "demo"), self.trees, DOCTRINE)
 
     def test_open_renders_the_issued_brief_at_its_basis(self) -> None:
         task, issued = self.issued()
@@ -107,7 +111,7 @@ class TaskBound(Fixture):
         for route, says in (("HARNESS", "reads observed"), ("MANUAL", "reads not observed (route MANUAL)")):
             with self.subTest(route=route):
                 task = would_issue(self.chain(), self.trees, self.held())[0]
-                self.assertIn(says, brief_for(self.chain(), self.trees, self.held(), task, route).decode())
+                self.assertIn(says, brief_for(self.chain(), self.trees, self.held(), task, route, DOCTRINE).decode())
 
 
 if __name__ == "__main__":

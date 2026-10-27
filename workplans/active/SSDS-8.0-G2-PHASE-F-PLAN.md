@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is built and awaits its review; 8d is next. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is closed (PASS at 041c6c98); 8d is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2442,3 +2442,41 @@ Its notes, taken up in 8d:
   - the reads notice per route.
 - **Mutants.** Six: all are killed. E2, answering at the presented head, survived at first and is killed by the absorption test.
 - **Full suite.** It passes: 1432 tests, 6 skipped.
+
+**Same-family review of 041c6c98 (8e).** No SERIOUS CHALLENGE. **PASS**, with no blockers. Its answers:
+- 8e is faithful to §16.1 and §16.4.
+- `Workflow.at(issued_at_position)` is the task's basis.
+- Keeping the public, signed envelope in the private journal is safe.
+- The work's subjects are the right default for `ask(changed)`.
+
+Its notes:
+- **N1 (taken up with 8d).** `brief_for` defaulted to no doctrine while `open_task` used the Session's reader, so a task pinning doctrine would refuse its own brief. `brief_for`'s doctrine reader is now required, supplied from the source the Session uses. The tests pass one reader to both.
+- **N2 (recorded).** An envelope with no `brief` digest is not digest-checked. Every issued task should carry one once issuing always renders its brief (8f's transports issue through `brief_for`).
+- **N3 (recorded).** `open`, `read` and `ask` take a task id without a credential. On the local Interface, with the journal in the private SSDS home, that is sound. If the Interface is exposed to agents, task reads bind to the task credential.
+
+**Step 8d built (judge selection and a human's attestation of a fresh session; reading F72).**
+- **Judge selection** (`dispatcher.select_judge`). A freshly launched agent reviewer on the harness route is preferred: `Issuer.issue`'s default `input_sessions` are empty, so it reads no authoring session. Otherwise the first eligible human goes on the manual route, and with none, nothing. This rests on derivation's `eligible_judges`, which already excludes the judged authors.
+- **The judge's facts** (`judge_provenance`). `{lineage_class, route, model_family, toolchain}` for the record's `provenance.judge`, an unverified audit stamp. Authentication and derivation never read it, and the inspector and briefs show only the binding's verified class (plan check note 3). A policy requiring a model family fails closed until model family is attested.
+- **The brief's notice.** A judgment brief over content whose `judged_authors` holds `UNKNOWN` says that an agent's answer is never independent of it, and that a human judge's is independent only with a `NON_AUTHORSHIP_ATTESTATION` (§5.10 (f)'s human rule) or is the owner's (notes 5, line 966). Derivation's facade now exports `UNKNOWN`.
+- **The co-signature** (`admission/authenticate.py`). A manual or Git-envelope task binding may also carry `human: {actor, signature}`.
+  - The signature is a registered human's over the request, and the request's bound records name this envelope's digest, so a co-signature moved onto another envelope attests nothing (note 1). The binding's stored object and digest exclude it, as they exclude the credential's signature.
+  - It authenticates only that human's `LINEAGE_ATTESTATION` (`HUMAN_ATTESTED_FRESH`) of a record bound here in the same request. Any other human record is `AUTH_ACTOR`.
+  - A bound record attested so must carry `HUMAN_ATTESTED_FRESH`, and an unattested one must not (`AUTH_ENVELOPE`).
+  - On the harness route the co-signature authenticates nothing.
+  - Authentication reads no authorship, so an attesting human who is an author is admitted, and its correction is a challenge (F13; note 4).
+  - Admission accepts `LINEAGE_ATTESTATION` (`record` target) only when its target is co-submitted (`REF_TARGET` otherwise): a later attestation classifies nothing (§5.10 (a)).
+- **`input_sessions`** (note 2). §12.2's launch attestation names "the sessions of the task's inputs (the authoring task of a candidate under review …)". A judge's are empty, because under F11's closure naming the authoring session would make every review non-independent. This reading of a textual tension goes to the Manual clarification batch.
+- **Tests.** `test_phase_f_step8d.py`, 11 tests:
+  - selection and the audit stamp;
+  - an attested record carrying the class;
+  - the class without its attestation, and an attested record claiming `UNKNOWN`, refused;
+  - only the co-signer's attestation of a record bound here authenticated (a stray human record, another human's attestation, a target not bound here);
+  - the harness route and a bad signature authenticating nothing;
+  - a co-signature moved to another envelope;
+  - an author's attestation;
+  - an attestation of a record not co-submitted refused at admission;
+  - the brief's notice.
+
+  8e's tests now pass the shared doctrine reader.
+- **Mutants.** Eight: all are killed. D3, an attestation of a record not bound here, survived at first and is killed by the added test.
+- **Full suite.** It passes: 1443 tests, 6 skipped.

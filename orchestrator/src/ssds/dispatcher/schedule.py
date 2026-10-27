@@ -113,7 +113,7 @@ def issue(journal: Any, issuer: Any, task: Task, held: Any, *, governs: Any, rou
     return issued
 
 
-def brief_for(chain: Any, trees: Any, held: Any, task: Task, route: str, doctrine: Any = None) -> bytes:
+def brief_for(chain: Any, trees: Any, held: Any, task: Task, route: str, doctrine: Any) -> bytes:
     """The rendered brief a task is issued with (§16.4; reading F69): its obligation's brief at the head it is
     issued at, naming the task and its route, so ``open(task)`` reproduces these bytes at the task's basis."""
 
@@ -123,9 +123,41 @@ def brief_for(chain: Any, trees: Any, held: Any, task: Task, route: str, doctrin
     workflow = Workflow(derive(prefix, trees))
     o = next(o for o in workflow.obligations if o.id == task.obligation_id)
     head = {"label": "QUALIFIED", "position": held.head, "digest": held.head_digest}
-    renderer = Renderer(workflow, head, doctrine or (lambda source, path: None),
-                        {"task_id": task.task_id, "route": route})
+    renderer = Renderer(workflow, head, doctrine, {"task_id": task.task_id, "route": route})
     return renderer.brief(o).text.encode("utf-8")
+
+
+@dataclass(frozen=True)
+class Judge:
+    name: str  # "agent:fresh-reviewer" or a human's actor id
+    route: str  # HARNESS for a freshly launched agent, MANUAL for a human
+
+
+#: A freshly launched agent reviewer, as derivation names it among the eligible judges.
+FRESH_REVIEWER = "agent:fresh-reviewer"
+
+
+def select_judge(workflow: Any, o: Any) -> Judge | None:
+    """The judge a judgment task goes to (§16.5, RR-11; step 8d, reading F72): among derivation's eligible judges,
+    which already exclude what the answer judges' authors are, a freshly launched agent reviewer on the harness route,
+    whose launch names no input session, so it reads no authoring session; otherwise an eligible human on the manual
+    route, whose independence is §5.10 (f)'s human rule; with none, nothing (readiness waits)."""
+
+    eligible = workflow.eligible_judges(o)
+    if FRESH_REVIEWER in eligible:
+        return Judge(FRESH_REVIEWER, "HARNESS")
+    humans = sorted(e for e in eligible if e.startswith("human:"))
+    return Judge(humans[0], "MANUAL") if humans else None
+
+
+def judge_provenance(issued: Any, model_family: str | None, toolchain: str | None) -> dict[str, Any]:
+    """What the submitting adapter stamps into a judge's record's ``provenance.judge`` (§12.2, §16.5): lineage class,
+    route, model family and toolchain. An unverified audit fact: authentication and derivation never read it, the
+    binding's verified class is what counts, and a policy asking for a model family fails closed (reading F72)."""
+
+    envelope = issued.envelope
+    return {"judge": {"lineage_class": envelope["lineage_class"], "route": envelope["route"],
+                      "model_family": model_family, "toolchain": toolchain}}
 
 
 def observe(chain: Any, trees: Any, held: Any) -> dict[str, Any]:
@@ -144,4 +176,5 @@ def observe(chain: Any, trees: Any, held: Any) -> dict[str, Any]:
     return report
 
 
-__all__ = ["NotIssuable", "Task", "brief_for", "issuable", "issue", "observe", "ready", "task_id", "would_issue"]
+__all__ = ["FRESH_REVIEWER", "Judge", "NotIssuable", "Task", "brief_for", "issuable", "issue", "judge_provenance",
+           "observe", "ready", "select_judge", "task_id", "would_issue"]
