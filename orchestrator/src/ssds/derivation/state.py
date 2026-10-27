@@ -52,6 +52,20 @@ def target_key(target: Any) -> str | None:
 RUNNER_CLASS_KINDS = frozenset({"DISPATCHER", "EXTERNAL_CUSTODY"})
 
 
+
+def policy_at(history: Any, position: int) -> "Policy | None":
+    """The policy in force at ``position``, parsed once per digest (review of 478901d6, note); None when the stored
+    policy is one this parser refuses (a later tightening), which every reader treats on its safe side."""
+
+    digest = history.ruleset(position)["policy"]
+    cache = history.__dict__.setdefault("_policies", {})
+    if digest not in cache:
+        try:
+            cache[digest] = Policy.parse(history.objects.get(digest))
+        except ValueError:
+            cache[digest] = None
+    return cache[digest]
+
 @dataclass(frozen=True)
 class RunnerClass:
     """A designated runner class (catalogue §17.5; Phase F step 9a, reading F76): its kind, the runner keys it

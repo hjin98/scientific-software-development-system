@@ -69,7 +69,8 @@ class EvidenceFacts:
     def _required(self, view: Any, subject: str, policy: Any = None) -> dict[str, tuple[str, str]]:
         structure = view.structure
         policy = self.s.policy if policy is None else policy
-        if subject not in structure.units or policy.get(structure.domain(subject), "evidence", False) is not True:
+        requires = True if policy is False else policy.get(structure.domain(subject), "evidence", False) is True
+        if subject not in structure.units or not requires:
             return {}
         inside = set(view.inside(subject))
         return {self.token(claim, spec): (claim, spec) for spec, claim in self._relations(view) if claim in inside}
@@ -92,12 +93,13 @@ class EvidenceFacts:
         under the policy in force there, so a policy that later stops requiring evidence retires the obligation and
         never erases a failure it counted (§10.2; review of 09ab5249, B1)."""
 
-        from .state import Policy
+        from .state import policy_at
 
         last = self.s.n if through is None else through
         for k in range(last + 1):
             view = self.s.h.view(k)
-            policy = Policy.parse(self.s.h.objects.get(self.s.h.ruleset(k)["policy"]))
+            policy = policy_at(self.s.h, k)
+            policy = False if policy is None else policy  # unreadable: as requiring evidence, the latch's safe side
             if any(token in self._required(view, u, policy) for u, unit in view.structure.units.items() if unit.subject):
                 return True
         return False

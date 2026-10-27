@@ -121,6 +121,69 @@ class Admissibility(unittest.TestCase):
         self.assertEqual(r.admissible(*r.both(real)), (False, False))
 
 
+def adopt(sc, policy_text: str) -> None:
+    """A ruleset adoption putting ``policy_text`` in force (§28)."""
+
+    import hashlib
+
+    data = policy_text.encode()
+    digest = "sha256:" + hashlib.sha256(data).hexdigest()
+    sc.objects.setdefault(sc.position, {})[digest] = data
+    sc.lifecycle(record("RULESET_ADOPTION", target=None, fields={
+        "system": "ssds-rules/1", "policy": digest, "analyzers": ["ssds.analyzer.python/1"]}))
+
+
+class Standing(unittest.TestCase):
+    """Review of d481277f, B1: a permissive use needs a trusted, designated observation (F90)."""
+
+    def genuine_fix(self):
+        from .test_assessment import BAD as RUNS_BAD, GOOD as RUNS_GOOD, Runs
+
+        r = Runs()
+        t0, t1 = r.tree("T0"), r.tree("T1", **{"a.py": "v = 2\n"})
+        failing = r.fail(r.run(t0, RUNS_BAD))
+        return r, t0, t1, failing, RUNS_BAD, RUNS_GOOD
+
+    def test_the_control_goes_stale(self) -> None:
+        r, t0, t1, failing, bad, good = self.genuine_fix()
+        r.run(t0, bad)
+        r.run(t1, good)
+        self.assertTrue(r.stale(failing, "T1"))
+
+    def test_compromised_observations_never_make_a_failure_stale(self) -> None:
+        r, t0, t1, failing, bad, good = self.genuine_fix()
+        at = r.sc.derive().s.position_of(failing["target"]["realization"]) + 1
+        r.run(t0, bad)
+        r.run(t1, good)
+        # declared afterwards, from an earlier position: the observations already admitted become untrusted
+        r.sc.lifecycle(record("KEY_LIFECYCLE", target=None, fields={
+            "action": "COMPROMISED", "key": {**RUNNER_ROOT, "role": "RUNNER"}, "from_position": at}))
+        self.assertFalse(r.stale(failing, "T1"), "untrusted from the named position (§25.2)")
+
+    def test_an_undesignated_runners_observations_never_make_it_stale(self) -> None:
+        from .test_assessment import POLICY as RUNS_POLICY
+
+        r, t0, t1, failing, bad, good = self.genuine_fix()
+        adopt(r.sc, RUNS_POLICY.split("[runners.ci]")[0])  # the class is no longer designated
+        r.run(t0, bad)
+        r.run(t1, good)
+        self.assertFalse(r.stale(failing, "T1"))
+        d = r.sc.derive()
+        self.assertTrue(d.a.admissible(failing["id"], OBL), "an earlier designation is not withdrawn by a later "
+                                                               "policy (review note 2)")
+
+    def test_a_later_designation_admits_no_earlier_evidence(self) -> None:
+        from .test_assessment import POLICY as RUNS_POLICY
+
+        r = Fixture(DECLARATIVE)
+        r.sc = type(r.sc)(r.sc.manifest, r.files, policy=RUNS_POLICY.split("[runners.ci]")[0])
+        r.trees = {"T0": r.sc.head}
+        passing, failing = r.both(r.realization())
+        self.assertEqual(r.admissible(passing, failing), (False, False))
+        adopt(r.sc, RUNS_POLICY)
+        self.assertEqual(r.admissible(passing, failing), (False, False), "decided at realization, by value (§6.3)")
+
+
 class Reader(unittest.TestCase):
     def test_the_closed_shape(self) -> None:
         r = Fixture(DECLARATIVE)

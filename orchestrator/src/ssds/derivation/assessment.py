@@ -223,13 +223,13 @@ class Assessments:
         """F89 (d): the runner, its key and its recorded class facts, as the policy and trust roots at
         ``position`` designate them (§6.3: decided at realization, recorded by value; §17.5, §25.2)."""
 
-        from .state import Policy
+        from .state import policy_at
         from .trust import trust_roots
 
         if r.runner_class != runner_class:
             return False
-        policy = Policy.parse(self.s.h.objects.get(self.s.h.ruleset(position)["policy"]))
-        cls = policy.runners.get(runner_class)
+        policy = policy_at(self.s.h, position)
+        cls = policy.runners.get(runner_class) if policy is not None else None  # unreadable: designates nothing
         roots = trust_roots(self.s.h.chain.entries[: position + 1])
         return cls is not None and r.runner_key in cls.keys and r.runner_key in roots.runners \
             and tuple(r.class_attributes) == cls.attributes and r.observes_outside_reads == cls.observes_outside_reads
@@ -430,7 +430,28 @@ class Assessments:
             return False
         if self.unavailable_needed(observation):
             return False  # binding health (§17.4; reading F92)
+        if not self.trusted(observation):
+            return False  # F90: a permissive use needs a designated, uncompromised runner (§17.5, §25.2)
         return s.status1(observation) == "CLEAR"  # a risk override never resolves a challenge
+
+    def trusted(self, observation: str) -> bool:
+        """F89 (d)-(e) for an observation's permissive use (reading F90; review of d481277f, B1): well formed, by
+        ``MACHINERY``, under a usable declaration of the revision it instantiated, by a runner the policy and trust
+        roots at its admission designated for that declaration's class, its key not compromised by then. Adverse
+        uses read every observation."""
+
+        from .realization import read
+
+        record = self.s.record(observation)
+        r = read(observation, record)
+        if not r.well_formed or record["actor_class"] != "MACHINERY":
+            return False
+        declared = self.s.specs.declaration_at(r.spec, r.spec_rev)
+        if not isinstance(declared, SpecDeclaration):
+            return False
+        position = self.s.position_of(observation)
+        compromised = self.trust.compromised.get(r.runner_key)
+        return self.designated(r, declared.runner, position) and (compromised is None or position < compromised)
 
     @cached_property
     def _availability(self) -> dict[str, str]:
