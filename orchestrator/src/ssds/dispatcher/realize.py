@@ -102,6 +102,10 @@ class Run:
 
 
 class Executor:
+    """Runs the Dispatcher's evidence obligations. It is single-threaded: the sandbox fixes the child's state in a
+    ``preexec_fn`` (F118), which a second thread could deadlock (review of a235ad1a, note 3); a composition root that
+    serves it beside other threads runs it in a process of its own."""
+
     def __init__(self, home: Home, ledger_id: str, chain: Callable[[], Any], trees: Callable[[str], Any],
                  providers: Mapping[str, RunnerProvider], submit: Callable[[dict[str, Any]], Any], *,
                  governs: Mapping[str, Any], budget: Budget = Budget(), wall: Callable[[], float] = time.time,

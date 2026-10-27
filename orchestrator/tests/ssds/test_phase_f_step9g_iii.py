@@ -62,6 +62,20 @@ class Fixed(unittest.TestCase):
         self.assertEqual(limits["RLIMIT_NOFILE"], (1024, infinity))
         self.assertEqual(limits["RLIMIT_CPU"], (infinity, infinity))
 
+    def test_every_platform_limit_is_fixed_or_recorded(self) -> None:
+        """Review of a235ad1a, B1: a limit outside the class's list keeps the Executor's values, recorded."""
+
+        numbers = {getattr(resource, n) for n in dir(resource) if n.startswith("RLIMIT_")}
+        names = [n for n, _, _ in run_limits()]
+        self.assertEqual(sorted(getattr(resource, n) for n in names), sorted(numbers), "each limit once")
+        if hasattr(resource, "RLIMIT_OFILE"):
+            self.assertIn("RLIMIT_NOFILE", names, "an alias named as the class fixes it")
+            self.assertNotIn("RLIMIT_OFILE", names)
+        self.assertIn("RLIMIT_SIGPENDING", names)
+        limits = dict((n, (s, h)) for n, s, h in run_limits(lambda which: (7, 4096)))
+        self.assertEqual(limits["RLIMIT_SIGPENDING"], (7, 4096), "inherited, and recorded")
+        self.assertEqual(sorted(json.loads(attributes()["limits"])), sorted(names))
+
     def test_the_priority_is_never_lowered(self) -> None:
         self.assertEqual(run_priority(lambda which, who: -5), 0, "raised to the class's")
         self.assertEqual(run_priority(lambda which, who: 7), 7, "a higher nice value kept: lowering needs a privilege")
@@ -130,6 +144,7 @@ class Recorded(unittest.TestCase):
                          (RUNNER_UID, RUNNER_GID, HOSTNAME, f"{UMASK:04o}"))
         self.assertEqual(identity["capabilities"], [], "recorded empty (re-check of 1e0d5c8a, note 1)")
         self.assertEqual(identity["personality"], 0, "Linux's default: address-space randomization on")
+        self.assertEqual(identity["groups"], len(os.getgroups()), "the supplementary groups a run keeps, counted")
 
     def test_the_provider_identity_distinguishes_providers(self) -> None:
         other = RunnerProvider(argv=("/bin/false",), components=USR)
@@ -160,6 +175,17 @@ class Undeclared(unittest.TestCase):
             found = sandbox.execute(ws, tree, provider, 10.0)
         self.assertEqual(found.incomplete, "FAILED_TO_START")
         self.assertIn("undeclared environment component", found.detail)
+
+
+class Colliding(unittest.TestCase):
+    def test_a_provider_attribute_named_as_the_environments(self) -> None:
+        """Review of a235ad1a, note 4: it would override the environment's in an ext comparison."""
+
+        for name in ("cpu", "kernel", "env:/usr"):
+            provider = RunnerProvider(argv=("/bin/true",), components=USR, attributes=((name, "mine"),))
+            self.assertEqual(provider.undeclared(), [name], name)
+        self.assertEqual(RunnerProvider(argv=("/bin/true",), components=USR, attributes=(("regime", "a"),))
+                         .undeclared(), [])
 
 
 class Held(Fixture):
@@ -222,7 +248,7 @@ import json, os, resource, signal, socket
 out = {"uid": os.getuid(), "gid": os.getgid(), "hostname": socket.gethostname(), "umask": os.umask(0),
        "nice": os.getpriority(os.PRIO_PROCESS, 0),
        "mask": sorted(int(s) for s in signal.pthread_sigmask(signal.SIG_BLOCK, ())),
-       "limits": {n: list(resource.getrlimit(getattr(resource, n))) for n in NAMES}}
+       "limits": {n: list(resource.getrlimit(getattr(resource, n))) for n in NAMES}, "groups": len(os.getgroups())}
 try:
     os.setuid(0)
     out["setuid"] = "allowed"
@@ -257,6 +283,7 @@ class LiveEnvironment(unittest.TestCase):
         self.assertEqual(seen["nice"], identity["nice"])
         self.assertEqual(seen["mask"], [])
         self.assertEqual(seen["limits"], json.loads(recorded["limits"]), "the recorded limits are the run's")
+        self.assertEqual(seen["groups"], identity["groups"], "the supplementary group count as recorded")
         self.assertNotEqual(seen["setuid"], "allowed", "no capability kept")
         self.assertNotEqual(seen["chown"], "allowed", "no capability kept")
         self.assertNotEqual(recorded["sandbox"], "unknown", "the package version read on the host")

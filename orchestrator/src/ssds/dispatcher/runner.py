@@ -306,10 +306,12 @@ class RunnerProvider:
     components: tuple[tuple[str, str], ...] = ()
 
     def undeclared(self) -> list[str]:
-        """The bound directories with no declared identity (F118)."""
+        """The bound directories with no declared identity (F118), and the provider's own attributes named as an
+        environment attribute, which would override it in an ``ext`` comparison (review of a235ad1a, note 4)."""
 
         declared = dict(self.components)
-        return [d for d in self.system if not declared.get(d)]
+        return [d for d in self.system if not declared.get(d)] \
+            + [name for name, _ in self.attributes if name in ENVIRONMENT_ATTRIBUTES or name.startswith("env:")]
 
 
 @dataclass(frozen=True)
@@ -332,8 +334,11 @@ class Execution:
 # scheduling priority (never lowered below the Executor's, which needs a privilege) and the personality (Linux's
 # default, address-space randomization on). Recorded: each bound component's declared identity, ``/dev``, the
 # sandbox's version, the kernel, the architecture, the processor, the usable processors, the memory, the fixed
-# environment, the provider, the identity and the limits. Unrecorded and disclosed (§6.5): ``/dev/urandom``,
-# address-space randomization, wall-clock time (Q-F27) and a host quota the process cannot read.
+# environment, the provider, the identity (with the supplementary group count, which an unprivileged user namespace
+# cannot clear) and every resource limit the platform defines (review of a235ad1a, B1). Unrecorded and disclosed
+# (§6.5): ``/dev/urandom``, address-space randomization, wall-clock time (Q-F27), a host quota the process cannot read,
+# its ``oom_score_adj``, the operator's process count ``RLIMIT_NPROC`` counts, and the processor's microcode and other
+# cores; the quota-like ones can only make a run fail.
 
 RUNNER_UID = RUNNER_GID = 1000
 HOSTNAME = "ssds-runner"
@@ -341,25 +346,41 @@ UMASK = 0o022
 NICE = 0
 ENVIRONMENT = (("PATH", "/usr/bin:/bin"), ("HOME", RUNNER_HOME), ("LANG", "C.UTF-8"), ("TMPDIR", "/tmp"))
 #: The soft limits a run starts with (``None``: unlimited), each lowered to the host's hard limit where that is
-#: lower; the hard limits are the host's, recorded.
+#: lower; the hard limits are the host's, recorded. Every other limit the platform defines keeps the Executor's
+#: values and is recorded (review of a235ad1a, B1).
 LIMITS = (("RLIMIT_STACK", 8 << 20), ("RLIMIT_NOFILE", 1024), ("RLIMIT_AS", None), ("RLIMIT_CORE", 0),
           ("RLIMIT_NPROC", None), ("RLIMIT_FSIZE", None), ("RLIMIT_CPU", None), ("RLIMIT_DATA", None),
           ("RLIMIT_MEMLOCK", 64 << 10))
 #: ``personality(2)``'s ``PER_LINUX``: no flag set, so address-space randomization is on.
 PER_LINUX = 0
+#: The attributes the environment records beside each ``env:<path>``; a provider's own may not reuse them.
+ENVIRONMENT_ATTRIBUTES = frozenset({"dev", "sandbox", "kernel", "machine", "cpu", "cpus", "memory", "environment",
+                                    "provider", "identity", "limits"})
+
+
+def platform_limits() -> tuple[str, ...]:
+    """Every resource limit the platform defines, each once by name: an alias (``RLIMIT_OFILE`` of
+    ``RLIMIT_NOFILE``) is the class's name for it where the class fixes it, else the first."""
+
+    by_number: dict[int, list[str]] = {}
+    for name in sorted(dir(resource)):
+        if name.startswith("RLIMIT_") and isinstance(getattr(resource, name), int):
+            by_number.setdefault(getattr(resource, name), []).append(name)
+    fixed = dict(LIMITS)
+    return tuple(sorted(next((n for n in names if n in fixed), names[0]) for names in by_number.values()))
 
 
 def run_limits(getrlimit: Callable[[int], tuple[int, int]] = resource.getrlimit) -> tuple[tuple[str, int, int], ...]:
-    """Each limit as ``(name, soft, hard)``: the class's soft value lowered to the host's hard limit (F118)."""
+    """Each limit the platform defines as ``(name, soft, hard)``: a class limit's soft value lowered to the host's
+    hard limit, any other the Executor's own (F118)."""
 
-    infinity = resource.RLIM_INFINITY
+    infinity, fixed = resource.RLIM_INFINITY, dict(LIMITS)
     out = []
-    for name, wanted in LIMITS:
-        _, hard = getrlimit(getattr(resource, name))
-        if wanted is None:
-            soft = hard
-        else:
-            soft = wanted if hard == infinity else min(wanted, hard)
+    for name in platform_limits():
+        soft, hard = getrlimit(getattr(resource, name))
+        if name in fixed:
+            wanted = fixed[name]
+            soft = hard if wanted is None else wanted if hard == infinity else min(wanted, hard)
         out.append((name, soft, hard))
     return tuple(out)
 
@@ -434,7 +455,8 @@ def environment_attributes(provider: RunnerProvider, version: str, limits: tuple
     uname = os.uname()
     declared = dict(provider.components)
     identity = {"uid": RUNNER_UID, "gid": RUNNER_GID, "hostname": HOSTNAME, "umask": f"{UMASK:04o}", "nice": nice,
-                "personality": PER_LINUX, "capabilities": []}  # bwrap keeps none in its user namespace
+                "personality": PER_LINUX, "capabilities": [],  # bwrap keeps none in its user namespace
+                "groups": len(os.getgroups())}  # kept, unmapped: setgroups is denied (review of a235ad1a, B1)
     shown = {"argv": list(provider.argv), "system": list(provider.system),
              "components": sorted(map(list, declared.items()))}
     return (*((f"env:{d}", declared[d]) for d in provider.system),
