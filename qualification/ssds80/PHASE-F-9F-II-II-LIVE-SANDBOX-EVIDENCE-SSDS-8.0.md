@@ -1,10 +1,28 @@
-# Phase F step 9f-ii-ii: live sandbox evidence
+# Phase F step 9f-ii: live sandbox evidence
 
 The live tests of reading F113 need unprivileged user namespaces, which the implementing agent's own sandbox denies.
 They were run on the host, in the operator's terminal session, as plan check of 23d2f5f2 (answer 3) requires. A
 review checks that the commit below is the one it reviews.
 
-## Current run (after the review of cc028146)
+## Step 9f-ii-iii run
+
+| Field | Value |
+|---|---|
+| Commit under test | `cc7abfed1f025e636833c6804da0fc5854516c28` (worktree clean under `src` and `tests`) |
+| Command | `SSDS_LIVE_SANDBOX=1 PYTHONPATH=src python -m unittest tests.ssds.test_phase_f_step9f_ii_ii_live tests.ssds.test_phase_f_step9f_ii_iii.LiveEndToEnd -v` (in `orchestrator/`) |
+| Date | 2026-10-27T21:07:27Z |
+| Run by, host, `bubblewrap`, Python | as below |
+
+| Test | Result |
+|---|---|
+| `test_phase_f_step9f_ii_ii_live.Live.test_the_f2_properties` | ok |
+| `test_phase_f_step9f_ii_ii_live.Live.test_a_reached_time_bound` | ok |
+| `test_phase_f_step9f_ii_iii.LiveEndToEnd.test_a_realize_run_in_the_sandbox_and_admitted` | ok |
+
+Exit status 0; 3 tests in 3.142 s. The end-to-end test runs a `REALIZE` through the Executor in the real sandbox; its
+realization is admitted and ends the obligation.
+
+## Step 9f-ii-ii run (after the review of cc028146)
 
 | Field | Value |
 |---|---|
