@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii (admitting a redesignation, with review ae5ab38 N1) is next. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii (admitting a redesignation, with review ae5ab38 N1) is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2058,3 +2058,36 @@ B2 is closed.
 - **Q-F14 (a).** The ref restore and §5.7's route under `INTEGRITY_HALT` are handed off to Phase H, whose G2 row is widened.
 
 The real retirement waits for the stakeholder's run of `retire_shadow.py`. Its `prepare` writes to the SSDS home, which this author touches only read-only through the program.
+
+**Step 7e-ii built (admitting a redesignation; readings F60-F62).**
+- **`admission/loss.py`.**
+  - `new_model`: a sound model (`WitnessModel.validate`) that differs from the one in force.
+  - `controls_problems`: F46 amended for the witness member alone (F62).
+  - `redesignation_problems`, which requires:
+    - closed fields;
+    - `continues_from` equal to `A`;
+    - no later head in evidence, which names the loss as the route;
+    - `refs` naming the stored report under `UNQUALIFIED`, and none otherwise.
+  - `in_force`.
+  - `evidence` now counts each head over the witnesses of the segment its position lies in, and reports every segment's witnesses (review ae5ab38 N1). The controls' witness member is the model in force.
+- **Engine.**
+  - A redesignation passes the gate (settled `QUALIFIED`, over a provisional entry, or `UNQUALIFIED`) and its content check. Under `UNQUALIFIED`, its report is stored with the entry.
+  - The settling step tolerates another host's provisional entry for a redesignation alone (review 7d2d1c0 N1).
+  - `old_set_holds` is the dual trial's second half, for a redesignation and for a loss that changes the set: where the old set reaches `r`, the extended chain must qualify under it at the new position.
+  - `prepare_redesignation` gives the operator the fields and `refs`.
+  - `qualify` exempts §23.4's one chain, a redesignation directly over a provisional entry, from the critical flag.
+- **Tests.** `test_phase_f_step7e.py` now has 23 tests. Added since 7e-i:
+  - **The exemption.**
+  - **A routine `LOCAL_TRUST` to `TEAM` redesignation.** It is held by both sets, with segments at genesis and at the redesignation. A later admission goes to the new set only.
+  - **Retirement and loss evidence.** `RETIRED` is read under the last segment. A lost later head is counted `KNOWN_ADMITTED` over the `TEAM` set; under the old single witness it would read never admitted (N1).
+  - **A conflicting head before the redesignation** is counted over the old segment's witnesses (N1).
+  - **The old set reachable but unable to hold it.** Refused, for a redesignation and for a loss that changes the set.
+  - **Under `UNQUALIFIED`.** The redesignation continues from the intact head with its report referenced, and is refused without the reference.
+  - **Content refusals.** The same model, an unsound one, a wrong `continues_from`, a stray field, a stray reference.
+  - **On a `TEAM` ledger with two host keys.** A redesignation is admitted over the other host's provisional entry, which has no checkpoint, settling the prefix.
+  - **§23.8's witness-loss row with a later head.** The loss under the lost set and a redesignation are both refused. The loss carrying the new `TEAM` set is admitted, `QUALIFIED`, and starts a segment.
+
+  7b's and 7c's two expectations now name the more specific refusals.
+- **Mutants.** Thirteen: all are killed. W11 (no dual trial for a loss) and W12 (statuses over the last segment) survived at first and are killed by the two tests added for them.
+- **Full suite.** It passes: 1376 tests, 6 skipped. It ran before the two added tests, which then ran with the step's tests and pass.
+- **Found while testing.** A provisional entry whose checkpoint reached fewer than `q_a` witnesses reads `UNQUALIFIED`, not provisional, because H* must extend every observed checkpoint (§23.4). So "over a provisional entry" is the case with no checkpoint yet: a crash between the append and the distribution.

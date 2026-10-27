@@ -10,14 +10,16 @@ from __future__ import annotations
 
 import unittest
 
+from ssds.admission.engine import AdmissionHalted, EntryInvalid
 from ssds.ledger.append import HostKey, append_entry, write_checkpoint
 from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, WitnessModel, WitnessSpec,
                                        checkpoint_body, checkpoint_message, lineage_witnesses, qualify_segments,
                                        segment_witnesses, segments)
 from ssds.ledger.read import Chain, LedgerEntry
 
-from ._fixtures import entry, record
+from ._fixtures import approve, entry, genesis_record, git, record, sshsig
 from .test_admission_requests import RequestFixture
+from .test_phase_f_step7c import TeamLedger
 
 OLD = WitnessModel("TEAM", 3, 2, 2, 0, tuple(WitnessSpec(f"a{i}", "GIT", f"old{i}") for i in range(3)))
 NEW = WitnessModel("HARDENED", 4, 3, 3, 1, tuple(WitnessSpec(f"n{i}", "GIT", f"new{i}") for i in range(4)))
@@ -150,6 +152,17 @@ class Segments(unittest.TestCase):
             b"", chain.entries[P].digest, {}),) + chain.entries[P + 1:])
         self.assertEqual(self.qualify(broken, self.old_through(4)).state, "UNQUALIFIED")
 
+    def test_a_redesignation_over_a_provisional_entry_raises_no_critical_flag(self) -> None:
+        """§23.4: the one chain carrying two entries beyond H* (F61)."""
+
+        from ssds.ledger.qualification import qualify
+
+        chain = self.chain(3, redesign_at=2)
+        held = qualify(chain, {"a0": self.holds(0), "a1": self.holds(0)}, OLD, self.keys)
+        self.assertEqual((held.state, held.head, held.critical), ("QUALIFIED", 0, ()))
+        plain = qualify(self.chain(3, redesign_at=None), {"a0": self.holds(0), "a1": self.holds(0)}, OLD, self.keys)
+        self.assertTrue(plain.critical)
+
 
 class Readers(RequestFixture):
     """Admission and the Interface agree across a redesignation on a real fixture ledger (LOCAL_TRUST to another
@@ -187,6 +200,246 @@ class Readers(RequestFixture):
                          "after the redesignation, only the new set is written")
         for held in views():
             self.assertEqual((held.state, held.head), ("QUALIFIED", later.position))
+
+
+
+
+TEAM_NEW = {"class": "TEAM", "N": 3, "q_a": 2, "r": 2, "f": 0,
+            "witnesses": [{"id": f"n{i}", "kind": "GIT", "location": f"git:n{i}"} for i in range(3)]}
+
+
+def redesignation(actor: str, fields: dict, refs=()) -> dict:
+    from ssds.ledger.read import with_id
+
+    return with_id({**record("WITNESS_SET_REDESIGNATION", target=None, actor=actor, fields=fields), "refs": list(refs)})
+
+
+class LocalRedesign(RequestFixture):
+    """7e-ii on the LOCAL_TRUST fixture ledger, to a TEAM set of fixture witnesses (F53)."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.new = {f"n{i}": self.root / f"new-n{i}" for i in range(3)}
+        for folder in self.new.values():
+            folder.mkdir()
+        from ssds.admission.engine import Admission
+
+        self.engine = Admission(self.home, "demo", self.trees, fixture_witnesses=self.new)
+
+    def redesign(self, fields=None, refs=None, engine=None) -> int:
+        engine = engine or self.engine
+        prepared, prepared_refs = engine.prepare_redesignation(TEAM_NEW)
+        rec = redesignation(self.human(), fields or prepared, prepared_refs if refs is None else refs)
+        return engine.admit_lifecycle(rec, sshsig(self.private, engine.lifecycle_message(rec)), None)
+
+    def held(self):
+        return self.engine.qualification(self.engine.chain())
+
+    def test_a_routine_redesignation_moves_the_ledger_to_the_new_set(self) -> None:
+        position = self.redesign()
+        held = self.held()
+        self.assertEqual((held.state, held.head, held.provisional), ("QUALIFIED", position, None))
+        chain = self.engine.chain()
+        self.assertEqual([(s, m.deployment_class) for s, m in segments(chain)], [(0, "LOCAL_TRUST"), (position, "TEAM")])
+        old = FileWitness(self.home.witness_root).read("demo")
+        self.assertEqual(max(c.position for c in old), position, "the redesignation is held by both sets")
+        for folder in self.new.values():
+            self.assertEqual([c.position for c in FileWitness(folder).read("demo")], [position])
+        decision = self.engine.admit(self.human_request(), self.baseline)
+        self.assertEqual(decision.decision, "ACCEPT")
+        self.assertEqual(max(c.position for c in FileWitness(self.home.witness_root).read("demo")), position,
+                         "the old set is written no more")
+        self.assertEqual(self.held().head, decision.position)
+
+    def human_request(self):
+        from ssds.admission.request import request_message
+        from ssds.ledger.read import with_id
+
+        from .test_admission_requests import finding
+
+        rec = with_id({**finding(note="after"), "actor": self.human()})
+        req = self.request([rec], base_position=len(self.entries()) - 1)
+        req["binding"] = {"human": {"actor": self.human(), "signature": sshsig(self.private, request_message(req))}}
+        return req
+
+    def test_retirement_and_loss_evidence_read_the_new_set(self) -> None:
+        """RETIRED under the last segment; review ae5ab38 N1: a head is counted over its own segment's witnesses."""
+
+        position = self.redesign()
+        decision = self.engine.admit(self.human_request(), self.baseline)
+        lost = self.engine.chain().entries[decision.position]
+        ledger = self.home.ledger_repository("demo")
+        git(ledger, "update-ref", "refs/ssds/ledger/demo", self.engine.chain().entries[position].commit)
+        abandoned = self.engine.prepare_loss()["abandoned"]
+        self.assertEqual([(a["digest"], a["status"]) for a in abandoned], [(lost.digest, "KNOWN_ADMITTED")],
+                         "held by the TEAM set's q_a; under the old single witness it would read never admitted")
+        git(ledger, "update-ref", "refs/ssds/ledger/demo", lost.commit)
+        rec = record("LINEAGE_RETIREMENT", target=None, actor=self.human(),
+                     fields={"successor": {"ledger_id": "demo-2", "genesis_digest": "sha256:" + "2" * 64}})
+        self.engine.admit_lifecycle(rec, sshsig(self.private, self.engine.lifecycle_message(rec)), None)
+        self.assertEqual(self.held().state, "RETIRED")
+
+    def test_a_head_in_an_older_segment_is_counted_over_that_segments_witnesses(self) -> None:
+        """Review ae5ab38 N1: a conflicting checkpoint before the redesignation, held by the old single witness, is
+        known admitted there; counted over the TEAM set it would read never admitted."""
+
+        from ssds.admission.genesis import host_key
+
+        position = self.redesign()
+        key = host_key(self.home, "demo")
+        body = checkpoint_body("demo", position - 1, "sha256:" + "c" * 64, "c" * 40, key.key_id)
+        write_checkpoint(FileWitness(self.home.witness_root),
+                         Checkpoint(**body, signature=key.sign(checkpoint_message(body)).hex()))
+        abandoned = self.engine.prepare_loss()["abandoned"]
+        self.assertEqual([(a["position"], a["status"]) for a in abandoned], [(position - 1, "KNOWN_ADMITTED")])
+
+    def test_the_old_set_must_hold_it_where_it_is_reachable(self) -> None:
+        import os
+
+        folder = self.home.witness_root / "demo"
+        os.chmod(folder, 0o500)
+        self.addCleanup(os.chmod, folder, 0o700)
+        if os.access(folder, os.W_OK):
+            self.skipTest("the permission bits do not bind this user")
+        before = len(self.entries())
+        with self.assertRaisesRegex(AdmissionHalted, "both"):
+            self.redesign()
+        self.assertEqual(len(self.entries()), before)
+
+    def test_under_unqualified_it_continues_from_the_intact_head_naming_its_evidence(self) -> None:
+        moved = self.root / "lost-witness"
+        self.home.witness_root.rename(moved)  # the old set is lost beyond its fault bound
+        self.assertEqual(self.held().state, "UNQUALIFIED")
+        fields, refs = self.engine.prepare_redesignation(TEAM_NEW)
+        self.assertEqual(len(refs), 1)
+        with self.assertRaisesRegex(EntryInvalid, "names the report"):
+            self.redesign(refs=[])
+        position = self.redesign()
+        stored = self.engine.chain().entries[position]
+        self.assertIn(refs[0]["digest"], stored.objects)
+        self.assertEqual((self.held().state, self.held().head), ("QUALIFIED", position))
+
+    def test_content_refusals(self) -> None:
+        head = self.engine.chain().entries[-1]
+        genesis_model = self.engine.chain().genesis["fields"]["witnesses"]
+        unsound = {**TEAM_NEW, "N": 2, "witnesses": TEAM_NEW["witnesses"][:2]}
+        before = len(self.entries())
+        for fields, refusal in (({"witnesses": genesis_model, "continues_from": head.digest}, "the one in force"),
+                                ({"witnesses": unsound, "continues_from": head.digest}, "not sound"),
+                                ({"witnesses": TEAM_NEW, "continues_from": "sha256:" + "4" * 64}, "continues_from"),
+                                ({"witnesses": TEAM_NEW, "continues_from": head.digest, "note": 1}, "exactly")):
+            with self.subTest(refusal=refusal), self.assertRaisesRegex(EntryInvalid, refusal):
+                self.redesign(fields=fields)
+        with self.assertRaisesRegex(EntryInvalid, "names the report"):
+            self.redesign(refs=[{"store": "LEDGER", "digest": "sha256:" + "5" * 64, "media_type": "application/json"}])
+        self.assertEqual(len(self.entries()), before)
+
+
+class TeamRedesign(TeamLedger):
+    """7e-ii on a TEAM ledger: over another host's provisional entry, and the loss carrying a redesignation."""
+
+    def other_host(self):
+        """A second Admission host key, a trust root of a fresh TEAM genesis built for this case."""
+
+        from ssds.ledger.append import create_ledger_repository, import_commits
+        from ssds.ledger.read import with_id
+
+        other = HostKey.generate()
+        repository = self.home.ledger_repository("pair")
+        create_ledger_repository(repository)
+        import_commits(repository, self.product, [self.baseline])
+        from ssds.admission.genesis import host_key
+
+        key = host_key(self.home, "pair")
+        genesis = genesis_record(key, self.public, self.root, self.baseline, ledger_id="pair")
+        genesis["fields"]["trust_roots"]["admission_keys"].append({"id": other.key_id, "public_key": other.public_hex})
+        genesis["fields"]["witnesses"] = {"class": "TEAM", "N": 3, "q_a": 2, "r": 2, "f": 0,
+                                          "witnesses": [{"id": w, "kind": "GIT", "location": f"git:{w}"} for w in self.roots]}
+        genesis["fields"]["deployment_class"] = "TEAM"
+        first = append_entry(repository, entry("pair", 0, None, key, lifecycle=approve(with_id(genesis), self.private)),
+                             key, None, referenced=[self.baseline])
+        for folder in self.roots.values():
+            write_checkpoint(FileWitness(folder), first.checkpoint)
+        return repository, other, first
+
+    def test_over_another_hosts_provisional_entry(self) -> None:
+        """§22.4: appended over it, its admission settles that prefix; review 7d2d1c0 N1."""
+
+        from ssds.admission.engine import Admission
+
+        repository, other, first = self.other_host()
+        adoption = record("RULESET_ADOPTION", target=None, actor=self.human(),
+                          fields={"system": "ssds-rules/1", "policy": "sha256:" + "1" * 64,
+                                  "analyzers": ["ssds.analyzer.python/1"]})
+        append_entry(repository, entry("pair", 1, first.digest, other, lifecycle=adoption, obs=self.baseline), other,
+                     first.commit)  # the other host crashed before distributing it: provisional, no checkpoint
+        new = {f"n{i}": self.root / f"pair-n{i}" for i in range(3)}
+        for folder in new.values():
+            folder.mkdir()
+        engine = Admission(self.home, "pair", self.trees, fixture_witnesses={**self.roots, **new})
+        held = engine.qualification(engine.chain())
+        self.assertEqual((held.state, held.head, held.provisional), ("QUALIFIED", 0, 1))
+        fields, refs = engine.prepare_redesignation(TEAM_NEW)
+        rec = redesignation(self.human(), fields, refs)
+        position = engine.admit_lifecycle(rec, sshsig(self.private, engine.lifecycle_message(rec)), None)
+        held = engine.qualification(engine.chain())
+        self.assertEqual((position, held.state, held.head, held.provisional), (2, "QUALIFIED", 2, None))
+
+    def test_a_loss_re_establishes_the_witness_set(self) -> None:
+        """§23.8's witness-loss row with a later head (F62): the loss carries the redesignation."""
+
+        one = self.append(self.genesis, 1, "1")
+        self.checkpoint(one, "w0", "w1", "w2")
+        self.rewind_to_genesis()
+        new = {f"n{i}": self.root / f"team-n{i}" for i in range(3)}
+        for folder in new.values():
+            folder.mkdir()
+        admission = self.team({"w0": self.roots["w0"], **new})  # two of the old three lost
+        self.assertEqual(admission.qualification(admission.chain()).state, "UNQUALIFIED")
+        fields = admission.prepare_loss()
+        self.assertEqual([a["status"] for a in fields["abandoned"]], ["POSSIBLY_ADMITTED"])
+        with self.assertRaisesRegex(AdmissionHalted, "reading F51"):
+            self.loss(admission)  # under the lost set, as 7c found
+        with self.assertRaisesRegex(EntryInvalid, "a later head is in evidence"):
+            prepared, refs = admission.prepare_redesignation(TEAM_NEW)
+            rec = redesignation(self.human(), prepared, refs)
+            admission.admit_lifecycle(rec, sshsig(self.private, admission.lifecycle_message(rec)), None)
+        carried = {**fields, "controls": {**fields["controls"], "witnesses": TEAM_NEW}}
+        rec = record("LEDGER_LOSS", target=None, actor=self.human(), fields=carried)
+        position = admission.admit_lifecycle(rec, sshsig(self.private, admission.lifecycle_message(rec)), None)
+        held = admission.qualification(admission.chain())
+        self.assertEqual((held.state, held.head), ("QUALIFIED", position))
+        self.assertEqual([s for s, _ in segments(admission.chain())], [0, position])
+        from ssds.admission.loss import controls_problems
+
+        bad = {**fields["controls"], "witnesses": {**TEAM_NEW, "q_a": 1}}
+        self.assertTrue(any("not sound" in p for p in controls_problems(bad, fields["controls"])))
+
+    def test_a_loss_changing_the_set_is_held_by_the_reachable_old_set_too(self) -> None:
+        """F61 for a loss (F62): the old set responds but only one witness can write, so it cannot hold the loss."""
+
+        import os
+
+        one = self.append(self.genesis, 1, "1")
+        self.checkpoint(one, "w0", "w1")
+        self.rewind_to_genesis()
+        new = {f"n{i}": self.root / f"team-n{i}" for i in range(3)}
+        for folder in new.values():
+            folder.mkdir()
+        admission = self.team({**self.roots, **new})
+        self.assertEqual(admission.qualification(admission.chain()).state, "ROLLBACK")
+        for w in ("w1", "w2"):
+            folder = self.roots[w] / "team"
+            os.chmod(folder, 0o500)
+            self.addCleanup(os.chmod, folder, 0o700)
+            if os.access(folder, os.W_OK):
+                self.skipTest("the permission bits do not bind this user")
+        fields = admission.prepare_loss()
+        carried = {**fields, "controls": {**fields["controls"], "witnesses": TEAM_NEW}}
+        rec = record("LEDGER_LOSS", target=None, actor=self.human(), fields=carried)
+        with self.assertRaisesRegex(AdmissionHalted, "both"):
+            admission.admit_lifecycle(rec, sshsig(self.private, admission.lifecycle_message(rec)), None)
+        self.assertEqual(len(admission.chain().entries), 1)
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflo
 from ssds.ledger.append import (AppendFailed, AppendRefused, append_entry, import_commits, retirement_statement, seal,
                                write_checkpoint, write_retirement)
 from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Qualification, WitnessModel,
-                                       checkpoint_body, checkpoint_message, lineage_witnesses, qualify_segments,
+                                       checkpoint_body, checkpoint_message, lineage_witnesses, qualify, qualify_segments,
                                        retirement_held, segment_witnesses, segments)
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
@@ -39,7 +39,8 @@ from .checks import (content_identity, on_merits, over_bounds, producing_context
                      verified_objects)
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems, retirement_problems
-from .loss import evidence as loss_evidence, loss_problems, resolution_problems
+from .loss import evidence as loss_evidence, in_force as loss_in_force, loss_problems, redesignation_problems, \
+    report_ref, resolution_problems
 from .currency import Currency
 from .legality import Legality, conformance_alone
 from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
@@ -229,10 +230,9 @@ class Admission:
         """A ``LEDGER_LOSS``'s fields after ``chain``'s last readable entry, and its report object, from the witness
         reports this host reads and its high-water mark (readings F54-F56)."""
 
-        model, files = self.witness_set(chain)
-        reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in model.witnesses}
-        return loss_evidence(chain, self.trees, model, reports, self.host_keys(chain),
-                             self.home.high_water(self.ledger_id).get())
+        _, files = self.witness_set(chain)
+        reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in lineage_witnesses(chain)}
+        return loss_evidence(chain, self.trees, reports, self.host_keys(chain), self.home.high_water(self.ledger_id).get())
 
     def prepare_loss(self) -> dict[str, Any]:
         """The fields of a ``LEDGER_LOSS`` the human gate would sign now: what the operator puts in the record. A
@@ -240,16 +240,48 @@ class Admission:
 
         return self.loss_evidence(self.chain())[0]
 
-    def trial_qualification(self, chain, entry: Mapping[str, Any]) -> Qualification:
-        """The trial qualification before a recovery append (reading F51): ``chain`` extended by ``entry``, sealed
-        as the append will seal it, its checkpoint taken as held by every witness this host can write."""
+    def _extended(self, chain, entry: Mapping[str, Any]):
+        """``chain`` extended by ``entry``, sealed as the append will seal it, and that entry's checkpoint."""
 
         entry_json, signature, digest = seal(entry, self.key)
         placeholder = "0" * 40  # the commit is not yet made; qualification reads digests
         extended = replace(chain, entries=chain.entries[: chain.readable_through + 1] + (LedgerEntry(
             entry["position"], placeholder, (), dict(entry), entry_json, signature, digest, {}),))
         body = checkpoint_body(self.ledger_id, entry["position"], digest, placeholder, self.key.key_id)
-        return self.qualification(extended, Checkpoint(**body, signature=self.key.sign(checkpoint_message(body)).hex()))
+        return extended, Checkpoint(**body, signature=self.key.sign(checkpoint_message(body)).hex())
+
+    def trial_qualification(self, chain, entry: Mapping[str, Any]) -> Qualification:
+        """The trial qualification before a recovery append (reading F51): ``chain`` extended by ``entry``, its
+        checkpoint taken as held by every witness this host can write among the segments its position lies in."""
+
+        return self.qualification(*self._extended(chain, entry))
+
+    def old_set_holds(self, chain, entry: Mapping[str, Any]) -> bool:
+        """The other half of a redesignation's dual trial (reading F61): where the set in force before ``entry``
+        reaches its read quorum, the extended chain qualifies under it too, at ``entry``'s position, with the
+        checkpoint at every writable witness of that set; an unreachable old set is not asked (§23.8)."""
+
+        old = loss_in_force(chain)
+        extended, extra = self._extended(chain, entry)
+        _, files = self.witness_set(extended)
+        reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in old.witnesses}
+        if sum(1 for cps in reports.values() if cps is not None) < old.r:
+            return True
+        reports = {w: (cps + [extra] if cps is not None and _writable(files[w], self.ledger_id) else cps)
+                   for w, cps in reports.items()}
+        held = qualify(extended, reports, old, self.host_keys(chain), self.home.high_water(self.ledger_id).get())
+        return held.current and held.head == entry["position"] and held.provisional is None
+
+    def prepare_redesignation(self, witnesses: Mapping[str, Any]) -> tuple[dict[str, Any], list[dict[str, str]]]:
+        """The fields and ``refs`` of a ``WITNESS_SET_REDESIGNATION`` to ``witnesses`` the human gate would sign now
+        (reading F60): continuing from the replica's last readable entry, naming the report under ``UNQUALIFIED``."""
+
+        chain = self.chain()
+        expected = self.loss_evidence(chain)[0]
+        unqualified = self.qualification(chain).state == "UNQUALIFIED"
+        head = chain.entries[chain.readable_through]
+        return ({"witnesses": dict(witnesses), "continues_from": head.digest},
+                [report_ref(expected["report"])] if unqualified else [])
 
     @staticmethod
     def host_keys(chain) -> dict[str, str]:
@@ -466,7 +498,13 @@ class Admission:
             chain = self.chain()
             held = self.qualification(chain)
             if held.current and held.provisional is not None:  # 6b's recovery first: completed, it is settled
-                self.distribute(chain.entries[held.provisional], chain)
+                try:
+                    self.distribute(chain.entries[held.provisional], chain)
+                except AdmissionHalted:
+                    if kind != "WITNESS_SET_REDESIGNATION":
+                        raise
+                    # another host's provisional entry: a redesignation is appended over it and its admission
+                    # settles that prefix (§22.4; review 7d2d1c0 N1)
                 held = self.qualification(chain)
             if not admissible(kind, held):
                 raise AdmissionHalted(f"a {kind} is not admitted while the ledger is {held.state}"
@@ -489,13 +527,23 @@ class Admission:
             raise EntryInvalid("a lifecycle record needs its named human's verifying approval for this ledger, position "
                                "and head")
         objects = None
+        dual = kind == "WITNESS_SET_REDESIGNATION"  # admitted under both sets where the old is reachable (F61)
         if kind == "LEDGER_LOSS":
             expected, report = self.loss_evidence(chain)
             problems = record_violations(record) + loss_problems(record.get("fields"), expected)
             objects = {expected["report"]: report}  # the qualification report, stored with the entry (F55)
+            controls = (record.get("fields") or {}).get("controls")
+            dual = isinstance(controls, Mapping) and controls.get("witnesses") != expected["controls"]["witnesses"]
         elif kind == "FORK_RESOLUTION":
             problems = record_violations(record) + resolution_problems(record.get("fields"),
                                                                        self.loss_evidence(chain)[0])
+        elif kind == "WITNESS_SET_REDESIGNATION":
+            expected, report = self.loss_evidence(chain)
+            unqualified = held.state == "UNQUALIFIED"
+            problems = record_violations(record) + redesignation_problems(record.get("fields"), head, expected,
+                                                                          unqualified, record.get("refs"))
+            if unqualified:
+                objects = {expected["report"]: report}  # the evidence continuity rests on, stored (F60)
         else:
             problems = record_violations(record) + _content_problems(kind, record.get("fields"), roots, position,
                                                                      self.ledger_id)
@@ -516,6 +564,9 @@ class Admission:
             if not trial.current or trial.head != position or trial.provisional is not None:
                 raise AdmissionHalted(f"the trial qualification of this {kind} is {trial.state} at {trial.head}: "
                                       f"it would not be held (reading F51)")
+            if dual and not self.old_set_holds(chain, entry):
+                raise AdmissionHalted(f"this {kind} would not be held by the reachable set it replaces: it is admitted "
+                                      f"under both (§23.8; reading F61)")
         appended = self.commit(entry, head, objects=objects)
         if kind == "LINEAGE_RETIREMENT":
             self.publish_retirement(self.chain())
@@ -803,7 +854,7 @@ RECOVERY_STATES: dict[str, frozenset[str]] = {
     "REPLICA_REDESIGNATION": frozenset(),  # 7g
 }
 #: The step of Phase F that supplies each recovery kind's content check; until then it is refused.
-_UNBUILT = {"WITNESS_SET_REDESIGNATION": "7e"}
+_UNBUILT: dict[str, str] = {}
 
 
 def admissible(kind: str, held: Qualification) -> bool:

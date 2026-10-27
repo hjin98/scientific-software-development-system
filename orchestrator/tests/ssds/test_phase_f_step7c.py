@@ -172,7 +172,8 @@ class Loss(LossFixture):
             "controls": {**fields["controls"], "ruleset": {"system": "other"}},
         }
         for name, value in wrong.items():
-            with self.subTest(field=name), self.assertRaisesRegex(EntryInvalid, f"{name} is not the recomputed"):
+            refusal = "controls' ruleset is not the one in force" if name == "controls" else f"{name} is not the recomputed"
+            with self.subTest(field=name), self.assertRaisesRegex(EntryInvalid, refusal):
                 self.loss({**fields, name: value})
         with self.assertRaisesRegex(EntryInvalid, "recomputed abandoned"):
             self.loss({**fields, "abandoned": [{**fields["abandoned"][0], "status": "POSSIBLY_ADMITTED"}]})

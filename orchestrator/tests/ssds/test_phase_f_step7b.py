@@ -103,7 +103,7 @@ class Gate(RequestFixture):
     def test_a_settled_head_takes_a_redesignation_through_the_gate(self) -> None:
         """B3: the routine change of a witness set; its content check is 7e's."""
 
-        with self.assertRaisesRegex(EntryInvalid, "step 7e"):
+        with self.assertRaisesRegex(EntryInvalid, "new witness model is not sound"):  # 7e-ii's content check
             self.recovery("WITNESS_SET_REDESIGNATION")
 
     def test_nothing_is_admitted_under_an_integrity_halt(self) -> None:

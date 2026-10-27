@@ -393,7 +393,9 @@ def qualify(
     for head in quorum_held:  # the highest quorum-held prefix whose own recovery records explain every mark
         state, floor = assess(head)
         if state == "OK" and head >= floor:
-            critical = ("more than one entry beyond the qualified head",) if top > head + 1 else ()
+            # §23.4's one exception: a redesignation appended over a provisional entry, not yet held (F61)
+            over = top == head + 2 and (chain.entries[top].lifecycle or {}).get("kind") == "WITNESS_SET_REDESIGNATION"
+            critical = ("more than one entry beyond the qualified head",) if top > head + 1 and not over else ()
             provisional = head + 1 if top >= head + 1 else None
             return Qualification("QUALIFIED", head, digests[head], provisional, critical)
     state, _ = assess(quorum_held[0] if quorum_held else -1)
