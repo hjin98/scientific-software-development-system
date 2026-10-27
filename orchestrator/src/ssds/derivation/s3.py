@@ -100,6 +100,13 @@ class Consequences:
         chain = self.h.chain
         if chain.halt is not None:  # raised in every view, historical ones included
             out.append(Finding("INTEGRITY_HALT", CRITICAL, (str(chain.halt),), "; ".join(chain.halt_reasons)))
+        from .publication import Publication
+
+        published = Publication(self.h)
+        for n in published.late:  # §22.2: an overtaken admission published late
+            out.append(Finding("LATE_PUBLICATION", CRITICAL, (str(n),), "an overtaken admission's effect landed later"))
+        for m in published.violations:  # §22.1: derivation treats a violating entry as corrupt
+            out.append(Finding("ENTRY_SHAPE", CRITICAL, (str(m),), "obs differs from the expected head, not absorbed"))
         for error in static_errors(Structure(dict(self.h.sigma(self.s.n)))):
             out.append(Finding("ADMITTED_STRUCTURE", CRITICAL, (error.unit,), f"{error.code}: {error.detail}"))
         for component in self.support.forced:

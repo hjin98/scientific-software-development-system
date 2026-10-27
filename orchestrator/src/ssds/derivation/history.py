@@ -67,11 +67,15 @@ class History:
     the from-scratch fold (catalogue §5.9).
     """
 
-    def __init__(self, chain: Chain, trees: TreeSource, checkpoint: bytes | None = None) -> None:
+    def __init__(self, chain: Chain, trees: TreeSource, checkpoint: bytes | None = None,
+                 ancestry: Callable[[str, str], bool] | None = None) -> None:
         if chain.genesis is None:
             raise ValueError("derivation needs a readable genesis")
         self.chain = chain
         self.trees = trees
+        #: ``is_ancestor(a, b)`` over the commit graph, which publication classification reads (§22.2; step 6d);
+        #: without it, a publication that is not ``obs`` itself is UNKNOWN
+        self.ancestry = ancestry
         self.last = chain.readable_through
         genesis = chain.genesis["fields"]
         self.ledger_id = chain.ledger_id

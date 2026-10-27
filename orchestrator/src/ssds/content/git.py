@@ -40,6 +40,25 @@ def _git(repo: Path, args: list[str], data: bytes | None = None) -> bytes:
     return result.stdout
 
 
+_COMMIT = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+
+
+def ancestry(repo: Path):
+    """``is_ancestor(a, b)`` over ``repo``'s commit graph: whether commit ``a`` is ``b`` or reachable from it. The
+    composition root supplies it over the ledger repository, which keeps every observed commit reachable (§8.6;
+    Phase F step 6d). A commit the repository lacks reaches nothing."""
+
+    def is_ancestor(a: str, b: str) -> bool:
+        if not (_COMMIT.fullmatch(a) and _COMMIT.fullmatch(b)):
+            return False  # validated before any Git call (Manual §25.4)
+        result = subprocess.run(  # noqa: S603 - fixed argv
+            ["git", "-C", str(repo), "merge-base", "--is-ancestor", a, b],
+            capture_output=True, check=False, env=_environment())
+        return result.returncode == 0
+
+    return is_ancestor
+
+
 def read_tree(repo: Path, commit: str) -> Tree:
     """The tree of ``commit`` (a full object identity) in ``repo``."""
 

@@ -27,16 +27,19 @@ from .writescope import outside_scope, protected_touched
 from .workflow import Workflow
 
 
-def derive(chain, trees: TreeSource, position: int | None = None, checkpoint: bytes | None = None) -> Support:
-    """The derived state ``D_n`` of a verified chain at ``position`` (default: the last readable position)."""
+def derive(chain, trees: TreeSource, position: int | None = None, checkpoint: bytes | None = None,
+           ancestry=None) -> Support:
+    """The derived state ``D_n`` of a verified chain at ``position`` (default: the last readable position);
+    ``ancestry`` is the commit-graph reader publication classification needs (§22.2)."""
 
-    return Support(State(History(chain, trees, checkpoint), position))
+    return Support(State(History(chain, trees, checkpoint, ancestry), position))
 
 
-def consequences(chain, trees: TreeSource, position: int | None = None, checkpoint: bytes | None = None) -> Consequences:
+def consequences(chain, trees: TreeSource, position: int | None = None, checkpoint: bytes | None = None,
+                 ancestry=None) -> Consequences:
     """``D_n`` with its S3 kernel: findings, obligations and whether the view may assert currentness."""
 
-    return Consequences(derive(chain, trees, position, checkpoint))
+    return Consequences(derive(chain, trees, position, checkpoint, ancestry))
 
 
 __all__ = [

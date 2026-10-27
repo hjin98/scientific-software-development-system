@@ -43,7 +43,8 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              are deferred (SD-71). Step 5 is closed for Phase F. Revision 19 splits step 6 into 6a-6g (§3.3,
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a and 6b are closed (PASS at c06f5be5 and
              e78d0cf7); 6c (accepting) is closed (PASS at ab0b790d). Admission now accepts records-only
-             requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d is next. A10 is accepted (SD-66);
+             requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d (publication,
+             F43) is built and under same-family review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -343,6 +344,7 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
 
   Step 7 also says "Never-lost records are admitted whatever the state of their task". So a never-lost adverse decision is admitted, not refused `NOT_SETTLED`: losing an adverse record is the unsafe direction. This revises the step 6 row's earlier "salvaged adverse ones included" (review 87b4fa8 N1). The tension between the two sentences is a Stage S note.
 - **F42** *Step 8 and an adoption (step 6c).* SD-71 deferred 5f because step 8 was taken to judge only integrating requests. But catalogue §8.3 step 8 says "This step concerns the request's content and structural changes", and a records-only adoption changes `Σ`. Until 5f is built, an adoption is `SCHEMA_UNSUPPORTED` while any admitted realization's execution basis or reading reads a unit the adoption changes. Those are the units in its effect-keyed write set: 4c-i's owner, applied to `X = (B, B, A)` with `Σ_n` against `Σ_{n+1}` on `T_n`. They include a unit whose bytes leave it for a newly declared unit, not only the units it re-declares (plan check of 97d9824 B2). That never holds for `ssdp-shadow-2`, which has no realizations, so step 10's repair proceeds. The correction to SD-71's premise is put to the stakeholder (Q-F11).
+- **F43** *Publication and the commit graph (step 6d).* §22.2 classifies by reachability ("`C_n` or an equivalent publication is reachable from `obs`"), so derivation needs a commit-graph reader. `History` takes an optional `ancestry`, which the composition root supplies over the ledger repository; that repository keeps every observed commit reachable (§8.6). Without it, a publication that is not `obs` itself is `UNKNOWN`, and the entry-shape rule reads `obs` against `E` strictly, since no equivalence can be shown. Reachability of `C_n` stands for reachability of an equivalent publication. A deeper equivalent publication, below an `obs` that neither is nor reaches `C_n`, is not searched, so such an admission reads `OVERTAKEN`: the conservative class, which re-evaluates it and can raise `LATE_PUBLICATION`. "Derivation treats a violating entry as corrupt" (§8.6) is an `ENTRY_SHAPE` integrity finding with `CRITICAL` attention, like `LATE_PUBLICATION`. Truncating derivation at a corrupt entry is a ledger-level halt, which this reading leaves to Stage S.
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -1488,3 +1490,28 @@ Cases pin both repairs, and two mutants are killed.
 **Narrow re-check of ab0b790d.** No SERIOUS CHALLENGE. **PASS:** triples are checked whole, past triples stay targetable (§1.6, §19.4), and acceptances stay with step 3. **Step 6c is closed.** Its notes:
 - N1, taken up: a reclassification's kind check also reads a co-submitted target;
 - N2, recorded with step 10's cost items: `revisions` and the new triple set walk every admitted position each request. On a long ledger, fold both once per `History`, as `former_subjects` is.
+
+**Step 6d built.**
+- **Content.** `ancestry(repo)` is a commit-graph reader (`git merge-base --is-ancestor`). It validates both commits before any Git call, and a commit the repository lacks reaches nothing.
+- **Derivation.**
+  - `History` and `derive`/`consequences` take an optional `ancestry`.
+  - `derivation/publication.py`'s `Publication` gives:
+    - `classes`: `pub(n)` of every accepted admission, `PENDING`, `PUBLISHED`, `OVERTAKEN`, or `UNKNOWN` without the graph;
+    - `late`: an `OVERTAKEN` admission whose `C_n` a later `obs` newly reaches;
+    - `violations`: entries breaking §22.1's entry-shape rule, with "`E` becomes `obs`" honoured for an equivalent publication.
+  - `s3` raises `LATE_PUBLICATION` and `ENTRY_SHAPE` as `CRITICAL` integrity findings (F43).
+- **Not yet wired.** Admission's decisions read no publication class. The composition root that supplies `ancestry` is step 10's.
+- **Deferred.** The extended head through checkpoint resume is a cost item, with step 10's.
+- **Tests.** `test_phase_f_step6d.py`. Group 4's S5 §22 `publication_classification` rows:
+  - `PENDING`, including past an entry with no `obs`;
+  - `PUBLISHED`, by `obs = C_n` and by a descendant;
+  - `OVERTAKEN` on a rewrite; `UNKNOWN` without the graph.
+
+  Also:
+  - integrations: an equivalent publication `PUBLISHED`; the same tree off the base, and a descendant with another tree, `OVERTAKEN`;
+  - 730490d N2's records-only form: `OVERTAKEN`, then `LATE_PUBLICATION`;
+  - the entry shape: a stray admission corrupt; an absorption with a moved `obs` and an equivalent publication kept; strict without the graph;
+  - the real-Git ancestry reader.
+- **Mutants.** Ten: eight are killed. Two are equivalent:
+  - starting the late scan at the overtaking entry, whose `obs` never reaches `C_n`;
+  - removing the ancestry reader's own validation, since Git rejects an option-shaped commit anyway (the validation stays as a defence).
