@@ -44,7 +44,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              readings F38-F42, Q-F11), checked (PASS at 112d2a40); 6a and 6b are closed (PASS at c06f5be5 and
              e78d0cf7); 6c (accepting) is closed (PASS at ab0b790d). Admission now accepts records-only
              requests in an allowlist of checked kinds and a records-only ABSORB adoption; 6d (publication,
-             F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is built and under review. Q-F12
+             F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289). Q-F12
              asks whether 6f (fences and settlement) waits with 5e and 5f; step 7 follows. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
@@ -1545,3 +1545,5 @@ Cases pin N2 and N4.
 
   The full suite is the fixture regression.
 - **Mutants.** One: killed.
+
+**Same-family review of 04012289 (6e) and fa5ce639 (6d's notes).** No SERIOUS CHALLENGE. **PASS.** Every fixture writing an accepted `integrates` already moved the head, and keeping `DERIVATION_VERSION` is sound. 6d's N2 and N4 are confirmed. **Step 6e is closed.**
