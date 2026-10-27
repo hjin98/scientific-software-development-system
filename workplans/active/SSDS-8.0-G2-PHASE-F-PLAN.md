@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F12 settled (SD-64, SD-67 to SD-73); Q-F13 and Q-F14 open (Q-F15 withdrawn). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F14 settled (SD-64, SD-67 to SD-75; Q-F15 withdrawn). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -550,7 +550,7 @@ Until step 6 builds the commit, an accepted structure-changing request is unreac
 
 Until heads hold acceptances (steps 6-8), a request-level support cycle among a request's own records is unreachable through the engine. Each record would rely on a subject that no acceptance at the head makes valid, so step 6 refuses it first. `CYCLE_SUPPORT`'s engine reading is therefore tested by driving the trial.
 
-Until Q-F14 places F47's ref restore, these are unbuilt and disclosed at the exit:
+Until Phase H builds F47's ref restore (SD-75, Q-F14), these are unbuilt and disclosed at the exit:
 - **§5.7's recovery under `INTEGRITY_HALT`**, a `FORK_RESOLUTION` or `LEDGER_LOSS` appended after the last valid entry. Admission appends nothing under `INTEGRITY_HALT` (reading F50).
 - **§23.8's "authoritative replica lost, none extends the checkpoint" row.** With nothing readable there is no entry to append after, and Admission refuses without a readable genesis (7c; re-check of 5636d55, note).
 - **§23.8's "abandoned entries later surface" row.** Its integrity obligation is unbuilt, because no derivation or qualification reading of a surfaced authenticated chain exists, contrary to §3.4's "owned elsewhere" placement. With one replica per ledger (F3), no second authenticated chain can surface in Phase F. A witness that still holds an abandoned checkpoint is already read as abandoned, not merged (7c).
@@ -680,6 +680,8 @@ Clause (f) is part of clean conformance, re-derived "at every revalidation of an
 - **Alternative:** (b) a retirement naming no successor at all.
 
 SD-64 already decided that `ssdp-shadow` is retired, so the question is only how its successor is named (plan check of bd515e6, note 1). Also asked with it, from review 749b37d N3: a retirement is approved by any registered human, as `KEY_LIFECYCLE` is. On `ssdp-shadow` that human is the stakeholder alone. Should a later ledger name the role that decides a retirement (recommended: no change in Phase F; put it in the Manual clarification batch with F44)?
+
+**Resolved by SD-74 and SD-75 (item 68):** Q-F13 (a), with N3 to the Manual clarification batch; Q-F14 (a), and the G2 workplan's Phase H row is widened.
 
 **Q-F14. Who builds the ref restore (F47) and §5.7's recovery under `INTEGRITY_HALT` (F50).** F47 deferred the ledger's ref restore to Phase H, and revision 22 deferred §5.7's route with it, because that route must move the ref past a corrupt suffix. The G2 workplan's Phase H row is "adversarial, privacy and fault harnesses", whereas this is a Ledger Store mechanism ("replica restore"), and Phase F's row owns §22-§25 (plan check of 43b2e4e, note).
 - **Recommended:** (a) an explicit handoff. Phase F discloses both as unbuilt at its exit, and the stakeholder widens Phase H's row to build the `ledger` restore function, with its named extension of fitness B1, before H's fault harnesses exercise it. Phase H's fault harnesses need that restore anyway.
@@ -2050,3 +2052,9 @@ B2 is closed.
 **N1 (to 7e-ii).** `loss_evidence` counts each head's status over the last segment's witnesses only. 7e-ii counts each head over the segment its position lies in, and reports every segment's witnesses, with tests, since it is the first part to admit a loss that changes the set.
 
 **Re-check of 9f841460 (7e-i).** No SERIOUS CHALLENGE. **PASS**: B1 is repaired. The three-segment probe now gives `QUALIFIED` at 4 with 5 provisional. The paths with no segment skipped, one skipped and two skipped all hold. **Step 7e-i is closed.**
+
+**SD-74 and SD-75 (item 68).** The stakeholder accepted both recommendations.
+- **Q-F13 (a).** `ssdp-shadow` is retired naming `ssdp-shadow-2` for discovery only, and the stakeholder signs the retirement record through `retire_shadow.py`. Review 749b37d N3 goes to the Manual clarification batch.
+- **Q-F14 (a).** The ref restore and §5.7's route under `INTEGRITY_HALT` are handed off to Phase H, whose G2 row is widened.
+
+The real retirement waits for the stakeholder's run of `retire_shadow.py`. Its `prepare` writes to the SSDS home, which this author touches only read-only through the program.

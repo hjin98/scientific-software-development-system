@@ -15,6 +15,7 @@ gate: G2-authorized (SD-55)
 implementation_handoff: authorized-shadow
 g2_authorization: SD-55 (stakeholder decision record item 51); revision 3 at afd3be2640b6a6e33a3d744efd76d324c6e5931a with the post-review corrections at cb468ecad19ba41715527b4de42d90262e02cf87
 stakeholder_amendment: SD-56 (item 52), after Review; the program is `ssds` and operator data lives in an SSDS home outside every repository (Manual A7); supersedes §5.1 item 1's delivery and "no Core change", and limits §2 item 6 to Core's behavior
+phase_h_handoff: SD-75 (item 68); Phase H also builds the Ledger Store's ref restore (Phase F reading F47) and §5.7's recovery under INTEGRITY_HALT (Phase F reading F50), handed off from Phase F
 active_serious_challenge: none (SC-D1 resolved by SD-56)
 ---
 
@@ -310,7 +311,7 @@ Phases run in order; each starts after the previous phase's Review. Register row
 | **E** read-only interface and workflow layer | `interface` (`open`, `ask`, `read`; task, review, decision and gate briefs; the inspector view and digest); S3 conformance, routing and escalation views; contract lint | §10-§16, §29 | groups 5 and 6 (derivation halves), with the routing residual replay on recorded histories (§5.4); live trajectories only under an authorized campaign (§5.1 item 7) |
 | **F** Admission and Dispatcher in shadow | `admission` (validation steps, witness quorum, publication and fencing) and `dispatcher` (scheduling, envelopes, designated-runner realizations in sandboxed workspaces without push credentials), computing decisions beside document control | §8-§9, §17, §22-§25 | group 4; the admission halves of groups 2, 3 and 5; every material difference from document control classified (SSDS defect, baseline ambiguity or defect, deliberate stronger rule, unresolved judgment) and independently reviewed |
 | **G** intake and migration pilot | intake, the migration path for this repository's legacy documents (Case B) and one external scientific repository (Case C/D) on a read-only clone with its owner's permission; external units | §18-§20 | group 7, with cutover cases on shadow ledgers and fixtures only (no subject changes mode) |
-| **H** adversarial and fault qualification | adversarial, privacy and fault harnesses over the whole shadow system | §26, and §24-§25 under attack and fault | group 8; the G3 package (§5.5) |
+| **H** adversarial and fault qualification | adversarial, privacy and fault harnesses over the whole shadow system; and, by SD-75, the Ledger Store's ref restore (Phase F reading F47, with its named extension of fitness B1) and §5.7's recovery under `INTEGRITY_HALT`, built before the fault harnesses exercise them | §26, and §24-§25 under attack and fault | group 8; the G3 package (§5.5) |
 
 ### 5.3 Acceptance groups and the named discriminators
 
