@@ -13,10 +13,14 @@ names one of the seven templates (§6.5, §14.3); its parameters are checked for
 ``EXACT`` is evaluated in Phase F (F86, Q-F21).
 
 The canonical text of a ``float64`` value (an implementation reading of §17.3's forms, recorded with step 9b):
-``binary64-hex`` is ``0x`` and the 16 hexadecimal digits of the IEEE-754 bit pattern; ``decimal-shortest`` is the
-shortest decimal that round-trips (Python's ``repr``); ``rounded:<n>`` is the exact decimal value rounded half-even
-to ``n`` significant digits in scientific notation as ``Decimal`` writes it (``6.67e-1``; non-finite values
-``Infinity``, ``-Infinity``, ``NaN``). Identity of outcomes is byte equality of these
+``binary64-hex`` is ``0x`` and the 16 lower-case hexadecimal digits of the IEEE-754 bit pattern (exact, NaN payloads
+kept); ``decimal-shortest`` is the shortest decimal that round-trips, as Python's ``repr`` writes it (``0.1``,
+``1e-08``, ``1e+16``, ``1.0``, ``inf``, ``-inf``, ``nan``; every NaN is ``nan``, its sign and payload not kept);
+``rounded:<n>`` is the exact decimal value rounded half-even to ``n`` significant digits, in scientific notation as
+``Decimal`` writes it (``6.67e-1``), with zero ``0.00e+0`` (signed) and non-finite values ``Infinity``,
+``-Infinity`` and ``NaN``. A text is canonical only if it is exactly the one text its value has, so identity is byte
+equality (review of a0f2e31b, B2). The ``ENSEMBLE`` outcome's stored shape (§17.3's statistic and replicate count)
+is not built in Phase F. Identity of outcomes is byte equality of these
 canonical values (§17.3).
 """
 
@@ -27,7 +31,7 @@ import re
 import struct
 import tomllib
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 from typing import Any
 
 from .plan import fenced_blocks
@@ -100,44 +104,42 @@ class _Grammar(ValueError):
 
 
 def canonical_float(form: str, value: float) -> str:
-    """The canonical text of a binary64 value in ``form``."""
+    """The one canonical text of a binary64 value in ``form`` (review of a0f2e31b, B2): every NaN is ``nan`` or
+    ``NaN``, zero under ``rounded:<n>`` is ``0.0…e+0`` with its sign, and rounding is half-even whatever the thread's
+    decimal context."""
 
     if form == "binary64-hex":
         return "0x" + struct.pack(">d", value).hex()
     if form == "decimal-shortest":
         return repr(float(value))
-    rounded = _ROUNDED.match(form)
+    rounded = _ROUNDED.fullmatch(form)
     if rounded is None:
         raise ValueError(f"{form!r} is no canonical float64 form")
-    return f"{Decimal(value):.{int(rounded.group(1)) - 1}e}"
+    digits = int(rounded.group(1))
+    if math.isnan(value):
+        return "NaN"
+    if value == 0:
+        return ("-" if math.copysign(1.0, value) < 0 else "") + ("0." + "0" * (digits - 1) if digits > 1 else "0") \
+            + "e+0"
+    with localcontext(Context(rounding=ROUND_HALF_EVEN)):
+        return f"{Decimal(value):.{digits - 1}e}"
 
 
 def float_of(form: str, text: Any) -> float | None:
-    """The binary64 value a canonical text in ``form`` denotes, or None if it is not canonical in that form."""
+    """The binary64 value a canonical text in ``form`` denotes, or None unless ``text`` is exactly the one text
+    :func:`canonical_float` gives for that value (§17.3: identity is byte equality of canonical values)."""
 
     if not isinstance(text, str):
         return None
     if form == "binary64-hex":
-        return struct.unpack(">d", bytes.fromhex(text[2:]))[0] if _HEX.match(text) else None
-    if form == "decimal-shortest":
-        try:
-            value = float(text)
-        except ValueError:
-            return None
-        return value if repr(value) == text else None
-    if _ROUNDED.match(form) and _rounded_canonical(form, text):
-        return float(text)
-    return None
-
-
-def _rounded_canonical(form: str, text: str) -> bool:
-    """A ``rounded:<n>`` text is canonical when it is its own rounding to ``n`` significant digits."""
-
-    digits = int(_ROUNDED.match(form).group(1))
+        return struct.unpack(">d", bytes.fromhex(text[2:]))[0] if _HEX.fullmatch(text) else None
+    if form != "decimal-shortest" and _ROUNDED.fullmatch(form) is None:
+        return None
     try:
-        return f"{Decimal(text):.{digits - 1}e}" == text
-    except ArithmeticError:
-        return False
+        value = float(text)
+    except ValueError:  # sNaN and every other text float() refuses
+        return None
+    return value if canonical_float(form, value) == text else None
 
 
 def is_canonical(output: Output, value: Any) -> bool:
@@ -151,7 +153,7 @@ def is_canonical(output: Output, value: Any) -> bool:
         return isinstance(value, bool)
     if output.type == "enum":
         return isinstance(value, str) and value in output.values
-    return isinstance(value, str) and bool(_DIGEST.match(value))  # digest
+    return isinstance(value, str) and bool(_DIGEST.fullmatch(value))  # digest
 
 
 def canonical_reference(output: Output, reference: Any) -> Any:
@@ -160,11 +162,13 @@ def canonical_reference(output: Output, reference: Any) -> Any:
     text (plan check of db0bf1ce, answer 3)."""
 
     if output.type == "float64":
-        if _ROUNDED.match(output.canonical):
-            if not (isinstance(reference, str) and _rounded_canonical(output.canonical, reference)):
+        if _ROUNDED.fullmatch(output.canonical):
+            if float_of(output.canonical, reference) is None:
                 raise ValueError(f"a reference for {output.name} is canonical {output.canonical} text")
             return reference
         if isinstance(reference, (int, float)) and not isinstance(reference, bool):
+            if isinstance(reference, int) and float(reference) != reference:
+                raise ValueError(f"a reference for {output.name} is not exactly a binary64 value")
             return canonical_float(output.canonical, float(reference))
         if float_of(output.canonical, reference) is not None:
             return reference
@@ -227,8 +231,8 @@ def _declaration(raw: dict[str, Any]) -> SpecDeclaration:
     if not isinstance(fixed, dict) or not all(isinstance(k, str) and isinstance(v, str) and v for k, v in fixed.items()):
         raise _Grammar("fixed maps attribute names to values")
     renames = raw.get("output_renames", {})
-    if not isinstance(renames, dict) or not all(isinstance(old, str) and old not in by_name and new in by_name
-                                                for old, new in renames.items()):
+    if not isinstance(renames, dict) or len(set(renames.values())) != len(renames) \
+            or not all(isinstance(old, str) and old not in by_name and new in by_name for old, new in renames.items()):
         raise _Grammar("output_renames maps an old name to a declared output")
     return SpecDeclaration(oracle, runner, float(bound), outputs, verdicts, dict(fixed),
                            _granularity(raw.get("granularity", {"mode": "SINGLE"})), dict(renames))
@@ -246,7 +250,7 @@ def _outputs(raw: Any) -> tuple[Output, ...]:
         if not isinstance(entry, dict) or not {"name", "type"} <= set(entry):
             raise _Grammar("an output has a name and a type")
         name, kind = entry["name"], entry["type"]
-        if not isinstance(name, str) or not _NAME.match(name) or any(o.name == name for o in out):
+        if not isinstance(name, str) or not _NAME.fullmatch(name) or any(o.name == name for o in out):
             raise _Grammar(f"output names are distinct names: {name!r}")
         if kind not in TYPES:
             raise _Grammar(f"output {name}'s type is one of {sorted(TYPES)}")
@@ -256,7 +260,7 @@ def _outputs(raw: Any) -> tuple[Output, ...]:
             raise _Grammar(f"output {name} has exactly {sorted(allowed)}")
         canonical, values = entry.get("canonical"), entry.get("values", [])
         if kind == "float64" and canonical not in ("binary64-hex", "decimal-shortest") \
-                and not _ROUNDED.match(str(canonical)):
+                and not _ROUNDED.fullmatch(str(canonical)):
             raise _Grammar(f"output {name}'s canonical form is binary64-hex, decimal-shortest or rounded:<n>")
         if kind == "enum" and (not isinstance(values, list) or not values or len(set(values)) != len(values)
                                or not all(isinstance(v, str) and v for v in values)):
@@ -323,7 +327,7 @@ def _check_params(template: str, params: dict[str, Any], output: Output, outputs
             raise _Grammar(f"{template} compares a numeric output with a numeric reference")
         if template == "ULP_TOL":
             n = params["n"]
-            if output.type != "float64" or _ROUNDED.match(output.canonical or "") \
+            if output.type != "float64" or _ROUNDED.fullmatch(output.canonical or "") \
                     or not isinstance(n, int) or isinstance(n, bool) or n < 0:
                 raise _Grammar("ULP_TOL takes a non-negative integer n on a binary64 output")
         elif not finite_number("tol") or params["tol"] < 0:

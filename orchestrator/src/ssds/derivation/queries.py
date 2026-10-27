@@ -187,6 +187,9 @@ def explain(w: Any, ref: str) -> dict[str, Any]:
                        acceptances=[{"record": r, "current": _VALUE[d.current(r)]} for r in d.acceptances(subject)],
                        status1=s.status1(triple_key(*s.subject_triple(subject))),
                        well_formed=s.s0.well_formed(subject), quarantined=subject in s.s0.affected_subjects)
+        if ref in s.specs.units:  # the specification's defect and lint (§17.1; review of a0f2e31b, N1)
+            out["specification"] = {"defective": s.specs.defective(ref),
+                                    "lint": [f"{f.code}: {f.detail}" for f in s.specs.lint.get(ref, ())]}
         return out
     if ref in s.records:
         record = s.record(ref)

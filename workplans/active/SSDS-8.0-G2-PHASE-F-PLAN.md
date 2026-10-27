@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is closed (PASS at 041c6c98); 8d is closed (PASS at 50954f95); 8f's review (4d949827) found B1, repaired with its notes; the repair awaits its re-check. Revision 32 splits 8g (readings F73-F74); its check (53216046) found B1, repaired by revision 33; the re-check (25bd1d0d) passed F73 and found B1 in F74, repaired by revision 34 (re-check PASS at 70cef9cf, note taken up). 8f's repair is re-checked (PASS at 7be4890d, notes taken up). 8g's review (26907956) found B1-B3, repaired (re-check PASS at 4f5caedb; N1 and N2 follow). 9a is closed (re-check PASS at 5f9c7cce, which also passes 8g's N1 at ce988a56; 8g is closed). 9b-i and 9b-ii are built and await their review. Revision 35 splits step 9 into 9a-9f-ii (§3.6; readings F75-F83; Q-F19-Q-F22); its check (09df7c27) found B1-B2, repaired by revision 36 (re-check PASS at 7a53ad06, notes taken up in Q-F20 and Q-F21). Step 9's parts may be built; 9b's tolerance oracles wait for Q-F21, and 9f-ii's read-observation flag for Q-F20. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is closed (PASS at 455d4880). Revision 31 details 8d (reading F72), checked (PASS at 8f1c948f, notes taken up in 8d). 8e is closed (PASS at 041c6c98); 8d is closed (PASS at 50954f95); 8f's review (4d949827) found B1, repaired with its notes; the repair awaits its re-check. Revision 32 splits 8g (readings F73-F74); its check (53216046) found B1, repaired by revision 33; the re-check (25bd1d0d) passed F73 and found B1 in F74, repaired by revision 34 (re-check PASS at 70cef9cf, note taken up). 8f's repair is re-checked (PASS at 7be4890d, notes taken up). 8g's review (26907956) found B1-B3, repaired (re-check PASS at 4f5caedb; N1 and N2 follow). 9a is closed (re-check PASS at 5f9c7cce, which also passes 8g's N1 at ce988a56; 8g is closed). 9b's review (a0f2e31b..149d8a9b) found B1-B2, repaired; the repair awaits its re-check. 9c-i is in progress. Revision 35 splits step 9 into 9a-9f-ii (§3.6; readings F75-F83; Q-F19-Q-F22); its check (09df7c27) found B1-B2, repaired by revision 36 (re-check PASS at 7a53ad06, notes taken up in Q-F20 and Q-F21). Step 9's parts may be built; 9b's tolerance oracles wait for Q-F21, and 9f-ii's read-observation flag for Q-F20. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2929,3 +2929,42 @@ The per-domain `evidence` key changes from a token list to a boolean. No ledger 
 
 **Re-check of abcd03de (revision 40).** No SERIOUS CHALLENGE. **PASS**, with one note, taken up. B1 is repaired: the 73-character digest token fits schema 1's grammar. Q-F23 is posed correctly. Nothing blocks 9c-i.
 - **Note 1.** Q-F23 now says that neither option changes Phase F's behaviour on the shadow ledger.
+
+**Same-family review of a0f2e31b..149d8a9b (9b).** No SERIOUS CHALLENGE. **NO PASS** on two blockers.
+- **B1.** An absorbed, never-admitted edit of a specification's `EXACT` reference made a genuine failure stale. `yields` evaluated only the reading in force, missing §6.6's clause: "where the admitted state holds G's specification revision only by absorption, the verdict is also taken under the last revision an admission integrated, and the failure is yielded if either fails".
+- **B2.** The canonical texts were not unique:
+  - zero under `rounded:<n>` had many texts;
+  - `$` let a trailing newline through `_HEX`, `_DIGEST` and `_NAME`;
+  - `-NaN` was accepted;
+  - `sNaN` crashed `float_of`;
+  - `EXACT` and `restricted` compared with Python equality (`1 == True`).
+- **Answers.**
+  - The parser is faithful apart from B2. `decimal-shortest`'s grammar and its NaN collapse should be written down.
+  - `rounded:<n>` must round under an explicit half-even context.
+  - `yields` is faithful for computability. Its "either" clause and `output_renames` are unread, both on the safe side.
+  - The admissibility narrowing is right, and it differs from 9c-ii's "a fixed-attribute mismatch is inadmissible on either side": that rule is about a declaration that contradicts the run, this one about a declaration that is absent.
+  - The fixture migration changed no test's meaning. Every earlier test reaching `yields` takes the embedded path.
+- **Notes.** (N1) The specification lint had no consumer. (N2) `declaration_at` was not memoized. An integer reference not exact in binary64 was rounded silently. Two renames could map to one output. The `ENSEMBLE` outcome shape is pending.
+
+**9b repaired after the review of a0f2e31b..149d8a9b.**
+- **B1.** `yields` takes the verdict under the reading in force and under `SpecFacts.integrated_rev`, the revision at the last position an admission integrated (genesis's baseline when none has), and yields if either fails. Where the two are equal, this is one reading.
+- **B2.**
+  - `canonical_float` gives one text per value: every NaN `NaN` under `rounded:<n>`, zero `0.00e+0` with its sign, and half-even under an explicit context.
+  - `float_of` accepts a text only if it is exactly the canonicalizer's text for its value, and refuses `sNaN`.
+  - Every grammar uses `fullmatch`.
+  - `EXACT` requires a canonical stored value and compares canonical JSON bytes, and `restricted` returns canonical JSON text, so identity is type-strict byte equality (§17.3).
+- **Notes taken up.**
+  - The canonical grammars and the NaN collapse are documented in `content.spec`.
+  - An integer reference not exact in binary64 is refused.
+  - Two renames to one output are refused.
+  - The `ENSEMBLE` outcome shape is named as not built.
+  - `declaration_at` is memoized by `(uid, rev)`.
+  - `ask(explain)` on a specification unit shows its defect and lint (N1).
+  - The "either" clause and `output_renames` stay unread on the safe side, for 9c-ii.
+- **Tests.**
+  - `test_phase_f_step9b_i.py`, 10 tests: one text per value, two renames to one output, a name with a newline.
+  - `test_phase_f_step9b_ii.py`, 10 tests: an absorbed reference edit never making a failure stale, a comment-only absorption changing nothing, an integrated revision relaxing the reference, `EXACT` comparing canonical bytes, and `explain` showing the specification's lint.
+- **Mutants.** Fourteen. Twelve are killed. Two are equivalent:
+  - R03, `!=` for the byte comparison: `is_canonical` refuses a value of the wrong type first;
+  - R12, the NaN branch: `Decimal` drops a float NaN's sign.
+- **Full suite.** It passes: 1521 tests, 6 skipped.

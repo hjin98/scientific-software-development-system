@@ -37,8 +37,15 @@ class SpecFacts:
         return self.declarations.get(uid)
 
     def declaration_at(self, uid: str, rev: str) -> SpecDeclaration | SpecFailure | None:
-        """The declaration of ``uid`` at revision ``rev``: the current one, or the latest admitted view holding it."""
+        """The declaration of ``uid`` at revision ``rev``: the current one, or the latest admitted view holding it;
+        memoized by ``(uid, rev)`` (review of a0f2e31b, N2)."""
 
+        cache = self.__dict__.setdefault("_at", {})
+        if (uid, rev) not in cache:
+            cache[uid, rev] = self._declaration_at(uid, rev)
+        return cache[uid, rev]
+
+    def _declaration_at(self, uid: str, rev: str) -> SpecDeclaration | SpecFailure | None:
         if uid in self.s.view.structure.units and self.s.view.rev(uid) == rev:
             return self.declaration(uid)
         for k in range(self.s.n, -1, -1):
@@ -46,6 +53,14 @@ class SpecFacts:
             if uid in view.structure.units and view.rev(uid) == rev:
                 return spec_declaration(view, uid)
         return None
+
+    def integrated_rev(self, uid: str) -> str | None:
+        """``uid``'s revision at the last position an admission integrated (genesis's baseline when none has): the
+        reading §6.6 also takes where the state holds the current one only by absorption (review of a0f2e31b, B1)."""
+
+        last = max((k for k in self.s.h.integrations if k <= self.s.n), default=0)
+        view = self.s.h.view(last)
+        return view.rev(uid) if uid in view.structure.units else None
 
     def defective(self, uid: str, rev: str | None = None) -> bool:
         found = self.declaration(uid) if rev is None else self.declaration_at(uid, rev)

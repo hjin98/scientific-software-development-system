@@ -99,6 +99,9 @@ class Grammar(unittest.TestCase):
             "an EXACT reference of another type": with_line(DECLARATIVE, "reference = true", 'reference = "true"'),
             "a non-string fixed value": with_line(DECLARATIVE, 'regime = "re<2000"', "regime = 2000"),
             "a rename to an undeclared output": DECLARATIVE + 'output_renames = { old = "new" }\n',
+            "two renames to one output": DECLARATIVE + 'output_renames = { old = "a", older = "a" }\n',
+            "a name with a newline": with_line(EMBEDDED, '{ name = "x_verdict"',
+                                               '{ name = "w\\n", type = "int" }, { name = "x_verdict"'),
             "a one-replicate ensemble": with_line(DECLARATIVE, "replicates = 32", "replicates = 1"),
             "two verdicts on one output": with_line(EMBEDDED, 'verdicts = [{ output = "x", embedded = "x_verdict" }]',
                                                     'verdicts = [{ output = "x", embedded = "x_verdict" }, '
@@ -138,6 +141,27 @@ class Canonical(unittest.TestCase):
         self.assertIsNone(float_of("decimal-shortest", "0.10"), "not the shortest")
         self.assertIsNone(float_of("binary64-hex", "0x3FF0000000000000"), "lower case only")
         self.assertIsNone(float_of("rounded:3", "0.667"))
+
+    def test_one_text_per_value(self) -> None:
+        """Review of a0f2e31b, B2: the validator accepts exactly the canonicalizer's text."""
+
+        from decimal import ROUND_HALF_UP, Context, localcontext
+
+        self.assertEqual(canonical_float("rounded:3", 0.0), "0.00e+0")
+        self.assertEqual(canonical_float("rounded:3", -0.0), "-0.00e+0")
+        self.assertEqual(canonical_float("rounded:1", 0.0), "0e+0")
+        for other in ("0.00e+2", "0.00e-1", "0e+0"):
+            self.assertIsNone(float_of("rounded:3", other), other)
+        self.assertEqual(canonical_float("rounded:3", float("nan")), "NaN")
+        self.assertIsNone(float_of("rounded:3", "-NaN"))
+        self.assertIsNone(float_of("rounded:3", "sNaN"), "refused, not raised")
+        for text in ("0x3ff0000000000000\n", "1e-08\n"):
+            self.assertIsNone(float_of("binary64-hex" if text.startswith("0x") else "decimal-shortest", text))
+        self.assertFalse(is_canonical(Output("d", "digest"), "sha256:" + "a" * 64 + "\n"))
+        with localcontext(Context(rounding=ROUND_HALF_UP)):
+            self.assertEqual(canonical_float("rounded:2", 0.125), "1.2e-1", "half-even whatever the context")
+        with self.assertRaises(ValueError):
+            canonical_reference(Output("f", "float64", "decimal-shortest"), 2 ** 60 + 1)
 
     def test_each_type(self) -> None:
         cases = [(Output("f", "float64", "decimal-shortest"), "1e-08", 1e-8),

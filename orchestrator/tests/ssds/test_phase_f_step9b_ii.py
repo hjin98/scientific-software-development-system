@@ -92,7 +92,67 @@ class Verdicts(unittest.TestCase):
         unnamed = r.assess(r.run(t0, {"x": 1, "y": "0.0", "z": True}), "FAIL", failing=())  # z has no verdict
         good = r.run(t0, GOOD)
         self.assertEqual(r.assessments().failing_outputs(unnamed["id"]), ["x", "y"])
-        self.assertEqual(r.assessments().restricted(good["id"], ["x", "z"]), {"x": 2, "z": None})
+        self.assertEqual(r.assessments().restricted(good["id"], ["x", "z"]), {"x": "2", "z": None},
+                         "canonical JSON text: identity is byte equality (§17.3)")
+
+
+class AbsorbedReadings(unittest.TestCase):
+    """Review of a0f2e31b, B1: §6.6's absorption clause."""
+
+    def test_an_absorbed_reference_edit_never_makes_a_failure_stale(self) -> None:
+        r = Declared(DECLARATIVE)
+        t0 = r.tree("T0")
+        failing = r.fail(r.run(t0, {"x": 1, "y": "0.0"}))
+        r.revise(DECLARATIVE.replace("reference = 2", "reference = 1"))  # absorbed, never admitted
+        relaxed = r.run(r.sc.head, {"x": 1, "y": "0.0"})
+        self.assertTrue(r.assessments().yields(relaxed["id"], failing["id"]),
+                        "the integrated reading still fails x = 1")
+
+    def test_a_comment_only_absorption_changes_nothing(self) -> None:
+        r = Declared(DECLARATIVE)
+        t0 = r.tree("T0")
+        failing = r.fail(r.run(t0, {"x": 1, "y": "0.0"}))
+        good = r.run(t0, {"x": 2, "y": "0.0"})
+        r.revise(DECLARATIVE + "# a comment\n")
+        self.assertFalse(r.assessments().yields(good["id"], failing["id"]), "x = 2 passes under both readings")
+
+    def test_an_integrated_reading_may_relax_the_reference(self) -> None:
+        from ._scenario import agent
+
+        r = Declared(DECLARATIVE)
+        t0 = r.tree("T0")
+        failing = r.fail(r.run(t0, {"x": 1, "y": "0.0"}))
+        r.sc.integrate({"s.ssds-spec.toml": DECLARATIVE.replace("reference = 2", "reference = 1")},
+                       agent("author"), "task-relax")
+        relaxed = r.run(r.sc.head, {"x": 1, "y": "0.0"})
+        self.assertFalse(r.assessments().yields(relaxed["id"], failing["id"]), "an admitted revision relaxes it")
+
+
+class Canonical(unittest.TestCase):
+    """Review of a0f2e31b, B2."""
+
+    def test_exact_compares_canonical_bytes(self) -> None:
+        typed = DECLARATIVE.replace('{ name = "z", type = "bool" }', '{ name = "z", type = "bool" }') \
+            .replace('{ output = "x", template = "EXACT", params = { reference = 2 } }',
+                     '{ output = "z", template = "EXACT", params = { reference = true } }')
+        r = Declared(typed)
+        t0 = r.tree("T0")
+        failing = r.assess(r.run(t0, {"x": 1, "y": "0.0", "z": False}), "FAIL", failing=("z",))
+        one = r.run(t0, {"x": 1, "y": "0.0", "z": 1})
+        true = r.run(t0, {"x": 1, "y": "0.0", "z": True})
+        a = r.assessments()
+        self.assertTrue(a.yields(one["id"], failing["id"]), "1 is no canonical bool: not computable")
+        self.assertFalse(a.yields(true["id"], failing["id"]))
+
+
+class Explained(unittest.TestCase):
+    def test_explain_shows_a_specifications_defect_and_lint(self) -> None:
+        from ssds.derivation import Workflow, queries
+
+        r = Declared("oracle = \n")
+        answer = queries.explain(Workflow(r.sc.derive()), "spec")
+        self.assertTrue(answer["specification"]["defective"])
+        self.assertTrue(answer["specification"]["lint"][0].startswith("SPEC: "))
 
 
 class Admissibility(unittest.TestCase):

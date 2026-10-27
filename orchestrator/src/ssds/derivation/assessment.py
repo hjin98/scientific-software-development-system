@@ -31,7 +31,7 @@ from collections.abc import Callable
 from functools import cached_property, lru_cache
 from typing import Any
 
-from ssds.content import SpecDeclaration, TreeView, canonical_reference, recorded_identity
+from ssds.content import SpecDeclaration, TreeView, canonical_reference, is_canonical, jcs, recorded_identity
 
 from .frames import transformation_of
 from .state import F, P, State, T
@@ -316,15 +316,25 @@ class Assessments:
         outcome = self.outcome(observation)
         if outcome is None:
             return None
-        return {x: outcome.get(x) for x in outputs}
+        # identity of outcomes is byte equality of canonical values (§17.3), so values compare as canonical JSON,
+        # type-strict: 1 is not true (review of a0f2e31b, B2)
+        return {x: jcs(outcome[x]).decode() if x in outcome else None for x in outputs}
 
     def yields(self, observation: str, rid: str) -> bool:
         """Under the reading in force: a verdict on a failing output that is not PASS, or not computable (fail
-        closed), or the output missing (§6.5; F85, F86)."""
+        closed), or the output missing (§6.5; F85, F86). Where the state holds the reading's revision only by
+        absorption, the verdict is also taken under the revision the last admission integrated, and the failure is
+        yielded if either fails (§6.6; review of a0f2e31b, B1)."""
 
         unit = self.s.record(rid)["fields"]["reading"]["unit"]
         reading_now = self.s.cur(unit) if unit in self.s.view.structure.units else None
-        found = self.s.specs.declaration_at(unit, reading_now) if reading_now is not None else None
+        if reading_now is None:
+            return True
+        readings = {reading_now, self.s.specs.integrated_rev(unit)}
+        return any(self._yields_under(observation, rid, unit, rev) for rev in readings)
+
+    def _yields_under(self, observation: str, rid: str, unit: str, rev: str | None) -> bool:
+        found = self.s.specs.declaration_at(unit, rev) if rev is not None else None
         ran_under = self.s.record(observation)["target"]["spec"]["rev"]
         outcome = self.outcome(observation) or {}
         for x in self.failing_outputs(rid):
@@ -332,13 +342,16 @@ class Assessments:
             if x not in outcome or verdict is None:
                 return True
             if verdict.embedded is not None:  # the recorded verdict counts only under the reading the run ran
-                if ran_under != reading_now or outcome.get(verdict.embedded) != "PASS":
+                if ran_under != rev or outcome.get(verdict.embedded) != "PASS":
                     return True
             elif verdict.template == "EXACT":  # recomputed from the stored outcome under any reading
+                output = found.output(x)
                 try:
-                    if outcome[x] != canonical_reference(found.output(x), verdict.params["reference"]):
-                        return True
+                    reference = canonical_reference(output, verdict.params["reference"])
                 except ValueError:
+                    return True
+                if not is_canonical(output, outcome[x]) \
+                        or jcs(outcome[x]) != jcs(reference):  # byte equality (§17.3)
                     return True
             else:
                 return True  # not computable until Q-F21 settles it (F86)
