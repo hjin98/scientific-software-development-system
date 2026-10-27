@@ -400,6 +400,27 @@ class State:
         return EvidenceFacts(self)
 
     @cached_property
+    def _authority_roots(self) -> frozenset[str]:
+        """The rename-lineage roots of every unit D1 or D2 at some admitted position up to ``n``, each structure
+        read once."""
+
+        roots: set[str] = set()
+        seen: set[int] = set()
+        for k in range(self.n + 1):
+            if id(self.h.sigma(k)) in seen:
+                continue
+            seen.add(id(self.h.sigma(k)))
+            structure = self.h.view(k).structure
+            roots |= {self.evidence.root(u) for u in structure.units if structure.kind(u) in ("D1", "D2")}
+        return frozenset(roots)
+
+    def ever_authority(self, unit: str) -> bool:
+        """§6.8's "is, or has been, D1 or D2 authority" (reading F101): some unit of ``unit``'s lineage was D1 or D2
+        at any admitted position, before the failure's admission included (re-check of 2d0ed5f0, answer 3, note 2)."""
+
+        return self.evidence.root(unit) in self._authority_roots
+
+    @cached_property
     def specs(self) -> Any:
         """Evidence specifications, their declarations, defects and lint (§17.1; step 9b)."""
 

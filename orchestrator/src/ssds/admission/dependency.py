@@ -57,7 +57,8 @@ def dependency_codes(record: Mapping[str, Any], trial: Any) -> set[str]:
             if target_kind == "CHALLENGE":
                 codes.add("DEP_COUNTER_CHALLENGE")
             elif target_kind not in SUPPORT_TIER and target_kind not in (
-                    "ADJUDICATION", "RISK_OVERRIDE", "CONTINUITY_ATTESTATION"):  # §3.4, §23.7: any may challenge it
+                    "ADJUDICATION", "RISK_OVERRIDE", "CONTINUITY_ATTESTATION", "REALIZATION"):
+                # §3.4, §23.7: any may challenge it; a realization too (§6.7, Manual §6.7; reading F101)
                 codes.add("DEP_TARGET_KIND")
         elif kind in ("ADJUDICATION", "RISK_OVERRIDE"):
             if target_kind != "CHALLENGE":

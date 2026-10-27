@@ -1,5 +1,5 @@
-"""Validation steps 1 and 2 for a runner's realization (Manual §8.3 steps 1-2, §6.3, §6.9, §17.2; Phase F plan §3.6,
-step 9d-i, readings F96-F97).
+"""Validation steps 1 and 2 for evidence: a runner's realization and an ordinary assessment (Manual §8.3 steps 1-2,
+§6.3, §6.5, §6.9, §17.2, §17.4; Phase F plan §3.6, steps 9d-i and 9d-ii, readings F96-F97 and F100).
 
 Admission decides here and derivation owns the facts: the realization's closed shape and ``on⁻`` are read through
 derivation's one reader (``read_realization``, ``on_minus``; F88), never re-implemented.
@@ -77,4 +77,39 @@ def realization_references(record: Mapping[str, Any], s: Any, known: Container[s
     return codes
 
 
-__all__ = ["realization_references", "realization_shape"]
+def assessment_references(record: Mapping[str, Any], s: Any, passing: Mapping[str, Mapping[str, Any]]) -> list[str]:
+    """Step 2 for an ``ORDINARY`` ``EVIDENCE_ASSESSMENT`` in state ``s`` (step 9d-ii; reading F100), with the shape
+    checks that read state. ``passing`` holds the records passing before it, by identity."""
+
+    if record.get("kind") != "EVIDENCE_ASSESSMENT" or (record.get("fields") or {}).get("mode") != "ORDINARY":
+        return []
+    codes = []
+    target, fields = record.get("target") or {}, record.get("fields") or {}
+    real = target.get("realization")
+    observed = s.record(real) if real in s.records else passing.get(real)
+    if observed is None or observed.get("kind") != "REALIZATION":
+        return ["REF_TARGET"]  # it assesses an admitted realization (§3.4)
+    if observed.get("outcome") == "INCOMPLETE" and record.get("outcome") in ("PASS", "FAIL"):
+        codes.append("REF_TARGET")  # §17.2: an incomplete realization "cannot enter a PASS/FAIL assessment"
+    spec = (observed.get("target") or {}).get("spec") or {}
+    claims = [c.get("unit") for c in (observed.get("target") or {}).get("claim") or [] if isinstance(c, Mapping)]
+    if target.get("obligation") not in {s.evidence.token(c, spec.get("unit")) for c in claims if isinstance(c, str)}:
+        codes.append("REF_TARGET")  # the obligation its specification and a claim give (F89 (a))
+    reading = fields.get("reading")
+    known_revs = {s.h.view(k).rev(spec.get("unit")) for k in range(s.n + 1)
+                  if spec.get("unit") in s.h.view(k).structure.units}
+    if not (isinstance(reading, Mapping) and reading.get("unit") == spec.get("unit") and reading.get("rev") in known_revs):
+        codes.append("REF_TARGET")  # a revision of the realization's specification
+        return codes
+    named = fields.get("failing_outputs")
+    if named and record.get("outcome") != "FAIL":
+        codes.append("SCHEMA_RECORD")  # only a failure names failing outputs
+    declared = s.specs.declaration_at(reading["unit"], reading["rev"])
+    if named and hasattr(declared, "output") and any(declared.output(x) is None for x in named):
+        codes.append("SCHEMA_RECORD")  # the declared outputs it found failing (§6.5; routed from 9c-ii-iii)
+    if fields.get("observations"):
+        codes.append("SCHEMA_RECORD")  # an ordinary reading carries no discriminating observations (F80)
+    return sorted(set(codes))
+
+
+__all__ = ["assessment_references", "realization_references", "realization_shape"]

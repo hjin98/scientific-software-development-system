@@ -131,6 +131,10 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
         return codes
     if not trial.qualified(record, trial.j.domain_of(record)):
         codes.add("AUTH_ACTOR")
+    if record["actor_class"] != "HUMAN" and trial.a.disposition_needs_human(record):
+        codes.add("AUTH_ACTOR")  # §6.8: disposing of a D1/D2 failure is R3, a human's (reading F101)
+    if kind == "IMMATERIALITY" and not _immateriality_actor(record, trial, obligation):
+        codes.add("AUTH_ACTOR")
     if kind in ("ACCEPTANCE", "LEGACY_ACCEPTANCE"):
         # a legacy import "supplies the acceptance for that (subject, scope_id, rev)" (§19.2), so it meets the same
         # target rules, on a subject the protocol it imports governs (review c80fc6a B1)
@@ -145,6 +149,22 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
         codes.discard("AUTH_SUPERSEDES")
         codes.add("SCHEMA_UNSUPPORTED")
     return codes
+
+
+def _immateriality_actor(record: dict, trial: Any, obligation: Any) -> bool:
+    """§3.4's "owner's qualified actor" (reading F101): for each failure it names, the claim domain's policy owner,
+    or the actor bound to that failure's ``ADJUDICATE_DISAGREEMENT``, the obligation the owner holds (§10.2)."""
+
+    s = trial.s
+    for x in (record.get("target") or {}).get("records") or []:
+        if x not in s.records:
+            return False
+        owner = s.policy.get(trial.j.domain_of(s.record(x)), "owner", None)
+        bound = obligation is not None and obligation.kind == "ADJUDICATE_DISAGREEMENT" \
+            and obligation.target.get("record") == x
+        if record["actor"] != owner and not bound:
+            return False
+    return True
 
 
 def _supersession_unbuilt(superseded: str, trial: Any) -> bool:
