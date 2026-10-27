@@ -44,10 +44,10 @@ class Publication:
             return True
         if self.h.ancestry is None:
             return None
-        return self.h.ancestry(candidate, obs)
+        return self.h.ancestry(candidate, obs)  # None when the graph cannot say: UNKNOWN
 
     def _equivalent(self, obs: str, base: str, candidate: str) -> bool:
-        if self.h.ancestry is None or not self.h.ancestry(base, obs):
+        if self.h.ancestry is None or self.h.ancestry(base, obs) is not True:
             return False
         try:
             return self.h.trees(obs) == self.h.trees(candidate)
@@ -105,9 +105,11 @@ class Publication:
             expected = self.h.head(m - 1)
             if obs == expected:
                 continue
-            setter = next((n for n in range(m - 1, 0, -1) if self._accepted(n) is not None
-                           and self._accepted(n)[1] == expected), None)
-            if setter is not None and self._equivalent(obs, *self._accepted(setter)):
+            # "E becomes obs" for the admission that set E: the last entry before m that moved the head
+            # (review 0ab46e4 N2), never an older admission whose C a later absorption returned to
+            setter = next((n for n in range(m - 1, 0, -1) if self.h.head(n) != self.h.head(n - 1)), None)
+            if setter is not None and self._accepted(setter) is not None \
+                    and self._equivalent(obs, *self._accepted(setter)):
                 continue
             out.append(m)
         return tuple(out)

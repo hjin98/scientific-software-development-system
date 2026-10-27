@@ -48,13 +48,16 @@ def ancestry(repo: Path):
     composition root supplies it over the ledger repository, which keeps every observed commit reachable (§8.6;
     Phase F step 6d). A commit the repository lacks reaches nothing."""
 
-    def is_ancestor(a: str, b: str) -> bool:
+    def is_ancestor(a: str, b: str) -> bool | None:
+        """True or False, or ``None`` when the graph cannot say (a missing object, a corrupt repository): an
+        unreadable graph is unknown, never "not an ancestor" (review 0ab46e4 N4)."""
+
         if not (_COMMIT.fullmatch(a) and _COMMIT.fullmatch(b)):
             return False  # validated before any Git call (Manual §25.4)
         result = subprocess.run(  # noqa: S603 - fixed argv
             ["git", "-C", str(repo), "merge-base", "--is-ancestor", a, b],
             capture_output=True, check=False, env=_environment())
-        return result.returncode == 0
+        return {0: True, 1: False}.get(result.returncode)
 
     return is_ancestor
 

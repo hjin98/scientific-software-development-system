@@ -68,7 +68,7 @@ class History:
     """
 
     def __init__(self, chain: Chain, trees: TreeSource, checkpoint: bytes | None = None,
-                 ancestry: Callable[[str, str], bool] | None = None) -> None:
+                 ancestry: Callable[[str, str], bool | None] | None = None) -> None:
         if chain.genesis is None:
             raise ValueError("derivation needs a readable genesis")
         self.chain = chain

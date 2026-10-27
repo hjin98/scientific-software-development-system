@@ -119,6 +119,12 @@ class Integration(unittest.TestCase):
         graph = self.absorb("elsewhere", self.candidate, [])
         self.assertEqual(Publication(history(self.sc, graph)).classes[self.n], OVERTAKEN, "no descent from B_n")
 
+    def test_a_graph_that_cannot_say_is_unknown(self) -> None:
+        """Review 0ab46e4 N4: an unreadable graph is never "not an ancestor"."""
+
+        self.absorb("unreadable", self.base, [])
+        self.assertEqual(Publication(history(self.sc, lambda a, b: None)).classes[self.n], UNKNOWN)
+
     def test_a_descendant_with_another_tree_is_overtaken(self) -> None:
         graph = self.absorb("other", self.base, [self.base])
         self.assertEqual(Publication(history(self.sc, graph)).classes[self.n], OVERTAKEN, "not C_n's tree")
@@ -155,6 +161,23 @@ class EntryShape(unittest.TestCase):
         self.assertEqual(Publication(history(self.sc)).violations, (self.sc.position - 1,),
                          "without the graph no equivalence is shown: strict")
 
+    def test_only_the_admission_that_set_e_excuses_an_equivalent(self) -> None:
+        """Review 0ab46e4 N2: an absorption that returns E to an old C sets E itself."""
+
+        from ._scenario import agent, submit
+
+        x, candidate, _ = submit(self.sc, {"impl.md": "i2\n"}, agent("maker"), "task-1")
+        self.sc.entries.append(admission_body(self.sc.position, self.base, candidate, integrates=x))
+        away = commit_id("away")
+        self.sc.trees[away] = self.sc.trees[self.base]
+        self.sc.entries.append(absorption_body(self.sc.position, away))
+        self.sc.entries.append(absorption_body(self.sc.position, candidate))  # E returns to the old C
+        merged = commit_id("merge of the same tree")
+        self.sc.trees[merged] = self.sc.trees[candidate]
+        self.sc.entries.append(admission_body(self.sc.position, merged, merged))
+        graph = Graph({merged: [self.base], candidate: [self.base]})
+        self.assertEqual(Publication(history(self.sc, graph)).violations, (self.sc.position - 1,))
+
 
 class Ancestry(unittest.TestCase):
     def test_the_commit_graph_reader(self) -> None:
@@ -175,7 +198,7 @@ class Ancestry(unittest.TestCase):
             self.assertTrue(is_ancestor(first, second))
             self.assertTrue(is_ancestor(first, first))
             self.assertFalse(is_ancestor(second, first))
-            self.assertFalse(is_ancestor("f" * 40, second), "a commit the repository lacks reaches nothing")
+            self.assertIsNone(is_ancestor("f" * 40, second), "a missing object: the graph cannot say (review N4)")
             self.assertFalse(is_ancestor("--all", second), "validated before any Git call")
 
 
