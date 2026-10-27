@@ -36,8 +36,9 @@ from .state import NEVER_PROVISIONAL, UNKNOWN, F, P, T, triple_key
 PRINCIPAL, IMPLEMENTER, INVESTIGATOR, REVIEWER, HUMAN, DISPATCHER = (
     "PRINCIPAL", "IMPLEMENTER", "INVESTIGATOR", "REVIEWER", "HUMAN", "DISPATCHER")
 READY, READY_PROVISIONAL, WAITING, ANSWERED = "READY", "READY_PROVISIONAL", "WAITING", "ANSWERED"
-#: The holders a task is issued to; the others hold briefs (human decisions) or are the Dispatcher's own duty.
-AGENT_ROLES = frozenset({IMPLEMENTER, INVESTIGATOR, REVIEWER})
+#: The holders a task is issued to (§12.3's agent role templates, the principal's R1 included); the human holds briefs
+#: and the Dispatcher's own obligations are its mechanical duty.
+AGENT_ROLES = frozenset({PRINCIPAL, IMPLEMENTER, INVESTIGATOR, REVIEWER})
 DISCHARGED, DISCHARGED_PROVISIONAL, OPEN, REFUSED = "DISCHARGED", "DISCHARGED_PROVISIONAL", "OPEN", "REFUSED"
 #: The judgment kind that answers each judgment obligation kind (§10.3).
 ANSWER_KIND = {"ACCEPT": "ACCEPTANCE", "GATE": "GATE_DECISION", "PLAN_ACCEPT": "PLAN_ACCEPTANCE",
@@ -705,6 +706,22 @@ class Workflow:
         if item is not None:
             return {"unit": item.unit, "rev": self.s.view.rev(item.unit)}
         return {"system": o.kind, "version": self.s.h.ruleset(self.s.n)["system"]}
+
+    def serialization(self, o: Obligation) -> tuple[tuple[str, ...], str | None]:
+        """What a task for ``o`` serializes on (§9.2; Phase F step 8c, reading F67): the policy's serialization
+        surfaces its write scope meets, a unit meeting a surface when one contains the other; and, for a principal's
+        coordination task, its plan, since every change plan is a surface for coordination."""
+
+        coordination = o.plan if o.holder == PRINCIPAL else None
+        item = self.item_of(o)
+        if item is None:
+            return (), coordination
+        structure = self.s.view.structure
+        surfaces = [u for u in self.s.policy.flow("serialization_surfaces") if u in structure.units]
+        writes = item.write_units
+        met = sorted({s for s in surfaces for w in writes
+                      if w == s or s in structure.ancestors(w) or w in structure.ancestors(s)})
+        return tuple(met), coordination
 
     def item_of(self, o: Obligation) -> Any:
         """The item or part obligation ``o`` is, or None."""

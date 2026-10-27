@@ -23,6 +23,7 @@ from ssds.ledger.qualification import Home, HomeRefused, write_all
 class DispatcherHome(Home):
     ISSUE_KEY = ("keys", "dispatcher")
     JOURNAL = "dispatcher-journal.jsonl"
+    LEASES = "dispatcher-leases.jsonl"
 
     def issue_key_parts(self, ledger_id: str) -> tuple[str, ...]:
         self.check_ledger_id(ledger_id)
@@ -32,12 +33,17 @@ class DispatcherHome(Home):
         self.check_ledger_id(ledger_id)
         return ("state", ledger_id, self.JOURNAL)
 
+    def lease_parts(self, ledger_id: str) -> tuple[str, ...]:
+        self.check_ledger_id(ledger_id)
+        return ("state", ledger_id, self.LEASES)
+
     def path(self, parts: tuple[str, ...]) -> Path:
         return self._file(*parts)
 
     def _check_paths(self, ledger_id: str) -> None:
         super()._check_paths(ledger_id)
         self.path(self.issue_key_parts(ledger_id)), self.path(self.journal_parts(ledger_id))
+        self.path(self.lease_parts(ledger_id))
 
     # -- file effects, never through a link ---------------------------------------------------------------------
 

@@ -26,6 +26,8 @@ class Fixture(RequestFixture):
     ``ACCEPT`` has an eligible judge and is ``READY`` (§16.5): the baseline's authorship is unknown, so no fresh
     agent reviewer is eligible for it."""
 
+    POLICY = 'schema = 1\n[domains.D3]\nhumans = ["human:SHA256:carol"]\n'
+
     def setUp(self) -> None:
         from unittest import mock as _mock
 
@@ -36,7 +38,7 @@ class Fixture(RequestFixture):
         from .test_admission_genesis import GenesisFixture
 
         GenesisFixture.setUp(self)
-        (self.product / ".ssds" / "policy.toml").write_text('schema = 1\n[domains.D3]\nhumans = ["human:SHA256:carol"]\n')
+        (self.product / ".ssds" / "policy.toml").write_text(self.POLICY)
         self.baseline = commit(self.product, "policy names a human judge")
         native = {"guide": {"mode": "NATIVE", "ruleset": "ssds-rules/1"}, "*": {"mode": "UNGOVERNED"}}
         with _mock.patch("ssds.admission.genesis.SHADOW_MODES", ("LEGACY", "UNGOVERNED", "NATIVE")):
@@ -91,7 +93,7 @@ class WouldIssue(Fixture):
         states = {made[0].id: READY, made[1].id: "WAITING", made[2].id: READY, made[3].id: READY, made[4].id: READY}
         fake = SimpleNamespace(obligations=made, readiness=lambda o: SimpleNamespace(state=states[o.id]),
                                contract_revision=lambda o: {"unit": "u", "rev": "r"} if o.kind == "IMPLEMENT" else
-                               {"system": o.kind, "version": "v"})
+                               {"system": o.kind, "version": "v"}, serialization=lambda o: ((), None))
         with mock.patch("ssds.dispatcher.schedule.Workflow", return_value=fake):
             tasks = would_issue(self.chain(), self.trees, held)
         self.assertEqual([(t.kind, t.contract_revision) for t in sorted(tasks, key=lambda t: t.kind)],
@@ -181,7 +183,7 @@ class WriteAhead(Fixture):
         later = Task(task_id(task.obligation_id, held.head + 1), task.obligation_id, task.kind, task.holder,
                      task.contract_revision)
         moved = Qualification("QUALIFIED", held.head + 1, "sha256:" + "1" * 64)
-        with self.assertRaisesRegex(NotIssuable, "already has a task"):
+        with self.assertRaisesRegex(NotIssuable, "has a task open"):
             self.issue(later, moved)
 
     def test_an_issued_envelope_is_outstanding_until_its_task_finishes(self) -> None:

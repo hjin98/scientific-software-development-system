@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is next. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is closed (PASS at c8b78706); 8c is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2346,3 +2346,32 @@ Mutants: C12 (no open-obligation check) and C13 (abandoned envelopes unlisted) a
 Its notes:
 - **N1 (recorded).** A step-2 check that a contract id agrees with its bound obligation (its kind, or its item) would be defence in depth. Authentication already ties the record to the signed envelope, and derivation never reads the id's fields.
 - **N2 (recorded).** F36's staleness covers item revisions only. A system id whose version is no longer in force is unreachable while no path changes the ruleset's system. When ruleset adoption opens, F36 extends to it.
+
+**Step 8c built (scheduling constraints; reading F67).**
+- **The principal is an agent role.** 8a's `AGENT_ROLES` omitted it. Catalogue §12.3 gives the principal an R1 role template holding `COORDINATE` and `CONTRACT`, and §9.2 schedules coordination tasks, so `PRINCIPAL` joins the implementer, investigator and reviewer. The human's obligations stay briefs.
+- **Serialization surfaces.** A policy key, `[workflow] serialization_surfaces`, lists unit ids and defaults to empty. `Workflow.serialization(o)` gives the surfaces a task's write scope meets, a write unit meeting a surface when one contains the other (`Structure.ancestors`), and a principal's task's plan. A judgment writes nothing.
+- **Scheduling.** `issuable` applies, against the journal's open tasks and the batch's earlier tasks:
+  - no second task for an obligation with one open;
+  - at most one open task per serialization surface;
+  - at most one open coordination task per plan.
+
+  `would_issue` takes the open tasks. `ready` is the pre-scheduling set. `issue` checks the same rules and records the task's surfaces and plan in its intent. `observe` reports the held tasks with why.
+- **Journal states.** `finished` (the task holds nothing more), `suspend` (it stays open, keeping its obligation and surfaces), `resume` (by identity, under its envelope: no new envelope), `suspended` and `open_tasks` (handed and not finished, suspended included).
+- **Leases** (`dispatcher/leases.py`, K2). An append-only lease log in the Dispatcher's home (`state/<ledger id>/dispatcher-leases.jsonl`), keyed by the worktree identity the composition root resolves, with time passed in. A live lease of another task refuses; expiry or release frees the worktree; a task renews its own. Nothing Admission, derivation or the Ledger Store reads imports the Dispatcher, so a lease changes scheduling, never correctness.
+- **Joint-invariant reviews** (§9.2) are scheduled as system-contract tasks like any judgment.
+- **Tests.** `test_phase_f_step8c.py`, 13 tests:
+  - the policy key and its malformed form;
+  - the principal as an agent role;
+  - one task per surface, per plan's coordination, and per open obligation;
+  - a joint-invariant review issued with its system contract;
+  - surfaces met by containment either way, and a principal's plan;
+  - a finished task freeing its obligation;
+  - suspension keeping a task open and refusing a second issue, and resumption by identity;
+  - `observe` reporting the held tasks;
+  - lease acquisition, refusal, renewal, expiry and release;
+  - no Admission, derivation or ledger module importing the Dispatcher.
+
+  8a's fixture now takes its policy as a class attribute.
+- **Mutants.** Thirteen: all are killed.
+- **Full suite.** It passes: 1425 tests, 6 skipped.
+- **Not built in 8c.** Resuming on the coordination decision's admission is the caller's act by identity. The automatic trigger reads a `BLOCKER`'s answer, which 8g's retry loop drives. `READY_PROVISIONAL` stays undispatched (review 546cc86 N1): a provisional continuation's work waits until the step that admits provisional discharge in Phase F, if any; none does yet.

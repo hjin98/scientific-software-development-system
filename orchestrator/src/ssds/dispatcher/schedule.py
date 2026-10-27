@@ -27,6 +27,8 @@ class Task:
     kind: str
     holder: str
     contract_revision: dict[str, str]  # the item's {unit, rev}, or the system contract id (SD-77, reading F66)
+    surfaces: tuple[str, ...] = ()  # the serialization surfaces its write scope meets (§9.2, reading F67)
+    plan: str | None = None  # a principal's coordination task: its plan, at most one at a time (§9.2, §12.5)
 
     def to_json(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -38,8 +40,15 @@ def task_id(obligation_id: str, position: int) -> str:
     return f"task-{position}-{obligation_id.removeprefix('sha256:')[:16]}"
 
 
-def would_issue(chain: Any, trees: Any, held: Any) -> tuple[Task, ...]:
-    """The tasks the Dispatcher would issue at ``held``'s head, the qualified prefix's workflow read there."""
+def would_issue(chain: Any, trees: Any, held: Any, open_tasks: Any = ()) -> tuple[Task, ...]:
+    """The tasks the Dispatcher would issue at ``held``'s head, the qualified prefix's workflow read there, after
+    the scheduling constraints against the tasks still open (``held_back``)."""
+
+    return issuable(ready(chain, trees, held), open_tasks)[0]
+
+
+def ready(chain: Any, trees: Any, held: Any) -> tuple[Task, ...]:
+    """Every ``READY`` agent-held obligation at ``held``'s head, as a task, before scheduling."""
 
     if not held.current or held.provisional is not None or held.head is None:
         raise NotIssuable(f"the ledger is {held.state} at {held.head}, provisional {held.provisional}: "
@@ -49,8 +58,39 @@ def would_issue(chain: Any, trees: Any, held: Any) -> tuple[Task, ...]:
     out = []
     for o in workflow.obligations:
         if o.holder in AGENT_ROLES and workflow.readiness(o).state == READY:
-            out.append(Task(task_id(o.id, held.head), o.id, o.kind, o.holder, workflow.contract_revision(o)))
+            surfaces, plan = workflow.serialization(o)
+            out.append(Task(task_id(o.id, held.head), o.id, o.kind, o.holder, workflow.contract_revision(o),
+                            surfaces, plan))
     return tuple(sorted(out, key=lambda t: t.task_id))
+
+
+def issuable(tasks: Any, open_tasks: Any) -> tuple[tuple[Task, ...], tuple[tuple[Task, str], ...]]:
+    """Scheduling (§9.1-§9.2, reading F67; scheduling only, never correctness): no second task for an obligation
+    with one open; at most one open task per serialization surface its write scope meets; at most one open
+    coordination task per plan. ``open_tasks`` are the journal's open intents; a task this batch admits counts as
+    open for the ones after it. Returns the issuable tasks and the held ones with why."""
+
+    obligations = {t["obligation_id"] for t in open_tasks}
+    surfaces = {s: t["task_id"] for t in open_tasks for s in t.get("surfaces") or ()}
+    plans = {t["plan"]: t["task_id"] for t in open_tasks if t.get("plan")}
+    out, held = [], []
+    for task in tasks:
+        if task.obligation_id in obligations:
+            held.append((task, "its obligation has a task open"))
+            continue
+        busy = [s for s in task.surfaces if s in surfaces]
+        if busy:
+            held.append((task, f"serialization surface {busy[0]} is held by {surfaces[busy[0]]}"))
+            continue
+        if task.plan is not None and task.plan in plans:
+            held.append((task, f"plan {task.plan} has coordination task {plans[task.plan]} open"))
+            continue
+        out.append(task)
+        obligations.add(task.obligation_id)
+        surfaces.update((s, task.task_id) for s in task.surfaces)
+        if task.plan is not None:
+            plans[task.plan] = task.task_id
+    return tuple(out), tuple(held)
 
 
 def issue(journal: Any, issuer: Any, task: Task, held: Any, *, governs: Any, route: str,
@@ -61,9 +101,10 @@ def issue(journal: Any, issuer: Any, task: Task, held: Any, *, governs: Any, rou
 
     if not held.current or held.provisional is not None or task.task_id != task_id(task.obligation_id, held.head):
         raise NotIssuable(f"{task.task_id} is not issued at the named head {held.head} (§23.4)")
-    if task.obligation_id in journal.open_obligations():
-        raise NotIssuable(f"{task.obligation_id} already has a task handed out (review 546cc86 N2)")
-    journal.intent(task.task_id, task.obligation_id, held.head, held.head_digest)
+    allowed, refused = issuable((task,), journal.open_tasks())
+    if not allowed:
+        raise NotIssuable(f"{task.task_id} is held: {refused[0][1]} (review 546cc86 N2; reading F67)")
+    journal.intent(task.task_id, task.obligation_id, held.head, held.head_digest, task.surfaces, task.plan)
     issued = issuer.issue(task_id=task.task_id, obligation_id=task.obligation_id, role=task.holder,
                           contract_revision=task.contract_revision, governs=governs, route=route,
                           issued_at_position=held.head, brief=brief)
@@ -80,10 +121,12 @@ def observe(chain: Any, trees: Any, held: Any) -> dict[str, Any]:
                               "head_digest": held.head_digest, "issued": [],
                               "mode": "observe-only: nothing is issued and no run ref is written (F8)"}
     try:
-        report["would_issue"] = [t.to_json() for t in would_issue(chain, trees, held)]
+        allowed, deferred = issuable(ready(chain, trees, held), ())
+        report["would_issue"] = [t.to_json() for t in allowed]
+        report["held"] = [{**t.to_json(), "because": why} for t, why in deferred]
     except NotIssuable as refused:
-        report["would_issue"], report["withheld"] = [], str(refused)
+        report["would_issue"], report["held"], report["withheld"] = [], [], str(refused)
     return report
 
 
-__all__ = ["NotIssuable", "Task", "issue", "observe", "task_id", "would_issue"]
+__all__ = ["NotIssuable", "Task", "issuable", "issue", "observe", "ready", "task_id", "would_issue"]

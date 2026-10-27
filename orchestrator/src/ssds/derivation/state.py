@@ -95,6 +95,7 @@ WORKFLOW_DEFAULTS: dict[str, Any] = {
     "budget": 3,  # §13.7 [proposed default]
     "provisional_kinds": (),  # §10.3, §10.4: kinds policy lets continue provisionally
     "protected_surfaces": (),  # §25.3: units and paths no agent write scope may hold
+    "serialization_surfaces": (),  # §9.2: units at most one mutating task's write scope meets at a time
     "concern_tags": {},  # §16.3: concern -> units whose write-scope intersection injects that owner
     "waive_item_level_review": (),  # §13.7: item kinds whose item-level review policy waives
     "floors": (),  # §15.4: raise-only entries {kind, reason, domain, materiality}
@@ -128,6 +129,8 @@ def _workflow(raw: Any) -> dict[str, Any]:
         if set(kinds) & NEVER_PROVISIONAL:
             raise ValueError(f"[workflow] provisional_kinds may not name {sorted(NEVER_PROVISIONAL)}")
         out["provisional_kinds"] = kinds
+    if "serialization_surfaces" in raw:
+        out["serialization_surfaces"] = strings("serialization_surfaces")
     if "protected_surfaces" in raw:
         out["protected_surfaces"] = strings("protected_surfaces")
     if "waive_item_level_review" in raw:

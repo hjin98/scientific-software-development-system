@@ -57,9 +57,45 @@ class Journal:
 
     # -- what is recorded ---------------------------------------------------------------------------------------
 
-    def intent(self, task_id: str, obligation_id: str, position: int, digest: str) -> None:
+    def intent(self, task_id: str, obligation_id: str, position: int, digest: str, surfaces=(),
+               plan: str | None = None) -> None:
         self._append({"kind": "INTENT", "task_id": task_id, "obligation_id": obligation_id, "position": position,
-                      "head_digest": digest})
+                      "head_digest": digest, "surfaces": list(surfaces), "plan": plan})
+
+    def finished(self, task_id: str) -> None:
+        """The task's outcome is decided: it holds nothing more (reading F67)."""
+
+        self._append({"kind": "FINISHED", "task_id": task_id})
+
+    def suspend(self, task_id: str, reason: str) -> None:
+        """A handed task waits, on a ``BLOCKER`` its coordination decision answers (reading F67). It stays open:
+        its obligation is issued no other task and it keeps its surfaces."""
+
+        if task_id not in {t["task_id"] for t in self.open_tasks()} or task_id in self.suspended():
+            raise ValueError(f"{task_id} is not an open, running task")
+        self._append({"kind": "SUSPENDED", "task_id": task_id, "reason": reason})
+
+    def resume(self, task_id: str) -> None:
+        """The suspended task continues by its identity, under its envelope: nothing is issued anew."""
+
+        if task_id not in self.suspended():
+            raise ValueError(f"{task_id} is not suspended")
+        self._append({"kind": "RESUMED", "task_id": task_id})
+
+    def suspended(self) -> frozenset[str]:
+        state: dict[str, bool] = {}
+        for e in self.entries():
+            if e["kind"] in ("SUSPENDED", "RESUMED"):
+                state[e["task_id"]] = e["kind"] == "SUSPENDED"
+        return frozenset(t for t, waiting in state.items() if waiting)
+
+    def open_tasks(self) -> list[dict[str, Any]]:
+        """The intents of tasks handed out and not finished, suspended ones included (reading F67)."""
+
+        entries = self.entries()
+        handed = {e["task_id"] for e in entries if e["kind"] == "HANDED"}
+        finished = {e["task_id"] for e in entries if e["kind"] == "FINISHED"}
+        return [e for e in entries if e["kind"] == "INTENT" and e["task_id"] in handed - finished]
 
     def handed(self, task_id: str) -> None:
         self._append({"kind": "HANDED", "task_id": task_id})
@@ -78,9 +114,7 @@ class Journal:
         """Obligations with a task handed out: none is issued a second task (review 546cc86 N2). ``recover`` never
         abandons a handed task. A task's finishing is recorded by later parts of step 8; until then it stays open."""
 
-        entries = self.entries()
-        handed = {e["task_id"] for e in entries if e["kind"] == "HANDED"}
-        return frozenset(e["obligation_id"] for e in entries if e["kind"] == "INTENT" and e["task_id"] in handed)
+        return frozenset(e["obligation_id"] for e in self.open_tasks())
 
     def issued(self, task_id: str, binding: Mapping[str, Any]) -> None:
         self._append({"kind": "ISSUED", "task_id": task_id, "envelope": binding_digest(binding),
