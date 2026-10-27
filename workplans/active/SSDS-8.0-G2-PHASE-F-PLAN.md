@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 25 splits step 7e into 7e-i and 7e-ii with readings F59-F62 and Q-F15; revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F12 settled (SD-64, SD-67 to SD-73); Q-F13 and Q-F14 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F12 settled (SD-64, SD-67 to SD-73); Q-F13 to Q-F15 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6); 7e (`WITNESS_SET_REDESIGNATION`) is next. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revision 25 splits 7e into 7e-i and 7e-ii (readings F59-F62, Q-F15) and awaits its plan check. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -288,6 +288,13 @@ Derivation already folds a loss's boundary, `cont`, and `REQUALIFY` (Phase D), a
     - nothing abandoned;
     - the compare-and-swap refused when the ref is past the readable prefix (plan check of 31b3ed34, note 1; review 7d2d1c0 N2).
 
+#### 7e in two parts (revision 25)
+
+| Part | Builds | Fails closed / deferred |
+|---|---|---|
+| **7e-i** the witness model per position | The segments of F59. `qualify_segments`, in the Ledger Store's `qualification` API, is the one function Admission, the CLI and the Interface call. Distribution writes a checkpoint to the witnesses of every segment its position lies in, and the retirement statement's quorum is the last segment's. Tests: fixture chains carrying a redesignation entry, built directly, which qualify across segments; a redesignation not yet held by the new set reads as the old segment's provisional entry; an old-set fork after a held redesignation is not read; the readers agree | nothing admits a redesignation until 7e-ii |
+| **7e-ii** admitting a redesignation | The content check (F60), the dual trial, the redesignation over a provisional entry, including another host's (F61; review 7d2d1c0 N1), and the critical-flag exemption. Tests: a routine redesignation from `LOCAL_TRUST` to `TEAM` fixture witnesses; a redesignation under `UNQUALIFIED` continuing from the intact head, its report referenced; one over a provisional entry; class and quorum soundness; `continues_from`; evidence of a later head refused (F62) | a redesignation carrying a `LEDGER_LOSS` (F62, Q-F15) |
+
 Discriminators: S5 §23 `loss_bounds` and `qualification_states` at Admission; each §23.8 row as a fixture history; a stale-consistent restore; a fresh clone; a redesignation over a provisional entry; `deployment_classes_sound` at redesignation; §31.4's retired lineage and stale mirror reading `RETIRED`; and §4's "recovery authorization and authenticated witness retirement".
 
 ## 4. Acceptance groups: cases and discriminators carried
@@ -485,6 +492,29 @@ Each reading resolves a point the register leaves to D4. It is revised, never si
   - Nothing to abandon is refused.
 
   The replica keeps its own side. Choosing the side it does not hold, or restoring a recoverable suffix, needs the ref restore, F47's (Q-F14). This reading follows directly from §3.4's 7d row and F54, so it was not given a separate plan check; 7d's code review judges it.
+- **F59** *The witness model in force per position (7e-i).* Genesis's model is in force from position 0. A `WITNESS_SET_REDESIGNATION` at position `p` in the readable chain starts a segment, whose model is its `witnesses` from `p`. Its own entry belongs to both segments: it is admitted under both quorums where the old one is reachable (§23.8).
+
+  Qualification evaluates `qualify` under each segment's model, using that segment's declared witnesses' reports, newest segment first.
+  - **Current.** A segment's result counts when it is `QUALIFIED` at a head within the segment's range. The range runs from the segment's start through the next segment's start, since the redesignation's position is held by both sets; the newest segment is unbounded. The first result that counts is the qualification.
+  - **None current.** The answer is the newest segment's result that is not `UNQUALIFIED`, or `UNQUALIFIED`. So a redesignation not yet held by its new set reads as the old segment's provisional entry, which 6b's recovery completes.
+  - **Old witnesses.** They are not read once a redesignation is held: the old set was consistent when the redesignation was admitted under it, and later changes to it lie outside the model in force.
+
+  `RETIRED` uses the last segment's model. This is the one change F52 placed in 7e. The Interface's own genesis read moves to the same function, so every reader goes through one owner.
+- **F60** *A redesignation's content (7e-ii).* Its fields are exactly `{witnesses, continues_from}`.
+  - `witnesses` is a model that passes `WitnessModel.validate` (`quorum_sound` and class-sound, the "`deployment_classes_sound` at redesignation" of step 6's row) and differs from the model in force.
+  - `continues_from` is the digest of the entry it is appended after, `A`: the intact head.
+  - F54's loss evidence must abandon nothing. Every reachable checkpoint and the mark must end at `A` (§23.8), and any other evidence is F62's.
+  - Under `UNQUALIFIED`, "the record states that continuity rests on that evidence": F55's report object is stored with the entry, and the record's `refs` names it (`{store: LEDGER, digest, media_type: application/json}`). Admission recomputes it, as for a loss.
+
+  `prepare_redesignation(model)` gives the operator the fields and the reference.
+- **F61** *The dual trial and a provisional entry (7e-ii).* The trial (F51) qualifies the extended chain under the new set, with the entry's checkpoint at every writable new witness. Where the old set reaches its read quorum `r`, it also qualifies the chain under the old set, with the checkpoint at every writable old witness. Both must be `QUALIFIED` at the new position: §23.8's "admitted under both old and new quorums where the old is reachable".
+
+  A redesignation is admitted over a provisional entry (§22.4); its admission settles that prefix.
+  - **Own provisional entry.** 6b's completion runs first. If it succeeds the head is settled, and the redesignation is routine.
+  - **Another host's provisional entry.** The completion is skipped rather than halting (review 7d2d1c0 N1).
+
+  Until the redesignation is held, the chain carries two entries beyond `H*`. §23.4 exempts that one case from the critical flag, and qualification exempts it when the newest entry is a redesignation appended directly over the provisional one.
+- **F62** *A redesignation carrying a loss (7e-ii; Q-F15).* §23.8: "any evidence of a later head not proved never admitted makes the record carry a `LEDGER_LOSS`". Schema 1 closes a redesignation's fields to `{witnesses, continues_from}`, and a lifecycle entry carries one record. A loss alone cannot be held by the lost set either (7c: the trial refuses it). So Phase F can express neither a redesignation that carries a loss nor a two-entry form. Such a redesignation is refused, the case is disclosed in §6, and the stakeholder is asked (Q-F15).
 - **F8** *No campaign.* The Dispatcher issues envelopes to fixture executors, and to the manual and Git-envelope routes in scratch repositories, where lineage is `UNKNOWN` unless a human attests it (§12.2). Its harness route is built and tested against a stub harness, never a live model, without a campaign authorization. On the real shadow ledger `dispatcher serve` issues nothing and writes no run ref.
 
 ## 6. Fail closed until a later owner
@@ -510,6 +540,8 @@ Until steps 5-8 (4c-iii; review 23b487a N1), these fail closed:
 Until step 6 builds the commit, an accepted structure-changing request is unreachable, so its frame trial (4e-i) is exercised only on derivation histories and by the engine's wiring. A rejected one salvages its never-lost records by their own step-3 and step-5 reading at the head, where the rejecting entry admits them. A record declaring an unintegrated `X` is read in `X`'s frame there too (F27; review cab6179a B1).
 
 Until heads hold acceptances (steps 6-8), a request-level support cycle among a request's own records is unreachable through the engine. Each record would rely on a subject that no acceptance at the head makes valid, so step 6 refuses it first. `CYCLE_SUPPORT`'s engine reading is therefore tested by driving the trial.
+
+Until Q-F15 is answered, a `WITNESS_SET_REDESIGNATION` with evidence of a later head (§23.8's witness-loss row with a later head) is refused, and is disclosed at the exit (F62).
 
 Until Q-F14 places F47's ref restore, these are unbuilt and disclosed at the exit:
 - **§5.7's recovery under `INTEGRITY_HALT`**, a `FORK_RESOLUTION` or `LEDGER_LOSS` appended after the last valid entry. Admission appends nothing under `INTEGRITY_HALT` (reading F50).
@@ -647,6 +679,10 @@ SD-64 already decided that `ssdp-shadow` is retired, so the question is only how
 - **Alternative:** (b) build both in Phase F as a further part of step 7, with a ref-moving `ledger` function and the named B1 extension, operator-gated.
 
 Until it is answered, both stay unbuilt and are disclosed: Admission appends nothing under `INTEGRITY_HALT`, and a restore is an operator action outside SSDS.
+
+**Q-F15. How a redesignation carries a `LEDGER_LOSS` (F62).** §23.8's witness-loss row makes a redesignation "carry a `LEDGER_LOSS`" when evidence of a later head exists. Schema 1 cannot express that: a redesignation's fields are closed, an entry carries one lifecycle record, and a loss alone cannot be held by the set that was lost.
+- **Recommended:** (a) keep it fail-closed in Phase F, disclose it, and put the representation to the schema successor and the Manual clarification batch. For example, a loss record that also names the witness set it is admitted under. Until then, recovery from witnesses lost beyond the fault bound with a later head is an operator action outside SSDS.
+- **Alternative:** (b) a two-entry form in schema 1. A redesignation continuing from `A` is admitted first, even though the evidence shows a later head, with the loss following immediately under the new set. This contradicts §23.8's "continuing from the intact head when every reachable checkpoint ... ends there", so it needs the stakeholder's reading.
 
 **Resolved by SD-64 (stakeholder decision record item 60):** the recommendations above for Q-F1, Q-F2 (i)-(iii) and Q-F3 are adopted as stated. Step 10 runs on `ssdp-shadow-2` once the stakeholder has signed its genesis, and the old ledger's retirement statement follows step 7.
 
@@ -1945,3 +1981,9 @@ Its notes:
 Its one note: the request-form resubmission waits for a `TEAM` fixture with policy objects, and is added when one exists.
 
 **Step 7d is closed.**
+
+**Revision 25: step 7e in two parts (§3.4, readings F59-F62, Q-F15).**
+- **7e-i** builds the witness model per position as segments of the chain. `qualify_segments` is a single owner in the Ledger Store that every reader calls (F59).
+- **7e-ii** admits a redesignation: its content (F60); the dual trial and the redesignation over a provisional entry, including another host's (F61, review 7d2d1c0 N1); and the critical-flag exemption.
+
+§23.8's redesignation that "carries a `LEDGER_LOSS`" cannot be expressed in schema 1. It fails closed and goes to the stakeholder as Q-F15 (F62).
