@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F16 settled (SD-64, SD-67 to SD-76; Q-F15 withdrawn); Q-F17 and Q-F18 open. Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
+STATUS: ACTIVE, revision 20 (step 5 in six parts, §3.2; step 6, §3.3; step 7, §3.4); questions Q-F1 to Q-F18 settled (SD-64, SD-67 to SD-78; Q-F15 withdrawn). Companion to the G2 shadow workplan, Stage D (§5.2 Phase F row). It
         concretizes that row into files, modules and test groups. It adds no mechanism beyond the
         settled register (G2 workplan §4.2) and changes no Manual decision.
 START:  the Phase E Review PASS at c2b1ec2 lets Phase F's dependent work start (G2 workplan §5.1 item 5):
@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Questions Q-F17 and Q-F18 wait for the stakeholder; 8c, 8e and 8f can proceed meanwhile. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is closed (PASS at a889ed5e, N2 and N3 taken up). Q-F17 and Q-F18 are settled (SD-77, SD-78); 8b is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -764,6 +764,8 @@ SD-64 already decided that `ssdp-shadow` is retired, so the question is only how
 Until it is answered, both stay unbuilt and are disclosed: Admission appends nothing under `INTEGRITY_HALT`, and a restore is an operator action outside SSDS.
 
 **Q-F15 (withdrawn by revision 26).** Revision 25 asked how a redesignation could carry a `LEDGER_LOSS`. The check of c36b278e showed that schema 1 expresses it as a loss whose `controls.witnesses` re-establishes the set (F62). 7e-ii builds it, and there is nothing to ask.
+
+**Resolved by SD-77 and SD-78 (item 70):** Q-F17 (a), the in-place correction admitting `{system, version}`; Q-F18 (a), `intake.neutral_auto` deferred to Phase G.
 
 **Q-F17. The system contract id (F66).** An item task's envelope names its item revision, which each bound record copies into `binding.item`. A system-kind task (§13.6: review, acceptance, adjudication and the other system contracts) has a "system contract id" (catalogue line 1419), but the catalogue defines no form, and schema 1's `binding.item` admits only `{unit, rev}`.
 - **Recommended:** (a) an in-place schema-1 correction, as SD-69's. `binding.item` also admits `{system: <obligation kind>, version: <system version>}`. §13.6's system contracts come from the system version's table and the policy's parameters. So the contract a system task binds is that kind's entry in that system version, under the ruleset in force at the envelope's `issued_at_position`. `REVALIDATE`'s and `REQUALIFY`'s "the contract of the original record's task" then resolves deterministically (plan check of 5d4a0e2, note 3). No ledger holds a record bound to a system task, so nothing admitted changes.
@@ -2310,3 +2312,7 @@ Its notes:
 - **N4 (recorded).** `currentness`, now the single owner, verifies statements and checkpoints with the genesis host keys. When admission keys gain a lifecycle fold, it folds there (7a N1).
 
 Mutants: C12 (no open-obligation check) and C13 (abandoned envelopes unlisted) are killed. C14's "handed minus abandoned" was dead, since `recover` never abandons a handed task, so it is simplified away. The SSDS suite passes.
+
+**SD-77 and SD-78 (item 70).**
+- **Q-F17 (a).** Schema 1 is corrected in place, so `binding.item` also admits `{system, version}`: the system version, under the ruleset in force at issue. That unblocks 8b, and with it 8c's joint-invariant issue, 8d's judgment tasks and 8g's re-issue.
+- **Q-F18 (a).** `intake.neutral_auto` is deferred to Phase G, off and disclosed at the exit.
