@@ -74,6 +74,14 @@ class Journal:
             self._append({"kind": "ABANDONED", "task_id": task})
         return lost
 
+    def open_obligations(self) -> frozenset[str]:
+        """Obligations with a task handed out: none is issued a second task (review 546cc86 N2). ``recover`` never
+        abandons a handed task. A task's finishing is recorded by later parts of step 8; until then it stays open."""
+
+        entries = self.entries()
+        handed = {e["task_id"] for e in entries if e["kind"] == "HANDED"}
+        return frozenset(e["obligation_id"] for e in entries if e["kind"] == "INTENT" and e["task_id"] in handed)
+
     def issued(self, task_id: str, binding: Mapping[str, Any]) -> None:
         self._append({"kind": "ISSUED", "task_id": task_id, "envelope": binding_digest(binding),
                       "issue_key_id": binding["envelope"]["issue_key_id"]})
@@ -97,7 +105,13 @@ class Journal:
     def outstanding(self, issue_key_id: str, finished_tasks: Iterable[str]) -> list[str]:
         """The envelopes an issue key signed whose tasks have not finished: what its retirement lists (§25.2)."""
 
-        finished = set(finished_tasks) | {e["task_id"] for e in self.entries() if e["kind"] == "ABANDONED"}
+        entries = self.entries()
+        signed = {e["task_id"] for e in entries if e["kind"] == "ISSUED"}
+        # an abandoned intent whose envelope was never signed is outstanding nowhere; one signed but not recorded as
+        # handed may have reached its route, so it stays listed: over-listing only admits never-lost records, the
+        # fail-safe direction (review 546cc86 N3)
+        finished = set(finished_tasks) | {e["task_id"] for e in entries if e["kind"] == "ABANDONED"
+                                          and e["task_id"] not in signed}
         return sorted({e["envelope"] for e in self.entries() if e["kind"] == "ISSUED"
                        and e["issue_key_id"] == issue_key_id and e["task_id"] not in finished})
 

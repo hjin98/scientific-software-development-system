@@ -167,7 +167,20 @@ class WriteAhead(Fixture):
                 self.issue(task)
         journal = Journal(self.home, "demo")
         self.assertEqual(journal.recover(), [task.task_id])
-        self.assertEqual(journal.outstanding(self.issuer.key_id, []), [], "never handed out, so outstanding nowhere")
+        self.assertEqual(len(journal.outstanding(self.issuer.key_id, [])), 1,
+                         "signed, perhaps handed: it stays listed, the fail-safe direction (review 546cc86 N3)")
+
+    def test_an_obligation_with_a_task_handed_out_is_not_issued_again(self) -> None:
+        """Review 546cc86 N2: at a later head the same obligation is still READY, with another task id."""
+
+        task = self.task()
+        self.issue(task)
+        held = self.held()
+        later = Task(task_id(task.obligation_id, held.head + 1), task.obligation_id, task.kind, task.holder,
+                     task.contract)
+        moved = Qualification("QUALIFIED", held.head + 1, "sha256:" + "1" * 64)
+        with self.assertRaisesRegex(NotIssuable, "already has a task"):
+            self.issue(later, moved)
 
     def test_an_issued_envelope_is_outstanding_until_its_task_finishes(self) -> None:
         issued = self.issue()

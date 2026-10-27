@@ -61,6 +61,8 @@ def issue(journal: Any, issuer: Any, task: Task, held: Any, *, contract_revision
 
     if not held.current or held.provisional is not None or task.task_id != task_id(task.obligation_id, held.head):
         raise NotIssuable(f"{task.task_id} is not issued at the named head {held.head} (§23.4)")
+    if task.obligation_id in journal.open_obligations():
+        raise NotIssuable(f"{task.obligation_id} already has a task handed out (review 546cc86 N2)")
     journal.intent(task.task_id, task.obligation_id, held.head, held.head_digest)
     issued = issuer.issue(task_id=task.task_id, obligation_id=task.obligation_id, role=task.holder,
                           contract_revision=contract_revision, governs=governs, route=route,
