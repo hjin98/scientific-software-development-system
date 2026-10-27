@@ -46,7 +46,7 @@ ANSWER_KIND = {"ACCEPT": "ACCEPTANCE", "GATE": "GATE_DECISION", "PLAN_ACCEPT": "
 #: Item obligation kinds (§10.2): an accepted, issuable item of that kind with a contract.
 ITEM_KINDS = frozenset({"IMPLEMENT", "REPAIR", "MIGRATE", "AUTHOR", "DOCUMENT", "INVESTIGATE"})
 #: Obligation kinds answered by a judgment, which wait on an eligible judge (§10.3).
-JUDGED = frozenset(ANSWER_KIND) | {REVISING_REVIEW, "ADJUDICATE_DISAGREEMENT", "REVALIDATE"}
+JUDGED = frozenset(ANSWER_KIND) | {REVISING_REVIEW, "ADJUDICATE_DISAGREEMENT", "REVALIDATE", "ASSESS", "READING"}
 #: Subject kinds that owe no ACCEPT(s): plans (PLAN_ACCEPT, §11.2) and the system units (§1.8).
 NO_ACCEPT_KINDS = frozenset({"PLAN", "MANIFEST", "POLICY", "UNCLASSIFIED"})
 #: Kinds whose answer carries an independence requirement (§5.10 (f)).
@@ -253,28 +253,35 @@ class Workflow:
                     continue
                 found = a.explain(x, self.d.base, self._value)
                 real = a.real(x)
-                if real is None or found["differed"] or not self._bounded(real):
-                    continue  # (2) failed, or no current completeness judgment bounds the closure (§6.9)
+                if real is None or found["differed"]:
+                    continue  # (2) failed: nondeterministic in fact, the owner's (§6.9)
                 for on, tree, lacking in (("FAILING", a.basis(real).get("tree"), not found["reproduced"]),
                                           ("HERE", s.h.head(s.n), not found["observed_here"])):
-                    if lacking and not self._rerun_done(x, real, tree):
+                    if lacking and self._bounded(real, on) and not self._rerun_done(x, real, tree):
                         out.append(make("RERUN", {"record": x, "on": on}, {"tree": tree}, holder=DISPATCHER))
                 declared = a.declaration(real)
                 here = [o for o in found["observed_here"] if o != real]  # another run: the failing one is read
                 if isinstance(declared, SpecDeclaration) and declared.oracle == "ASSESSOR_READ" and here:
-                    o = here[0]
+                    o = here[0]  # one observation names the obligation; any other run here would serve (N2)
                     if not any(s.acts(y) and s.record(y)["target"].get("realization") == o and a.failing(y)
                                for y in s.of_kind("EVIDENCE_ASSESSMENT")):
                         about = [u for u in subjects if a.about(x, u)]
+                        # §3.4's class read from the subjects the failure is about, not the chain (N2; 9e owns the rule)
                         cls = "R3" if any(structure.kind(u) in ("D1", "D2") for u in about) else "R2"
                         out.append(make("READING", {"record": x}, {"observation": o, "class": cls}, holder=REVIEWER))
         return out
 
-    def _bounded(self, real: str) -> bool:
-        """A current completeness judgment bounds the realization's execution closure (§6.9; plan check note 3)."""
+    def _bounded(self, real: str, on: str) -> bool:
+        """A completeness judgment bounds the configuration's execution closure where the rerun would run (§6.9;
+        plan check note 3; review of affd87fa, N3): on the failing tree, the judgments the realization recorded,
+        which held there while they still stand (a later edit elsewhere leaves them holding for that tree); here, a
+        current one."""
 
         basis = self.d.a.basis(real)
         bounded = basis.get("bounded_by")
+        if on == "FAILING":
+            return isinstance(bounded, list) and bool(bounded) and \
+                all(c in self.s.records and self.d.base(c) > F for c in bounded)
         if isinstance(bounded, list) and bounded and all(c in self.s.records and self.d.current(c) > F for c in bounded):
             return True
         units = {u.get("unit") for u in basis.get("units", []) if isinstance(u, dict)}
@@ -739,6 +746,8 @@ class Workflow:
         if o.kind in ANSWER_KIND and self.answer(o) is not None:
             return Readiness(ANSWERED)
         waiting: list[str] = []
+        if o.kind == "READING":  # a reviewer who reads the outcome as passing records a discriminating reading (9e)
+            waiting.append("discriminating readings are step 9e's")
         if o.kind == "REALIZE":  # no designated runner of the specification's class: nothing can realize it (F95)
             from ssds.content import SpecDeclaration
 
@@ -785,6 +794,18 @@ class Workflow:
             return self.d.j.transformation_authors(target["transformation"])  # the one rule (plan review 6e0fa9e NB-1)
         if o.kind in ("ADJUDICATE", "ADJUDICATE_DISAGREEMENT", "REVALIDATE"):
             return self.d.j.root_authors(target["record"]) if target["record"] in self.s.records else frozenset({UNKNOWN})
+        if o.kind in ("ASSESS", "READING"):  # the claim's authors and the realization's lineage (§10.3, §6.9)
+            real = target.get("realization") or o.params.get("observation")
+            if real not in self.s.records:
+                return frozenset({UNKNOWN})
+            record = self.s.record(real)
+            out = {record["actor"]}
+            for claim in record["target"].get("claim") or []:
+                if isinstance(claim, dict) and claim.get("unit") in self.s.view.structure.units:
+                    out |= self.s.authors(claim["unit"], claim["rev"])
+            if o.kind == "READING" and target["record"] in self.s.records:
+                out |= self.d.j.root_authors(target["record"])
+            return frozenset(out)
         return frozenset({UNKNOWN})
 
     # -- what the renderers read (Phase E step 7) --------------------------------------------------------
@@ -884,6 +905,11 @@ class Workflow:
         record = o.target.get("record") if isinstance(o.target, dict) else None
         if record in self.s.records:
             return self.d.j.domain_of(self.s.record(record))
+        real = o.target.get("realization") if isinstance(o.target, dict) else None
+        if real in self.s.records:  # ASSESS: the claim's domain (§10.3)
+            claims = [c["unit"] for c in self.s.record(real)["target"].get("claim") or [] if isinstance(c, dict)]
+            units = self.s.view.structure.units
+            return next((self.s.view.structure.domain(u) for u in claims if u in units), None)
         return None
 
     def eligible_judges(self, o: Obligation) -> tuple[str, ...]:
@@ -922,6 +948,7 @@ class Workflow:
         out = sorted({h for h in humans if self.routes.independent(h, authors, domain)})
         revalidated = self.s.record(o.target["record"]) if o.kind == "REVALIDATE" and o.target["record"] in self.s.records else None
         human_only = (o.kind == "ACCEPT" and domain in ("D1", "D2")) or (
+            o.kind == "READING" and o.params.get("class") == "R3") or (
             revalidated is not None and (revalidated["actor_class"] == "HUMAN" and domain in ("D1", "D2")
                                          or revalidated["kind"] in ("GATE_DECISION",)))
         acceptors = policy.get(domain, "acceptors", None)

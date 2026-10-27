@@ -71,6 +71,18 @@ class Realize(unittest.TestCase):
         self.assertEqual(Workflow(r.sc.derive()).readiness(realize).state, "WAITING")
 
 
+    def test_an_unavailable_realization_never_ends_it(self) -> None:
+        """Review of affd87fa, N5 (q3): a realization needing an unavailable reference serves nothing (§17.4)."""
+
+        from ._fixtures import record
+
+        r = Runs()
+        real = r.run(r.tree("T0"), GOOD)
+        r.sc.admit(record("AVAILABILITY", target={"digest": real["fields"]["evaluated"]}, outcome="UNAVAILABLE",
+                          actor=HUMAN_B))
+        self.assertEqual(len(kinds(r, "REALIZE")), 1)
+
+
 class Assess(unittest.TestCase):
     def test_an_unassessed_realization_until_assessed(self) -> None:
         r = Runs()
@@ -80,6 +92,45 @@ class Assess(unittest.TestCase):
                          ({"realization": real["id"]}, {"obligation": OBL}, "REVIEWER"))
         r.fail(real)
         self.assertEqual(kinds(r, "ASSESS"), [])
+
+    def test_a_realization_admissible_only_adversely(self) -> None:
+        """Review of affd87fa, N5 (q4): under a compromise from its admission it can still fail (F89)."""
+
+        from ._fixtures import RUNNER_ROOT, record
+
+        r = Runs()
+        real = r.run(r.tree("T0"), BAD)
+        at = r.sc.derive().s.position_of(real["id"])
+        r.sc.lifecycle(record("KEY_LIFECYCLE", target=None, fields={
+            "action": "COMPROMISED", "key": {**RUNNER_ROOT, "role": "RUNNER"}, "from_position": at}))
+        self.assertEqual([o.target for o in kinds(r, "ASSESS")], [{"realization": real["id"]}])
+
+    def test_judges_exclude_the_claims_authors_and_the_runs_lineage(self) -> None:
+        """Review of affd87fa, N4: ASSESS is a judgment obligation (§10.3)."""
+
+        r = Runs()
+        r.run(r.tree("T0"), BAD)
+        w = Workflow(r.sc.derive())
+        (assess,) = [o for o in w.obligations if o.kind == "ASSESS"]
+        authors = w.judged_authors(assess)
+        self.assertIn("machinery:dispatcher@ed25519:test", authors)
+        self.assertTrue(authors & r.sc.derive().s.authors("code", r.sc.view(r.trees["T0"]).rev("code")))
+        self.assertFalse(set(w.eligible_judges(assess)) & authors)
+        self.assertEqual(w.domain_of(assess), "D4", "the claim's domain")
+        self.assertEqual(w.readiness(assess).waiting_on, ("no eligible judge",), "the claim's authorship is unknown")
+
+    def test_a_named_human_outside_the_authors_judges_it(self) -> None:
+        from unittest import mock
+
+        from . import test_assessment as ta
+
+        with mock.patch.object(ta, "POLICY", ta.POLICY.replace("evidence = true",
+                                                               'evidence = true\nhumans = ["human:SHA256:carol"]')):
+            r = Runs()
+        r.run(r.tree("T0"), BAD)
+        w = Workflow(r.sc.derive())
+        (assess,) = [o for o in w.obligations if o.kind == "ASSESS"]
+        self.assertEqual((w.eligible_judges(assess), w.readiness(assess).state), (("human:SHA256:carol",), "READY"))
 
 
 class Rerun(unittest.TestCase):
@@ -93,7 +144,9 @@ class Rerun(unittest.TestCase):
         self.assertEqual([o.target["on"] for o in kinds(r, "RERUN")], ["FAILING"],
                          "on its own tree the failing run is observed here (3)")
         r.sc.absorb({"a.py": "v = 2\n"})
-        self.assertEqual(kinds(r, "RERUN"), [], "its bounding judgment no longer holds: nothing bounds the closure")
+        self.assertEqual([o.target["on"] for o in kinds(r, "RERUN")], ["FAILING"],
+                         "its bounding judgment still holds for the failing tree, but nothing current bounds it here "
+                         "(review of affd87fa, N3)")
         r.bound_judgment(r.sc.head)  # a current completeness judgment of the new tree bounds it again (§6.9)
         reruns = kinds(r, "RERUN")
         self.assertEqual(sorted(o.target["on"] for o in reruns), ["FAILING", "HERE"])
@@ -125,6 +178,39 @@ class Rerun(unittest.TestCase):
         self.assertEqual([o for o in framed.obligations if o.kind in ("REALIZE", "ASSESS", "RERUN", "READING")], [],
                          "SD-70: a frame derives no evidence obligation")
         self.assertTrue(kinds(r, "RERUN"), "the admitted state does")
+
+    def test_a_challenged_bounding_judgment_bounds_nothing(self) -> None:
+        """Review of affd87fa, N3: on the failing tree, the recorded judgments while they still stand."""
+
+        from ._scenario import challenge
+
+        r, failing = self.failing()
+        (bounding,) = r.sc.derive().s.record(failing["target"]["realization"])["fields"]["execution"]["bounded_by"]
+        r.sc.admit(challenge({"record": bounding}))
+        self.assertEqual(kinds(r, "RERUN"), [])
+
+    def test_a_disposed_failure_derives_none(self) -> None:
+        """Review of affd87fa, N5 (q6)."""
+
+        from ssds.derivation import T
+
+        from ._scenario import attested, challenge
+
+        r, failing = self.failing()
+        self.assertTrue(kinds(r, "RERUN"))
+        c = challenge({"record": failing["id"]})
+        r.sc.admit(c)
+        r.sc.admit(*attested(judgment("ADJUDICATION", {"record": c["id"]}, "UPHELD", actor=HUMAN_B)))
+        d = r.sc.derive()
+        self.assertEqual(d.a.disposition(failing["id"], d.values.get, d.base, d.j.nonind), T)
+        self.assertEqual(kinds(r, "RERUN"), [])
+
+    def test_a_rerun_of_another_configuration_never_ends_it(self) -> None:
+        """Review of affd87fa, N5 (q7): another pin set is not ext-equal, so it observes nothing for (1)."""
+
+        r, failing = self.failing()
+        r.run(r.tree("T0"), BAD, pins=("p2",))
+        self.assertEqual([o.target["on"] for o in kinds(r, "RERUN")], ["FAILING"])
 
     def test_an_unserving_rerun_ends_it(self) -> None:
         from ._scenario import challenge
@@ -165,6 +251,50 @@ class Reading(unittest.TestCase):
                             fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")},
                                     "failing_outputs": ["x"]}))
         self.assertEqual(kinds(r, "READING"), [], "a failing assessment of the outcome answers it")
+
+    def test_only_a_failing_assessment_ends_it(self) -> None:
+        """Review of affd87fa, N5 (q10); and N1: it waits on 9e's discriminating readings; N4: a judgment."""
+
+        r = Declared(ASSESSOR_READ)
+        t0 = r.tree("T0")
+        r.fail(r.run(t0, {"x": 1}))
+        r.run(t0, {"x": 1})
+        (reading,) = kinds(r, "READING")
+        observed = reading.params["observation"]
+        view = r.sc.view(t0)
+        r.sc.admit(judgment("EVIDENCE_ASSESSMENT", {"realization": observed, "obligation": OBL}, "PASS",
+                            actor=HUMAN_B, basis=[on_record(observed), content("spec", view.rev("spec"))],
+                            fields={"mode": "ORDINARY", "reading": {"unit": "spec", "rev": view.rev("spec")}}))
+        (reading,) = kinds(r, "READING")
+        w = Workflow(r.sc.derive())
+        self.assertEqual(w.readiness(reading).waiting_on, ("discriminating readings are step 9e's", "no eligible judge"))
+        self.assertIn("machinery:dispatcher@ed25519:test", w.judged_authors(reading),
+                      "the observation's lineage, and a⁻'s root authors")
+
+    def test_a_class_r3_reading_is_a_humans(self) -> None:
+        """Review of affd87fa, N4: at its class, R3 for a D1 or D2 subject (§3.4)."""
+
+        import dataclasses
+        from unittest import mock
+
+        r = Declared(ASSESSOR_READ)
+        t0 = r.tree("T0")
+        r.fail(r.run(t0, {"x": 1}))
+        r.run(t0, {"x": 1})
+        w = Workflow(r.sc.derive())
+        (reading,) = [o for o in w.obligations if o.kind == "READING"]
+        r3 = dataclasses.replace(reading, params_json=reading.params_json.replace('"R2"', '"R3"'))
+        with mock.patch.object(Workflow, "judged_authors", lambda self, o: frozenset({"machinery:x"})):
+            self.assertEqual((w.eligible_judges(reading), w.eligible_judges(r3)), (("agent:fresh-reviewer",), ()))
+
+    def test_never_for_a_mechanical_oracle(self) -> None:
+        """Review of affd87fa, N5 (q9)."""
+
+        r = Runs()
+        t0 = r.tree("T0")
+        r.fail(r.run(t0, BAD))
+        r.run(t0, BAD)
+        self.assertEqual(kinds(r, "READING"), [])
 
     def test_an_assessor_read_failure_is_never_stale_mechanically(self) -> None:
         r = Declared(ASSESSOR_READ)
