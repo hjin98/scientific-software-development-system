@@ -38,6 +38,7 @@ from .checks import (content_identity, on_merits, over_bounds, producing_context
                      verified_objects)
 from .genesis import AdmissionHome, host_key
 from .lifecycle import lifecycle_message, lifecycle_problems, retirement_problems
+from .loss import evidence as loss_evidence, loss_problems
 from .currency import Currency
 from .legality import Legality, conformance_alone
 from .request import REPORT_KINDS, RUNNER_OBSERVATIONS, never_lost, request_id
@@ -218,6 +219,20 @@ class Admission:
         statements = {w.id: files[w.id].statement(self.ledger_id) if w.id in files else None for w in model.witnesses}
         retired = retirement_held(statements.values(), model.q_a, self.ledger_id, host_keys, chain)
         return qualify(chain, reports, model, host_keys, self.home.high_water(self.ledger_id).get(), retired=retired)
+
+    def loss_evidence(self, chain) -> tuple[dict[str, Any], bytes]:
+        """A ``LEDGER_LOSS``'s fields after ``chain``'s last readable entry, and its report object, from the witness
+        reports this host reads and its high-water mark (readings F54-F56)."""
+
+        model, files = self.witness_set(chain)
+        reports = {w.id: files[w.id].read(self.ledger_id) if w.id in files else None for w in model.witnesses}
+        return loss_evidence(chain, self.trees, model, reports, self.host_keys(chain),
+                             self.home.high_water(self.ledger_id).get())
+
+    def prepare_loss(self) -> dict[str, Any]:
+        """The fields of a ``LEDGER_LOSS`` the human gate would sign now: what the operator puts in the record."""
+
+        return self.loss_evidence(self.chain())[0]
 
     def trial_qualification(self, chain, entry: Mapping[str, Any]) -> Qualification:
         """The trial qualification before a recovery append (reading F51): ``chain`` extended by ``entry``, sealed
@@ -465,8 +480,14 @@ class Admission:
                 or not verify_sshsig(roots.humans[actor], message, signature):
             raise EntryInvalid("a lifecycle record needs its named human's verifying approval for this ledger, position "
                                "and head")
-        problems = record_violations(record) + _content_problems(kind, record.get("fields"), roots, position,
-                                                                 self.ledger_id)
+        objects = None
+        if kind == "LEDGER_LOSS":
+            expected, report = self.loss_evidence(chain)
+            problems = record_violations(record) + loss_problems(record.get("fields"), expected)
+            objects = {expected["report"]: report}  # the qualification report, stored with the entry (F55)
+        else:
+            problems = record_violations(record) + _content_problems(kind, record.get("fields"), roots, position,
+                                                                     self.ledger_id)
         identity = record_id({**record, "provenance": None})
         if any(e.lifecycle is not None and record_id({**e.lifecycle, "provenance": None}) == identity for e in entries):
             problems.append("this lifecycle record is already admitted")  # Review e6ac009 B5
@@ -484,7 +505,7 @@ class Admission:
             if not trial.current or trial.head != position or trial.provisional is not None:
                 raise AdmissionHalted(f"the trial qualification of this {kind} is {trial.state} at {trial.head}: "
                                       f"it would not be held (reading F51)")
-        appended = self.commit(entry, head)
+        appended = self.commit(entry, head, objects=objects)
         if kind == "LINEAGE_RETIREMENT":
             self.publish_retirement(self.chain())
         return appended.position
@@ -771,7 +792,7 @@ RECOVERY_STATES: dict[str, frozenset[str]] = {
     "REPLICA_REDESIGNATION": frozenset(),  # 7g
 }
 #: The step of Phase F that supplies each recovery kind's content check; until then it is refused.
-_UNBUILT = {"LEDGER_LOSS": "7c", "FORK_RESOLUTION": "7d", "WITNESS_SET_REDESIGNATION": "7e"}
+_UNBUILT = {"FORK_RESOLUTION": "7d", "WITNESS_SET_REDESIGNATION": "7e"}
 
 
 def admissible(kind: str, held: Qualification) -> bool:

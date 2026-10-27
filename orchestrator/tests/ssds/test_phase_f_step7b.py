@@ -89,12 +89,12 @@ class Gate(RequestFixture):
         self.assertEqual(len(self.entries()), before)
 
     def test_under_rollback_a_loss_and_a_fork_resolution_pass_the_gate(self) -> None:
-        """Each then meets its unbuilt content check (7c, 7d); B1: a fork resolution under ROLLBACK."""
+        """Each then meets its content check (7c's, and 7d's unbuilt one); B1: a fork resolution under ROLLBACK."""
 
         self.rewind()
         before = len(self.entries())
-        for kind, step in (("LEDGER_LOSS", "7c"), ("FORK_RESOLUTION", "7d")):
-            with self.subTest(kind=kind), self.assertRaisesRegex(EntryInvalid, f"step {step}"):
+        for kind, refusal in (("LEDGER_LOSS", "recomputed"), ("FORK_RESOLUTION", "step 7d")):  # 7c builds the loss
+            with self.subTest(kind=kind), self.assertRaisesRegex(EntryInvalid, refusal):
                 self.recovery(kind)
         with self.assertRaisesRegex(AdmissionHalted, "reading F50"):
             self.recovery("WITNESS_SET_REDESIGNATION")

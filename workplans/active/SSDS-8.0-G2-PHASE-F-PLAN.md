@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57); revision 24 awaits its re-check. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -503,7 +503,10 @@ Until step 6 builds the commit, an accepted structure-changing request is unreac
 
 Until heads hold acceptances (steps 6-8), a request-level support cycle among a request's own records is unreachable through the engine. Each record would rely on a subject that no acceptance at the head makes valid, so step 6 refuses it first. `CYCLE_SUPPORT`'s engine reading is therefore tested by driving the trial.
 
-Until Phase H builds F47's ref restore, §5.7's recovery under `INTEGRITY_HALT` (a `FORK_RESOLUTION` or `LEDGER_LOSS` appended after the last valid entry) is unbuilt: Admission appends nothing under `INTEGRITY_HALT`, and the exit discloses it (reading F50).
+Until Q-F14 places F47's ref restore, these are unbuilt and disclosed at the exit:
+- **§5.7's recovery under `INTEGRITY_HALT`**, a `FORK_RESOLUTION` or `LEDGER_LOSS` appended after the last valid entry. Admission appends nothing under `INTEGRITY_HALT` (reading F50).
+- **§23.8's "authoritative replica lost, none extends the checkpoint" row.** With nothing readable there is no entry to append after, and Admission refuses without a readable genesis (7c; re-check of 5636d55, note).
+- **§23.8's "abandoned entries later surface" row.** Its integrity obligation is unbuilt, because no derivation or qualification reading of a surfaced authenticated chain exists, contrary to §3.4's "owned elsewhere" placement. With one replica per ledger (F3), no second authenticated chain can surface in Phase F. A witness that still holds an abandoned checkpoint is already read as abandoned, not merged (7c).
 
 Until the phase that lifts SD-70's gate for integrations builds step 6f (SD-73), fences, settlement, the kept-fence route and `NOT_SETTLED` are unbuilt; no fence can arise while no integration is accepted. Until it builds step 5e, the rebase SD-69's Q-F6 (iii) correction allows, a record declaring a rebase frame is refused `REF_TRANSFORMATION` (§3.1, 4c-iii; SD-71). Until it builds step 5f, step 8's no-collateral-regression check is unbuilt. No integration is accepted meanwhile (SD-70), and the Phase F exit discloses both.
 
@@ -1856,3 +1859,39 @@ Its notes:
 - **F56.** `trust_roots` is genesis's complete shape, with the folded dispatcher and human keys.
 - **F54.** It records the single-home form.
 - **7c's tests.** They add the five cases and note 2, and place the replica-lost row as disclosed.
+
+**Re-check of 5636d551 (revision 24).** No SERIOUS CHALLENGE. **PASS**: B1 is closed and the notes are taken up. Its one note, to list the replica-lost row in §6, is taken up with 7c's record.
+
+**Step 7c built (`LEDGER_LOSS`; readings F54-F57).**
+- **`admission/loss.py`.**
+  - `evidence` computes, from the replica's chain, the declared witnesses' authentic reports and the retained mark:
+    - the retained head;
+    - the exact abandoned set with `loss_status`;
+    - the canonical report and its digest;
+    - the controls in force: witness model, trust roots in genesis's full shape with the folded dispatcher and human keys, and the ruleset from `History`.
+  - `loss_problems` requires each field to equal its recomputation. It refuses nothing abandoned (a redesignation) and only proved-never-admitted heads (a fork resolution).
+- **Engine.**
+  - `Admission.loss_evidence` and `prepare_loss` (what the operator puts in the record).
+  - `admit_lifecycle` checks a loss against the recomputation and stores the report object in the entry.
+  - The gate (F50) and the trial (F51) apply as in 7b. `LEDGER_LOSS` leaves `_UNBUILT`.
+- **Tests.** `test_phase_f_step7c.py`, 14 tests, all on fixture ledgers.
+  - **Truncated ledger, newer product.** The loss is admitted with the known-admitted head, the report stored, the boundary folded, `QUALIFIED` at the loss, and the mark raised. The next request absorbs the newer product (6a).
+  - **Stale-consistent restore.** A permissive record before the boundary is withheld (`cont` false).
+  - **A fork.** The loss names the admitted side, and the controls carry the ruleset at `A`.
+  - **The mark's own head** is named and not proved never admitted (note 2). A mark that no witness reports is named too.
+  - **A forged checkpoint** names nothing.
+  - **Recomputation.** Each field must equal it, as must a status, and the shape is closed.
+  - **A witness changed after prepare** changes the report and refuses the record; an unreadable file holds nothing.
+  - **A qualified ledger** takes no loss.
+  - **The compare-and-swap is refused** when the ref is past the readable prefix (note 1; 7d2d1c0 N2), with nothing appended.
+  - **On `TEAM`:**
+    - a mixed set, one head known admitted and one proved never admitted, is one loss naming both;
+    - only proved-never-admitted heads are refused, as a fork resolution;
+    - a loss under `UNQUALIFIED` with a possibly-admitted head passes the gate and is refused by the trial;
+    - nothing abandoned is refused.
+- **Departures from revision 24's list, each a finding and not a weakening.**
+  - **The loss under `UNQUALIFIED` is not admitted.** With two of three witnesses lost, the unchanged witness set (F46) cannot hold any new entry, so the trial refuses it. §23.8 has the redesignation "carry a `LEDGER_LOSS`", so admitting it is 7e's.
+  - **`REQUALIFY`'s positive case stays at derivation level** (`test_s3`, `test_support`). The equivalence Phase F's admission accepts is not current at the retained head, so §23.6 owes nothing for it, and the test asserts that. No permissive record Phase F admits is current at a fixture head.
+  - **The surfaced-chain row has no reading to test.** It is disclosed in §6.
+- **Mutants.** Thirteen, over `loss.py` and the engine's report storage: all are killed. X02 (the mark not named) and X04 (no authenticity filter) survived at first and are killed by the two tests added for them.
+- **Full suite.** It passes: 1345 tests, 6 skipped. It ran before the two added tests, which then ran with the step's tests and pass.
