@@ -32,7 +32,7 @@ REASONS = frozenset({
     # step 3: authentication and authorization (Phase F steps 3-4)
     "AUTH_ENVELOPE", "AUTH_ACTOR", "AUTH_VERSION", "AUTH_ROLE_KIND", "AUTH_TARGET_PART", "AUTH_TARGET_REVOKED",
     "AUTH_ILL_FORMED", "AUTH_TARGET_NOT_CURRENT", "AUTH_TARGET_NOT_EFFECTIVE", "AUTH_SUPERSEDES",
-    "AUTH_WRITE_SCOPE", "AUTH_PROTECTED",
+    "AUTH_WRITE_SCOPE", "AUTH_PROTECTED", "READING_CONTRADICTION",
     # step 4, structure (Phase F step 4c): STRUCT_<code> for each §1.9 static check and STRUCT_TERM_UNRESOLVED,
     # STRUCT_RESERVED_LEAF, STRUCT_MODE_MIXED, STRUCT_REVALIDATE, STRUCT_SDG_*, STRUCT_ILLEGAL_CYCLE,
     # STRUCT_SINGLE_DEFINER and STRUCT_MANIFEST_UNPARSED (reading F15); RELATION_<code> for each S0 relation defect
@@ -280,6 +280,12 @@ def referenced_records(record: Mapping[str, Any]) -> set[str]:
         # checks against the head's derived obligations (Phase F 5b-iii), so they are no record references
         if isinstance(target.get("records"), list) and record.get("kind") != "COORDINATION_DECISION":
             out.update(r for r in target["records"] if isinstance(r, str) and r.startswith("sha256:"))
+    fields = record.get("fields") if isinstance(record.get("fields"), Mapping) else {}
+    if record.get("kind") == "EVIDENCE_ASSESSMENT" and isinstance(fields.get("observations"), list):
+        for item in fields["observations"]:  # a discriminating reading's observations and failure (reading F109)
+            for key in ("observation", "assessment"):
+                if isinstance(item, Mapping) and isinstance(item.get(key), str) and item[key].startswith("sha256:"):
+                    out.add(item[key])
     for entry in record.get("basis") or []:
         if entry.get("mode") in ("record", "standing") or (entry.get("mode") == "identity"
                                                            and isinstance(entry.get("target"), Mapping)
@@ -346,6 +352,9 @@ def referenced_objects(record: Mapping[str, Any]) -> set[str]:
     fields = record.get("fields") if isinstance(record.get("fields"), Mapping) else {}
     if record.get("kind") == "REALIZATION" and is_digest(fields.get("evaluated")):
         out.add(fields["evaluated"])
+    for item in fields.get("observations") or [] if record.get("kind") == "EVIDENCE_ASSESSMENT" else []:
+        if isinstance(item, Mapping) and is_digest(item.get("reference")):
+            out.add(item["reference"])  # a reading's content reference (F109)
     return out
 
 

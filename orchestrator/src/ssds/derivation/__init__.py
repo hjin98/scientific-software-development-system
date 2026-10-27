@@ -14,6 +14,8 @@ from .baseline import BaselineStructure, baseline_structure, genesis_structure_p
 from .frames import Frame, Transformation, frame_state, transformation_of
 from .history import DERIVATION_VERSION, CheckpointInvalid, History, TreeSource
 from .outcomes import adverse, passing
+from .reading import is_reading
+from .reading import read as read_reading
 from .realization import on_minus
 from .realization import read as read_realization
 from .reports import allowed_outcomes
@@ -49,5 +51,5 @@ __all__ = [
     "Obligation", "P", "Policy", "RunnerClass", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "TrustRoots", "Workflow", "adverse", "passing", "allowed_outcomes", "queries", "baseline_structure", "consequences", "trust_roots",
     "derive", "trial", "ROLE_TEMPLATES", "role_permits", "supersession_target", "triple_key",
     "Frame", "Transformation", "frame_state", "transformation_of", "outside_scope", "protected_touched",
-    "adoption_codes", "adoption_frame", "AGENT_ROLES", "READY", "UNKNOWN", "on_minus", "read_realization",
+    "adoption_codes", "adoption_frame", "AGENT_ROLES", "READY", "UNKNOWN", "on_minus", "read_realization", "is_reading", "read_reading",
 ]

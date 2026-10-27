@@ -43,7 +43,8 @@ from .lifecycle import (lifecycle_message, lifecycle_problems, migration_problem
 from .loss import evidence as loss_evidence, in_force as loss_in_force, loss_problems, redesignation_problems, \
     report_ref, resolution_problems
 from .currency import Currency
-from .evidence import assessment_references, custody_problems, realization_references, realization_shape
+from .evidence import (assessment_references, custody_problems, reading_shape, realization_references,
+                       realization_shape)
 from .legality import Legality, conformance_alone
 from .request import REPORT_KINDS, never_lost, request_id
 
@@ -632,7 +633,8 @@ class Admission:
             for record in records:
                 own = record_problems(record, record_violations)
                 if not own:
-                    own += realization_shape(record) + custody_problems(record)  # step 1 (F78, F102)
+                    own += realization_shape(record) + custody_problems(record) + reading_shape(record)  # step 1
+                    # (F78, F102, F106)
                 if not own:
                     rid = record["id"]
                     if rid in known or any(p["id"] == rid for p in passing):
@@ -661,7 +663,7 @@ class Admission:
                         own.append("REF_OBJECT")
                     own.extend(realization_references(record, s, known | {p["id"] for p in passing},
                                                       {**stored_objects, **good}))  # F97
-                    own.extend(assessment_references(record, s, {p["id"]: p for p in passing}))  # F100
+                    own.extend(assessment_references(record, s, {p["id"]: p for p in passing}, support.a))  # F100, F109
                     if record["frame"] == "ADMITTED":  # a frame record's target is its frame's (§7.5)
                         units, pairs, named_triples = target_references(record)
                         if record["kind"] in ("ACCEPTANCE", "LEGACY_ACCEPTANCE"):

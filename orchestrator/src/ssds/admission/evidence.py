@@ -20,7 +20,7 @@ import json
 from collections.abc import Container, Mapping
 from typing import Any
 
-from ssds.derivation import on_minus, read_realization
+from ssds.derivation import is_reading, on_minus, read_reading, read_realization
 
 
 def realization_shape(record: Mapping[str, Any]) -> list[str]:
@@ -77,12 +77,59 @@ def realization_references(record: Mapping[str, Any], s: Any, known: Container[s
     return codes
 
 
-def assessment_references(record: Mapping[str, Any], s: Any, passing: Mapping[str, Mapping[str, Any]]) -> list[str]:
-    """Step 2 for an ``ORDINARY`` ``EVIDENCE_ASSESSMENT`` in state ``s`` (step 9d-ii; reading F100), with the shape
-    checks that read state. ``passing`` holds the records passing before it, by identity."""
+def reading_shape(record: Mapping[str, Any]) -> list[str]:
+    """Step 1: a discriminating reading outside its closed shape (reading F106)."""
 
-    if record.get("kind") != "EVIDENCE_ASSESSMENT" or (record.get("fields") or {}).get("mode") != "ORDINARY":
+    if not is_reading(dict(record)):
         return []
+    return ["SCHEMA_RECORD"] if not read_reading(str(record.get("id")), dict(record)).well_formed else []
+
+
+def assessment_references(record: Mapping[str, Any], s: Any, passing: Mapping[str, Mapping[str, Any]],
+                          a: Any = None) -> list[str]:
+    """Step 2 for an ``ORDINARY`` (step 9d-ii; reading F100) or ``DISCRIMINATING`` (step 9e-ii; reading F109)
+    ``EVIDENCE_ASSESSMENT`` in state ``s``, with the shape checks that read state. ``passing`` holds the records
+    passing before it, by identity; ``a`` is the state's ``Assessments``, which a reading's checks read."""
+
+    mode = (record.get("fields") or {}).get("mode")
+    if record.get("kind") != "EVIDENCE_ASSESSMENT" or mode not in ("ORDINARY", "DISCRIMINATING"):
+        return []
+    if mode == "DISCRIMINATING":
+        return _reading_references(record, s, a) or _assessment_references(record, s, passing, ordinary=False)
+    return _assessment_references(record, s, passing, ordinary=True)
+
+
+def _reading_references(record: Mapping[str, Any], s: Any, a: Any) -> list[str]:
+    """F109's step 2 for a reading: ``a⁻`` an assessor-read failure for its obligation, ``p`` and ``q`` complete
+    runs of ``conf(a⁻)``, the failing item read under ``a⁻``'s reading, and ``q`` showing ``a⁻``'s outcome on
+    ``F(a⁻)`` ("``a⁻``'s reproduced outcome"). A reading in a frame is ``SCHEMA_UNSUPPORTED`` (SD-70)."""
+
+    if record.get("frame") != "ADMITTED":
+        return ["SCHEMA_UNSUPPORTED"]
+    r = read_reading(str(record.get("id")), dict(record))
+    failure = s.record(r.failure) if r.failure in s.records else None
+    if failure is None or failure["kind"] != "EVIDENCE_ASSESSMENT" or failure.get("outcome") != "FAIL" \
+            or failure["target"].get("obligation") != (record.get("target") or {}).get("obligation"):
+        return ["REF_TARGET"]
+    real = a.real(r.failure)
+    reading = failure["fields"].get("reading") or {}
+    declared = s.specs.declaration_at(reading.get("unit"), reading.get("rev"))
+    if real is None or getattr(declared, "oracle", None) != "ASSESSOR_READ":
+        return ["REF_TARGET"]  # a reading discriminates only an assessor-read failure (§6.6)
+    if r.fail_reading != (reading.get("unit"), reading.get("rev")):
+        return ["REF_TARGET"]  # the failing item reads under a⁻'s reading
+    configuration = set(a.observations(r.failure))
+    for o in (r.passing, r.failing):
+        if o not in configuration or s.record(o).get("outcome") != "COMPLETE":
+            return ["REF_TARGET"]  # a complete run of conf(a⁻)
+    failing = a.failing_outputs(r.failure)
+    if a.restricted(r.failing, failing) != a.restricted(real, failing):
+        return ["REF_TARGET"]  # q shows a⁻'s reproduced outcome on F(a⁻)
+    return []
+
+
+def _assessment_references(record: Mapping[str, Any], s: Any, passing: Mapping[str, Mapping[str, Any]],
+                           ordinary: bool) -> list[str]:
     codes = []
     target, fields = record.get("target") or {}, record.get("fields") or {}
     real = target.get("realization")
@@ -101,6 +148,8 @@ def assessment_references(record: Mapping[str, Any], s: Any, passing: Mapping[st
     if not (isinstance(reading, Mapping) and reading.get("unit") == spec.get("unit") and reading.get("rev") in known_revs):
         codes.append("REF_TARGET")  # a revision of the realization's specification
         return codes
+    if not ordinary:
+        return sorted(set(codes))  # a reading's shape is its reader's (F106)
     named = fields.get("failing_outputs")
     if named and record.get("outcome") != "FAIL":
         codes.append("SCHEMA_RECORD")  # only a failure names failing outputs
@@ -122,4 +171,5 @@ def custody_problems(record: Mapping[str, Any]) -> list[str]:
     return ["SCHEMA_RECORD"] if len(set(runs)) != len(runs) else []
 
 
-__all__ = ["assessment_references", "custody_problems", "realization_references", "realization_shape"]
+__all__ = ["assessment_references", "custody_problems", "reading_shape", "realization_references",
+           "realization_shape"]

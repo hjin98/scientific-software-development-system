@@ -26,9 +26,12 @@ identity a ``REISSUE`` obligation at the base lists, the existence half is met b
 role is judged against the original obligation as derived at the original issue (plan check of 53216046 B1; re-check
 of 25bd1d0d, B1 and note 1). Any other record citing ``reissue_of`` stays ``SCHEMA_UNSUPPORTED``.
 
-Not built yet, so refused as ``SCHEMA_UNSUPPORTED`` (fail closed, plan §3.1): discriminating readings (step 9),
-product-scope acceptance, and lifecycle-tier records, which reach the ledger only through the human-gated lifecycle
-path.
+A discriminating reading is refused ``READING_CONTRADICTION`` where it reads one outcome both ways under one reading,
+and is admitted only at its class: R3, a human's, where a subject its failure is about is, or has been, D1 or D2
+(§8.3 step 3, §6.6, §6.8; step 9e-ii, reading F109).
+
+Not built yet, so refused as ``SCHEMA_UNSUPPORTED`` (fail closed, plan §3.1): product-scope acceptance, and
+lifecycle-tier records, which reach the ledger only through the human-gated lifecycle path.
 """
 
 from __future__ import annotations
@@ -37,7 +40,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from ssds.derivation import ROLE_TEMPLATES, Support, frame_state, role_permits, supersession_target, triple_key
+from ssds.derivation import (ROLE_TEMPLATES, Support, frame_state, is_reading, read_reading, role_permits,
+                              supersession_target, triple_key)
 from ssds.ledger.read import LIFECYCLE_TIER, SUPPORT_TIER
 
 from .dependency import dependency_codes
@@ -121,10 +125,8 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
         codes.add("AUTH_ROLE_KIND")
     resubmission = isinstance(record.get("provenance"), dict) and "reissue_of" in record["provenance"] \
         and record["provenance"]["reissue_of"] not in listed  # a listed one is step 8g-ii's (F74)
-    if kind == "PRODUCT_SCOPE_ACCEPTANCE" or resubmission \
-            or (kind == "EVIDENCE_ASSESSMENT" and (record.get("fields") or {}).get("mode") == "DISCRIMINATING"):
-        # not built: discriminating readings (step 9);
-        # the product-scope authority policy designates (§3.5; plan review 8a41539 B4); a re-issue's resubmission,
+    if kind == "PRODUCT_SCOPE_ACCEPTANCE" or resubmission:
+        # not built: the product-scope authority policy designates (§3.5; plan review 8a41539 B4); a re-issue's resubmission,
         # other than the listed one step 8g-ii's Dispatcher makes, under the re-issued task's envelope (review 8d274c4
         # B2; reading F74)
         codes.add("SCHEMA_UNSUPPORTED")
@@ -133,6 +135,8 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
         codes.add("AUTH_ACTOR")
     if record["actor_class"] != "HUMAN" and trial.a.disposition_needs_human(record):
         codes.add("AUTH_ACTOR")  # §6.8: disposing of a D1/D2 failure is R3, a human's (reading F101)
+    if is_reading(record):
+        codes |= _reading_codes(record, trial)
     if kind == "IMMATERIALITY" and not _immateriality_actor(record, trial, obligation):
         codes.add("AUTH_ACTOR")
     if kind == "CUSTODY_ENUMERATION" and not _custody_actor(record, trial):
@@ -150,6 +154,24 @@ def _record_codes(record: dict, envelope: Mapping[str, Any] | None, trial: Any, 
     if any(_supersession_unbuilt(x, trial) for x in record.get("supersedes") or []):
         codes.discard("AUTH_SUPERSEDES")
         codes.add("SCHEMA_UNSUPPORTED")
+    return codes
+
+
+def _reading_codes(record: dict, trial: Any) -> set[str]:
+    """A discriminating reading at step 3 (reading F109): ``READING_CONTRADICTION`` where its two readings are the
+    same and the two outcomes on ``F(a⁻)`` identical; ``AUTH_ACTOR`` for a non-human where its class is R3."""
+
+    r = read_reading(record["id"], record)
+    s, a = trial.s, trial.a
+    if not r.well_formed or r.failure not in s.records:
+        return set()  # steps 1 and 2 refuse it
+    codes = set()
+    failing = a.failing_outputs(r.failure)
+    if r.pass_reading == r.fail_reading and r.passing in s.records and r.failing in s.records \
+            and a.restricted(r.passing, failing) == a.restricted(r.failing, failing):
+        codes.add("READING_CONTRADICTION")  # one outcome cannot be read both ways under one reading (§6.6)
+    if record["actor_class"] != "HUMAN" and a.needs_r3(r.failure):
+        codes.add("AUTH_ACTOR")  # R3: the candidate-own exception is failed closed (F108)
     return codes
 
 

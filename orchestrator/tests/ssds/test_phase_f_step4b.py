@@ -339,7 +339,10 @@ class Recheck(RequestFixture):
                                     outcome="ACCEPTED"), "actor": HUMAN})
         self.assertEqual(_record_codes(product, None, sc.derive(), None, None), {"SCHEMA_UNSUPPORTED"})
 
-    def test_b6_lifecycle_and_discriminating_records_fail_closed(self) -> None:
+    def test_b6_lifecycle_records_fail_closed(self) -> None:
+        """A discriminating reading, which failed closed here, is built by step 9e-ii: its class and contradiction
+        moved to ``test_phase_f_step9e_ii`` (4b-ii's moved items)."""
+
         from ssds.admission.authorize import _record_codes
 
         sc = Scenario(DOC, {"doc.md": "r0\n"})
@@ -349,9 +352,6 @@ class Recheck(RequestFixture):
         envelope = {"role": "REVIEWER"}
         self.assertEqual(_record_codes(lifecycle, None, d, None, None), {"SCHEMA_UNSUPPORTED"})
         self.assertEqual(_record_codes(lifecycle, envelope, d, None, None), {"AUTH_ROLE_KIND"})
-        reading = judgment("EVIDENCE_ASSESSMENT", {"realization": "sha256:" + "1" * 64, "obligation": "e"}, "PASS",
-                           fields={"mode": "DISCRIMINATING", "reading": {"unit": "doc", "rev": "sha256:" + "2" * 64}})
-        self.assertEqual(_record_codes(reading, None, d, None, None), {"SCHEMA_UNSUPPORTED"})
 
     def test_b6_the_role_templates_are_exactly_catalogue_12_3(self) -> None:
         from ssds.derivation import ROLE_TEMPLATES

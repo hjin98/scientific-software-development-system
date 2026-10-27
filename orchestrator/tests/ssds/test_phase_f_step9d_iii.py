@@ -66,11 +66,12 @@ SPEC_TERM = {"file": "s.py", "symbol": "check"}
 class AdmittedRuns(GenesisFixture):
     MODES = {"*": {"mode": "UNGOVERNED"}}
     WORKFLOW = ""
+    DECLARATION = DECLARATION
 
     def setUp(self) -> None:
         super().setUp()
         self.runner, self.custodian = RunnerKey(), RunnerKey()
-        self.write({"a.py": "v = 1\n", "s.py": SPEC, "s.ssds-spec.toml": DECLARATION, "other.txt": "1\n",
+        self.write({"a.py": "v = 1\n", "s.py": SPEC, "s.ssds-spec.toml": self.DECLARATION, "other.txt": "1\n",
                     ".ssds/manifest.toml": MANIFEST, ".ssds/policy.toml": self.policy()})
         for gone in ("guide.md", "src/tool.py"):
             (self.product / gone).unlink()
