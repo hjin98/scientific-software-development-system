@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is built and awaits its review. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6); 7e (`WITNESS_SET_REDESIGNATION`) is next. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -1935,3 +1935,13 @@ Its notes:
 - **Mutants.** Six: five are killed. D03 is equivalent under the gate: `FORK` and `ROLLBACK` arise only from an off-chain head not yet abandoned, which `evidence` names, so "nothing abandoned" cannot reach a fork resolution's check. The refusal stays as defence.
 - **Fail closed.** Choosing the side the replica does not hold, and restoring a recoverable suffix, wait for the ref restore (F47, Q-F14).
 - **Full suite.** It passes on the repaired code: 1355 tests, 6 skipped.
+
+**Same-family review of 099556e6 (7d and reading F58).** No SERIOUS CHALLENGE. **PASS** for both, with no blockers. Its answers:
+- **F58** is faithful to §22.4, §23.6 and §23.8.
+- **The exclusion over every readable entry** is consistent with `qualify`'s `_abandoned`. The trial holds every earlier recovery entry inside its qualified prefix, so a mismatch can only fail closed.
+- **D03** is equivalent under the gate.
+- **The lifecycle-form resubmission** is sound.
+
+Its one note: the request-form resubmission waits for a `TEAM` fixture with policy objects, and is added when one exists.
+
+**Step 7d is closed.**
