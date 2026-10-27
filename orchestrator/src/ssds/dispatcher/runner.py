@@ -139,6 +139,20 @@ class Workspaces:
         finally:
             os.close(runs)
 
+    def surviving_outputs(self, ledger_id: str, run_id: str) -> bytes | None:
+        """A crashed run's ``outputs.json``, read through descriptors with ``_outputs``'s rules, or ``None``."""
+
+        out = self.home._directory((RUNS, ledger_id, run_id, "out"), create=False)
+        if out is None:
+            return None
+        try:
+            return _outputs(out)
+        finally:
+            os.close(out)
+
+    def remove_run(self, ledger_id: str, run_id: str) -> None:
+        self.remove(Workspace(ledger_id, run_id, self.home.root / RUNS / ledger_id / run_id / "tree"))
+
     def _tree(self, workspace: Workspace) -> int:
         runs = self.home._directory((RUNS, workspace.ledger_id, workspace.run_id, "tree"), create=False)
         if runs is None:

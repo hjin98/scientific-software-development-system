@@ -171,16 +171,22 @@ class Executor:
         return record["target"]["spec"]["unit"], [c["unit"] for c in record["target"]["claim"]], real
 
     def _hold_key(self, o: Any, spec: str | None) -> str:
-        """One outstanding execution per configuration (§6.9): the specification, the obligation's claims and, for a
-        reproduction on the failing tree, that tree."""
+        """One outstanding execution per configuration (§6.9; review of cc7abfed, note 1): the specification (its
+        configuration's fixed attributes are its declaration's), no pins, the frame (always ``ADMITTED`` here), and
+        the tree it runs on: the failing tree for a reproduction there, else the head."""
 
-        tree = o.params.get("tree") if o.kind == "RERUN" else None
-        return hashlib.sha256(repr((spec, o.kind == "RERUN" and o.target.get("on"), tree, o.target)).encode()).hexdigest()
+        on_failing = o.kind == "RERUN" and o.target.get("on") == "FAILING"
+        tree = o.params.get("tree") if on_failing else "HEAD"
+        return hashlib.sha256(repr((spec, "ADMITTED", tree)).encode()).hexdigest()
 
     # -- one run ---------------------------------------------------------------------------------------------
 
     def run(self, support: Any, item: Run) -> Any:
-        """Runs ``item`` and submits its realization; returns the decision."""
+        """Runs ``item`` and submits its realization; returns the decision.
+
+        Its request is journaled before its execution counts as ended (review of cc7abfed, B1): a failure anywhere
+        after the intent leaves either an open execution, which ``recover`` reports ``INCOMPLETE CRASHED``, or an
+        undecided request, which it resubmits; never neither."""
 
         if item.held is not None:
             raise ValueError(f"{item.obligation.id} is held: {item.held}")
@@ -211,28 +217,30 @@ class Executor:
         try:
             ws = self.workspaces.materialize(self.ledger_id, self.trees(basis["tree"]))
         except MaterializeRefused:
-            self.journal.exec_ended(run_id, "FAILED_TO_START")
-            return self._submit(support, self._record(key, target, {**execution, "incomplete": "FAILED_TO_START"},
-                                                      at, spec, None, run_id))
-        try:
-            self.journal.exec_started(run_id)
-            found = self.sandbox.execute(ws, self.trees(basis["tree"]), provider,
-                                         effective_bound_hours(declared, "DISPATCHER") * 3600)
-        finally:
-            self.workspaces.remove(ws)
+            record = self._record(key, target, {**execution, "incomplete": "FAILED_TO_START"}, at, spec, None, run_id)
+            return self._finish(run_id, "FAILED_TO_START", record, {})
+        self.journal.exec_started(run_id, ws.run_id)  # where a restart finds its outputs (review of cc7abfed, B2)
+        found = self.sandbox.execute(ws, self.trees(basis["tree"]), provider,
+                                     effective_bound_hours(declared, "DISPATCHER") * 3600)
+        # an exception above leaves the workspace and the open execution for recover, outputs and all
         incomplete, outcome, objects = found.incomplete, found.outcome, {}
         if incomplete is None and outcome_problems(declared, outcome):
             incomplete, outcome = "MALFORMED_OUTPUT", None  # every declared output once, each canonical (§17.3)
-        self.journal.exec_ended(run_id, incomplete)
         refs = []
         if incomplete is not None and found.raw is not None:
             refs = [self._keep(found.raw)]  # a failing outcome written before the end stays visible (F114)
-        if incomplete is None:
-            execution_done = execution
-        else:
-            execution_done = {**execution, "incomplete": incomplete}
-        record = self._record(key, target, execution_done, at, spec, outcome, run_id, refs, objects)
-        return self._submit(support, record, objects)
+        done = execution if incomplete is None else {**execution, "incomplete": incomplete}
+        record = self._record(key, target, done, at, spec, outcome, run_id, refs, objects)
+        decision = self._finish(run_id, incomplete, record, objects)
+        self.workspaces.remove(ws)
+        return decision
+
+    def _finish(self, run_id: str, incomplete: str | None, record: dict[str, Any], objects: dict[str, str]) -> Any:
+        """The request journaled, then the execution ended, then the request sent (B1's order)."""
+
+        signed, rid = self._request(record, objects)
+        self.journal.exec_ended(run_id, incomplete)
+        return self._send(signed, rid)
 
     def _record(self, key: RunnerKey, target: dict[str, Any], execution: dict[str, Any], at: Any, spec: str,
                 outcome: dict[str, Any] | None, run_id: str, refs: list[dict[str, Any]] = (),
@@ -259,13 +267,17 @@ class Executor:
         self.home.create_private(self.home.artifact_parts(self.ledger_id, digest), raw)
         return {"store": "RUNNER", "digest": digest, "media_type": "application/json"}
 
-    def _submit(self, support: Any, record: dict[str, Any], objects: dict[str, str] | None = None) -> Any:
+    def _request(self, record: dict[str, Any], objects: dict[str, str] | None = None) -> tuple[dict[str, Any], str]:
+        """The record's request, signed by its runner key and journaled (``REQUEST``) before it is sent."""
+
         s = self._latest()
         request = {"binding": None, "claims": [], "base_position": s.n, "base_commit": s.h.head(s.n),
                    "candidates": [], "adopted_deltas": [], "records": [record], "objects": dict(objects or {})}
         key_class = record["fields"]["execution"]["runner"]["class"]
         signed = RunnerKey(self.home, self.ledger_id, key_class).sign(request)
-        rid = self.journal.submitted(signed)
+        return signed, self.journal.submitted(signed)
+
+    def _send(self, signed: dict[str, Any], rid: str) -> Any:
         decision = self.submit(signed)
         self.journal.decided(rid)
         return decision
@@ -276,8 +288,10 @@ class Executor:
     # -- recovery --------------------------------------------------------------------------------------------
 
     def recover(self) -> list[Any]:
-        """After a restart: an execution intended and never ended is submitted ``INCOMPLETE CRASHED`` (§6.9: every
-        started execution ends in an admitted observation); an undecided request is resubmitted by identity."""
+        """After a restart (review of cc7abfed, B1 and B2): an undecided request is resubmitted by identity; an
+        execution intended and never ended, whose request was never journaled, is submitted ``INCOMPLETE
+        CRASHED``, once, its surviving ``outputs.json`` kept as a native artifact the record references and its
+        workspace removed (§6.9; F114)."""
 
         from ssds.admission.request import request_id
 
@@ -285,9 +299,22 @@ class Executor:
         for request in self.journal.undecided():
             out.append(self.submit(request))  # Admission answers a decided request by its recorded decision
             self.journal.decided(request_id(request))
+        requested = {(r.get("provenance") or {}).get("run") for e in self.journal.entries() if e["kind"] == "REQUEST"
+                     for r in e["request"].get("records") or []}
+        started = {e["run_id"]: e.get("workspace") for e in self.journal.entries() if e["kind"] == "EXEC_STARTED"}
         for intent in self.journal.open_executions():
-            self.journal.exec_ended(intent["run_id"], "CRASHED")
-            out.append(self._submit(None, intent["record"]))
+            run_id = intent["run_id"]
+            if run_id in requested:  # its request is journaled (and answered above): it only ends here
+                self.journal.exec_ended(run_id, None)
+                continue
+            record = dict(intent["record"])
+            workspace = started.get(run_id)
+            raw = self.workspaces.surviving_outputs(self.ledger_id, workspace) if workspace else None
+            if raw is not None:
+                record = _with_id({**record, "refs": [*record.get("refs", []), self._keep(raw)]})
+            out.append(self._finish(run_id, "CRASHED", record, {}))
+            if workspace:
+                self.workspaces.remove_run(self.ledger_id, workspace)
         return out
 
 

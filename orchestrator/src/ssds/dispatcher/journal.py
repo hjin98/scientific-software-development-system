@@ -147,8 +147,10 @@ class Journal:
         self._append({"kind": "EXEC_INTENT", "run_id": run_id, "obligation_id": obligation_id, "hold": hold,
                       "record": dict(record)})
 
-    def exec_started(self, run_id: str) -> None:
-        self._append({"kind": "EXEC_STARTED", "run_id": run_id})
+    def exec_started(self, run_id: str, workspace: str) -> None:
+        """The run's workspace exists: a restart finds its outputs there (review of cc7abfed, B2)."""
+
+        self._append({"kind": "EXEC_STARTED", "run_id": run_id, "workspace": workspace})
 
     def exec_ended(self, run_id: str, incomplete: str | None) -> None:
         self._append({"kind": "EXEC_ENDED", "run_id": run_id, "incomplete": incomplete})

@@ -222,6 +222,74 @@ class Recovery(Fixture):
         self.assertEqual(restarted.recover(), [], "no duplicate")
 
 
+class CrashWindows(Fixture):
+    """Review of cc7abfed, B1 and B2: every crash point after the intent is recoverable, and a crashed run's
+    surviving outputs are kept."""
+
+    def realize_item(self, ex):
+        return next(r for r in ex.runs(self.derive()) if r.obligation.kind == "REALIZE")
+
+    def admitted_realizations(self) -> list:
+        s = self.derive().s
+        return [r for r in s.of_kind("REALIZATION")]
+
+    def test_a_failure_before_the_request_is_journaled(self) -> None:
+        ex = self.executor(Execution(None, "CRASHED", -11, raw=b'{"x":1}'))
+        with mock.patch.object(Executor, "_keep", side_effect=OSError("disk full")), self.assertRaises(OSError):
+            ex.run(self.derive(), self.realize_item(ex))
+        restarted = self.executor()
+        (decision,) = restarted.recover()
+        self.assertEqual(len(decision.admitted), 1, "reported, not lost (§6.9)")
+        self.assertEqual(restarted.recover(), [])
+        self.assertEqual(len(self.admitted_realizations()), 1)
+
+    def test_a_failure_after_the_request_is_journaled(self) -> None:
+        ex = self.executor(GOOD)
+        with mock.patch.object(ex.journal, "exec_ended", side_effect=OSError("crash")), self.assertRaises(OSError):
+            ex.run(self.derive(), self.realize_item(ex))
+        restarted = self.executor()
+        decisions = restarted.recover()
+        self.assertEqual(len(self.admitted_realizations()), 1, "the journaled request, never a second CRASHED one")
+        self.assertEqual(self.derive().s.record(self.admitted_realizations()[0])["outcome"], "COMPLETE")
+        self.assertEqual(len(decisions), 1)
+        self.assertEqual(restarted.journal.open_executions(), [])
+
+    def test_a_restart_keeps_the_crashed_runs_outputs(self) -> None:
+        import os
+
+        raw = b'{"x":1,"x_verdict":"FAIL"}'
+
+        class DiesAfterWriting(FakeSandbox):
+            def execute(self, workspace, tree, provider, bound_seconds):
+                out = workspace.root.parent / "out"
+                out.mkdir()
+                (out / "outputs.json").write_bytes(raw)
+                raise KeyboardInterrupt  # the Dispatcher dies mid-run, outputs written
+
+        ex = self.executor()
+        ex.sandbox = DiesAfterWriting()
+        with self.assertRaises(KeyboardInterrupt):
+            ex.run(self.derive(), self.realize_item(ex))
+        (decision,) = self.executor().recover()
+        real = self.derive().s.record(decision.admitted[0])
+        self.assertEqual(real["fields"]["execution"]["incomplete"], "CRASHED")
+        (ref,) = real["refs"]
+        self.assertEqual(ex.home.read_private(ex.home.artifact_parts("demo", ref["digest"])), raw)
+        self.assertEqual(os.listdir(ex.home.root / "runs" / "demo"), ["artifacts"], "the workspace removed")
+
+    def test_one_outstanding_execution_per_configuration(self) -> None:
+        """Review of cc7abfed, note 1: keyed on the configuration and tree, not the obligation."""
+
+        ex = self.executor()
+        realize = SimpleNamespace(kind="REALIZE", target={"obligation": "e"}, params={})
+        here = SimpleNamespace(kind="RERUN", target={"record": "a", "on": "HERE"}, params={"tree": "t1"})
+        failing = SimpleNamespace(kind="RERUN", target={"record": "b", "on": "FAILING"}, params={"tree": "t0"})
+        other = SimpleNamespace(kind="RERUN", target={"record": "c", "on": "FAILING"}, params={"tree": "t0"})
+        self.assertEqual(ex._hold_key(realize, "spec"), ex._hold_key(here, "spec"), "both on the head")
+        self.assertEqual(ex._hold_key(failing, "spec"), ex._hold_key(other, "spec"), "two failures, one tree")
+        self.assertNotEqual(ex._hold_key(realize, "spec"), ex._hold_key(failing, "spec"))
+
+
 class ReadingClose(Fixture):
     def test_a_closed_reading_is_issued_no_more(self) -> None:
         """F115: journal state only (§3.1); READING stays derived."""
