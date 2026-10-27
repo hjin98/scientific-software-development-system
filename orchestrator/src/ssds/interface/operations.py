@@ -27,8 +27,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from ssds import derivation
-from ssds.ledger.qualification import (HighWaterMark, Qualification, WitnessModel, WitnessSpec, lineage_witnesses,
-                                       qualify_segments, retirement_held, segments)
+from ssds.ledger.qualification import HighWaterMark, Qualification, WitnessSpec, currentness, lineage_witnesses
 
 from .render import Doctrine, Renderer
 
@@ -88,16 +87,9 @@ def present(access: LedgerAccess, trees: Callable[[str], Any]) -> Presented:
     chain = access.chain()
     if not chain.entries or chain.genesis is None:
         return Presented(access.ledger_id, len(chain.entries), None, None, ("no readable genesis",))
-    fields = chain.genesis["fields"]
-    found = [m for _, m in segments(chain)]
-    model = found[-1] if found[-1] is not None else WitnessModel.from_json(fields["witnesses"])  # in force (F59)
     reports, statements = access.witness_reports(lineage_witnesses(chain))
-    host_keys = {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
-    in_force = {w.id for w in model.witnesses}
-    retired = retirement_held([s for w, s in statements.items() if w in in_force], model.q_a, access.ledger_id,
-                              host_keys, chain)  # §24.2, F45
     mark = access.high_water()
-    qualification = qualify_segments(chain, reports, host_keys, mark, retired=retired)
+    qualification = currentness(chain, reports, statements, mark)  # the Ledger Store's one composition (F65)
     if qualification.current and qualification.head is not None:
         # §23.4: whoever presents current state keeps the last head it qualified; the mark only rises.
         if mark is None or qualification.head > mark.position:

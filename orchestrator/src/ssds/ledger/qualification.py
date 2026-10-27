@@ -501,6 +501,31 @@ def qualify_segments(
     return Qualification("UNQUALIFIED")
 
 
+def host_keys(chain: Chain) -> dict[str, str]:
+    """The Admission host keys of the chain's genesis trust roots."""
+
+    fields = chain.genesis["fields"]
+    return {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
+
+
+def currentness(chain: Chain, reports: Mapping[str, Sequence[Checkpoint] | None],
+                statements: Mapping[str, RetirementStatement | None], high_water: HighWaterMark | None = None,
+                authoritative: bool = True) -> Qualification:
+    """The ledger's qualification, composed once for every reader (Phase F step 8a, reading F65): every segment's
+    witnesses' reports, the retirement statements of the set in force counted under its model, and the mark.
+    Admission, the Interface and the Dispatcher all call it."""
+
+    if not chain.entries or chain.genesis is None:
+        return Qualification("UNQUALIFIED")
+    found = [m for _, m in segments(chain)]
+    model = found[-1] if found and found[-1] is not None else WitnessModel.from_json(chain.genesis["fields"]["witnesses"])
+    keys = host_keys(chain)
+    in_force = {w.id for w in model.witnesses}
+    retired = retirement_held([s for w, s in statements.items() if w in in_force], model.q_a, chain.ledger_id, keys,
+                              chain)
+    return qualify_segments(chain, reports, keys, high_water, authoritative, retired=retired)
+
+
 def loss_status(h: int, m: int, f: int, q_a: int) -> str:
     """An abandoned entry: proved never admitted iff ``h + m + f < q_a``; known admitted iff ``h >= q_a`` (§23.6)."""
 
@@ -515,7 +540,7 @@ __all__ = [
     "Checkpoint", "DEPLOYMENT_CLASSES", "FileWitness", "HighWaterMark", "HighWaterStore", "Home", "HomeRefused",
     "Qualification", "RETIREMENT_DOMAIN", "RETIREMENT_FILE", "RetirementStatement",
     "STATES", "WitnessModel", "WitnessSpec", "checkpoint_body", "checkpoint_message", "loss_status",
-    "lineage_witnesses", "publish_private", "qualify", "qualify_segments", "retirement_held", "segment_witnesses",
+    "currentness", "host_keys", "lineage_witnesses", "publish_private", "qualify", "qualify_segments", "retirement_held", "segment_witnesses",
     "segments", "retirement_message", "retirement_statements",
     "retirement_verified", "write_all",
     "quorum_sound",

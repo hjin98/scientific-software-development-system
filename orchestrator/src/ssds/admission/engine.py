@@ -27,8 +27,8 @@ from ssds.derivation import (Frame, Support, Transformation, TreeSource, Workflo
 from ssds.ledger.append import (AppendFailed, AppendRefused, append_entry, import_commits, retirement_statement, seal,
                                write_checkpoint, write_retirement)
 from ssds.ledger.qualification import (Checkpoint, FileWitness, HighWaterMark, Qualification, WitnessModel,
-                                       checkpoint_body, checkpoint_message, lineage_witnesses, qualify, qualify_segments,
-                                       retirement_held, segment_witnesses, segments)
+                                       checkpoint_body, checkpoint_message, currentness, host_keys, lineage_witnesses, qualify,
+                                       segment_witnesses, segments)
 from ssds.ledger.read import (LedgerEntry, entry_violations, is_commit, read_chain, record_id, record_violations,
                               submits, verify_sshsig, with_id)
 
@@ -222,10 +222,9 @@ class Admission:
             holders = {w.id for w in segment_witnesses(chain, extra.position)}
             reports = {w: (cps + [extra] if cps is not None and w in holders and _writable(files[w], self.ledger_id)
                            else cps) for w, cps in reports.items()}
-        host_keys = self.host_keys(chain)
-        statements = {w.id: files[w.id].statement(self.ledger_id) if w.id in files else None for w in model.witnesses}
-        retired = retirement_held(statements.values(), model.q_a, self.ledger_id, host_keys, chain)
-        return qualify_segments(chain, reports, host_keys, self.home.high_water(self.ledger_id).get(), retired=retired)
+        statements = {w.id: files[w.id].statement(self.ledger_id) if w.id in files else None
+                      for w in lineage_witnesses(chain)}  # every segment's: currentness counts the set in force (F65)
+        return currentness(chain, reports, statements, self.home.high_water(self.ledger_id).get())
 
     def loss_evidence(self, chain) -> tuple[dict[str, Any], bytes]:
         """A ``LEDGER_LOSS``'s fields after ``chain``'s last readable entry, and its report object, from the witness
@@ -286,8 +285,7 @@ class Admission:
 
     @staticmethod
     def host_keys(chain) -> dict[str, str]:
-        fields = chain.entries[0].entry["lifecycle"]["fields"]
-        return {k["id"]: k["public_key"] for k in fields["trust_roots"]["admission_keys"]}
+        return host_keys(chain)
 
     def held_head(self):
         """The chain at a qualified head with no provisional entry: Admission appends nothing when the ledger is

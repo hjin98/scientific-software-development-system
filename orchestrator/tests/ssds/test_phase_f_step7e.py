@@ -293,6 +293,25 @@ class LocalRedesign(RequestFixture):
         abandoned = self.engine.prepare_loss()["abandoned"]
         self.assertEqual([(a["position"], a["status"]) for a in abandoned], [(position - 1, "KNOWN_ADMITTED")])
 
+    def test_retirement_counts_only_the_set_in_force(self) -> None:
+        """Step 8a's ``currentness`` (F65): a statement an old witness holds is not counted toward the new set's
+        q_a; one old and one new witness holding it is one holder, below TEAM's two."""
+
+        from ssds.admission.genesis import host_key
+        from ssds.ledger.append import write_retirement
+        from ssds.ledger.qualification import RetirementStatement, retirement_message
+
+        self.redesign()
+        key = host_key(self.home, "demo")
+        body = {"ledger_id": "demo", "kind": "RETIREMENT", "last_position": 99, "last_entry_digest": "sha256:" + "0" * 64,
+                "successor_ledger_id": "demo-2", "successor_genesis_digest": "sha256:" + "2" * 64}
+        statement = RetirementStatement(body, ((key.key_id, key.sign(retirement_message(body)).hex()),))
+        write_retirement(FileWitness(self.home.witness_root), statement)
+        write_retirement(FileWitness(self.new["n0"]), statement)
+        self.assertNotEqual(self.held().state, "RETIRED")
+        write_retirement(FileWitness(self.new["n1"]), statement)
+        self.assertEqual(self.held().state, "RETIRED")
+
     def test_the_old_set_must_hold_it_where_it_is_reachable(self) -> None:
         import os
 

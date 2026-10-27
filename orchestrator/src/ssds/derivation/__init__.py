@@ -24,7 +24,7 @@ from .structural import adoption_codes, adoption_frame
 from .support import Support
 from .extension import trial
 from .writescope import outside_scope, protected_touched
-from .workflow import Workflow
+from .workflow import AGENT_ROLES, READY, Workflow
 
 
 def derive(chain, trees: TreeSource, position: int | None = None, checkpoint: bytes | None = None,
@@ -47,5 +47,5 @@ __all__ = [
     "Obligation", "P", "Policy", "genesis_structure_problems", "State", "Support", "T", "TreeSource", "TrustRoots", "Workflow", "adverse", "passing", "allowed_outcomes", "queries", "baseline_structure", "consequences", "trust_roots",
     "derive", "trial", "ROLE_TEMPLATES", "role_permits", "supersession_target", "triple_key",
     "Frame", "Transformation", "frame_state", "transformation_of", "outside_scope", "protected_touched",
-    "adoption_codes", "adoption_frame",
+    "adoption_codes", "adoption_frame", "AGENT_ROLES", "READY",
 ]

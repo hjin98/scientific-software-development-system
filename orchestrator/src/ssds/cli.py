@@ -9,6 +9,7 @@ claimed twice fails composition, so the collision is caught in acceptance.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -20,7 +21,8 @@ from ssds.core import cli as core_cli
 from ssds.core.api.v1 import ssds_home
 from ssds.interface.commands import make_commands
 from ssds.interface.operations import Refused, Session
-from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, WitnessSpec
+from ssds.dispatcher import observe
+from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, WitnessSpec, currentness, lineage_witnesses
 from ssds.ledger.read import read_chain
 
 
@@ -107,6 +109,32 @@ def compose(*command_sets: tuple[str, Iterable[CommandInfo]]) -> typer.Typer:
 
 
 app = compose(("core", core_cli.app.registered_commands), ("ssds", SSDS_COMMANDS))
+
+#: The Dispatcher's commands (Phase F step 8a): ``dispatcher serve`` is observe-only on a shadow ledger (reading F8).
+dispatcher_app = typer.Typer(name="dispatcher", help="The Dispatcher: what it would issue at the qualified head.",
+                             no_args_is_help=True, add_completion=False)
+
+
+@dispatcher_app.command("serve")
+def dispatcher_serve(ledger: str = typer.Option(..., "--ledger", help="the ledger id in the SSDS home"),
+                     repository: Path = typer.Option(Path("."), "--repository",
+                                                     help="the repository whose history the ledger names")) -> None:
+    """The would-issue set at the qualified head ``H*``, observe-only: nothing is issued, no run ref is written, and
+    no operator state changes (F8, F65)."""
+
+    access = HomeAccess(Home(ssds_home()), ledger)
+    chain = access.chain()
+    reports, statements = access.witness_reports(lineage_witnesses(chain)) if chain.genesis is not None else ({}, {})
+    held = currentness(chain, reports, statements, access.high_water())
+    repo = repository.resolve()
+    report = observe(chain, lambda commit: read_tree(repo, commit), held)
+    typer.echo(json.dumps(report, indent=2, sort_keys=True))
+    raise typer.Exit(0 if "withheld" not in report else 1)
+
+
+if any(command_name(info) == "dispatcher" for info in app.registered_commands):
+    raise CommandCollision("command 'dispatcher' is claimed twice")
+app.add_typer(dispatcher_app, name="dispatcher")
 
 
 def main() -> int:

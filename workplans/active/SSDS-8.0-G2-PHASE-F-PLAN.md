@@ -47,7 +47,7 @@ NEXT ACTION: steps 4b-ii, 4c (4c-i to 4c-iv) and 4d are closed (last PASS at 85f
              F43) is closed (PASS at 0ab46e4b); 6e (integration registration) is closed (PASS at 04012289); 6f is
              deferred (SD-73). Step 6 is closed for Phase F. Revision 20 splits step 7 into 7a-7g (§3.4, readings
              F44-F48, Q-F13), checked (PASS at bd515e60); 7a (retirement, reading F49) is closed (PASS at 749b37d3, N2
-             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is next. A10 is accepted (SD-66);
+             taken up). Revisions 21-22 detail 7b (readings F50-F53; re-check PASS at 43b2e4e5); 7b is closed (PASS at 7d2d1c00). Revisions 23-24 detail 7c (`LEDGER_LOSS`, readings F54-F57; re-check PASS at 5636d551); 7c is closed (PASS at 8bfaaf0f, N2 taken up); 7d (`FORK_RESOLUTION`, reading F58) is closed (PASS at 099556e6). Revisions 25-27 split 7e into 7e-i and 7e-ii (readings F59-F62; re-check PASS at b19707d9); 7e-i is closed (PASS at 9f841460, after B1's repair); 7e-ii is closed (PASS at 00b4c1ac); step 7e is closed. `ssdp-shadow` is retired (SD-74; `qualification/ssds80/PHASE-F-SHADOW-RETIREMENT-EVIDENCE-SSDS-8.0.md`). Revisions 28-29 detail 7f and 7g (readings F63-F64, Q-F16; re-check PASS at 2d01eb22); 7f and 7g are closed (PASS at 80222c23, N1 taken up); step 7 is closed for Phase F. Revision 30 splits step 8 into 8a-8g (readings F65-F71, Q-F17, Q-F18), checked (PASS at 5d4a0e26, notes taken up); 8a is built and awaits its review. A10 is accepted (SD-66);
              ssdp-shadow-2 is admitted and QUALIFIED
              (qualification/ssds80/PHASE-F-SHADOW-GENESIS-2-EVIDENCE-SSDS-8.0.md), ready for step 10;
              its missing reserved leaves are repaired in place by adoption once Q-F6 (i) is built (SD-69).
@@ -2275,3 +2275,28 @@ Its notes are taken up:
 - **3.** Q-F17's id is `{system, version}`, the system version with the ruleset in force at issue, not the `governs` protocol.
 - **4.** "Until Q-F17" is added to 8c's joint-invariant reviews, 8d's judgment tasks and 8g's re-issue. Step 10 needs 8a and 8f's refusal path.
 - **5.** The MCP server pins its protocol revision and tests the handshake.
+
+**Step 8a built (the Dispatcher at a named `H*`; reading F65).**
+- **One currentness owner.** `ledger.qualification.currentness` composes a ledger's qualification: every segment's reports, the retirement statements of the set in force counted under its model, `qualify_segments` and the mark. `host_keys` reads the genesis trust roots. Admission's `qualification`, the Interface's `present` and the Dispatcher call it, and the two copies are gone. Admission now passes every segment's statements, as the Interface does, so the one function decides which count.
+- **The would-issue set** (`dispatcher/schedule.py`). `would_issue` raises `NotIssuable` unless the head is `QUALIFIED` with no provisional entry. It derives the qualified prefix and lists each obligation held by an agent role (`AGENT_ROLES`, now exported by derivation with `READY`) that is `READY`. Each task carries a stable `task_id` (head and obligation) and whether its contract is an item's or a system's (Q-F17).
+- **Write-ahead issuing.**
+  - `issue` journals `INTENT` (with the head), signs the envelope, journals `ISSUED`, then `HANDED`. It refuses a task not at its own named head.
+  - `Journal.recover` abandons every intent not handed out.
+  - `Journal.outstanding` excludes abandoned tasks.
+- **`ssds dispatcher serve`** (the CLI's composition root) is observe-only. It reads the chain, witnesses and mark through `HomeAccess`, composes currentness, prints the would-issue set, and writes nothing. It exits 1 when the head is not named.
+- **The real ledger.** Run read-only on `ssdp-shadow-2`, it reports `QUALIFIED` at 0 with an empty would-issue set (no `NATIVE` subject, so no agent obligation), and the operator state's timestamps are unchanged.
+- **Tests.** `test_phase_f_step8a.py`, 12 tests:
+  - one composition for Admission and the Interface, and an empty chain;
+  - the would-issue set against derivation's readiness, on a fixture whose policy names a human D3 judge, so the reviewer-held `ACCEPT` is `READY` (the baseline's authorship is unknown, so no fresh agent reviewer is eligible);
+  - only `READY` agent-held obligations becoming tasks, on a stubbed workflow mixing holders and states;
+  - nothing issued from an unqualified, rolled-back, retired or provisional head;
+  - observe-only writing no journal or mark;
+  - `dispatcher serve`, including exit 1 when the witness holds nothing;
+  - the journal order;
+  - a crash before the envelope, and one after it before the hand-out, each abandoned and outstanding nowhere;
+  - an envelope outstanding until its task finishes;
+  - a task issued only at its own head.
+
+  `test_phase_f_step7e.py` adds that retirement counts only the set in force.
+- **Mutants.** Eleven: ten are killed. C11, deriving the whole chain rather than the qualified prefix, is equivalent: a `QUALIFIED` head with no provisional entry is the chain's last. C01, C03, C04 and C08 survived at first and are killed by the added tests and by routing Admission's statements through the one owner.
+- **Full suite.** It passes: 1402 tests, 6 skipped.
