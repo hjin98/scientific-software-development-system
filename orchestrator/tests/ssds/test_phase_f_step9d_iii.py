@@ -284,7 +284,10 @@ class Staleness(AdmittedRuns):
         self.assertFalse(self.stale(failing, "W1"), "the unbounded differing run is linked through the narrow reproduction")
 
     def test_context_change_keeps_implication(self) -> None:
-        """on⁺ ⇒ on⁻ for every admitted run and head (the record's own context is what it reads)."""
+        """A partial port (review of 03321379, note 1): on⁺ ⇒ on⁻ for every admitted run and head, under unchanged
+        contexts. The case's context change (a structure override re-resolving terms) cannot be made through
+        Admission in place; it stays in ``test_assessment.Staleness``, and the S5 coverage map counts this half
+        only."""
 
         t0 = self.tree("T0")
         first = self.realize(t0, BAD)
