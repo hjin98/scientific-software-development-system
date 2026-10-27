@@ -30,12 +30,14 @@ PROVIDER = RunnerProvider(argv=("/bin/sh", "run.sh"))
 
 class Argv(unittest.TestCase):
     def setUp(self) -> None:
-        self.argv = sandbox_argv(PROVIDER, 7, "/tmp/run/out", 9)
+        self.argv = sandbox_argv(PROVIDER, 7, 8, 9)
 
     def test_an_allowlisted_root(self) -> None:
         for flag in ("--unshare-all", "--die-with-parent", "--new-session", "--clearenv"):
             self.assertIn(flag, self.argv)
         self.assertEqual(self.argv[self.argv.index("--ro-bind-fd") + 1:self.argv.index("--ro-bind-fd") + 3], ["7", WORK])
+        self.assertEqual(self.argv[self.argv.index("--bind-fd") + 1:self.argv.index("--bind-fd") + 3], ["8", OUT],
+                         "/out by its descriptor too (review of cc028146, note 2)")
         self.assertEqual(self.argv[self.argv.index("--") + 1:], list(PROVIDER.argv))
 
     def test_the_design_rule_no_destination_beneath_the_workspace(self) -> None:
@@ -53,7 +55,7 @@ class Argv(unittest.TestCase):
             self.assertNotIn(absent, destinations)
         self.assertFalse(any(a == "--share-net" for a in self.argv), "no network")
         sources = [self.argv[i + 1] for i, a in enumerate(self.argv) if a in ("--ro-bind", "--bind")]
-        self.assertEqual(sources, [*PROVIDER.system, "/tmp/run/out"], "only the provider's system and /out by path")
+        self.assertEqual(sources, list(PROVIDER.system), "only the provider's system bound by path")
 
     def test_a_provider_binding_a_forbidden_tree_never_starts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -64,6 +66,8 @@ class Argv(unittest.TestCase):
             self.assertEqual(refused_sources(RunnerProvider(argv=("true",), system=("/",)), (home,)), ["/"],
                              "a directory holding the home binds it")
             self.assertEqual(refused_sources(PROVIDER, (home,)), [])
+            for never in (str(Path.home()), "/run/user", "/var/run"):  # whatever the caller passes (note 1)
+                self.assertEqual(refused_sources(RunnerProvider(argv=("true",), system=(never,)), ()), [never])
 
 
 class FakeProcess:
@@ -72,11 +76,13 @@ class FakeProcess:
     def __init__(self, argv, *, status=True, outputs=None, returncode=0, run=None, never_ends=False, **_):
         self.pid = 12345
         status_fd = int(argv[argv.index("--json-status-fd") + 1])
-        out = Path(argv[argv.index("--bind") + 1])
+        out = int(argv[argv.index("--bind-fd") + 1])
         if status:
             os.write(status_fd, json.dumps({"child-pid": 1}).encode() + b"\n")
         if outputs is not None:
-            (out / runner.OUTPUTS).write_bytes(outputs)
+            descriptor = os.open(runner.OUTPUTS, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=out)
+            os.write(descriptor, outputs)
+            os.close(descriptor)
         if run is not None:
             run()
         self.returncode = None if never_ends else returncode
@@ -149,6 +155,30 @@ class Executions(unittest.TestCase):
         (fresh.root / "a.py").chmod(0o600)
         sandbox = Sandbox(self.workspaces, (self.home.root,), popen=lambda argv, **kw: self.fail("it ran"))
         self.assertEqual(sandbox.execute(fresh, TREE, PROVIDER, 10.0).incomplete, "FAILED_TO_START")
+
+    def test_no_descriptor_survives_a_failed_spawn(self) -> None:
+        """Review of cc028146, note 4: the status pipe and the bound directories are closed on every path."""
+
+        def opened() -> int:
+            return len(os.listdir("/proc/self/fd")) if os.path.isdir("/proc/self/fd") else -1
+
+        sandbox = Sandbox(self.workspaces, (self.home.root,), bwrap="/nonexistent/bwrap")
+        ws = self.workspaces.materialize("demo", TREE)
+        before = opened()
+        self.assertEqual(sandbox.execute(ws, TREE, PROVIDER, 10.0).incomplete, "FAILED_TO_START")
+        self.assertEqual(opened(), before)
+
+    def test_an_interrupted_wait_kills_the_sandbox(self) -> None:
+        def interrupted(*_):
+            raise KeyboardInterrupt
+
+        sandbox = Sandbox(self.workspaces, (self.home.root,), popen=lambda argv, **kw: FakeProcess(argv, never_ends=True),
+                          poll_seconds=0)
+        ws = self.workspaces.materialize("demo", TREE)
+        with mock.patch.object(Sandbox, "_wait", interrupted), mock.patch.object(runner.os, "killpg") as kill, \
+                self.assertRaises(KeyboardInterrupt):
+            sandbox.execute(ws, TREE, PROVIDER, 10.0)
+        kill.assert_called_once()
 
     def test_a_forbidden_source_never_starts(self) -> None:
         provider = RunnerProvider(argv=("true",), system=("/usr", str(self.home.root)))

@@ -298,7 +298,7 @@ class Execution:
     raw: bytes | None = field(default=None, repr=False)  # a surviving outcome's bytes, kept for the owner
 
 
-def sandbox_argv(provider: RunnerProvider, tree_fd: int, out_dir: str, status_fd: int,
+def sandbox_argv(provider: RunnerProvider, tree_fd: int, out_fd: int, status_fd: int,
                  bwrap: str = "/usr/bin/bwrap") -> list[str]:
     """The ``bwrap`` command on an allowlisted root (F113). Every mount destination sits on bwrap's own tmpfs root
     and none lies beneath the workspace, the design rule the host package's dropped link-resolution fix requires
@@ -312,7 +312,7 @@ def sandbox_argv(provider: RunnerProvider, tree_fd: int, out_dir: str, status_fd
         argv += ["--ro-bind", directory, directory]
     for target, link in _MERGED_USR:
         argv += ["--symlink", target, link]
-    argv += ["--ro-bind-fd", str(tree_fd), WORK, "--bind", out_dir, OUT, "--tmpfs", "/tmp", "--tmpfs", RUNNER_HOME,
+    argv += ["--ro-bind-fd", str(tree_fd), WORK, "--bind-fd", str(out_fd), OUT, "--tmpfs", "/tmp", "--tmpfs", RUNNER_HOME,
              "--dev", "/dev", "--chdir", WORK, "--", *provider.argv]
     return argv
 
@@ -324,11 +324,11 @@ def mount_destinations(argv: list[str]) -> list[str]:
     out, i = [], 1
     while i < len(argv) and argv[i] != "--":
         flag = argv[i]
-        if flag in ("--ro-bind", "--bind", "--symlink", "--ro-bind-fd"):
+        if flag in ("--ro-bind", "--bind", "--symlink", "--ro-bind-fd", "--bind-fd"):
             out.append(argv[i + 2])
         if flag in ("--tmpfs", "--dev"):
             out.append(argv[i + 1])
-        i += 3 if flag in takes_two | {"--ro-bind-fd"} else 2 if flag in ("--tmpfs", "--dev", "--chdir",
+        i += 3 if flag in takes_two | {"--ro-bind-fd", "--bind-fd"} else 2 if flag in ("--tmpfs", "--dev", "--chdir",
                                                                           "--json-status-fd") else 1
     return out
 
@@ -337,6 +337,9 @@ def refused_sources(provider: RunnerProvider, forbidden: tuple[Path, ...]) -> li
     """The provider's bound directories that resolve inside a forbidden tree: the SSDS home or the product repository
     (F113's check before spawning; the workspace itself is bound by descriptor, never by path)."""
 
+    # F113's never-bound list, whatever the caller passes (review of cc028146, note 1): the user's home, and /run,
+    # where the SSH agent and D-Bus sockets live
+    forbidden = (*forbidden, Path.home(), Path("/run"), Path("/var/run"))
     out = []
     for directory in provider.system:
         resolved = Path(directory).resolve()
@@ -375,43 +378,57 @@ class Sandbox:
                 out = self._out(workspace)
             except MaterializeRefused as exc:
                 return Execution(None, "FAILED_TO_START", detail=str(exc))
-            read_status, write_status = os.pipe()
             try:
-                argv = sandbox_argv(provider, top, str(out), write_status, self.bwrap)
+                return self._run(top, out, tree, provider, bound_seconds)
+            finally:
+                os.close(out)
+        finally:
+            os.close(top)
+
+    def _run(self, top: int, out: int, tree: Mapping[str, Any], provider: RunnerProvider,
+             bound_seconds: float) -> Execution:
+        read_status, write_status = os.pipe()
+        try:
+            try:
+                argv = sandbox_argv(provider, top, out, write_status, self.bwrap)
                 try:
-                    process = self.popen(argv, pass_fds=(top, write_status), start_new_session=True,
+                    process = self.popen(argv, pass_fds=(top, out, write_status), start_new_session=True,
                                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                          stderr=subprocess.DEVNULL)
                 except OSError as exc:
                     return Execution(None, "FAILED_TO_START", detail=f"the sandbox could not start: {exc}")
             finally:
                 os.close(write_status)
-            timed_out = self._wait(process, bound_seconds)
-            status = _status(read_status)
-            exit_status = process.returncode
-            if "child-pid" not in status:
-                return Execution(None, "FAILED_TO_START", exit_status, "the sandbox could not be set up")
-            raw = _outputs(out)
-            if timed_out:
-                return Execution(None, "TIME_BOUND", exit_status, raw=raw)
-            after = _difference(tree, _read_back(top))
-            if after:
-                return Execution(None, "CRASHED", exit_status, f"the workspace changed: {after}", raw=raw)
-            if raw is None:
-                if exit_status is not None and exit_status < 0:
-                    return Execution(None, "CRASHED", exit_status, "ended by a signal with no outputs")
-                return Execution(None, "MALFORMED_OUTPUT", exit_status, "no outputs")
             try:
-                outcome = json.loads(raw)
-            except (ValueError, UnicodeDecodeError):
-                return Execution(None, "MALFORMED_OUTPUT", exit_status, "outputs are not JSON", raw=raw)
-            if not isinstance(outcome, dict):
-                return Execution(None, "MALFORMED_OUTPUT", exit_status, "outputs are not an object", raw=raw)
-            return Execution(outcome, None, exit_status, raw=raw)  # the exit status decides nothing (§17.2)
+                timed_out = self._wait(process, bound_seconds)
+            except BaseException:  # an interrupted wait leaves no sandbox behind (review of cc028146, note 4)
+                _kill(process)
+                raise
+            status = _status(read_status)
         finally:
-            os.close(top)
+            os.close(read_status)  # every path, a failed spawn included (note 4)
+        exit_status = process.returncode
+        if "child-pid" not in status:
+            return Execution(None, "FAILED_TO_START", exit_status, "the sandbox could not be set up")
+        raw = _outputs(out)
+        if timed_out:
+            return Execution(None, "TIME_BOUND", exit_status, raw=raw)
+        after = _difference(tree, _read_back(top))
+        if after:
+            return Execution(None, "CRASHED", exit_status, f"the workspace changed: {after}", raw=raw)
+        if raw is None:
+            if exit_status is not None and exit_status < 0:
+                return Execution(None, "CRASHED", exit_status, "ended by a signal with no outputs")
+            return Execution(None, "MALFORMED_OUTPUT", exit_status, "no outputs")
+        try:
+            outcome = json.loads(raw)
+        except (ValueError, UnicodeDecodeError):
+            return Execution(None, "MALFORMED_OUTPUT", exit_status, "outputs are not JSON", raw=raw)
+        if not isinstance(outcome, dict):
+            return Execution(None, "MALFORMED_OUTPUT", exit_status, "outputs are not an object", raw=raw)
+        return Execution(outcome, None, exit_status, raw=raw)  # the exit status decides nothing (§17.2)
 
-    def _out(self, workspace: Workspace) -> Path:
+    def _out(self, workspace: Workspace) -> int:
         run = self.workspaces.home._directory((RUNS, workspace.ledger_id, workspace.run_id), create=False)
         if run is None:
             raise MaterializeRefused(f"no run directory for {workspace.run_id}")
@@ -420,9 +437,10 @@ class Sandbox:
                 os.mkdir("out", 0o700, dir_fd=run)  # one execution per workspace: no earlier outputs survive
             except FileExistsError:
                 raise MaterializeRefused(f"run {workspace.run_id} has executed already") from None
+            # bound by its descriptor, as /work is (review of cc028146, note 2)
+            return os.open("out", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=run)
         finally:
             os.close(run)
-        return workspace.root.parent / "out"
 
     def _wait(self, process: Any, bound_seconds: float) -> bool:
         """Waits for the sandbox; on reaching the bound kills its process group and reports it."""
@@ -430,36 +448,48 @@ class Sandbox:
         started = self.clock()
         while process.poll() is None:
             if self.clock() - started >= bound_seconds:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except (ProcessLookupError, PermissionError):
-                    pass
-                process.wait()
+                _kill(process)
                 return True
             time.sleep(self.poll_seconds)
         return False
 
 
+def _kill(process: Any) -> None:
+    """Kills the sandbox's process group; ``--die-with-parent`` takes its pid namespace with it."""
+
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    process.wait()
+
+
 def _status(descriptor: int) -> dict[str, Any]:
     """bwrap's JSON status lines, merged; empty when it could not set the sandbox up."""
 
+    data = b""
+    while len(data) < 1 << 16:  # read to end of file; the caller owns and closes the descriptor
+        chunk = os.read(descriptor, 1 << 16)
+        if not chunk:
+            break
+        data += chunk
     out: dict[str, Any] = {}
-    with os.fdopen(descriptor, "rb") as handle:
-        for line in handle.read(1 << 16).splitlines():
-            try:
-                item = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(item, dict):
-                out.update(item)
+    for line in data.splitlines():
+        try:
+            item = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(item, dict):
+            out.update(item)
     return out
 
 
-def _outputs(out: Path) -> bytes | None:
-    """``/out/outputs.json``'s bytes, read without following a link and capped, or ``None``."""
+def _outputs(out: int) -> bytes | None:
+    """``/out/outputs.json``'s bytes, read through ``/out``'s descriptor without following a link and capped, or
+    ``None``. Everything else in ``/out`` is the sandboxed code's and hostile (review of cc028146, note 5)."""
 
     try:
-        descriptor = os.open(out / OUTPUTS, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        descriptor = os.open(OUTPUTS, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=out)
     except OSError:
         return None
     with os.fdopen(descriptor, "rb") as handle:
