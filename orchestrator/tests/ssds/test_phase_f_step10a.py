@@ -64,10 +64,15 @@ class Published(harness.AdmittedRuns):
     def test_the_ledger_repository_holds_every_observed_commit(self) -> None:
         """F119: the graph read is the ledger repository's, never the product repository's."""
 
+        from ssds.cli import HomeAccess
+        from ssds.ledger.qualification import Home
+
         n = self.records_only()
         head = self.tree("T1", **{"other.txt": "2\n"})
         base = self.chain().entries[n].entry["admission"]["base_commit"]
         self.assertTrue(self.graph()(base, head), "imported by the absorption (step 6a)")
+        composed = HomeAccess(Home(self.home.root), "demo").ancestry()
+        self.assertTrue(composed(base, head), "the composition's graph is the ledger repository's (review N, M8)")
 
     def test_admissions_derivations_carry_the_graph(self) -> None:
         self.admission.ancestry = self.graph()
@@ -92,6 +97,22 @@ class Commands(harness.AdmittedRuns):
                 self.assertIsNone(result.exception, result.output)
                 self.assertTrue(graphs.seen, "it derived")
                 self.assertTrue(all(g is not None for g in graphs.seen), "every derivation carries the graph")
+
+    def test_an_unqualified_ledger_derives_with_the_graph_too(self) -> None:
+        """Review of abcb194e, N1: ``present``'s historical branch."""
+
+        import shutil
+
+        from typer.testing import CliRunner
+
+        from ssds.cli import app
+
+        shutil.rmtree(self.home.witness_root / "demo")  # the witness holds nothing: not a qualified head
+        with Graphs() as graphs, mock.patch("ssds.cli.ssds_home", return_value=self.home.root):
+            result = CliRunner().invoke(app, ["status", "--ledger", "demo", "--repository", str(self.product)])
+        self.assertEqual(result.exit_code, 1, result.output)  # no current assertion: exit 1, an answer all the same
+        self.assertIn("historical views only", result.output)
+        self.assertTrue(graphs.seen and all(g is not None for g in graphs.seen))
 
 
 if __name__ == "__main__":

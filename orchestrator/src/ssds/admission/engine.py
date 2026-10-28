@@ -82,6 +82,40 @@ class EntryInvalid(RuntimeError):
     """Admission does not append an entry that would not verify; the request is set aside, not requeued."""
 
 
+class BoundaryRefused(RuntimeError):
+    """The composition root's entry policy refused the request before validation (reading F1, F120): nothing is
+    appended and it is no Admission decision or reason code."""
+
+
+#: The reserved leaves whose declaration keys SD-69's in-place repair adopts (Q-F7; reading F120).
+RESERVED_LEAVES = frozenset({"ssds.manifest", "ssds.policy"})
+
+
+def shadow_boundary(request: Any) -> str | None:
+    """The real shadow ledger's boundary (reading F1, F120): why ``request`` is refused before validation, or None.
+    It refuses a candidate; a record whose kind Phase F does not accept, the reading of F1's "records whose checks
+    belong to a later phase"; and an adoption other than SD-69's, an ``ABSORB`` of a reserved leaf's declaration key
+    by a disposition in the same request. A request that is no object goes to validation, which records its
+    rejection."""
+
+    if not isinstance(request, Mapping):
+        return None
+    if request.get("candidates"):
+        return "a candidate: the real shadow ledger observes and never publishes (F1)"
+    records = request.get("records") if isinstance(request.get("records"), list) else []
+    for record in records:
+        if isinstance(record, Mapping) and record.get("kind") not in _ACCEPTED:
+            return f"a {record.get('kind')} record: its checks belong to a later phase (F1)"
+    absorbed = [r.get("target") for r in records if isinstance(r, Mapping) and r.get("kind") == "INTAKE_DISPOSITION"
+                and r.get("outcome") == "ABSORB"]
+    for delta in request.get("adopted_deltas") or []:
+        key = delta.get("key") if isinstance(delta, Mapping) else None
+        target = {"absorption": delta.get("absorption"), "key": key} if isinstance(delta, Mapping) else None
+        if not (isinstance(key, list) and key and key[0] in RESERVED_LEAVES and target in absorbed):
+            return "an adoption beyond SD-69's repair of the reserved leaves: Phase G's, or the stakeholder's (F120)"
+    return None
+
+
 @dataclass(frozen=True)
 class Decision:
     request_id: str
@@ -109,6 +143,9 @@ class Admission:
     #: the commit-graph reader publication classification needs (§22.2; reading F119): the composition root sets it
     #: over the ledger repository; unset, a publication not ``obs`` itself is ``UNKNOWN``
     ancestry: Callable[[str, str], bool | None] | None = None
+    #: the composition root's entry policy (reading F1, F120): a reason to refuse a request before validation, or
+    #: None; on the real shadow ledger it is ``shadow_boundary`` with its refusals logged in operator state
+    entry_policy: Callable[[Any], str | None] | None = None
 
     def __post_init__(self) -> None:
         self.home.check(self.ledger_id)
@@ -119,7 +156,13 @@ class Admission:
     # -- the queue (§8.2) ---------------------------------------------------------------------------------------
 
     def submit(self, request: Mapping[str, Any]) -> None:
+        self._entry(request)  # before any queue (F120)
         self.queue.append(request)
+
+    def _entry(self, request: Any) -> None:
+        reason = self.entry_policy(request) if self.entry_policy is not None else None
+        if reason is not None:
+            raise BoundaryRefused(reason)
 
     def order(self) -> list[Mapping[str, Any]]:
         """Arrival order, except that a request carrying only never-lost records is never delayed behind one that
@@ -368,8 +411,10 @@ class Admission:
 
     def admit(self, request: Any, obs: str) -> Decision:
         """Decide ``request`` at the held head; a writer that loses the ledger's compare-and-swap re-reads and
-        revalidates (§21.3; step 6b), a bounded number of times before it halts."""
+        revalidates (§21.3; step 6b), a bounded number of times before it halts. The entry policy refuses first,
+        before validation, on every route (F120)."""
 
+        self._entry(request)
         for _ in range(_CAS_ATTEMPTS):
             try:
                 return self._admit_once(request, obs)
@@ -1126,5 +1171,5 @@ def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
         codes.add("CYCLE_SUPPORT")  # step 5 read in the frame, where its changes re-route validity (F24)
     return codes
 
-__all__ = ["Admission", "AdmissionHalted", "Decision", "EntryInvalid", "UNREALIZED_STEPS", "integration_codes",
-           "integration_frame"]
+__all__ = ["Admission", "AdmissionHalted", "BoundaryRefused", "Decision", "EntryInvalid", "RESERVED_LEAVES",
+           "UNREALIZED_STEPS", "integration_codes", "integration_frame", "shadow_boundary"]
