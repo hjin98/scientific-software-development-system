@@ -17,14 +17,20 @@ from pathlib import Path
 import typer
 from typer.models import CommandInfo
 
+from ssds.admission.request import AdmissionHalted, AppendRefused, BoundaryRefused, EntryInvalid
 from ssds.content import GitReadError, ancestry, branch_head, read_tree
 from ssds.core import cli as core_cli
 from ssds.core.api.v1 import ssds_home
 from ssds.interface.commands import make_commands
 from ssds.interface.operations import Refused, Session
 from ssds.dispatcher import DispatcherHome, observe
-from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, WitnessSpec, currentness, lineage_witnesses
+from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, HomeRefused, WitnessSpec, currentness, \
+    lineage_witnesses
 from ssds.ledger.read import read_chain
+
+#: What a pass, or a request admitted through one, refuses with: reported as JSON and exit 1, never a traceback
+#: (review of 6de6cf0d, N3).
+PASS_REFUSALS = (Refused, HomeRefused, AdmissionHalted, BoundaryRefused, EntryInvalid, AppendRefused)
 
 
 class HomeAccess:
@@ -145,9 +151,10 @@ class Composition:
             self.state().append_line(("state", self.access.ledger_id, "observed-ref.jsonl"),
                                      json.dumps(line, sort_keys=True).encode() + b"\n")
 
-    def serve(self, name: str, rebind: bool = False) -> dict:
-        """One observe-only pass (F120): the held head (this host's provisional entry completed first, §22.4), the
-        observed head checked to descend from the last observation, and absorbed when it moved; nothing else."""
+    def _pass(self, name: str, rebind: bool):
+        """The checks every pass makes before Admission acts: the observed ref (``observed``), the held head
+        (this host's provisional entry completed first, §22.4), and the observed head descending from the last
+        observation (SD-64)."""
 
         from ssds.admission.request import expected_head
 
@@ -156,17 +163,44 @@ class Composition:
         chain = admission.held_head()
         entries = chain.entries[: chain.readable_through + 1]
         expected = expected_head(entries)
+        if obs != expected and ancestry(self.repository)(expected, obs) is not True:
+            raise Refused(f"{name} at {obs} does not descend from the last observation {expected}: restore the branch "
+                          f"(the observed branch is never rewritten, SD-64), or a ledger-level recovery is the "
+                          f"stakeholder's decision (§23)")
+        return admission, entries, expected, obs, line
+
+    def _taking_effect(self, expected: str | None, obs: str, line: dict | None, action):
+        """``action``'s result, the observed ref recorded only once the pass took effect: when ``action`` returns,
+        or when it raises after ``obs``'s absorption was appended, so the ledger observes ``obs`` (review of
+        6de6cf0d, B1). A pass refused before that records nothing."""
+
+        from ssds.admission.request import expected_head
+
+        try:
+            result = action()
+        except BaseException:
+            if line is not None and obs != expected:
+                try:
+                    chain = self.access.chain()
+                    took = expected_head(chain.entries[: chain.readable_through + 1]) == obs
+                except Exception:  # an unreadable ledger proves nothing took effect
+                    took = False
+                if took:
+                    self._record_ref(line)
+            raise
+        self._record_ref(line)
+        return result
+
+    def serve(self, name: str, rebind: bool = False) -> dict:
+        """One observe-only pass (F120): the observed head absorbed when it moved; nothing else."""
+
+        admission, entries, expected, obs, line = self._pass(name, rebind)
         report = {"ledger_id": self.access.ledger_id, "observed_ref": name, "obs": obs, "expected": expected,
                   "absorbed": False, "mode": "observe-only: nothing is published (F1)"}
         if obs == expected:
             self._record_ref(line)
             return {**report, "position": len(entries) - 1}
-        if ancestry(self.repository)(expected, obs) is not True:
-            raise Refused(f"{name} at {obs} does not descend from the last observation {expected}: restore the branch "
-                          f"(the observed branch is never rewritten, SD-64), or a ledger-level recovery is the "
-                          f"stakeholder's decision (§23)")
-        self._record_ref(line)
-        admission.absorb(entries, obs)
+        self._taking_effect(expected, obs, line, lambda: admission.absorb(entries, obs))
         return {**report, "absorbed": True, "position": len(entries)}
 
     def observe(self) -> dict:
@@ -255,11 +289,9 @@ def admission_serve(ledger: str = typer.Option(..., "--ledger", help="the ledger
     descends from the last observation (SD-64). A ledger holding such an absorption would carry a CRITICAL
     LATE_PUBLICATION integrity finding (catalogue §22.2), answered by a human decision (§22.3)."""
 
-    from ssds.admission.request import AdmissionHalted
-
     try:
         report = Composition(ledger, repository).serve(observed_ref, rebind_observed_ref)
-    except (Refused, AdmissionHalted) as exc:
+    except PASS_REFUSALS as exc:
         typer.echo(json.dumps({"refused": str(exc)}, indent=2, sort_keys=True))
         raise typer.Exit(1) from None
     typer.echo(json.dumps(report, indent=2, sort_keys=True))

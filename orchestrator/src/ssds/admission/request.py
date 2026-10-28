@@ -23,10 +23,16 @@ from typing import Any
 
 from ssds.core.api.v1 import canonical_json
 from ssds.derivation import adverse
+from ssds.ledger.append import AppendRefused  # a lost compare-and-swap, re-exported for the composition root
 from ssds.ledger.read import with_id
+
 
 class AdmissionHalted(RuntimeError):
     """Admission does not append: the observed head is not the expected head (absorption is step 6's)."""
+
+
+class EntryInvalid(RuntimeError):
+    """Admission does not append an entry that would not verify; the request is set aside, not requeued."""
 
 
 class BoundaryRefused(RuntimeError):
@@ -156,7 +162,7 @@ def never_lost(record: Mapping[str, Any]) -> bool:
     return kind in RUNNER_OBSERVATIONS and str(record.get("actor", "")).startswith("machinery:")
 
 
-__all__ = ["ATTESTATION_FIELDS", "AdmissionHalted", "BoundaryRefused", "ENVELOPE_FIELDS", "REPORT_KINDS",
-           "REQUEST_FIELDS", "ROUTES", "RUNNER_OBSERVATIONS", "attestation_message", "binding_digest", "binding_object",
-           "envelope_digest", "envelope_message", "expected_head", "never_lost", "observe_only", "request_id",
-           "request_message", "resubmitted", "shadow_boundary"]
+__all__ = ["ATTESTATION_FIELDS", "AdmissionHalted", "AppendRefused", "BoundaryRefused", "ENVELOPE_FIELDS",
+           "EntryInvalid", "REPORT_KINDS", "REQUEST_FIELDS", "ROUTES", "RUNNER_OBSERVATIONS", "attestation_message",
+           "binding_digest", "binding_object", "envelope_digest", "envelope_message", "expected_head", "never_lost",
+           "observe_only", "request_id", "request_message", "resubmitted", "shadow_boundary"]

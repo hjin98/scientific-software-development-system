@@ -46,7 +46,7 @@ from .currency import Currency
 from .evidence import (assessment_references, custody_problems, reading_shape, realization_references,
                        realization_shape)
 from .legality import Legality, conformance_alone
-from .request import REPORT_KINDS, AdmissionHalted, BoundaryRefused, never_lost, request_id
+from .request import REPORT_KINDS, AdmissionHalted, BoundaryRefused, EntryInvalid, never_lost, request_id
 
 #: How many times a writer that loses the ledger's compare-and-swap re-reads and revalidates before it halts.
 _CAS_ATTEMPTS = 3
@@ -74,20 +74,19 @@ def blocking(refused: Iterable[tuple[str, tuple[str, ...]]], alone: Iterable[tup
     return [r for r in refused if r not in alone]
 
 
-class EntryInvalid(RuntimeError):
-    """Admission does not append an entry that would not verify; the request is set aside, not requeued."""
-
-
 #: The reserved leaves whose declaration keys SD-69's in-place repair adopts (Q-F7; reading F120).
 RESERVED_LEAVES = frozenset({"ssds.manifest", "ssds.policy"})
+#: The declaration fields a new reserved leaf carries: never ``part_of`` or ``renamed_from``, which reach other units
+#: (review of 6de6cf0d, N1); SD-69's repair adds two leaves and promotes nothing.
+LEAF_FIELDS = frozenset({"kind", "role", "subject", "scope"})
 
 
 def shadow_boundary(request: Any) -> str | None:
     """The real shadow ledger's boundary (reading F1, F120): why ``request`` is refused before validation, or None.
     It refuses a candidate; a record whose kind Phase F does not accept, the reading of F1's "records whose checks
     belong to a later phase"; and an adoption other than SD-69's, an ``ABSORB`` of a reserved leaf's declaration key
-    by a disposition in the same request. A request that is no object goes to validation, which records its
-    rejection."""
+    by a disposition in the same request, on one of the leaf's own fields (``LEAF_FIELDS``). A request that is no
+    object goes to validation, which records its rejection."""
 
     if not isinstance(request, Mapping):
         return None
@@ -102,7 +101,8 @@ def shadow_boundary(request: Any) -> str | None:
     for delta in request.get("adopted_deltas") or []:
         key = delta.get("key") if isinstance(delta, Mapping) else None
         target = {"absorption": delta.get("absorption"), "key": key} if isinstance(delta, Mapping) else None
-        if not (isinstance(key, list) and key and key[0] in RESERVED_LEAVES and target in absorbed):
+        if not (isinstance(key, list) and len(key) == 2 and key[0] in RESERVED_LEAVES and key[1] in LEAF_FIELDS
+                and target in absorbed):
             return "an adoption beyond SD-69's repair of the reserved leaves: Phase G's, or the stakeholder's (F120)"
     return None
 
@@ -1162,5 +1162,5 @@ def integration_codes(candidate: str, support: Any, binding: Any) -> set[str]:
         codes.add("CYCLE_SUPPORT")  # step 5 read in the frame, where its changes re-route validity (F24)
     return codes
 
-__all__ = ["Admission", "AdmissionHalted", "BoundaryRefused", "Decision", "EntryInvalid", "RESERVED_LEAVES",
-           "UNREALIZED_STEPS", "integration_codes", "integration_frame", "shadow_boundary"]
+__all__ = ["Admission", "AdmissionHalted", "BoundaryRefused", "Decision", "EntryInvalid", "LEAF_FIELDS",
+           "RESERVED_LEAVES", "UNREALIZED_STEPS", "integration_codes", "integration_frame", "shadow_boundary"]

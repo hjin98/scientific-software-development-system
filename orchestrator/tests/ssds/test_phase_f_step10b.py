@@ -17,7 +17,7 @@ from ssds.admission.engine import BoundaryRefused, shadow_boundary
 from ssds.admission.request import request_message
 
 from . import test_phase_f_step9d_iii as harness
-from ._fixtures import commit, git, record, sshsig
+from ._fixtures import commit, git, init_repo, record, sshsig
 
 
 class Served(harness.AdmittedRuns):
@@ -116,6 +116,48 @@ class Pass(Served):
             self.composition().serve("main")
         self.assertEqual(len(self.entries()), before)
 
+    def test_a_refused_absorption_records_no_rebind(self) -> None:
+        """Review of 6de6cf0d, B1: the ref is recorded once the pass took effect, never before ``absorb``."""
+
+        from ssds.admission.engine import Admission, AdmissionHalted
+
+        self.composition().serve("main")
+        git(self.product, "checkout", "--quiet", "-b", "other")
+        self.move(**{"other.txt": "5\n"})
+        before = len(self.entries())
+        with mock.patch.object(Admission, "absorb", side_effect=AdmissionHalted("publication pending (F39)")), \
+                self.assertRaises(AdmissionHalted):
+            self.composition().serve("other", rebind=True)
+        self.assertEqual(len(self.entries()), before)
+        self.assertEqual([e["ref"] for e in self.logged("observed-ref.jsonl")], ["main"], "refused: no rebind")
+        original = Admission.absorb
+
+        def appended_then_halted(admission, entries, obs):
+            original(admission, entries, obs)
+            raise AdmissionHalted("appended but not yet held")
+
+        with mock.patch.object(Admission, "absorb", appended_then_halted), self.assertRaises(AdmissionHalted):
+            self.composition().serve("other", rebind=True)
+        self.assertEqual(len(self.entries()), before + 1)
+        self.assertEqual([e["ref"] for e in self.logged("observed-ref.jsonl")], ["main", "other"],
+                         "the absorption took effect: the ledger observes other")
+
+    def test_a_repository_without_the_last_observation_is_refused(self) -> None:
+        """Review of 6de6cf0d, R1: descent unknown is no descent; another repository's ``main`` is refused."""
+
+        from ssds.cli import Composition
+        from ssds.interface.operations import Refused
+
+        elsewhere = init_repo(self.product.parent / "elsewhere")
+        (elsewhere / "a.py").write_text("v = 7\n")
+        commit(elsewhere, "another project")
+        before = len(self.entries())
+        with self.assertRaises(Refused) as refused:
+            Composition("demo", elsewhere).serve("main")
+        self.assertIn("does not descend", str(refused.exception))
+        self.assertEqual(len(self.entries()), before)
+        self.assertEqual(self.logged("observed-ref.jsonl"), [])
+
     def test_the_command(self) -> None:
         from typer.testing import CliRunner
 
@@ -175,6 +217,17 @@ class Boundary(Served):
         self.assertIsNone(shadow_boundary(adopting("ssds.policy")))
         self.assertIn("beyond SD-69", shadow_boundary(adopting("code")), "another unit's key")
         self.assertIn("beyond SD-69", shadow_boundary(adopting("ssds.manifest", absorbed=False)), "not by ABSORB")
+        for key in (["ssds.manifest", "renamed_from"], ["ssds.policy", "part_of"], ["ssds.policy"],
+                    ["ssds.policy", "kind", "x"], ["ssds.policy", "semantic"]):
+            with self.subTest(key=key):  # review of 6de6cf0d, N1: the leaf's own fields only
+                request = adopting("ssds.policy")
+                request["adopted_deltas"][0]["key"] = key
+                request["records"][0]["target"]["key"] = key
+                self.assertIn("beyond SD-69", shadow_boundary(request))
+        for field in ("kind", "role", "subject", "scope"):
+            request = adopting("ssds.manifest")
+            request["adopted_deltas"][0]["key"] = request["records"][0]["target"]["key"] = ["ssds.manifest", field]
+            self.assertIsNone(shadow_boundary(request), field)
         bare = {**self.request([]), "adopted_deltas": [{"absorption": absorption, "key": ["ssds.policy", "kind"]}]}
         self.assertIn("beyond SD-69", shadow_boundary(bare), "no disposition in the request")
 
