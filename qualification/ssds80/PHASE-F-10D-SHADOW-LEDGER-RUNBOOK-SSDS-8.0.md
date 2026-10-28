@@ -2,7 +2,7 @@
 
 ```text
 GOVERNING SSDP: 7.2.1 (identities from PROTOCOL-RELEASE-STATE.yaml)
-PLAN: workplans/active/SSDS-8.0-G2-PHASE-F-PLAN.md §3.7 row 10d, reading F122 (revision 53); SD-69 Q-F7; F1; F8
+PLAN: workplans/active/SSDS-8.0-G2-PHASE-F-PLAN.md §3.7 row 10d, reading F122 (revision 56); SD-69 Q-F7; F1; F8
 SHADOW: no SSDS authority over any subject; observe-only; nothing is published, issued or executed
 AUTHORITY: the stakeholder's. The ledgers under ~/.ssds are read-only to the implementing agent; every step that
            appends to ssdp-shadow-2 runs in the stakeholder's own shell, or with their explicit authorization
@@ -19,6 +19,8 @@ Run from the repository root, which is the product repository the ledger observe
 ```bash
 cd /home/samjin/agent-skills/scientific-software-development-system
 export PYTHONPATH="$PWD/orchestrator/src"
+export PYTHONDONTWRITEBYTECODE=1  # imports must not write product __pycache__ files
+set -e
 SSDS="python -m ssds.cli"
 LEDGER=ssdp-shadow-2
 BRANCH=ssds-8.0-graph-native-architecture
@@ -26,10 +28,23 @@ ACTOR='human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw'
 WORK=/tmp/ssds-10d && mkdir -p "$WORK"          # outside the repository: the boundary script refuses otherwise
 snap() { python orchestrator/scripts/shadow_boundary.py snapshot --repository . --out "$WORK/before.json"; }
 check() { python orchestrator/scripts/shadow_boundary.py compare --repository . --before "$WORK/before.json"; }
+around() {
+    local expected="$1" command_exit boundary_exit
+    shift
+    snap || return
+    if "$@"; then command_exit=0; else command_exit=$?; fi
+    if check; then boundary_exit=0; else boundary_exit=$?; fi
+    printf 'command_exit=%s expected=%s boundary_exit=%s\n' "$command_exit" "$expected" "$boundary_exit"
+    test "$command_exit" -eq "$expected" && test "$boundary_exit" -eq 0
+}
 ```
 
-Wrap every SSDS command from step 2 on as `snap; <command>; check`. Any `CHANGED` stops the run. Make no commit,
-checkout or fetch in this repository while a snapshot is open.
+Wrap every SSDS command from step 2 on as `around 0 <command>` (use `around 1` for an expected CLI refusal).
+The wrapper records both exits and fails if either is unexpected; `set -e` stops the run. Make no commit,
+checkout, fetch or other edit in any registered worktree while a snapshot is open. The sensor compares endpoint
+bytes and write metadata, including ignored content, all linked worktrees and Git storage; it refuses submodules,
+unavailable worktrees and special files. It cannot exclude a transient write reverted between snapshots, so the
+read-only execution-path review remains part of the evidence. Access times may change while files are read.
 
 ## 1. The declarations and the policy file (a product change, before the comparison starts)
 
@@ -65,7 +80,7 @@ Commit the two files on `$BRANCH`. That commit is the observed head the next ste
 ## 2. Absorb (keys quarantined)
 
 ```bash
-snap; $SSDS admission serve --ledger $LEDGER --repository . --observed-ref $BRANCH; check
+around 0 $SSDS admission serve --ledger $LEDGER --repository . --observed-ref $BRANCH
 ```
 
 Expect `"absorbed": true`. The first use records `$BRANCH` as the observed ref.
@@ -73,8 +88,8 @@ Expect `"absorbed": true`. The first use records `$BRANCH` as the observed ref.
 ## 3. The author prepares the `ABSORB` request
 
 ```bash
-snap; python orchestrator/scripts/reserved_leaves.py --ledger $LEDGER --repository . --actor "$ACTOR" --out "$WORK/inputs"; check
-snap; $SSDS submit --ledger $LEDGER --prepare "$WORK/inputs/records.json" --actor "$ACTOR" --adopt "$WORK/inputs/delta-1.json" ...; check
+around 0 python orchestrator/scripts/reserved_leaves.py --ledger $LEDGER --repository . --actor "$ACTOR" --out "$WORK/inputs"
+around 0 $SSDS submit --ledger $LEDGER --prepare "$WORK/inputs/records.json" --actor "$ACTOR" --adopt "$WORK/inputs/delta-1.json" ...
 ```
 
 Run the `submit` line exactly as `reserved_leaves.py` prints it: one `--adopt` per key. `--prepare` prints the
@@ -88,7 +103,7 @@ Read `summary.txt` in the workspace: one `INTAKE_DISPOSITION ABSORB` per declara
 
 ```bash
 ssh-keygen -Y sign -f ~/.ssh/ssds-genesis -n ssds ~/.ssds/state/ssdp-shadow-2/requests/<digest>/request-message.txt
-snap; $SSDS submit --ledger $LEDGER --repository . --observed-ref $BRANCH --admit ~/.ssds/state/ssdp-shadow-2/requests/<digest>; check
+around 0 $SSDS submit --ledger $LEDGER --repository . --observed-ref $BRANCH --admit ~/.ssds/state/ssdp-shadow-2/requests/<digest>
 ```
 
 Expect `"decision": "ACCEPT"`, with `submitted` repeating the summary that was signed. A `STALE_BASIS` or `REF_DELTA`
@@ -98,7 +113,7 @@ refusal means the branch moved the declarations: go back to step 3. Sign only in
 ## 5. `Σ` declares the three reserved leaves
 
 ```bash
-snap; $SSDS inspect --ledger $LEDGER --repository .; check
+around 0 $SSDS inspect --ledger $LEDGER --repository .
 ```
 
 Expect `ssds.manifest` (MANIFEST), `ssds.policy` (POLICY) and `ssds.unclassified` (UNCLASSIFIED) declared, and
@@ -107,8 +122,8 @@ none of their keys quarantined.
 ## 6. The restart check
 
 ```bash
-snap; $SSDS admission serve --ledger $LEDGER --repository . --observed-ref $BRANCH; check
-snap; $SSDS admission serve --ledger $LEDGER --repository . --observed-ref $BRANCH; check
+around 0 $SSDS admission serve --ledger $LEDGER --repository . --observed-ref $BRANCH
+around 0 $SSDS admission serve --ledger $LEDGER --repository . --observed-ref $BRANCH
 ```
 
 The second pass appends nothing: compare the ledger's entry count in each report's `position`. A records-only
@@ -117,7 +132,7 @@ admission is never fenced (F1).
 ## 7. `dispatcher serve`, a report and a submit, a decide refused
 
 ```bash
-snap; $SSDS dispatcher serve --ledger $LEDGER --repository .; check
+around 0 $SSDS dispatcher serve --ledger $LEDGER --repository .
 ```
 
 It issues nothing and writes no run ref (F8).
@@ -125,15 +140,25 @@ It issues nothing and writes no run ref (F8).
 The records-only `report` and `submit` use records the stakeholder chooses. They are permanent ledger entries,
 so they should state something true. A template for `report` (`$WORK/report.json`):
 
-```json
-[{"kind": "FINDING", "schema": 1, "frame": "ADMITTED", "target": {"units": ["orchestrator.program"]},
-  "basis": [], "outcome": null, "reason": [], "supersedes": [], "provenance": null, "refs": [],
-  "governs": "<copy from $WORK/inputs/records.json>", "recorded_at": "<UTC now, YYYY-MM-DDTHH:MM:SSZ>",
-  "ruleset": "<copy from $WORK/inputs/records.json>", "fields": {"materiality": "ROUTINE"}}]
+```bash
+python - "$WORK" <<'EOF'
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+work = Path(sys.argv[1])
+reference = json.loads((work / "inputs/records.json").read_text())[0]
+record = {"kind": "FINDING", "schema": 1, "frame": "ADMITTED", "target": {"units": ["orchestrator.program"]},
+          "basis": [], "outcome": None, "reason": [], "supersedes": [], "provenance": None, "refs": [],
+          "governs": reference["governs"], "ruleset": reference["ruleset"],
+          "recorded_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+          "fields": {"materiality": "ROUTINE"}}
+(work / "report.json").write_text(json.dumps([record], indent=2) + "\n")
+EOF
 ```
 
-Copy `ruleset` and `governs` from the records `reserved_leaves.py` wrote: they are the ledger's current ruleset
-and the genesis record's `governs`, read through the program.
+This copies the complete `ruleset` and `governs` objects without changing their JSON types, from the inputs read
+through the program. The stakeholder must supply the true finding's content and references before preparing it.
 
 Each follows steps 3 and 4: `--prepare`, sign, then `--admit` with `report` or `submit`. Then a `decide`, which is
 prepared, signed and refused at entry. Phase F accepts no gate or human decision (F1), and nothing is appended.
@@ -141,7 +166,7 @@ prepared, signed and refused at entry. Phase F accepts no gate or human decision
 ## 8. One candidate request through the library API, refused at entry
 
 ```bash
-snap; python - <<'EOF'
+around 0 python - <<'EOF'
 from pathlib import Path
 from ssds.cli import Composition
 from ssds.admission.request import BoundaryRefused, expected_head
@@ -151,11 +176,11 @@ head = expected_head(entries)
 req = {"binding": None, "claims": [], "base_position": len(entries) - 1, "base_commit": head,
        "candidates": ["0" * 40], "adopted_deltas": [], "records": [], "objects": {}}
 try:
-    c.admission().admit(req, head); print("NOT REFUSED: stop and report")
+    c.admission().admit(req, head)
+    raise SystemExit("NOT REFUSED: stop and report")
 except BoundaryRefused as exc:
     print("refused at entry:", exc)
 EOF
-check
 ```
 
 It is refused before validation, logged in `~/.ssds/state/ssdp-shadow-2/boundary.jsonl`, and nothing is appended.

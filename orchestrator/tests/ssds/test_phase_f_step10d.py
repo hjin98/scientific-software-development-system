@@ -236,9 +236,15 @@ class Rehearsal(GenesisFixture):
     def test_the_inputs_script(self) -> None:
         import contextlib
         import io
+        import shlex
 
         helper = script("reserved_leaves")
         args = ["--ledger", "demo", "--repository", str(self.product), "--actor", self.human()]
+        for inside in (self.product / "inputs", self.product / ".git" / "inputs"):
+            with self.assertRaises(SystemExit) as refused:
+                helper.main([*args, "--out", str(inside)])
+            self.assertIn("outside the product repository", str(refused.exception))
+            self.assertFalse(inside.exists())
         with self.assertRaises(SystemExit) as nothing:
             helper.main([*args, "--out", str(self.root / "early")])
         self.assertIn("no declaration key", str(nothing.exception))
@@ -246,7 +252,7 @@ class Rehearsal(GenesisFixture):
         (self.product / ".ssds" / "manifest.toml").write_text(UNREPAIRED + DECLARATIONS)
         commit(self.product, "declare the reserved leaves (SD-69)")
         self.composition().serve("main")
-        out, printed = self.root / "inputs", io.StringIO()
+        out, printed = self.root / "inputs with ; spaces", io.StringIO()
         with contextlib.redirect_stdout(printed):
             self.assertEqual(helper.main([*args, "--out", str(out)]), 0)
         records = json.loads((out / "records.json").read_text())
@@ -256,9 +262,10 @@ class Rehearsal(GenesisFixture):
                             for r in records))
         self.assertEqual([r["governs"] for r in records], [{"mode": "LEGACY", "protocol": "7.2.1"}] * len(records),
                          "the genesis record's governs")
-        command = printed.getvalue().splitlines()[-1].split()
+        command = shlex.split(printed.getvalue().splitlines()[-1])
         self.assertEqual(command[:4], ["ssds", "submit", "--ledger", "demo"])
         self.assertEqual(command.count("--adopt"), len(deltas))
+        self.assertEqual(command[command.index("--prepare") + 1], str(out / "records.json"))
         with self.assertRaises(FileExistsError):
             helper.main([*args, "--out", str(out)])  # a new directory each time
 

@@ -86,6 +86,16 @@ class Boundary(unittest.TestCase):
             log.write(f"{self.second} {self.second} x <x@example.invalid> 0 +0000\tcheckout: nothing\n")
         self.assertChanged("reflog common:HEAD")
 
+    def test_a_reflog_symlink_is_refused(self) -> None:
+        outside_log = self.tmp / "outside-log"
+        outside_log.write_text("external bytes\n")
+        log = self.repo / ".git" / "logs" / "HEAD"
+        log.unlink()
+        log.symlink_to(outside_log)
+        result = self.run_script("snapshot", "--repository", str(self.repo), "--out", str(self.before))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("symlink reflog is unsupported", result.stderr)
+
     def test_an_object_added(self) -> None:
         self.snapshot()
         git(self.repo, "hash-object", "-w", "--stdin", data=b"a new object\n")
@@ -100,6 +110,90 @@ class Boundary(unittest.TestCase):
         self.snapshot()
         (self.repo / "new.txt").write_text("x\n")
         self.assertChanged("new.txt")
+
+    def test_index_only_change(self) -> None:
+        self.snapshot()
+        git(self.repo, "update-index", "--assume-unchanged", "a.py")
+        self.assertChanged("index changed")
+
+    def test_ref_storage_rewrite_with_unchanged_targets(self) -> None:
+        self.snapshot()
+        git(self.repo, "pack-refs", "--all")
+        self.assertChanged("packed-refs changed")
+
+    def test_content_changes_with_unchanged_status(self) -> None:
+        for name in ("a.py", "untracked.txt", "ignored.txt"):
+            with self.subTest(name=name):
+                (self.repo / ".gitignore").write_text("ignored.txt\n")
+                path = self.repo / name
+                path.write_text("before\n")
+                self.snapshot()
+                path.write_text("after!\n")
+                self.assertChanged(f"{name} changed")
+
+    def test_a_linked_worktree_and_output_containment(self) -> None:
+        other = self.tmp / "linked"
+        git(self.repo, "worktree", "add", "-b", "linked", str(other))
+        supported = subprocess.run(["git", "-C", str(self.repo), "worktree", "list", "--porcelain", "-z"],
+                                   capture_output=True).returncode == 0
+        if not supported:
+            result = self.run_script("snapshot", "--repository", str(self.repo), "--out", str(self.before))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("linked worktree inventory requires Git", result.stderr)
+            return  # the old-Git boundary is refusal, not a partial unchanged claim
+        self.snapshot()
+        (other / "a.py").write_text("changed in the other worktree\n")
+        self.assertChanged("a.py changed")
+        result = self.run_script("snapshot", "--repository", str(self.repo), "--out", str(other / "snap.json"))
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("outside the product repository", result.stderr)
+        self.assertFalse((other / "snap.json").exists())
+
+    def test_a_newline_worktree_cannot_alias_an_unrelated_repository(self) -> None:
+        alias = init_repo(self.tmp / "prefix")
+        (alias / "x").write_text("unrelated\n")
+        commit(alias)
+        other = Path(str(alias) + "\nsuffix")
+        git(self.repo, "worktree", "add", "-b", "newline", str(other))
+        result = self.run_script("snapshot", "--repository", str(self.repo), "--out", str(self.before))
+        if result.returncode != 0:
+            self.assertIn("linked worktree inventory requires Git", result.stderr)
+            return
+        (other / "a.py").write_text("changed in the actual newline worktree\n")
+        self.assertChanged("a.py changed")
+
+    def test_a_symlink_target_is_not_read(self) -> None:
+        target = self.tmp / "outside"
+        target.write_text("private outside bytes\n")
+        (self.repo / "link").symlink_to(target)
+        self.snapshot()
+        target.write_text("changed outside the boundary\n")
+        self.assertEqual(self.compare().returncode, 0)
+        (self.repo / "link").unlink()
+        (self.repo / "link").symlink_to(self.tmp / "absent")
+        self.assertChanged("link changed")
+
+    def test_a_submodule_or_special_file_refuses_the_snapshot(self) -> None:
+        os.mkfifo(self.repo / "pipe")
+        result = self.run_script("snapshot", "--repository", str(self.repo), "--out", str(self.before))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unsupported filesystem entry", result.stderr)
+        (self.repo / "pipe").unlink()
+        git(self.repo, "update-index", "--add", "--cacheinfo", f"160000,{self.first},module")
+        result = self.run_script("snapshot", "--repository", str(self.repo), "--out", str(self.before))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("submodules are unsupported", result.stderr)
+
+    def test_an_old_snapshot_cannot_certify_unchanged(self) -> None:
+        import json
+
+        self.snapshot()
+        old = json.loads(self.before.read_text())
+        del old["schema"]
+        self.before.write_text(json.dumps(old))
+        result = self.compare()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("take a new snapshot", result.stderr)
 
     def test_the_snapshot_lies_outside(self) -> None:
         for inside in (self.repo / "snap.json", self.repo / ".git" / "snap.json"):

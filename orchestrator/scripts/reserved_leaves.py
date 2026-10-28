@@ -18,18 +18,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY / "orchestrator" / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ssds.admission.engine import RESERVED_LEAVES  # noqa: E402
 from ssds.cli import Composition  # noqa: E402
 from ssds.content import value_to_json  # noqa: E402
 from ssds.derivation import derive  # noqa: E402
 from ssds.derivation.history import History  # noqa: E402
+from shadow_boundary import outside  # noqa: E402
 
 
 def repair_inputs(composition: Composition, recorded_at: str) -> tuple[list[dict], list[dict]]:
@@ -67,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--actor", required=True, help="the human (human:SHA256:...) who will sign")
     parser.add_argument("--out", required=True, type=Path, help="a new directory for the inputs")
     args = parser.parse_args(argv)
+    outside(args.repository.resolve(), args.out)
     recorded_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     records, deltas = repair_inputs(Composition(args.ledger, args.repository), recorded_at)
     args.out.mkdir(parents=True, exist_ok=False)
@@ -78,8 +82,9 @@ def main(argv: list[str] | None = None) -> int:
         adopt += ["--adopt", str(path)]
     for delta in deltas:
         print(f"ABSORB {delta['key'][0]}.{delta['key'][1]} = {json.dumps(delta['value'])} ({delta['absorption']})")
-    print("prepare the request with:\n  ssds submit --ledger " + " ".join(
-        [args.ledger, "--prepare", str(args.out / "records.json"), "--actor", args.actor, *adopt]))
+    print("prepare the request with:\n  " + shlex.join(
+        ["ssds", "submit", "--ledger", args.ledger, "--prepare", str(args.out / "records.json"),
+         "--actor", args.actor, *adopt]))
     return 0
 
 
