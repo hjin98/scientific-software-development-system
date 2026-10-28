@@ -171,6 +171,15 @@ class Pass(Served):
         refused = CliRunner().invoke(app, [*args, "nonexistent"])
         self.assertEqual(refused.exit_code, 1)
         self.assertIn("refused", json.loads(refused.output))
+        from ssds.admission.engine import Admission
+        from ssds.admission.request import AppendRefused, EntryInvalid
+
+        self.move(**{"other.txt": "6\n"})
+        for error in (AppendRefused("lost the compare-and-swap"), EntryInvalid("would not verify")):
+            with self.subTest(error=type(error).__name__), mock.patch.object(Admission, "absorb", side_effect=error):
+                failed = CliRunner().invoke(app, [*args, "main"])  # re-check of 026ef60b, N-c: JSON, no traceback
+                self.assertEqual(failed.exit_code, 1, failed.output)
+                self.assertIn(str(error), json.loads(failed.output)["refused"])
         help_text = CliRunner().invoke(app, ["admission", "serve", "--help"]).output
         self.assertIn("Never rewrite the observed branch", help_text)
 

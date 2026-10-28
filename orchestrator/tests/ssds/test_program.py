@@ -45,8 +45,9 @@ class CompositionRootTests(unittest.TestCase):
             }))
             """
         )
-        self.assertEqual(report["root"], report["core"] + ["status", "ask", "read", "open", "inspect"],
-                         "Core's commands, then the Interface's (Phase E)")
+        self.assertEqual(report["root"], report["core"] + ["status", "ask", "read", "open", "inspect", "report",
+                                                           "submit", "decide"],
+                         "Core's commands, then the Interface's (Phase E), then §16.1's human forms (F121)")
         self.assertEqual(len(report["root"]), len(set(report["root"])))
         self.assertLessEqual(CORE_COMMANDS, set(report["root"]))
         self.assertIn("implementation", report["root"], "profile stage commands are mounted")

@@ -9,28 +9,74 @@ claimed twice fails composition, so the collision is caught in acceptance.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import time
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 import typer
 from typer.models import CommandInfo
 
-from ssds.admission.request import AdmissionHalted, AppendRefused, BoundaryRefused, EntryInvalid
+from ssds.admission.request import REPORT_KINDS, AdmissionHalted, AppendRefused, BoundaryRefused, EntryInvalid
 from ssds.content import GitReadError, ancestry, branch_head, read_tree
 from ssds.core import cli as core_cli
 from ssds.core.api.v1 import ssds_home
+from ssds.derivation import trust_roots
 from ssds.interface.commands import make_commands
 from ssds.interface.operations import Refused, Session
 from ssds.dispatcher import DispatcherHome, observe
 from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, HomeRefused, WitnessSpec, currentness, \
     lineage_witnesses
-from ssds.ledger.read import read_chain
+from ssds.ledger.read import read_chain, with_id
 
 #: What a pass, or a request admitted through one, refuses with: reported as JSON and exit 1, never a traceback
 #: (review of 6de6cf0d, N3).
 PASS_REFUSALS = (Refused, HomeRefused, AdmissionHalted, BoundaryRefused, EntryInvalid, AppendRefused)
+
+#: §16.1's human request forms (reading F121): ``report`` submits §15.1's report kinds, ``decide`` a gate or human
+#: decision, ``submit`` any other kind.
+DECISION_KINDS = frozenset({"GATE_DECISION", "HUMAN_DECISION"})
+
+
+def command_takes(command: str, kind: Any) -> bool:
+    if command == "report":
+        return kind in REPORT_KINDS
+    if command == "decide":
+        return kind in DECISION_KINDS
+    return isinstance(kind, str) and kind not in REPORT_KINDS | DECISION_KINDS
+
+
+def _human_record(command: str, record: Any, actor: str) -> dict:
+    """A record of ``actor``'s, its identity computed: the actor, its class and the absent binding are filled when
+    the record omits them and refused when it names others (a human binding speaks only for its human, §25.1)."""
+
+    if not isinstance(record, dict):
+        raise Refused("each record is a JSON object")
+    if "id" in record:
+        raise Refused("a record carries no id: its identity is computed")
+    if not command_takes(command, record.get("kind")):
+        raise Refused(f"ssds {command} does not submit a record of kind {record.get('kind')!r}")
+    filled = {"actor": actor, "actor_class": "HUMAN", "binding": None, **record}
+    if (filled["actor"], filled["actor_class"], filled["binding"]) != (actor, "HUMAN", None):
+        raise Refused(f"a {record.get('kind')} record of {filled['actor']!r} ({filled['actor_class']}) is not "
+                      f"{actor}'s own with no binding")
+    return with_id(filled)
+
+
+def _summary(ledger_id: str, rid: str, request: dict, actor: str) -> str:
+    """A readable account of a prepared request: each record's kind, target and outcome, and each adopted delta."""
+
+    lines = [f"request {rid}", f"ledger {ledger_id} at position {request['base_position']}, "
+             f"integration head {request['base_commit']}", f"signed by {actor}", "records:"]
+    for record in request["records"]:
+        lines.append(f"  {record['kind']} {record['id']}")
+        lines.append(f"    target  {json.dumps(record.get('target'), sort_keys=True)}")
+        lines.append(f"    outcome {json.dumps(record.get('outcome'))}")
+    lines.append("adopted deltas:" if request["adopted_deltas"] else "adopted deltas: none")
+    lines.extend(f"  {json.dumps(delta, sort_keys=True)}" for delta in request["adopted_deltas"])
+    return "\n".join(lines) + "\n"
 
 
 class HomeAccess:
@@ -172,7 +218,9 @@ class Composition:
     def _taking_effect(self, expected: str | None, obs: str, line: dict | None, action):
         """``action``'s result, the observed ref recorded only once the pass took effect: when ``action`` returns,
         or when it raises after ``obs``'s absorption was appended, so the ledger observes ``obs`` (review of
-        6de6cf0d, B1). A pass refused before that records nothing."""
+        6de6cf0d, B1). A pass refused before that records nothing. "Took effect" means the ledger observes ``obs``,
+        not that this process appended it: a concurrent pass that absorbed the same ``obs`` counts, as an immediate
+        retry would record the same line (re-check of 026ef60b, N-a)."""
 
         from ssds.admission.request import expected_head
 
@@ -202,6 +250,61 @@ class Composition:
             return {**report, "position": len(entries) - 1}
         self._taking_effect(expected, obs, line, lambda: admission.absorb(entries, obs))
         return {**report, "absorbed": True, "position": len(entries)}
+
+    # -- records-only requests (step 10c; reading F121) ---------------------------------------------------------
+
+    def request_parts(self, rid: str, name: str) -> tuple[str, ...]:
+        """A file of the request workspace ``state/<ledger>/requests/<request digest>/`` (SD-59's checked tree)."""
+
+        return ("state", self.access.ledger_id, "requests", rid.removeprefix("sha256:"), name)
+
+    def prepare(self, command: str, records: Any, adopted: list, actor: str) -> tuple[Path, str]:
+        """A records-only request at the ledger's expected head, written unsigned to its workspace with a readable
+        summary and the message the human signs (F121). Returns the workspace and the summary. Nothing here signs:
+        the key stays the human's."""
+
+        from ssds.admission.request import expected_head, request_id, request_message
+
+        if not isinstance(records, list) or not records:
+            raise Refused("RECORDS is a JSON array of one or more records")
+        chain = self.access.chain()
+        entries = chain.entries[: chain.readable_through + 1]
+        if actor not in trust_roots(entries).humans:
+            raise Refused(f"{actor!r} is not a human key registered in force on ledger {self.access.ledger_id}")
+        prepared = [_human_record(command, record, actor) for record in records]
+        for delta in adopted:
+            if not isinstance(delta, dict):
+                raise Refused("each adopted delta is a JSON object")
+        request = {"binding": None, "claims": [], "base_position": len(entries) - 1,
+                   "base_commit": expected_head(entries), "candidates": [], "adopted_deltas": list(adopted),
+                   "records": prepared, "objects": {}}
+        rid = request_id(request)
+        summary = _summary(self.access.ledger_id, rid, request, actor)
+        state = self.state()
+        for name, data in (("request.json", json.dumps(request, indent=2, sort_keys=True).encode() + b"\n"),
+                           ("summary.txt", summary.encode()),
+                           ("request-message.txt", request_message(request))):
+            state.create_private(self.request_parts(rid, name), data)  # identical bytes when prepared before
+        return state.path(self.request_parts(rid, "request.json")).parent, summary
+
+    def admit_prepared(self, directory: Path, name: str, rebind: bool = False) -> dict:
+        """The prepared request in ``directory``, its message rebuilt from ``request.json`` (``request-message.txt``
+        is never read), the human's signature from ``request-message.txt.sig`` attached, decided by Admission after
+        the pass's checks (F121). Its records are one human's, whose signature Admission verifies."""
+
+        try:
+            request = json.loads((directory / "request.json").read_bytes())
+            signature = (directory / "request-message.txt.sig").read_text(encoding="ascii")
+        except (OSError, ValueError) as exc:
+            raise Refused(f"cannot read the prepared request in {directory}: {exc}") from None
+        records = request.get("records") if isinstance(request, dict) else None
+        actors = {r.get("actor") for r in records if isinstance(r, dict)} if isinstance(records, list) else set()
+        if len(actors) != 1 or not isinstance(next(iter(actors)), str):
+            raise Refused(f"{directory}/request.json is not a prepared request: its records are not one human's")
+        signed = {**request, "binding": {"human": {"actor": actors.pop(), "signature": signature}}}
+        admission, _, expected, obs, line = self._pass(name, rebind)
+        decision = self._taking_effect(expected, obs, line, lambda: admission.admit(signed, obs))
+        return {"ledger_id": self.access.ledger_id, "observed_ref": name, **dataclasses.asdict(decision)}
 
     def observe(self) -> dict:
         """``dispatcher serve``'s report at the qualified head (F8, F65)."""
@@ -251,7 +354,59 @@ def compose(*command_sets: tuple[str, Iterable[CommandInfo]]) -> typer.Typer:
     return root
 
 
-app = compose(("core", core_cli.app.registered_commands), ("ssds", SSDS_COMMANDS))
+def request_command(command: str, purpose: str) -> CommandInfo:
+    """``ssds <command> --prepare RECORDS`` and ``ssds <command> --admit DIR`` (reading F121)."""
+
+    def run(ledger: str = typer.Option(..., "--ledger", help="the ledger id in the SSDS home"),
+            prepare: Path | None = typer.Option(None, "--prepare", help="a JSON array of records, each without id"),
+            adopt: list[Path] | None = typer.Option(None, "--adopt", help="a JSON file of one adopted delta"),
+            actor: str | None = typer.Option(None, "--actor", help="the human (human:SHA256:...) who signs"),
+            admit: Path | None = typer.Option(None, "--admit", help="a prepared request's directory, signed"),
+            repository: Path = typer.Option(Path("."), "--repository",
+                                            help="the repository whose history the ledger names"),
+            observed_ref: str | None = typer.Option(None, "--observed-ref", help="the branch the ledger observes"),
+            rebind_observed_ref: bool = typer.Option(False, "--rebind-observed-ref",
+                                                     help="observe another branch than before (recorded)")) -> None:
+        try:
+            if (prepare is None) == (admit is None):
+                raise Refused("give exactly one of --prepare RECORDS and --admit DIR")
+            composition = Composition(ledger, repository)
+            if prepare is not None:
+                if actor is None:
+                    raise Refused("--prepare needs --actor, the human who will sign")
+                try:
+                    records = json.loads(prepare.read_bytes())
+                    adopted = [json.loads(path.read_bytes()) for path in adopt or []]
+                except (OSError, ValueError) as exc:
+                    raise Refused(f"cannot read the request's input: {exc}") from None
+                directory, summary = composition.prepare(command, records, adopted, actor)
+                typer.echo(summary + f"\nprepared in {directory}\nsign it with your own key:\n"
+                           f"  ssh-keygen -Y sign -f <your key> -n ssds {directory / 'request-message.txt'}\n"
+                           f"then admit it:\n  ssds {command} --ledger {ledger} --repository <repository> "
+                           f"--observed-ref <branch> --admit {directory}")
+                return
+            if observed_ref is None:
+                raise Refused("--admit needs --observed-ref, the branch the ledger observes")
+            report = composition.admit_prepared(admit, observed_ref, rebind_observed_ref)
+        except PASS_REFUSALS as exc:
+            typer.echo(json.dumps({"refused": str(exc)}, indent=2, sort_keys=True))
+            raise typer.Exit(1) from None
+        typer.echo(json.dumps(report, indent=2, sort_keys=True))
+        raise typer.Exit(0 if report["decision"] == "ACCEPT" else 1)
+
+    run.__doc__ = (f"{purpose}: --prepare writes an unsigned records-only request and its summary; --admit submits "
+                   f"it once you have signed it. Nothing here signs: the key stays yours (F121).")
+    return CommandInfo(name=command, callback=run)
+
+
+#: §16.1's human forms under the Manual's names (§26.3; reading F121): no envelopes on the real ledger (F4).
+REQUEST_COMMANDS: tuple[CommandInfo, ...] = (
+    request_command("report", "Report a finding, amendment request, blocker or question"),
+    request_command("submit", "Submit records of any other kind, adopting quarantined deltas with --adopt"),
+    request_command("decide", "Record a gate or human decision"),
+)
+
+app = compose(("core", core_cli.app.registered_commands), ("ssds", SSDS_COMMANDS), ("requests", REQUEST_COMMANDS))
 
 #: The Dispatcher's commands (Phase F step 8a): ``dispatcher serve`` is observe-only on a shadow ledger (reading F8).
 dispatcher_app = typer.Typer(name="dispatcher", help="The Dispatcher: what it would issue at the qualified head.",

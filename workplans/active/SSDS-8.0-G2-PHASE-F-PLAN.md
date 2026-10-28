@@ -3885,3 +3885,37 @@ No SERIOUS CHALLENGE against the accepted authority. The check is requested.
   - **N3.** `admission serve` reports `EntryInvalid` and `AppendRefused` as JSON with exit 1. `admission.request` now holds `EntryInvalid` and re-exports `AppendRefused`, since fitness lets only Admission import the append API.
   - **N2** (the default `entry_policy=None`) is taken as stated: fitness F11 already keeps the root from importing `admission.engine`, so `observe_only` is its only constructor.
   - **N4** (a non-list `records` passes the boundary to validation; mutant R5) is left: validation rejects it, and the boundary's contract sends malformed requests there.
+- **Re-check of 026ef60b (same family): PASS.** B1, R1 and N1 resolved; `LEAF_FIELDS` is exactly what a reserved system leaf can carry (`UNIT_FIELDS` minus `part_of` and `renamed_from`; a system unit is a subject). Notes taken up in step 10c's commit: N-a, `_taking_effect`'s docstring says "took effect" means the ledger observes `obs` (a concurrent pass absorbing the same `obs` counts, as an immediate retry would record the same line); N-c, a `CliRunner` case pins `AppendRefused` and `EntryInvalid` reported as JSON with exit 1. N-b (a failed state write after a successful absorption reported as refused) heals on the next pass and is left.
+
+**Step 10c built (F121).** `ssds report`, `ssds submit` and `ssds decide` are mounted through `compose` (so a name claimed twice fails composition), one factory, `cli.request_command`, building each.
+- `--prepare RECORDS --actor HUMAN [--adopt DELTA ...]`:
+  - `RECORDS` is a JSON array of records, each without `id`. Each `--adopt` names a JSON file holding one adopted delta; this is F121's `DELTA` read as a file, since a delta is an object.
+  - Each record's kind is checked against the command (`command_takes`): `report` takes `REPORT_KINDS`; `decide` takes `GATE_DECISION` or `HUMAN_DECISION`; `submit` takes any other string kind.
+  - The actor, `HUMAN` and a null binding are filled when a record omits them and refused when it names others. The actor must be a human key in force (`trust_roots`).
+  - The request is built at the ledger's readable head: `base_position` is the last entry and `base_commit` the expected head. Claims and candidates are empty and `objects` is `{}`, so a record that references `LEDGER`-store objects cannot be prepared this way.
+  - `request.json`, `summary.txt` (each record's kind, id, target and outcome; each adopted delta) and `request-message.txt` are written with `create_private` under `state/<ledger>/requests/<digest>/`. Preparing the same request again yields the same workspace.
+  - It prints the summary, the `ssh-keygen -Y sign` command and the `--admit` command. Nothing signs.
+- `--admit DIR --observed-ref B [--repository R] [--rebind-observed-ref]`:
+  - It reads `request.json` and `request-message.txt.sig`; `request-message.txt` is never read.
+  - It refuses records that are not one human's.
+  - It attaches `{"human": {"actor", "signature"}}` and runs step 10b's pass (`_pass`: observed ref, held head, descent). Admission decides through `_taking_effect`, so a refused pass records no ref.
+  - It prints the decision; exit 1 unless `ACCEPT`.
+- Every pass refusal (`PASS_REFUSALS`) is reported as JSON with exit 1.
+- **"A stale base refused" (§3.7's 10c row), read through Admission's own rules.** A prepared request's base never becomes inconsistent, since the ledger only grows, so §8.3 step 2's `REF_BASE` does not arise for it. Admission absorbs the moved head first (step 9) and judges each record's basis there (step 6). A record the move left current is admitted from the earlier base. A record whose basis the move made stale is refused `STALE_BASIS`, and the human prepares it again.
+- `decide`'s requests are prepared but refused at the boundary (F1: Phase F accepts no gate or human decision), with no ref recorded.
+- Tests: `test_phase_f_step10c` (15):
+  - each operation's kinds;
+  - the workspace (files, private modes, identity, message bytes, summary, idempotence);
+  - what `--prepare` refuses (an empty array, another actor, an `id`, a binding, an `AGENT` class, a non-object, an unregistered actor, a non-object delta), with nothing written;
+  - an adoption request carrying its delta;
+  - a prepared request signed with the fixture key and admitted, and its repeat returning the recorded decision;
+  - a signature over other bytes rejected;
+  - a tampered `request.json` rejected;
+  - an altered `request-message.txt` ignored;
+  - a base the branch moved past, admitted;
+  - an `ACCEPTANCE` whose content basis is current, admitted, and the same refused `STALE_BASIS` once `code` moved;
+  - `decide` refused at the boundary with no ref recorded;
+  - an unreadable workspace and records of two humans refused;
+  - the commands end to end, and their refusals as JSON (neither form, both forms, no actor, no observed ref, a wrong kind);
+  - the names mounted once.
+  Mutants: 15 (C01-C15), all killed (C11 and C13 after the both-forms and two-humans cases were added).
