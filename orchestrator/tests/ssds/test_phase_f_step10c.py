@@ -95,6 +95,16 @@ class Prepare(Prepared):
             self.assertEqual(stat.S_IMODE(os.stat(directory / name).st_mode), 0o600, name)
         self.assertEqual(self.prepare("submit", availability()), directory, "prepared again: the same workspace")
 
+    def test_the_base_after_an_absorption(self) -> None:
+        """Review of 2d03161c, N6: the base is the ledger's expected head, not its baseline."""
+
+        self.write({"other.txt": "7\n"})
+        moved = commit(self.product, "a later commit")
+        self.composition().serve("main")
+        request = self.stored(self.prepare("submit", availability()))
+        self.assertEqual((request["base_commit"], request["base_position"]), (moved, len(self.entries()) - 1))
+        self.assertNotEqual(moved, self.baseline)
+
     def test_what_prepare_refuses(self) -> None:
         other = {**availability(), "actor": "human:SHA256:someone-else"}
         with_id = {**availability(), "id": "sha256:" + "0" * 64}
@@ -133,6 +143,45 @@ class Admit(Prepared):
         self.assertEqual(report["admitted"], (self.stored(directory)["records"][0]["id"],))
         again = self.composition().admit_prepared(directory, "main")
         self.assertEqual((again["decision"], again["appended"]), ("ACCEPT", False), "a repeat returns the decision")
+
+    def test_one_signature_one_identity(self) -> None:
+        """Review of 2d03161c, N1: a re-wrapped, CRLF or padded armor is the same signature and the same request."""
+
+        from ssds.cli import canonical_signature
+
+        directory = self.prepare("submit", availability())
+        self.sign(directory)
+        signature = (directory / "request-message.txt.sig").read_text()
+        self.assertEqual(canonical_signature(signature), signature, "ssh-keygen's own armor is canonical")
+        first = self.composition().admit_prepared(directory, "main")
+        lines = signature.splitlines()
+        body = "".join(lines[1:-1])
+        for variant in (signature + "\n\n", signature.replace("\n", "\r\n"),
+                        "\n".join([lines[0], *(body[i:i + 40] for i in range(0, len(body), 40)), lines[-1]]) + "\n",
+                        "  " + signature):
+            with self.subTest(variant=variant[:40]):
+                (directory / "request-message.txt.sig").write_text(variant)
+                again = self.composition().admit_prepared(directory, "main")
+                self.assertEqual((again["request_id"], again["appended"]), (first["request_id"], False))
+        self.assertEqual(canonical_signature("not an armor"), "not an armor")
+
+    def test_admit_checks_the_command_and_reports_what_was_signed(self) -> None:
+        """Review of 2d03161c, N3 and N4."""
+
+        directory = self.prepare("submit", availability())
+        self.sign(directory)
+        with self.assertRaises(Refused):
+            self.composition().admit_prepared(directory, "main", command="report")
+        report = self.composition().admit_prepared(directory, "main", command="submit")
+        self.assertEqual(report["decision"], "ACCEPT")
+        self.assertEqual(report["submitted"], (directory / "summary.txt").read_text())
+
+    def test_a_deeply_nested_request_is_refused(self) -> None:
+        directory = self.prepare("submit", availability())
+        self.sign(directory)
+        (directory / "request.json").write_text("[" * 100000 + "]" * 100000)
+        with self.assertRaises(Refused):  # N5
+            self.composition().admit_prepared(directory, "main")
 
     def test_a_signature_over_other_bytes_is_refused(self) -> None:
         directory = self.prepare("submit", availability())

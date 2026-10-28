@@ -19,7 +19,8 @@ from typing import Any
 import typer
 from typer.models import CommandInfo
 
-from ssds.admission.request import REPORT_KINDS, AdmissionHalted, AppendRefused, BoundaryRefused, EntryInvalid
+from ssds.admission.request import REPORT_KINDS, AdmissionHalted, AppendRefused, BoundaryRefused, EntryInvalid, \
+    request_id
 from ssds.content import GitReadError, ancestry, branch_head, read_tree
 from ssds.core import cli as core_cli
 from ssds.core.api.v1 import ssds_home
@@ -63,6 +64,21 @@ def _human_record(command: str, record: Any, actor: str) -> dict:
         raise Refused(f"a {record.get('kind')} record of {filled['actor']!r} ({filled['actor_class']}) is not "
                       f"{actor}'s own with no binding")
     return with_id(filled)
+
+
+ARMOR = ("-----BEGIN SSH SIGNATURE-----", "-----END SSH SIGNATURE-----")
+
+
+def canonical_signature(text: str) -> str:
+    """The armor ``ssh-keygen -Y sign`` writes (its body wrapped at 70 columns, one final newline), rebuilt from any
+    re-wrapping, line-ending or whitespace variant of it, so one signature gives one request identity (review of
+    2d03161c, N1). Text that is no armor is returned unchanged, for Admission to refuse."""
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) < 3 or (lines[0], lines[-1]) != ARMOR:
+        return text
+    body = "".join(lines[1:-1])
+    return "\n".join([ARMOR[0], *(body[i:i + 70] for i in range(0, len(body), 70)), ARMOR[1]]) + "\n"
 
 
 def _summary(ledger_id: str, rid: str, request: dict, actor: str) -> str:
@@ -287,24 +303,35 @@ class Composition:
             state.create_private(self.request_parts(rid, name), data)  # identical bytes when prepared before
         return state.path(self.request_parts(rid, "request.json")).parent, summary
 
-    def admit_prepared(self, directory: Path, name: str, rebind: bool = False) -> dict:
+    def admit_prepared(self, directory: Path, name: str, rebind: bool = False, command: str | None = None) -> dict:
         """The prepared request in ``directory``, its message rebuilt from ``request.json`` (``request-message.txt``
-        is never read), the human's signature from ``request-message.txt.sig`` attached, decided by Admission after
-        the pass's checks (F121). Its records are one human's, whose signature Admission verifies."""
+        is never read), the human's signature from ``request-message.txt.sig`` attached in its canonical armor,
+        decided by Admission after the pass's checks (F121). Its records are one human's, whose signature Admission
+        verifies, and of the kinds ``command`` submits when it is named (review of 2d03161c, N4). The report
+        carries the summary of what was submitted, which is what the signature covers (N3)."""
 
         try:
             request = json.loads((directory / "request.json").read_bytes())
-            signature = (directory / "request-message.txt.sig").read_text(encoding="ascii")
-        except (OSError, ValueError) as exc:
+            signature = canonical_signature((directory / "request-message.txt.sig").read_text(encoding="ascii"))
+        except (OSError, ValueError, RecursionError) as exc:  # N5: deeply nested input is refused too
             raise Refused(f"cannot read the prepared request in {directory}: {exc}") from None
         records = request.get("records") if isinstance(request, dict) else None
         actors = {r.get("actor") for r in records if isinstance(r, dict)} if isinstance(records, list) else set()
         if len(actors) != 1 or not isinstance(next(iter(actors)), str):
             raise Refused(f"{directory}/request.json is not a prepared request: its records are not one human's")
-        signed = {**request, "binding": {"human": {"actor": actors.pop(), "signature": signature}}}
+        if command is not None and not all(isinstance(r, dict) and command_takes(command, r.get("kind"))
+                                           for r in records):
+            raise Refused(f"{directory} holds records ssds {command} does not submit")
+        actor = actors.pop()
+        signed = {**request, "binding": {"human": {"actor": actor, "signature": signature}}}
         admission, _, expected, obs, line = self._pass(name, rebind)
         decision = self._taking_effect(expected, obs, line, lambda: admission.admit(signed, obs))
-        return {"ledger_id": self.access.ledger_id, "observed_ref": name, **dataclasses.asdict(decision)}
+        try:
+            summary = _summary(self.access.ledger_id, request_id(request), request, actor)
+        except (KeyError, TypeError):  # a request Admission rejected need not be summarizable
+            summary = None
+        return {"ledger_id": self.access.ledger_id, "observed_ref": name, "submitted": summary,
+                **dataclasses.asdict(decision)}
 
     def observe(self) -> dict:
         """``dispatcher serve``'s report at the qualified head (F8, F65)."""
@@ -387,7 +414,7 @@ def request_command(command: str, purpose: str) -> CommandInfo:
                 return
             if observed_ref is None:
                 raise Refused("--admit needs --observed-ref, the branch the ledger observes")
-            report = composition.admit_prepared(admit, observed_ref, rebind_observed_ref)
+            report = composition.admit_prepared(admit, observed_ref, rebind_observed_ref, command)
         except PASS_REFUSALS as exc:
             typer.echo(json.dumps({"refused": str(exc)}, indent=2, sort_keys=True))
             raise typer.Exit(1) from None
