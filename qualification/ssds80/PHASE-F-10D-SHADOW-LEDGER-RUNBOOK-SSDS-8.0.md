@@ -167,6 +167,8 @@ The transports' and the Dispatcher's routes are step 10b's fixture tests.
   descends from the last observation (SD-64).
 - **A signed records-only request has no expiry.** A record with no basis is admissible at any later head. Keep
   request workspaces private, and delete a workspace you no longer mean to admit.
+- **A signed request names no ledger (Q-F29).** Do not register the same human key on a second live ledger while
+  signed requests exist for this one.
 - **`--prepare` puts no `objects` in a request.** A record that references `LEDGER`-store objects cannot be
   prepared this way.
 - **The signature's armor is canonicalized before it is attached.** A re-wrapped or CRLF copy of the same
