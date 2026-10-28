@@ -25,6 +25,44 @@ from ssds.core.api.v1 import canonical_json
 from ssds.derivation import adverse
 from ssds.ledger.read import with_id
 
+class AdmissionHalted(RuntimeError):
+    """Admission does not append: the observed head is not the expected head (absorption is step 6's)."""
+
+
+class BoundaryRefused(RuntimeError):
+    """The composition root's entry policy refused the request before validation (reading F1, F120): nothing is
+    appended and it is no Admission decision or reason code."""
+
+
+def observe_only(home_root: Any, ledger_id: str, trees: Any, product: Any, ancestry: Any, entry_policy: Any) -> Any:
+    """Admission composed observe-only for the composition root (reading F120): no publisher, ``product`` read for
+    absorptions, ``ancestry`` the ledger repository's graph, ``entry_policy`` checked before validation. This module
+    is Admission's one public surface (fitness F11), so the root composes it here."""
+
+    from .engine import Admission
+    from .genesis import AdmissionHome
+
+    return Admission(AdmissionHome(home_root), ledger_id, trees, product=product, ancestry=ancestry,
+                     entry_policy=entry_policy)
+
+
+def shadow_boundary(request: Any) -> str | None:
+    """The real shadow ledger's boundary (reading F1, F120); ``engine.shadow_boundary``, which reads Phase F's
+    accepted kinds."""
+
+    from .engine import shadow_boundary as boundary
+
+    return boundary(request)
+
+
+def expected_head(entries: Any) -> str | None:
+    """The integration head the last entry left (``Admission.expected_head``)."""
+
+    from .engine import Admission
+
+    return Admission.expected_head(entries)
+
+
 REQUEST_FIELDS = frozenset({"binding", "claims", "base_position", "base_commit", "candidates", "adopted_deltas",
                             "records", "objects"})
 REPORT_KINDS = frozenset({"FINDING", "AMENDMENT_REQUEST", "BLOCKER", "HUMAN_QUESTION"})
@@ -118,6 +156,7 @@ def never_lost(record: Mapping[str, Any]) -> bool:
     return kind in RUNNER_OBSERVATIONS and str(record.get("actor", "")).startswith("machinery:")
 
 
-__all__ = ["ATTESTATION_FIELDS", "ENVELOPE_FIELDS", "REPORT_KINDS", "REQUEST_FIELDS", "ROUTES", "RUNNER_OBSERVATIONS",
-           "attestation_message", "binding_digest", "binding_object", "envelope_digest", "envelope_message", "never_lost",
-           "request_id", "request_message", "resubmitted"]
+__all__ = ["ATTESTATION_FIELDS", "AdmissionHalted", "BoundaryRefused", "ENVELOPE_FIELDS", "REPORT_KINDS",
+           "REQUEST_FIELDS", "ROUTES", "RUNNER_OBSERVATIONS", "attestation_message", "binding_digest", "binding_object",
+           "envelope_digest", "envelope_message", "expected_head", "never_lost", "observe_only", "request_id",
+           "request_message", "resubmitted", "shadow_boundary"]

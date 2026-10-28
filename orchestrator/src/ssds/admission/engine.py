@@ -46,7 +46,7 @@ from .currency import Currency
 from .evidence import (assessment_references, custody_problems, reading_shape, realization_references,
                        realization_shape)
 from .legality import Legality, conformance_alone
-from .request import REPORT_KINDS, never_lost, request_id
+from .request import REPORT_KINDS, AdmissionHalted, BoundaryRefused, never_lost, request_id
 
 #: How many times a writer that loses the ledger's compare-and-swap re-reads and revalidates before it halts.
 _CAS_ATTEMPTS = 3
@@ -74,17 +74,8 @@ def blocking(refused: Iterable[tuple[str, tuple[str, ...]]], alone: Iterable[tup
     return [r for r in refused if r not in alone]
 
 
-class AdmissionHalted(RuntimeError):
-    """Admission does not append: the observed head is not the expected head (absorption is step 6's)."""
-
-
 class EntryInvalid(RuntimeError):
     """Admission does not append an entry that would not verify; the request is set aside, not requeued."""
-
-
-class BoundaryRefused(RuntimeError):
-    """The composition root's entry policy refused the request before validation (reading F1, F120): nothing is
-    appended and it is no Admission decision or reason code."""
 
 
 #: The reserved leaves whose declaration keys SD-69's in-place repair adopts (Q-F7; reading F120).

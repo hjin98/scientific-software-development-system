@@ -10,8 +10,6 @@ claimed twice fails composition, so the collision is caught in acceptance.
 from __future__ import annotations
 
 import json
-import re
-import subprocess
 import time
 from collections.abc import Iterable
 from pathlib import Path
@@ -19,13 +17,12 @@ from pathlib import Path
 import typer
 from typer.models import CommandInfo
 
-from ssds.content import GitReadError, ancestry, read_tree
+from ssds.content import GitReadError, ancestry, branch_head, read_tree
 from ssds.core import cli as core_cli
 from ssds.core.api.v1 import ssds_home
 from ssds.interface.commands import make_commands
 from ssds.interface.operations import Refused, Session
-from ssds.dispatcher import observe
-from ssds.dispatcher.home import DispatcherHome
+from ssds.dispatcher import DispatcherHome, observe
 from ssds.ledger.qualification import FileWitness, HighWaterMark, Home, WitnessSpec, currentness, lineage_witnesses
 from ssds.ledger.read import read_chain
 
@@ -105,8 +102,7 @@ class Composition:
     def boundary(self, request) -> str | None:
         """F1's shadow-boundary policy, its refusals logged in operator state and nowhere in the ledger."""
 
-        from ssds.admission.engine import shadow_boundary
-        from ssds.admission.request import request_id
+        from ssds.admission.request import request_id, shadow_boundary
 
         reason = shadow_boundary(request)
         if reason is not None:
@@ -120,11 +116,10 @@ class Composition:
         """Admission composed observe-only (F120): no publisher, the product repository read for absorptions, the
         ledger repository's graph, and the boundary policy at its entry."""
 
-        from ssds.admission.engine import Admission
-        from ssds.admission.genesis import AdmissionHome
+        from ssds.admission.request import observe_only
 
-        return Admission(AdmissionHome(self.access.home.root), self.access.ledger_id, self.trees,
-                         product=self.repository, ancestry=self.access.ancestry(), entry_policy=self.boundary)
+        return observe_only(self.access.home.root, self.access.ledger_id, self.trees, self.repository,
+                            self.access.ancestry(), self.boundary)
 
     def observed(self, name: str, rebind: bool = False) -> tuple[str, dict | None]:
         """The observed ref's head (SD-64 Q-F2 (i)): ``name`` a branch of the repository, resolved to a commit, and
@@ -132,13 +127,9 @@ class Composition:
         change (plan check of 603295c8, answer 2). Returns the head and the line to record once the pass is
         accepted, so a refused pass records nothing."""
 
-        if not _BRANCH.fullmatch(name) or ".." in name or name.endswith((".lock", "/")) or "//" in name:
-            raise Refused(f"{name!r} is not a branch name")
-        found = subprocess.run(["git", "-C", str(self.repository), "rev-parse", "--verify", "--quiet",
-                                f"refs/heads/{name}^{{commit}}"], capture_output=True, text=True, check=False)
-        head = found.stdout.strip()
-        if found.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", head):
-            raise Refused(f"{name} is not a branch of {self.repository} resolving to a commit")
+        head = branch_head(self.repository, name)
+        if head is None:
+            raise Refused(f"{name!r} is not a branch of {self.repository} resolving to a commit")
         parts = ("state", self.access.ledger_id, "observed-ref.jsonl")
         recorded = self.state().read_private(parts)
         last = json.loads(recorded.splitlines()[-1])["ref"] if recorded else None
@@ -158,13 +149,13 @@ class Composition:
         """One observe-only pass (F120): the held head (this host's provisional entry completed first, §22.4), the
         observed head checked to descend from the last observation, and absorbed when it moved; nothing else."""
 
-        from ssds.admission.engine import Admission
+        from ssds.admission.request import expected_head
 
         obs, line = self.observed(name, rebind)
         admission = self.admission()
         chain = admission.held_head()
         entries = chain.entries[: chain.readable_through + 1]
-        expected = Admission.expected_head(entries)
+        expected = expected_head(entries)
         report = {"ledger_id": self.access.ledger_id, "observed_ref": name, "obs": obs, "expected": expected,
                   "absorbed": False, "mode": "observe-only: nothing is published (F1)"}
         if obs == expected:
@@ -186,10 +177,6 @@ class Composition:
         reports, statements = self.access.witness_reports(witnesses) if witnesses else ({}, {})
         held = currentness(chain, reports, statements, self.access.high_water())
         return observe(chain, self.trees, held, self.access.ancestry())
-
-
-#: A branch name the observed-ref option accepts (git's own rules, narrowed): no leading dash or dot.
-_BRANCH = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/-]*")
 
 
 def connect(ledger_id: str, repository: Path) -> Session:
@@ -268,7 +255,7 @@ def admission_serve(ledger: str = typer.Option(..., "--ledger", help="the ledger
     descends from the last observation (SD-64). A ledger holding such an absorption would carry a CRITICAL
     LATE_PUBLICATION integrity finding (catalogue §22.2), answered by a human decision (§22.3)."""
 
-    from ssds.admission.engine import AdmissionHalted
+    from ssds.admission.request import AdmissionHalted
 
     try:
         report = Composition(ledger, repository).serve(observed_ref, rebind_observed_ref)

@@ -1,7 +1,10 @@
 """Read a commit's tree from a Git repository, exactly as Git stores it (Manual §1.5).
 
 Only object identities are accepted, never ref names, so nothing read through
-the Content Model depends on where a live ref points. Reading uses ``ls-tree``
+the Content Model depends on where a live ref points. The one exception is
+:func:`branch_head`, the composition root's observed-ref read (SD-64 Q-F2 (i);
+Phase F reading F120): it returns a commit identity, and everything after reads
+by identity. Reading uses ``ls-tree``
 and ``cat-file --batch``, which apply no attribute, filter or line-ending
 conversion.
 """
@@ -60,6 +63,22 @@ def ancestry(repo: Path):
         return {0: True, 1: False}.get(result.returncode)
 
     return is_ancestor
+
+
+_BRANCH = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/-]*")
+
+
+def branch_head(repo: Path, name: str) -> str | None:
+    """The commit branch ``name`` of ``repo`` points at, or ``None`` when ``name`` is no branch name or no branch
+    there (git's ref rules, narrowed: no leading dash or dot, no ``..``, ``//``, trailing ``/`` or ``.lock``)."""
+
+    if not _BRANCH.fullmatch(name) or ".." in name or "//" in name or name.endswith(("/", ".lock")):
+        return None
+    result = subprocess.run(  # noqa: S603 - fixed argv; the name is validated above
+        ["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", f"refs/heads/{name}^{{commit}}"],
+        capture_output=True, check=False, env=_environment())
+    head = result.stdout.decode("ascii", "replace").strip()
+    return head if result.returncode == 0 and _COMMIT.fullmatch(head) else None
 
 
 def read_tree(repo: Path, commit: str) -> Tree:
