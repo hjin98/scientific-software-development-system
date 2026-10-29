@@ -10,10 +10,12 @@ use the ECMAScript ``JSON.stringify`` escapes, as RFC 8785 §3.2 requires.
 
 from __future__ import annotations
 
+import json
+import re
 from typing import Any
 
 _EXACT = 2**53 - 1
-_SHORT_ESCAPES = {'"': '\\"', "\\": "\\\\", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t"}
+_SURROGATE = re.compile(r"[\ud800-\udfff]")
 
 
 class CanonicalJSONError(ValueError):
@@ -67,15 +69,8 @@ def _emit(value: Any, out: list[str]) -> None:
 
 
 def _string(text: str) -> str:
-    chars = ['"']
-    for char in text:
-        if char in _SHORT_ESCAPES:
-            chars.append(_SHORT_ESCAPES[char])
-        elif ord(char) < 0x20:
-            chars.append(f"\\u{ord(char):04x}")
-        elif 0xD800 <= ord(char) <= 0xDFFF:
-            raise CanonicalJSONError("lone surrogates are not representable")
-        else:
-            chars.append(char)
-    chars.append('"')
-    return "".join(chars)
+    if _SURROGATE.search(text):
+        raise CanonicalJSONError("lone surrogates are not representable")
+    # With raw Unicode, the standard encoder uses exactly §3.2.2.2's string escapes.
+    # Keep the closed value-domain checks in _emit, including refusal of all floats.
+    return json.dumps(text, ensure_ascii=False)

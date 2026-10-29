@@ -8,6 +8,25 @@ from ssds.core.api.v1 import CanonicalJSONError, canonical_json
 
 
 class CanonicalJSONTests(unittest.TestCase):
+    def test_string_bytes_match_predecessor_for_every_unicode_scalar(self) -> None:
+        """Identity-preserving replacement: predecessor eeb870c0's encoder, in bounded chunks."""
+        escapes = {'"': '\\"', '\\': '\\\\', '\b': '\\b', '\f': '\\f',
+                   '\n': '\\n', '\r': '\\r', '\t': '\\t'}
+        for start in range(0, 0x110000, 4096):
+            text = ''.join(chr(c) for c in range(start, min(start + 4096, 0x110000))
+                           if not 0xD800 <= c <= 0xDFFF)
+            expected = '"' + ''.join(escapes.get(c, f'\\u{ord(c):04x}' if ord(c) < 0x20 else c)
+                                    for c in text) + '"'
+            self.assertEqual(canonical_json(text), expected.encode('utf-8'), hex(start))
+
+    def test_every_surrogate_remains_refused_in_context(self) -> None:
+        for code in range(0xD800, 0xE000):
+            with self.assertRaises(CanonicalJSONError):
+                canonical_json('prefix' + chr(code) + 'suffix')
+        # Python strings containing a UTF-16 surrogate pair remain outside the predecessor's domain too.
+        with self.assertRaises(CanonicalJSONError):
+            canonical_json('\ud834\udd1e')
+
     def test_rfc8785_key_order_is_by_utf16_code_units(self) -> None:
         """RFC 8785 §3.2.3's example: code-point order would put U+FB33 before U+1F600."""
 

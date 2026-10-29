@@ -1328,3 +1328,127 @@ critical finding or obligations. This is ledger qualification, not operational/1
 }
 /home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/25-postupdate-status-before.json
 ```
+
+## Canonical-string repair: real identity regression
+
+After full-suite PASS (1,888 tests, 10 skipped), isolated SSDS reads with the byte-preserving string repair
+returned exactly the same parsed status and prepared-request reports as steps 24/25. Native signatures and
+record/message identities still verify; both requests remain unsigned. This qualifies only these read windows.
+
+### 26-jcs-prepared-pair
+
+```json
+{
+  "at": "2026-10-29T12:53:19.018302+00:00",
+  "step": "26-jcs-prepared-pair",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_prepared_pair.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "position": 3,
+  "entries": 4,
+  "reserved_leaves": {
+    "ssds.manifest": "MANIFEST",
+    "ssds.policy": "POLICY",
+    "ssds.unclassified": "UNCLASSIFIED"
+  },
+  "quarantine": [],
+  "prepared_requests": [
+    {
+      "request": "sha256:75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a",
+      "kind": "FINDING",
+      "record": "sha256:6b2dbc477713971c7011ce485b93317d2183dce8e6f4b3c39e9e26e5e61ef014",
+      "schema_valid": true,
+      "message_matches": true,
+      "signature_present": false
+    },
+    {
+      "request": "sha256:bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34",
+      "kind": "AVAILABILITY",
+      "record": "sha256:2716f8c4df47515c93b6304a2e1bf96b03c13955102aa4820f4d9925a1ebf9e6",
+      "schema_valid": true,
+      "message_matches": true,
+      "signature_present": false
+    }
+  ]
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/26-jcs-prepared-pair-before.json
+```
+
+### 27-jcs-status
+
+```json
+{
+  "at": "2026-10-29T12:53:26.968077+00:00",
+  "step": "27-jcs-status",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "status",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "assertion_withheld": [],
+  "critical": [],
+  "current_assertion": true,
+  "entries": 4,
+  "head": {
+    "digest": "sha256:3196ae9b755527c66a62dc4ee5691bed9c4fdcbbb59128db668289b258cda8b1",
+    "label": "QUALIFIED",
+    "position": 3,
+    "qualification": "QUALIFIED"
+  },
+  "ledger_id": "ssdp-shadow-2",
+  "obligations": [],
+  "provisional": null,
+  "qualification": "QUALIFIED",
+  "subjects": {
+    "orchestrator.program": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:b14a3bc958830e5b4982adfb872af4ac7852f18c5414e066c7af0abe6c36db63",
+      "status": "unclassified"
+    },
+    "ssdp.protocol": {
+      "mode": "LEGACY",
+      "rev": "sha256:0597630d37adb088c58a2c24e0b1402e6853c14e5c9cfbfc73d7f36e73aa27fa",
+      "status": "stale"
+    },
+    "ssds.manifest": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:fb77e7dedb294322d49d4f99d3c157fbe52080aaff08833444fecf29f254e3ee",
+      "status": "unclassified"
+    },
+    "ssds.policy": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:a0c4b3794237c0a5a73ed364ac23b2f63275c0d0c63b5f81aae2c6e623fa1fa4",
+      "status": "unclassified"
+    },
+    "ssds.unclassified": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:dbc260165f64a0e9b4acc0cdc18e9e8df6da2774ff1d587f6b618519fe327355",
+      "status": "unclassified"
+    },
+    "ssds8.manual": {
+      "mode": "LEGACY",
+      "rev": "sha256:c5090340091ca7c72257d48b6ff327c1a0703d86b88bc1097d81d90a88374b23",
+      "status": "stale"
+    }
+  }
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/27-jcs-status-before.json
+```

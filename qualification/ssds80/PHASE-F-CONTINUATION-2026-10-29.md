@@ -106,3 +106,22 @@ Scientific scope: governance/qualification infrastructure only, no realized scie
 evidence, scientific pipeline/model selection or accepted D1/D2 judgment. Infrastructure proposal/code variants
 and failed/unexecuted checks are disclosed above and in the canonical study/10d records. No new product
 inspectability surface or retention contract is asserted.
+
+
+## Later checkpoint: preliminary retry and remaining owning-layer cost
+
+Repair commit `eeb870c007a906c91dc7943b7c8ee4f8124f10e5` is cleanly committed and unpushed. The native
+preliminary retry at that commit timed out after 1,800 seconds without a report, reaching scratch position 69
+(no integrity halt). No complete results, classification or study endpoint PASS are inferred. The original
+real-ledger gap and human duties remain unchanged.
+
+A bounded complete-iteration profile identified remaining cost in the canonical JSON string emitter during the
+real structural freeze check. The proposed byte-preserving repair uses the standard library string encoder
+with the same surrogate refusal; no Core architecture or identity changes. Exhaustive scalar/surrogate parity
+and 107 affected tests pass; fresh Codex Review passed (48 tests, 1,000 nested differential cases, exhaustive fallback parity); the full suite passed over fixed source: 1,888 tests in 598.721 seconds, 10 skipped, exit 0; no FAIL/ERROR cases. Post-update real status and prepared-request reports exactly matched prior parsed outputs, with unchanged endpoint comparisons. The canonical
+study evidence retains exact parents, limits and infrastructure-variant disclosure. Usage is 82% consumed at
+this checkpoint; reserve enough to finish qualification, save results and report rather than exhaust silently.
+
+Serialization-repair source SHA-256: `0c82c2b4d34dead66c80374ea1b418199725fe41c2ea64db4c977a6feeb521ab`.
+Suite command is the earlier full-suite command with output `full-suite-jcs.log`. Production-source qualification
+is complete; a native historical retry on the immutable repair commit remains preliminary until completed.

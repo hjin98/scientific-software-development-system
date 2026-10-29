@@ -53,3 +53,46 @@ Repair qualification passed: 65 focused tests, fresh Codex code/plan Review, and
 tests, 10 skipped, exit 0). Post-update real-program checks also passed. No full historical retry has yet completed. A later completed retry must bind the repaired immutable commit and regenerate exact population,
 initialization/exclusion accounting, every finding and every consequence change. Conditional credential-policy
 and protected-authorship observations remain counterfactual; record-dependent check 4 remains vacuous.
+
+
+## Attempt B: eeb870c0; timed out
+
+The qualified repair was committed as `eeb870c007a906c91dc7943b7c8ee4f8124f10e5`. A new native
+harness run used `SSDS_HOME=/tmp/ssds-phase-f-preliminary-eeb870c0-20261029`, the same repository and
+baseline, that full candidate ID, bundled Git 2.53 and `timeout 1800`. Native output was redirected to
+`/tmp/ssds-10d-20261029/preliminary-retry.log`. Exit **124**, empty log and no report. No concurrent
+restricted filesystem/agent probes ran during the study window. Its final endpoint comparison was unexecuted;
+no boundary PASS or per-commit results are inferred. The verified retained scratch chain has 70 entries,
+readable through 69, no integrity halt; last observed `dbd8b92ea460e7ee864e7522bb6d5813ee05141a`.
+
+The requested first-parent population is now 291 deltas after candidate initialization; this count alone
+is not a completed initialization/exclusion audit or a difference study. Final frozen 11b remains unexecuted.
+
+## Remaining iteration cost and string-encoding repair
+
+A 90-second cProfile/traceback probe held that scratch parent and evaluated its next child
+`8d274c4b7f73faa6269efd231d7deceac4ce620c` through the actual `checks` function. Exit 124. Samples
+locate `core.jcs._string` on large unclassified revision strings during `Structural._freeze`. The earlier
+Support short circuits remain lawful and useful; they did not eliminate this other required owner's work.
+
+The proposed owning-layer repair replaces the Python character loop in `_string` with standard-library
+`json.dumps(text, ensure_ascii=False)` after the same surrogate-code-point refusal. The closed value-domain,
+integer, float-refusal, UTF-16 key-ordering and UTF-8 rules remain in their original owners. No identity format,
+structural check, frozen Core architecture, cache or alternative serialization path is introduced.
+
+A pre-edit prototype compared predecessor encoding with the replacement over all **1,112,064 Unicode scalar
+values** in bounded chunks, and checked refusal of all **2,048 surrogate code points**; exact byte parity passed.
+The production regression retains that comparison plus contextual/pair surrogate refusals and existing RFC
+vectors. **107 focused tests pass** (canonical JSON, group 1, frames, step 4c). The same complete-iteration probe
+now completes with its original real checks; its collection-length diagnostic is not a finding count or classification (checks 1 and 4 are objects).
+
+This is a second local encoding implementation variant (predecessor/replacement), selected for exact byte
+compatibility and the observed cost, not scientific results. The probe's final output labels its last stage
+`consequences` because the temporary harness was adapted from the prior probe; here that stage actually calls
+`study.checks`, as its retained source shows. No speedup ratio is asserted. Code Review and full-suite acceptance
+passed before the serialization-repair commit; a complete native historical retry is still owed.
+
+Fresh Codex serialization-repair Review: **PASS**, no blocker or Serious Challenge. Independent checks:
+48 affected tests, 1,000 seeded nested-record comparisons against pinned `eeb870c0`, and exhaustive Unicode
+scalar parity with the standard-library Python fallback all passed. Reviewed JCS SHA-256:
+`0c82c2b4d34dead66c80374ea1b418199725fe41c2ea64db4c977a6feeb521ab`. The complete suite passed: **1,888 tests in 598.721 seconds, 10 skipped, exit 0**, no FAIL/ERROR cases. Source stayed fixed. The post-update real SSDS status and prepared-request reports exactly match steps 24/25; both new endpoint comparisons passed.
