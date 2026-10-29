@@ -14,14 +14,14 @@ boundary comparison.
 
 ## 0. Settings
 
-Run from the repository root, which is the product repository the ledger observes.
+Activate the environment containing the installed `ssds` command, then run from the repository root, which is the product repository the ledger observes. `ssds.cli` defines the console entry point but does not invoke it when loaded with `python -m ssds.cli`.
 
 ```bash
 cd /home/samjin/agent-skills/scientific-software-development-system
 export PYTHONPATH="$PWD/orchestrator/src"
 export PYTHONDONTWRITEBYTECODE=1  # imports must not write product __pycache__ files
 set -e
-SSDS="python -m ssds.cli"
+SSDS="ssds"  # installed console entry point; activate the SSDS virtual environment first
 LEDGER=ssdp-shadow-2
 BRANCH=ssds-8.0-graph-native-architecture
 ACTOR='human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw'
@@ -44,7 +44,7 @@ The wrapper records both exits and fails if either is unexpected; `set -e` stops
 checkout, fetch or other edit in any registered worktree while a snapshot is open. The sensor compares endpoint
 bytes and write metadata, including ignored content, all linked worktrees and Git storage; it refuses submodules,
 unavailable worktrees and special files. It cannot exclude a transient write reverted between snapshots, so the
-read-only execution-path review remains part of the evidence. Access times may change while files are read.
+read-only execution-path review remains part of the evidence. Access times may change while files are read. With linked worktrees, use Git supporting `worktree list --porcelain -z`; older Git refuses that coverage rather than certifying a partial snapshot.
 
 ## 1. The declarations and the policy file (a product change, before the comparison starts)
 

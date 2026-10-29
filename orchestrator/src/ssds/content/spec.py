@@ -11,8 +11,8 @@ Outputs are §17.3's scalar forms: ``float64`` (canonical ``binary64-hex``, ``de
 output with values ``PASS`` and ``FAIL``, named by the verdict entry's ``embedded`` key (F85). A declarative verdict
 names one of the seven templates (§6.5, §14.3); its parameters are checked statically (SD-81 item 5). ``EXACT`` is
 byte equality (F86); ``ABS_TOL``, ``REL_TOL``, ``ULP_TOL``, ``RANGE`` and ``MONOTONE`` are judged by :func:`judge`
-exactly on rationals, their parameters re-read as the decimals written (SD-81; reading F116); ``SET_EQUAL`` is not
-evaluated (no collection form).
+exactly on rationals, their parameters re-read as the decimals written (SD-81; reading F116). For ``ULP_TOL`` alone,
+the reference rounds to nearest binary64, ties to even (SD-88). ``SET_EQUAL`` is not evaluated (no collection form).
 
 The canonical text of a ``float64`` value (an implementation reading of §17.3's forms, recorded with step 9b):
 ``binary64-hex`` is ``0x`` and the 16 lower-case hexadecimal digits of the IEEE-754 bit pattern (exact, NaN payloads
@@ -339,11 +339,13 @@ def _exact_params(template: str, params: dict[str, Any]) -> dict[str, Any]:
             out[key] = Fraction(value)
         elif isinstance(value, int) and not isinstance(value, bool):
             out[key] = Fraction(value)
-    if template == "ULP_TOL" and isinstance(out.get("reference"), Fraction) \
-            and Fraction(float(out["reference"])) != out["reference"]:
-        # item 7 forbids reading it as its nearest binary64 and item 2 has no distance to it: fail closed until
-        # Q-F28 (re-check of 1e0d5c8a, B1)
-        raise _Grammar("ULP_TOL's reference is exactly a binary64 value, written as its exact decimal (Q-F28)")
+    if template == "ULP_TOL" and isinstance(out.get("reference"), Fraction):
+        try:
+            reference = float(out["reference"])
+        except OverflowError:
+            raise _Grammar("ULP_TOL's reference must round to a finite binary64 value") from None
+        if not math.isfinite(reference):
+            raise _Grammar("ULP_TOL's reference must round to a finite binary64 value")
     if template == "RANGE" and all(isinstance(out.get(k), (Fraction, float)) for k in ("lo", "hi")) \
             and out["lo"] > out["hi"]:
         raise _Grammar("RANGE's lo is at most its hi")  # decided on the decimals written (item 7)
@@ -465,7 +467,7 @@ def judge(verdict: Verdict, outputs: Mapping[str, Output], value_of: Callable[[s
         return abs(x - r) <= exact["tol"] * abs(r)  # with r = 0: exact equality (item 1)
     if output.type != "float64" or _ROUNDED.fullmatch(output.canonical or ""):
         return False  # ULP_TOL is a binary64 distance; the parser refuses it elsewhere (item 5)
-    # the binary64 the output denotes (item 6), and the reference, exactly a binary64 (F116; Q-F28)
+    # The output's binary64 (item 6), and the nearest binary64 to the exact reference, ties to even (SD-88).
     distance = abs(_ulp_index(float_of(output.canonical, value_of(verdict.output))) - _ulp_index(float(r)))
     return distance <= verdict.params["n"]
 

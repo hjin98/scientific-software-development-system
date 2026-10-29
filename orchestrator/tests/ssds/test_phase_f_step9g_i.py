@@ -21,7 +21,7 @@ from ssds.content.spec import SpecDeclaration, SpecFailure
 from .test_phase_f_step9b_ii import Declared
 
 #: Exact decimals of binary64 values: the largest finite one, the smallest subnormal and the one nearest 0.1 (a
-#: ``ULP_TOL`` reference is exactly a binary64 until Q-F28).
+#: ``ULP_TOL`` reference may also be inexact after SD-88).
 LARGEST, SMALLEST, TENTH = (str(Decimal(v)) for v in (sys.float_info.max, 5e-324, 0.1))
 HEADER = 'oracle = "DECLARATIVE"\nrunner = "ci"\ntime_bound_hours = 24\n'
 
@@ -129,6 +129,8 @@ class Exactness(Oracle):
         self.assertTrue(self.passes(d, "-1e+308"), "1e308 − (−1e308) = 2e308, exactly at t·|r| (item 4)")
         self.assertFalse(self.passes(d, "-1.0000000000000002e+308"),
                          "beside it: binary64 arithmetic would compare ∞ ≤ ∞ and pass")
+        self.assertTrue(self.passes(one("decimal-shortest", "REL_TOL", "reference = 1e400, tol = 1"), "0.0"),
+                        "SD-88's binary64 bound is ULP-only; another oracle retains a finite exact reference")
 
     def test_a_tolerance_read_as_written(self) -> None:
         self.assertTrue(self.passes(one("decimal-shortest", "ABS_TOL", "reference = 0.0, tol = 1e-8"), "1e-08"),
@@ -222,10 +224,30 @@ class StaticErrors(Oracle):
                                                                  'params = { outputs = ["x"], order = "INCREASING" } }'))
 
     def test_a_ulp_reference_not_exactly_a_binary64(self) -> None:
-        self.static_error(one("decimal-shortest", "ULP_TOL", "reference = 0.1, n = 0"))  # until Q-F28 (F116)
-        self.static_error(one("decimal-shortest", "ULP_TOL", "reference = 1.7976931348623157e308, n = 0"))
+        tenth = one("decimal-shortest", "ULP_TOL", "reference = 0.1, n = 0")
+        self.assertTrue(self.passes(tenth, "0.1"))
+        self.assertFalse(self.passes(tenth, repr(math.nextafter(0.1, math.inf))))
+        largest = one("decimal-shortest", "ULP_TOL", "reference = 1.7976931348623157e308, n = 0")
+        self.assertTrue(self.passes(largest, "1.7976931348623157e+308"))
+        above_largest = one("decimal-shortest", "ULP_TOL", "reference = 1.7976931348623158e308, n = 0")
+        self.assertTrue(self.passes(above_largest, "1.7976931348623157e+308"))
+        self.assertTrue(self.passes(one("decimal-shortest", "ULP_TOL", "reference = -1e-400, n = 0"), "-0.0"))
         self.assertIsInstance(one("decimal-shortest", "ULP_TOL", f"reference = {TENTH}, n = 0"), SpecDeclaration)
         self.assertIsInstance(one("decimal-shortest", "ULP_TOL", "reference = 0.5, n = 0"), SpecDeclaration)
+
+    def test_ulp_reference_rounding_is_half_even(self) -> None:
+        for decimal, expected in (
+                ("1.00000000000000011102230246251565404236316680908203125", "1.0"),
+                ("1.00000000000000033306690738754696212708950042724609375", "1.0000000000000004")):
+            with self.subTest(decimal=decimal):
+                verdict = one("decimal-shortest", "ULP_TOL", f"reference = {decimal}, n = 0")
+                self.assertTrue(self.passes(verdict, expected))
+                self.assertFalse(self.passes(verdict, "1.0000000000000002"))
+
+    def test_ulp_reference_beyond_finite_binary64_is_a_static_error(self) -> None:
+        for reference in ("1e400", "-1e400", str(10 ** 400), str(-(10 ** 400))):
+            with self.subTest(reference=reference):
+                self.static_error(one("decimal-shortest", "ULP_TOL", f"reference = {reference}, n = 0"))
 
     def test_lo_below_hi_exactly(self) -> None:
         self.assertIsInstance(one("decimal-shortest", "RANGE", "lo = 0.1, hi = 0.10000000000000000001"),

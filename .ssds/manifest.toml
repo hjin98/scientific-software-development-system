@@ -132,3 +132,14 @@ scope = [{ prefix = "orchestrator/src/" }]
 id = "ssds.unclassified"
 kind = "UNCLASSIFIED"
 scope = [{ prefix = "" }]
+
+# Reserved leaves for SD-69's in-place shadow repair (F122); UNGOVERNED.
+[[unit]]
+id = "ssds.manifest"
+kind = "MANIFEST"
+scope = [{ file = ".ssds/manifest.toml" }]
+
+[[unit]]
+id = "ssds.policy"
+kind = "POLICY"
+scope = [{ file = ".ssds/policy.toml" }]
