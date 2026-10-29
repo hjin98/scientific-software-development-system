@@ -368,6 +368,19 @@ remain preserved. A replacement using the exact same evidence blob and content d
 signature; the earlier signature is not reused over changed bytes. The canonical 10d evidence owns execution
 and the pending-requests record owns the replacement's review/signing route. No new upstream decision is inferred.
 
+
+**74. Corrected FINDING submission (2026-10-29).** After the reviewed typed replacement and exact signing
+command were presented, the stakeholder replied:
+
+> "Done. Proceed."
+
+This authorizes submission of the exact newly signed corrected FINDING `785d8fa6…`. The program ACCEPTED it
+at position 8; its endpoint comparison passed, and the actual attention obligation is OPEN. It does not waive
+the original append gap or C7 implementation gap, or choose a human-decision outcome. The agent subsequently
+prepared an unsigned ACKNOWLEDGE proposal for F122's signed-refusal exercise; no human endorsement of that
+proposal is inferred from this instruction. A fresh human signature/review remains required before that test.
+No new upstream decision or runtime/exit acceptance is recorded.
+
 ## Not covered
 
 - The 2026-10-12 instruction that adopted 7.2.1 as the governing version and directed the rebase (workplan §0.4) was given in an earlier session and is not reproduced here. It remains recorded only as the workplan's paraphrase until the stakeholder restates it.

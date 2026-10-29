@@ -17,9 +17,9 @@ cannot support an unqualified unchanged claim. Independent review identified no 
 independent state/restart checks with this gap retained. A clean isolated no-op, idempotent replay, inspection,
 restarts, Dispatcher observation and candidate refusal do not retroactively qualify that original append path.
 
-Latest signed pair: FINDING refused at position 5 (SECRET_DETECTED on its locator); AVAILABILITY program-ACCEPTED
-at position 6. A corrected typed FINDING is prepared unsigned; the pending-requests record has the only current
-signing link. **Additional D4 conformance gap: accepted AVAILABILITY carries narrative provenance contrary to
+Latest signed pair: original FINDING refused at 5 (SECRET_DETECTED); AVAILABILITY program-ACCEPTED at 6;
+corrected typed FINDING ACCEPTED at 8. Its derived human-attention obligation is OPEN. The pending-requests
+record owns the proposed unsigned decide-refusal exercise and its human-review route. **Additional D4 conformance gap: accepted AVAILABILITY carries narrative provenance contrary to
 Manual §3.2/C7.** Program qualification is not blanket architecture conformance. Signed decide-refusal, frozen
 study, classification and exit remain pending. Unqualified 10d/exit closure requires disposition of the gap.
 
@@ -1825,4 +1825,355 @@ Ran 1 test in 0.688s
 
 OK
 {"rehearsal": "fresh throwaway-key fixture, target guide", "old_locator": "SECRET_DETECTED", "blob_locator": "ACCEPT", "real_home_access": false, "production_changes": false}
+```
+
+
+## Corrected FINDING accepted; proposed signed decide-refusal
+
+Authority: stakeholder "Done. Proceed." after signing the exact corrected request; stakeholder record item 74.
+Corrected FINDING request `sha256:785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd`
+was ACCEPTED at **position 8**, record `sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307`,
+authenticated carrier `sha256:766a297e57a060d1b2f21344961cb3818386a87aa394b04b7b7a8510132a4b01`.
+Position 7 absorbed product HEAD `43e9af64e232e35ff4d6b026e32b490b057e8221`. No other record was admitted.
+The actual append comparison passed. The original repair's FAILED/contaminated window stays unchanged.
+
+The real derivation owner confirms the corrected record has provenance:null, expected target/materiality/
+non-blocking flag and exact narrative blob. It derives the OPEN, HUMAN-held attention obligation
+`sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875`. Program state is QUALIFIED at
+position 8, nine entries, no provisional/critical finding, empty quarantine, policy availability AVAILABLE.
+The accepted AVAILABILITY provenance-C7 conformance gap remains; this implemented status is not full Manual
+conformance or 10d/exit acceptance. No source, policy, authority or historical record was changed.
+
+### Proposed ACKNOWLEDGE carrier, not yet a human decision
+
+F122 still requires a genuinely signed `decide` request refused at entry. The agent proposes ACKNOWLEDGE on
+the actual attention obligation, with identity basis on the admitted FINDING, provenance:null, refs:[], fields:{},
+no candidates/adoption and no narrative fields. This is an unsigned proposal for human review, not a choice
+already made by the stakeholder. Its request is `sha256:11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8`,
+record `sha256:1ae2a28268b3bfd24cdf6cb451ec3cd0d95d824d63683ecb1c0a16abc12386fd`, prepared at position 8.
+
+If admitted, a HUMAN_DECISION on this obligation would resolve its attention (§15.2; Reports._resolved_by_human),
+regardless of outcome. It would not establish technical qualification of the original append or fix C7. The
+current Phase F boundary instead refuses this kind before validation/authentication; expected rejection must
+leave both the entry count and attention OPEN. The preview string alone is not actual signed-refusal evidence.
+
+Before the future real test, independently verify the human signature with the registered in-force public key
+through the SSDS signature API; boundary refusal itself cannot prove authentication. Observe/absorb any moved
+branch first in its own bounded window, then capture the no-append baseline. Submit native `ssds decide --admit`
+in an isolated window: native exit 1 is expected only with the specific boundary-refusal result, comparison 0,
+verified no entry appended and the exact attention still OPEN. An unexpected admission or other outcome fails
+the test; preserve and route it rather than silently correcting data. Do not infer actual disposition or waiver
+from this proposal or its expected refusal. A signed/endorsed intent must be recorded separately in the stakeholder
+home because a refused request is not an admitted decision.
+
+Fresh Codex review: PASS for unsigned preparation, no blocker or Serious Challenge, with the above limits.
+Final scratch rehearsal: one test in 1.105 seconds, OK. It first admitted a MATERIAL finding, derived its real
+fixture attention, prepared this typed shape against that identity, signed with a fresh fixture key, independently
+verified SSHSIG, then exercised the real composition boundary. Entries stayed 4 -> 4 and attention OPEN.
+The rehearsal uses its own fixture product, ruleset, code target and fresh key; only its home resolver is mocked. No real home/key or live model was used. This proves
+the exercised fixture path, not the still-unexecuted real signed test. Schema/scanner and checked-home message
+checks pass; the actual proposed workspace has no signature and no decision was submitted. Infrastructure only:
+no scientific results, scientific gate evidence or scientific outcome/parameter selection.
+
+### Native windows
+
+All steps 34–38 exited command 0/comparison 0, sequentially in one host context per window, with no concurrent
+restricted filesystem or agent probes. Preparation and verification appended nothing.
+
+#### 34-admit-corrected-finding
+
+```json
+{
+  "at": "2026-10-29T21:06:22.023454+00:00",
+  "step": "34-admit-corrected-finding",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "report",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--observed-ref",
+    "ssds-8.0-graph-native-architecture",
+    "--admit",
+    "/home/samjin/.ssds/state/ssdp-shadow-2/requests/785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "admitted": [
+    "sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307"
+  ],
+  "appended": true,
+  "decision": "ACCEPT",
+  "ledger_id": "ssdp-shadow-2",
+  "observed_ref": "ssds-8.0-graph-native-architecture",
+  "position": 8,
+  "reasons": [],
+  "refused": [],
+  "request_id": "sha256:766a297e57a060d1b2f21344961cb3818386a87aa394b04b7b7a8510132a4b01",
+  "submitted": "request sha256:785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd\nledger ssdp-shadow-2 at position 6, integration head 425c92581c0431efd0d4084a9e13bdde93175506\nsigned by human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw\nrecords:\n  FINDING sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307\n    target  {\"units\": [\"orchestrator.program\", \"ssds.manifest\", \"ssds.policy\"]}\n    outcome null\nadopted deltas: none\n"
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/34-admit-corrected-finding-before.json
+```
+
+#### 35-verify-corrected-finding-effects
+
+```json
+{
+  "at": "2026-10-29T21:09:31.096458+00:00",
+  "step": "35-verify-corrected-finding-effects",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_corrected_finding_effects.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "position": 8,
+  "entries": 9,
+  "finding_admitted": true,
+  "finding_record": "sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307",
+  "finding_provenance": null,
+  "quarantine": [],
+  "latest_policy_availability": "AVAILABLE",
+  "attention": {
+    "kind": "HUMAN_ATTENTION",
+    "target_json": "{\"report\": \"sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307\"}",
+    "params_json": "{\"materiality\": \"MATERIAL\"}",
+    "id": "sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875",
+    "holder": "HUMAN",
+    "plan": null,
+    "detail": ""
+  },
+  "attention_discharge": "OPEN",
+  "limit": "This is implemented-state evidence; original boundary and provenance-C7 gaps remain open."
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/35-verify-corrected-finding-effects-before.json
+```
+
+#### 36-status-after-corrected-finding
+
+```json
+{
+  "at": "2026-10-29T21:09:40.032643+00:00",
+  "step": "36-status-after-corrected-finding",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "status",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "assertion_withheld": [],
+  "critical": [],
+  "current_assertion": true,
+  "entries": 9,
+  "head": {
+    "digest": "sha256:243dd9205d993d2c2b083e88bf4d78c784ef2cf53458e0f3145e79ddc83772f1",
+    "label": "QUALIFIED",
+    "position": 8,
+    "qualification": "QUALIFIED"
+  },
+  "ledger_id": "ssdp-shadow-2",
+  "obligations": [
+    {
+      "discharge": "OPEN",
+      "holder": "HUMAN",
+      "id": "sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875",
+      "kind": "HUMAN_ATTENTION",
+      "plan": null,
+      "readiness": "READY",
+      "target": {
+        "report": "sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307"
+      }
+    }
+  ],
+  "provisional": null,
+  "qualification": "QUALIFIED",
+  "subjects": {
+    "orchestrator.program": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:b0a1898f4cbcad5c134e1274ae2bd752137052a1d823c8952d18d19c2f12f8c2",
+      "status": "unclassified"
+    },
+    "ssdp.protocol": {
+      "mode": "LEGACY",
+      "rev": "sha256:0597630d37adb088c58a2c24e0b1402e6853c14e5c9cfbfc73d7f36e73aa27fa",
+      "status": "stale"
+    },
+    "ssds.manifest": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:fb77e7dedb294322d49d4f99d3c157fbe52080aaff08833444fecf29f254e3ee",
+      "status": "unclassified"
+    },
+    "ssds.policy": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:a0c4b3794237c0a5a73ed364ac23b2f63275c0d0c63b5f81aae2c6e623fa1fa4",
+      "status": "unclassified"
+    },
+    "ssds.unclassified": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:8dec81f5e79811598cacb623b622c689fea6cd68149f6c513077da0ed7b3b9bc",
+      "status": "unclassified"
+    },
+    "ssds8.manual": {
+      "mode": "LEGACY",
+      "rev": "sha256:c5090340091ca7c72257d48b6ff327c1a0703d86b88bc1097d81d90a88374b23",
+      "status": "stale"
+    }
+  }
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/36-status-after-corrected-finding-before.json
+```
+
+#### 37-prepare-proposed-decide
+
+```json
+{
+  "at": "2026-10-29T21:14:29.575021+00:00",
+  "step": "37-prepare-proposed-decide",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "decide",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--prepare",
+    "/tmp/ssds-10d-20261029/proposed-decide-acknowledge.json",
+    "--actor",
+    "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+request sha256:11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8
+ledger ssdp-shadow-2 at position 8, integration head 43e9af64e232e35ff4d6b026e32b490b057e8221
+signed by human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw
+records:
+  HUMAN_DECISION sha256:1ae2a28268b3bfd24cdf6cb451ec3cd0d95d824d63683ecb1c0a16abc12386fd
+    target  {"obligation": "sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875"}
+    outcome "ACKNOWLEDGE"
+adopted deltas: none
+
+prepared in /home/samjin/.ssds/state/ssdp-shadow-2/requests/11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8
+sign it with your own key:
+  ssh-keygen -Y sign -f <your key> -n ssds /home/samjin/.ssds/state/ssdp-shadow-2/requests/11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8/request-message.txt
+then admit it:
+  ssds decide --ledger ssdp-shadow-2 --repository <repository> --observed-ref <branch> --admit /home/samjin/.ssds/state/ssdp-shadow-2/requests/11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/37-prepare-proposed-decide-before.json
+```
+
+#### 38-verify-proposed-decide
+
+```json
+{
+  "at": "2026-10-29T21:16:01.026029+00:00",
+  "step": "38-verify-proposed-decide",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_proposed_decide.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "request": "sha256:11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8",
+  "record": "sha256:1ae2a28268b3bfd24cdf6cb451ec3cd0d95d824d63683ecb1c0a16abc12386fd",
+  "position": 8,
+  "entries": 9,
+  "message_matches": true,
+  "signature_present": false,
+  "schema_valid": true,
+  "secret_detected": false,
+  "provenance": null,
+  "proposed_outcome": "ACKNOWLEDGE",
+  "actual_attention": "sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875",
+  "attention_discharge": "OPEN",
+  "entry_policy_preview": "a HUMAN_DECISION record: its checks belong to a later phase (F1)",
+  "human_endorsement": "not yet given",
+  "real_signed_refusal": "unexecuted"
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/38-verify-proposed-decide-before.json
+```
+
+#### proposed-decide-validation.log
+
+```text
+{
+  "status": "proposed-for-human-review-not-yet-endorsed",
+  "outcome": "ACKNOWLEDGE",
+  "obligation": "sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875",
+  "finding": "sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307",
+  "provenance": null,
+  "schema_valid": true,
+  "secret_detected": false,
+  "intended_use": "signed Phase-F boundary-refusal exercise; no admitted resolution expected"
+}
+```
+
+#### proposed-decide-rehearsal.log
+
+```text
+.
+----------------------------------------------------------------------
+Ran 1 test in 1.105s
+
+OK
+{"fixture_signature_verified": true, "boundary_refused": true, "entries_before": 4, "entries_after": 4, "attention_discharge": "OPEN", "real_home_access": false}
+```
+
+#### Future read-only signature verifier
+
+Not executed while the proposal is unsigned. Run through the same isolated SSDS wrapper after the human signs.
+It prints only verification metadata, no key/signature contents.
+
+```python
+"""Run only after the human signs; read through SSDS, print no signature/key material."""
+import json
+from pathlib import Path
+from ssds.admission.request import request_id, request_message
+from ssds.cli import Composition, canonical_signature
+from ssds.derivation import trust_roots
+from ssds.ledger.signatures import verify_sshsig
+
+rid = 'sha256:11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8'
+c = Composition('ssdp-shadow-2',Path('/home/samjin/agent-skills/scientific-software-development-system'))
+chain = c.access.chain()
+assert chain.halt is None
+state = c.state()
+req = json.loads(state.read_private(c.request_parts(rid,'request.json')))
+assert request_id(req) == rid and req['binding'] is None and len(req['records']) == 1
+message = request_message(req)
+assert state.read_private(c.request_parts(rid,'request-message.txt')) == message
+raw_signature = state.read_private(c.request_parts(rid,'request-message.txt.sig'))
+assert raw_signature is not None, 'human signature is still required'
+actor = req['records'][0]['actor']
+public = trust_roots(chain.entries[:chain.readable_through+1]).humans[actor]
+assert verify_sshsig(public,message,canonical_signature(raw_signature.decode('ascii'))), 'invalid signature'
+print(json.dumps({'request':rid,'actor':actor,'signature_verified':True,'namespace':'ssds',
+                  'limit':'Read-only authentication evidence; no submission, append or resolution.'},indent=2))
 ```

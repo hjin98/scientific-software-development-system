@@ -4,9 +4,9 @@ Governing SSDP: 7.2.1. Authority: Phase F revision 58, SD-55 shadow scope, SD-69
 and the user's instruction to resume at 5:30 am America/Chicago after the usage refresh. Asserter: AI
 implementing agent, Codex family. This checkpoint is decision support, not operational acceptance.
 
-**Latest follow-up: AVAILABILITY program-ACCEPTED at position 6; original FINDING refused at 5.**
-Corrected typed FINDING request `785d8fa6…` is prepared unsigned; its current signing link is in the
-pending-requests record. **New MATERIAL D4 blocker R-PROVENANCE-C7:** narrative provenance was admitted
+**Latest follow-up: corrected typed FINDING ACCEPTED at position 8; AVAILABILITY program-ACCEPTED at 6.**
+The corrected report's human-attention obligation is OPEN. Original FINDING refusal at 5 is preserved.
+The pending-requests record owns the proposed decide-refusal exercise; no human decision is yet endorsed or submitted. **New MATERIAL D4 blocker R-PROVENANCE-C7:** narrative provenance was admitted
 contrary to Manual §3.2/C7. Existing program QUALIFIED status does not establish full architecture conformance.
 No record was rewritten, scanner weakened or stricter historical reader deployed.
 
@@ -181,3 +181,29 @@ Do not grandfather/rewrite it or deploy a reader that unexpectedly halts the led
 applicable on its unchanged integrated base; DS-001 is material to the limited scope of green fixture evidence.
 PEM remains frozen. Production code is unchanged from the 1,888-test validated `1abf37cf` source; those test
 results establish only their exercised properties, not the newly disproven full-envelope conformance claim.
+
+
+## Corrected FINDING accepted; next signature is the required decide-refusal test
+
+User "Done. Proceed." authorized the corrected FINDING submission (stakeholder item 74). Native ACCEPT at
+position 8, carrier `sha256:766a297e57a060d1b2f21344961cb3818386a87aa394b04b7b7a8510132a4b01`; record
+`sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307`. Position 7 absorbed 43e9af64.
+The append, real effect verification, status, proposed-decision preparation and message verification all passed
+independent endpoint comparisons in sequential isolated host windows (steps 34–38). Program state is QUALIFIED
+at position 8/nine entries, no critical/provisional, empty quarantine, latest policy availability AVAILABLE.
+Its actual MATERIAL HUMAN_ATTENTION is OPEN: `sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875`.
+Neither original append failure nor provenance-C7 conformance gap is closed. No production/source/authority change.
+
+The agent proposes, without inferring human endorsement, HUMAN_DECISION ACKNOWLEDGE on that attention, identity
+basis on the finding, provenance:null. Unsigned request `sha256:11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8`,
+record `sha256:1ae2a28268b3bfd24cdf6cb451ec3cd0d95d824d63683ecb1c0a16abc12386fd`, is prepared at 8. Current
+pending-requests record has its actual review/signing links and filled key path. This is F122's remaining signed
+decide-refusal exercise. Fresh Codex review and one real-owner fixture rehearsal (1.105 s) pass; actual real signed
+refusal is unexecuted. If admitted it would resolve attention, so no hidden endorsement or technical-gap waiver
+is assumed. Expected refusal must leave attention OPEN and append nothing.
+
+On resumption after the human signs: independently verify the registered-key SSHSIG (the future verifier source
+is retained in canonical evidence), observe/absorb any moved branch first, capture no-append baseline, run native
+decide in an isolated window, then verify exact refusal/count/OPEN attention. Keep any actual endorsed intent in
+the stakeholder home separately; refusal is not an admitted decision. Original-gap disposition, C7 enforcement
+and governed historical-data handling, complete historical study/frozen review and exit remain unfinished.
