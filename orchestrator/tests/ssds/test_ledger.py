@@ -200,6 +200,27 @@ class ChainVerification(LedgerFixture):
                 chain = verify_chain("demo", [raws[0], self.resigned(raws[1], altered)])
                 self.assertEqual((chain.halt, chain.readable_through), (1, 0), chain.halt_reasons)
 
+    def test_authenticated_report_grammar_violations_halt_without_grandfathering(self) -> None:
+        from ssds.ledger.read import with_id
+
+        raws = self.raws()
+        previous = json.loads(raws[1].files['entry.json'])['prev']
+        good = record('FINDING', target={'units': ['readme']}, reason=['INSPECTABILITY_GAP'],
+                      fields={'materiality': 'MATERIAL', 'blocking': False})
+        admitted = {'request_id': 'sha256:' + '1' * 64, 'decision': 'ACCEPT', 'reasons': [],
+                    'base_commit': self.baseline, 'admitted_commit': self.baseline,
+                    'adopted_deltas': [], 'integrates': None, 'refused': []}
+        body = entry('demo', 1, previous, self.key, kind='ADMISSION', obs=self.baseline,
+                     admission=admitted, records=[good])
+        self.assertIsNone(verify_chain('demo', [raws[0], self.resigned(raws[1], body)]).halt)
+        for bad in [with_id({**good, 'reason': ['ENVIRONMENT']}),
+                    with_id({**good, 'fields': {**good['fields'], 'blocking': True}})]:
+            with self.subTest(record=bad):
+                chain = verify_chain('demo', [raws[0], self.resigned(raws[1], {**body, 'records': [bad]})])
+                self.assertEqual((chain.halt, chain.readable_through), (1, 0), chain.halt_reasons)
+                self.assertTrue(any('reason outside' in p or 'FINDING cannot block' in p
+                                    for p in chain.halt_reasons), chain.halt_reasons)
+
     def test_an_unreadable_schema_version_is_not_corruption(self) -> None:
         raws = self.raws()
         body = json.loads(raws[1].files["entry.json"])

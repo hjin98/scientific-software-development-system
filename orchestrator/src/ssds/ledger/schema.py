@@ -149,6 +149,16 @@ def _k(tier: str, targets: str, outcomes: str | None, fields: Mapping[str, Check
 
 
 _REPORT_FIELDS = {"materiality": one_of("ROUTINE", "MATERIAL", "CRITICAL"), "blocking": is_bool}
+# Manual/catalogue §15.1 fixes the vocabulary per report kind. Empty reasons remain
+# representable: this table constrains supplied reasons, not their cardinality.
+REPORT_REASONS = {
+    "CHALLENGE": frozenset({"AUTHORITY_DEFECT", "EVIDENCE_DEFECT", "CONFORMANCE_DEFECT", "STRUCTURE_DEFECT"}),
+    "FINDING": frozenset({"TENSION", "ANOMALY", "OPPORTUNITY", "DEFECT", "INSPECTABILITY_GAP"}),
+    "AMENDMENT_REQUEST": frozenset({"SCOPE_DEVIATION", "MISSING_PREREQUISITE", "INFEASIBLE_CRITERION",
+                                    "CONTRACT_DEFECT", "AUTHORITY_DEFECT"}),
+    "BLOCKER": frozenset({"PREREQUISITE_UNAVAILABLE", "ENVIRONMENT", "AMBIGUITY"}),
+    "HUMAN_QUESTION": frozenset({"DECISION_NEEDED", "CLARIFICATION"}),
+}
 _LIFECYCLE_TARGET = "none"
 
 KINDS: dict[str, KindSpec] = {
@@ -388,6 +398,10 @@ def record_violations(record: Any) -> list[str]:
     if spec.outcomes is not None and record["outcome"] not in spec.outcomes:
         problems.append(f"outcome outside {sorted(spec.outcomes)}")
     fields = record["fields"]
+    if record["kind"] in REPORT_REASONS and set(record["reason"]) - REPORT_REASONS[record["kind"]]:
+        problems.append(f"reason outside the {record['kind']} vocabulary")
+    if record["kind"] == "FINDING" and fields.get("blocking") is True:
+        problems.append("FINDING cannot block")
     if set(fields) - set(spec.fields):
         problems.append(f"unknown kind fields {sorted(set(fields) - set(spec.fields))}")
     if spec.required - set(fields):

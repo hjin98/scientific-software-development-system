@@ -6,7 +6,7 @@ Asserter: AI implementing agent, Codex family. This is infrastructure execution 
 
 **Status: signed adoption ACCEPTED at position 2; 10d remains incomplete.** Eight `INTAKE_DISPOSITION ABSORB`
 records are admitted; all three reserved leaves are effective, quarantine is empty, and the policy digest is unchanged.
-The ledger is QUALIFIED with three entries and no provisional entry or critical finding. No native authority or campaign.
+The original repair verification found the ledger QUALIFIED with three entries and no provisional entry or critical finding. The scheduled continuation later absorbed the evidence commit at position 3 (four entries); see below. No native authority or campaign.
 
 **Qualification gap:** the first actual append's command returned ACCEPT/exit 0, but its endpoint comparison failed
 (exit 1), reporting repository-root modification/change metadata. Concurrent restricted tool calls were launched by
@@ -17,8 +17,9 @@ cannot support an unqualified unchanged claim. Independent review identified no 
 independent state/restart checks with this gap retained. A clean isolated no-op, idempotent replay, inspection,
 restarts, Dispatcher observation and candidate refusal do not retroactively qualify that original append path.
 
-The later report/submit records remain unchosen and unexecuted; the signed decide-refusal exercise, frozen study,
-classification and exit review also remain pending. Unqualified 10d/exit closure requires disposition of the gap.
+The later report/submit requests are now prepared unsigned, with review and signing links in
+`PHASE-F-10D-PENDING-HUMAN-REQUESTS-SSDS-8.0.md`; neither is admitted. The signed decide-refusal exercise, frozen
+study, complete classification and exit review remain pending. Unqualified 10d/exit closure requires disposition of the gap.
 
 ## Identity and prerequisite evidence
 
@@ -795,3 +796,535 @@ else:
 **Independent closeout review: PASS for evidence/plan/runbook consistency only.** The reviewer matched all 14
 step sections to native command records, output and snapshot digests; no real-store/key access or new execution
 was performed by that reviewer. No 10d/exit acceptance is inferred from this documentation check.
+
+
+## Scheduled continuation: position 3 and unsigned remaining requests
+
+Asserter: AI implementing agent, Codex family, 2026-10-29. Governing scope remains SSDP 7.2.1, F121–F122.
+The user authorized preparation of the proposed FINDING/AVAILABILITY pair and a scheduled resume.
+Steps below ran sequentially in isolated escalated-host windows; no agent probes or restricted tools ran
+concurrently. Each command and comparison exited 0. These passes qualify only their own endpoint windows.
+The original position-2 append comparison stays FAILED/contaminated.
+
+### 15-resume-observe
+
+```json
+{
+  "at": "2026-10-29T10:35:36.898343+00:00",
+  "step": "15-resume-observe",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "admission",
+    "serve",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--observed-ref",
+    "ssds-8.0-graph-native-architecture"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+{
+  "absorbed": true,
+  "expected": "11ec88e4105124d70e3b1e606f2ec370ef1cc841",
+  "ledger_id": "ssdp-shadow-2",
+  "mode": "observe-only: nothing is published (F1)",
+  "obs": "6d43121b440743a3b6e9f78b7600a40e4fc5ba7a",
+  "observed_ref": "ssds-8.0-graph-native-architecture",
+  "position": 3
+}
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/15-resume-observe-before.json
+```
+
+### 16-policy-object
+
+```json
+{
+  "at": "2026-10-29T10:35:54.065287+00:00",
+  "step": "16-policy-object",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_policy_object.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+{
+  "ledger": "ssdp-shadow-2",
+  "position": 3,
+  "entries": 4,
+  "head": "6d43121b440743a3b6e9f78b7600a40e4fc5ba7a",
+  "ruleset": {
+    "analyzers": "sha256:dd3f77b9bb229bce543e97388fc8cb70ac5b8e3d8315142b0db490e753e73864",
+    "policy": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1",
+    "system": "ssds-rules/1"
+  },
+  "policy_object": {
+    "store": "LEDGER",
+    "digest": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1",
+    "bytes": 11,
+    "text": "schema = 1\n",
+    "matches_committed_default": true
+  },
+  "quarantine": []
+}
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/16-policy-object-before.json
+```
+
+### 17-build-record-proposals
+
+```json
+{
+  "at": "2026-10-29T10:37:18.707740+00:00",
+  "step": "17-build-record-proposals",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/build_remaining_records.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+{
+  "position": 3,
+  "actor": "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw",
+  "files": [
+    "remaining-finding.json",
+    "remaining-availability.json"
+  ],
+  "evidence": {
+    "store": "REPO",
+    "digest": "sha256:8d29d152af813ad6942dd272c7b8bfb52da332f91af2b605d0efa50ad7ef98a5",
+    "media_type": "text/markdown",
+    "locator": "6d43121b440743a3b6e9f78b7600a40e4fc5ba7a:qualification/ssds80/PHASE-F-10D-SHADOW-LEDGER-EVIDENCE-SSDS-8.0.md"
+  },
+  "policy": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1",
+  "schema_violations": []
+}
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/17-build-record-proposals-before.json
+```
+
+### 18-rebuild-record-proposals
+
+```json
+{
+  "at": "2026-10-29T10:39:45.743088+00:00",
+  "step": "18-rebuild-record-proposals",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/build_remaining_records.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+{
+  "position": 3,
+  "actor": "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw",
+  "files": [
+    "remaining-finding.json",
+    "remaining-availability.json"
+  ],
+  "evidence": {
+    "store": "REPO",
+    "digest": "sha256:8d29d152af813ad6942dd272c7b8bfb52da332f91af2b605d0efa50ad7ef98a5",
+    "media_type": "text/markdown",
+    "locator": "6d43121b440743a3b6e9f78b7600a40e4fc5ba7a:qualification/ssds80/PHASE-F-10D-SHADOW-LEDGER-EVIDENCE-SSDS-8.0.md"
+  },
+  "policy": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1",
+  "schema_violations": []
+}
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/18-rebuild-record-proposals-before.json
+```
+
+### 19-prepare-finding
+
+```json
+{
+  "at": "2026-10-29T10:40:03.678589+00:00",
+  "step": "19-prepare-finding",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "report",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--prepare",
+    "/tmp/ssds-10d-20261029/remaining-finding.json",
+    "--actor",
+    "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+request sha256:324bd39ebcf696b22fa1991ec870f8d7a0d046ef243c05d309be0cd74709d8c6
+ledger ssdp-shadow-2 at position 3, integration head 6d43121b440743a3b6e9f78b7600a40e4fc5ba7a
+signed by human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw
+records:
+  FINDING sha256:cd4939aad706b25c35de25228d8cce49ef9fe20161f8636179cc1c5ba4d84345
+    target  {"units": ["orchestrator.program", "ssds.manifest", "ssds.policy"]}
+    outcome null
+adopted deltas: none
+
+prepared in /home/samjin/.ssds/state/ssdp-shadow-2/requests/324bd39ebcf696b22fa1991ec870f8d7a0d046ef243c05d309be0cd74709d8c6
+sign it with your own key:
+  ssh-keygen -Y sign -f <your key> -n ssds /home/samjin/.ssds/state/ssdp-shadow-2/requests/324bd39ebcf696b22fa1991ec870f8d7a0d046ef243c05d309be0cd74709d8c6/request-message.txt
+then admit it:
+  ssds report --ledger ssdp-shadow-2 --repository <repository> --observed-ref <branch> --admit /home/samjin/.ssds/state/ssdp-shadow-2/requests/324bd39ebcf696b22fa1991ec870f8d7a0d046ef243c05d309be0cd74709d8c6
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/19-prepare-finding-before.json
+```
+
+### 20-final-record-proposals
+
+```json
+{
+  "at": "2026-10-29T10:40:31.228106+00:00",
+  "step": "20-final-record-proposals",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/build_remaining_records.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+{
+  "position": 3,
+  "actor": "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw",
+  "files": [
+    "remaining-finding.json",
+    "remaining-availability.json"
+  ],
+  "evidence": {
+    "store": "REPO",
+    "digest": "sha256:8d29d152af813ad6942dd272c7b8bfb52da332f91af2b605d0efa50ad7ef98a5",
+    "media_type": "text/markdown",
+    "locator": "6d43121b440743a3b6e9f78b7600a40e4fc5ba7a:qualification/ssds80/PHASE-F-10D-SHADOW-LEDGER-EVIDENCE-SSDS-8.0.md"
+  },
+  "policy": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1",
+  "schema_violations": []
+}
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/20-final-record-proposals-before.json
+```
+
+### 21-prepare-final-finding
+
+```json
+{
+  "at": "2026-10-29T10:40:55.602694+00:00",
+  "step": "21-prepare-final-finding",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "report",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--prepare",
+    "/tmp/ssds-10d-20261029/remaining-finding.json",
+    "--actor",
+    "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+request sha256:75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a
+ledger ssdp-shadow-2 at position 3, integration head 6d43121b440743a3b6e9f78b7600a40e4fc5ba7a
+signed by human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw
+records:
+  FINDING sha256:6b2dbc477713971c7011ce485b93317d2183dce8e6f4b3c39e9e26e5e61ef014
+    target  {"units": ["orchestrator.program", "ssds.manifest", "ssds.policy"]}
+    outcome null
+adopted deltas: none
+
+prepared in /home/samjin/.ssds/state/ssdp-shadow-2/requests/75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a
+sign it with your own key:
+  ssh-keygen -Y sign -f <your key> -n ssds /home/samjin/.ssds/state/ssdp-shadow-2/requests/75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a/request-message.txt
+then admit it:
+  ssds report --ledger ssdp-shadow-2 --repository <repository> --observed-ref <branch> --admit /home/samjin/.ssds/state/ssdp-shadow-2/requests/75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/21-prepare-final-finding-before.json
+```
+
+### 22-prepare-final-availability
+
+```json
+{
+  "at": "2026-10-29T10:40:58.828412+00:00",
+  "step": "22-prepare-final-availability",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "submit",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--prepare",
+    "/tmp/ssds-10d-20261029/remaining-availability.json",
+    "--actor",
+    "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+request sha256:bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34
+ledger ssdp-shadow-2 at position 3, integration head 6d43121b440743a3b6e9f78b7600a40e4fc5ba7a
+signed by human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw
+records:
+  AVAILABILITY sha256:2716f8c4df47515c93b6304a2e1bf96b03c13955102aa4820f4d9925a1ebf9e6
+    target  {"digest": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1"}
+    outcome "AVAILABLE"
+adopted deltas: none
+
+prepared in /home/samjin/.ssds/state/ssdp-shadow-2/requests/bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34
+sign it with your own key:
+  ssh-keygen -Y sign -f <your key> -n ssds /home/samjin/.ssds/state/ssdp-shadow-2/requests/bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34/request-message.txt
+then admit it:
+  ssds submit --ledger ssdp-shadow-2 --repository <repository> --observed-ref <branch> --admit /home/samjin/.ssds/state/ssdp-shadow-2/requests/bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/22-prepare-final-availability-before.json
+```
+
+### 23-report-compatibility
+
+```json
+{
+  "at": "2026-10-29T11:47:37.822719+00:00",
+  "step": "23-report-compatibility",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_report_compatibility.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+Native command output:
+
+```text
+{
+  "entries": 4,
+  "readable_through": 3,
+  "record_kinds": {
+    "INTAKE_DISPOSITION": 8
+  },
+  "report_records": 0,
+  "historical_report_grammar_migration_needed": false,
+  "limit": "This verified ledger only; other deployments with nonconforming historical reports may halt."
+}
+```
+
+Endpoint comparison:
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/23-report-compatibility-before.json
+```
+
+The final requests supersede the earlier unsigned `324bd39e…` preparation, which appended nothing.
+The pre-rollout compatibility check verified all four real entries and eight INTAKE_DISPOSITION records,
+with no historical report record affected by the stricter vocabulary guard. This says nothing about other
+deployments. A new signed request and its actual Admission effects still require human signatures and execution.
+
+## Post-update real-program checks
+
+After the 1,886-test complete-suite PASS (10 skipped), the repaired program verified the exact prepared
+requests and current state. Both signatures were absent. All three reserved leaves remain effective,
+quarantine is empty, the real ledger is QUALIFIED at position 3 (four entries), with no provisional entry,
+critical finding or obligations. This is ledger qualification, not operational/10d/exit acceptance.
+
+### 24-postupdate-prepared-pair
+
+```json
+{
+  "at": "2026-10-29T12:04:13.060029+00:00",
+  "step": "24-postupdate-prepared-pair",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_prepared_pair.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "position": 3,
+  "entries": 4,
+  "reserved_leaves": {
+    "ssds.manifest": "MANIFEST",
+    "ssds.policy": "POLICY",
+    "ssds.unclassified": "UNCLASSIFIED"
+  },
+  "quarantine": [],
+  "prepared_requests": [
+    {
+      "request": "sha256:75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a",
+      "kind": "FINDING",
+      "record": "sha256:6b2dbc477713971c7011ce485b93317d2183dce8e6f4b3c39e9e26e5e61ef014",
+      "schema_valid": true,
+      "message_matches": true,
+      "signature_present": false
+    },
+    {
+      "request": "sha256:bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34",
+      "kind": "AVAILABILITY",
+      "record": "sha256:2716f8c4df47515c93b6304a2e1bf96b03c13955102aa4820f4d9925a1ebf9e6",
+      "schema_valid": true,
+      "message_matches": true,
+      "signature_present": false
+    }
+  ]
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/24-postupdate-prepared-pair-before.json
+```
+
+### 25-postupdate-status
+
+```json
+{
+  "at": "2026-10-29T12:04:32.842487+00:00",
+  "step": "25-postupdate-status",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "status",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "assertion_withheld": [],
+  "critical": [],
+  "current_assertion": true,
+  "entries": 4,
+  "head": {
+    "digest": "sha256:3196ae9b755527c66a62dc4ee5691bed9c4fdcbbb59128db668289b258cda8b1",
+    "label": "QUALIFIED",
+    "position": 3,
+    "qualification": "QUALIFIED"
+  },
+  "ledger_id": "ssdp-shadow-2",
+  "obligations": [],
+  "provisional": null,
+  "qualification": "QUALIFIED",
+  "subjects": {
+    "orchestrator.program": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:b14a3bc958830e5b4982adfb872af4ac7852f18c5414e066c7af0abe6c36db63",
+      "status": "unclassified"
+    },
+    "ssdp.protocol": {
+      "mode": "LEGACY",
+      "rev": "sha256:0597630d37adb088c58a2c24e0b1402e6853c14e5c9cfbfc73d7f36e73aa27fa",
+      "status": "stale"
+    },
+    "ssds.manifest": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:fb77e7dedb294322d49d4f99d3c157fbe52080aaff08833444fecf29f254e3ee",
+      "status": "unclassified"
+    },
+    "ssds.policy": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:a0c4b3794237c0a5a73ed364ac23b2f63275c0d0c63b5f81aae2c6e623fa1fa4",
+      "status": "unclassified"
+    },
+    "ssds.unclassified": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:dbc260165f64a0e9b4acc0cdc18e9e8df6da2774ff1d587f6b618519fe327355",
+      "status": "unclassified"
+    },
+    "ssds8.manual": {
+      "mode": "LEGACY",
+      "rev": "sha256:c5090340091ca7c72257d48b6ff327c1a0703d86b88bc1097d81d90a88374b23",
+      "status": "stale"
+    }
+  }
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/25-postupdate-status-before.json
+```

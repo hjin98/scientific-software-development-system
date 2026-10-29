@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 57 records SD-87 to SD-89 and the authorized 10d signature preparation; revision 56 repairs the step-11 population and conditional classification after the Codex check of revision 55; revision 55 splits step 11 into 11a-11b with readings F123-F124; revision 54 takes up the check of d89c5d41: the 10d row synced, F121's stale-base sentence reconciled, the helper's output named, Q-F29 for cross-ledger replay, a dry run against the real manifest recorded; revision 53 amends F122 after step 10d's fixture rehearsal: the policy file the genesis default names is committed with the declarations, and a helper writes the ABSORB inputs; revision 52 repairs F119-F122 after the check of 603295c8; revision 51 splits step 10 into 10a-10d with readings F119-F122; revision 50 makes F116's inexact ULP reference a static error with Q-F28 and names two more inherited facts in F118, after the re-check of 1e0d5c8a; revision 49 repairs F118 after the re-check of fdfd99c9 and states F116's ULP reference; revision 48 repairs F116-F118 after the check of 6f512acd, with Q-F27; revision 47 adds step 9g with readings F116-F118 after SD-79 to SD-86; revision 46 splits 9f-ii into parts with readings F111-F115 and Q-F26; revision 45 splits 9e into two parts with readings F105-F110 and Q-F24; revision 44 details 9f-i with reading F104; revision 43 repairs F101 after the check of b5364cc3; revision 42 splits 9d into three parts with readings F96-F103; revision 41 splits 9c-ii into four parts with readings F88-F95; revision 40 repairs F87 (re-check PASS at abcd03de) after the check of 298a12a0, with Q-F23; revision 39 details 9c-i with reading F87; revision 38 repairs Q-F21 item 8 and F84-F86 after the check of db0bf1ce; revision 37 details 9b with readings F84-F86 and widens Q-F21; revision 36 repairs Q-F20-Q-F22 and splits 9c after the check of 09df7c27; revision 35 splits step 9 into 9a-9f-ii with readings F75-F83 and Q-F19-Q-F22; 8f repaired; 8g-i and 8g-ii built; revision 34 repairs F74 after the re-check of 25bd1d0d; revision 33 repairs F73-F74 after the check of 53216046; revision 32 splits step 8g into 8g-i and 8g-ii with readings F73-F74; revision 31 details step 8d with reading F72; revision 30 splits step 8 into 8a-8g with readings F65-F71 and Q-F17-Q-F18; revision 29 repairs F63-F64 after the check of 66ac030b, with Q-F16; revision 28 details steps 7f and 7g with readings F63-F64; revision 27 bounds F59's held test after the re-check of 3b6ebcc0; revision 26 repairs F59 and F62 after the check of c36b278e and withdraws Q-F15; revision 25 splits step 7e into 7e-i and 7e-ii with readings F59-F62 and Q-F15; revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 58 records the scheduled continuation, two unsigned human requests, and schema/performance repair qualification; revision 57 records SD-87 to SD-89 and the authorized 10d signature preparation; revision 56 repairs the step-11 population and conditional classification after the Codex check of revision 55; revision 55 splits step 11 into 11a-11b with readings F123-F124; revision 54 takes up the check of d89c5d41: the 10d row synced, F121's stale-base sentence reconciled, the helper's output named, Q-F29 for cross-ledger replay, a dry run against the real manifest recorded; revision 53 amends F122 after step 10d's fixture rehearsal: the policy file the genesis default names is committed with the declarations, and a helper writes the ABSORB inputs; revision 52 repairs F119-F122 after the check of 603295c8; revision 51 splits step 10 into 10a-10d with readings F119-F122; revision 50 makes F116's inexact ULP reference a static error with Q-F28 and names two more inherited facts in F118, after the re-check of 1e0d5c8a; revision 49 repairs F118 after the re-check of fdfd99c9 and states F116's ULP reference; revision 48 repairs F116-F118 after the check of 6f512acd, with Q-F27; revision 47 adds step 9g with readings F116-F118 after SD-79 to SD-86; revision 46 splits 9f-ii into parts with readings F111-F115 and Q-F26; revision 45 splits 9e into two parts with readings F105-F110 and Q-F24; revision 44 details 9f-i with reading F104; revision 43 repairs F101 after the check of b5364cc3; revision 42 splits 9d into three parts with readings F96-F103; revision 41 splits 9c-ii into four parts with readings F88-F95; revision 40 repairs F87 (re-check PASS at abcd03de) after the check of 298a12a0, with Q-F23; revision 39 details 9c-i with reading F87; revision 38 repairs Q-F21 item 8 and F84-F86 after the check of db0bf1ce; revision 37 details 9b with readings F84-F86 and widens Q-F21; revision 36 repairs Q-F20-Q-F22 and splits 9c after the check of 09df7c27; revision 35 splits step 9 into 9a-9f-ii with readings F75-F83 and Q-F19-Q-F22; 8f repaired; 8g-i and 8g-ii built; revision 34 repairs F74 after the re-check of 25bd1d0d; revision 33 repairs F73-F74 after the check of 53216046; revision 32 splits step 8g into 8g-i and 8g-ii with readings F73-F74; revision 31 details step 8d with reading F72; revision 30 splits step 8 into 8a-8g with readings F65-F71 and Q-F17-Q-F18; revision 29 repairs F63-F64 after the check of 66ac030b, with Q-F16; revision 28 details steps 7f and 7g with readings F63-F64; revision 27 bounds F59's held test after the re-check of 3b6ebcc0; revision 26 repairs F59 and F62 after the check of c36b278e and withdraws Q-F15; revision 25 splits step 7e into 7e-i and 7e-ii with readings F59-F62 and Q-F15; revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,16 +17,20 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 57. Steps 1-9 and 10a-10c are closed. The 10d fixture-side repair and 11a
-        harness passed Codex code review, plan checks and the full suite (1,877 tests; 10 skipped).
+STATUS: ACTIVE, revision 58. Steps 1-9 and 10a-10c are closed. The original 10d fixture-side repair
+        and 11a harness passed code/plan checks; production source at 11ec88e4 passed 1,879 tests (10 skipped).
+        The continuation's report-schema and redundant-work repairs have fresh Codex code Review PASS;
+        their complete suite passed: 1,886 tests, 10 skipped; post-update real-program reads also passed.
 AUTHORITY: SSDP 7.2.1; G2 shadow authorization SD-55. No SSDS authority, cutover or live model campaign.
-NEXT: dispose the actual-append boundary evidence gap; obtain two true permanent report/submit
-      records and signatures for the remaining 10d exercise; run/classify 11b at the frozen candidate; then step 12 and exit review.
-DECISIONS: Q-F27-Q-F29 accepted as recommended, SD-87-SD-89 (stakeholder record item 72).
-      The repair signature was received and admitted; later permanent report/submit records remain unchosen.
-LIMITS: real-ledger repair/state/restart checks ran, with one contaminated boundary window; 10d is
-        incomplete. Historical study/classification and frozen-candidate other-family review remain unexecuted. Required unexecuted work is not passed. Deferred/fail-closed mechanisms remain in §6.
-EVIDENCE: §9 owns step/review records; §3.7 and F122 own 10d; §3.8 and F123-F124 own step 11.
+NEXT: obtain signatures/admit the prepared FINDING and AVAILABILITY requests; continue preliminary diagnostics;
+      disposition the original append gap; perform the signed decide-refusal; freeze/run/classify 11b; then step 12.
+DECISIONS: Q-F27-Q-F29 accepted, SD-87-SD-89 (stakeholder item 72). The repair was signed and ACCEPTED.
+      The user authorized the proposed remaining-record pair; both requests are prepared unsigned, not admitted.
+LIMITS: original append boundary FAILED/contaminated; 10d incomplete. Preliminary study at 6d43121b timed out
+        after 3,600 seconds without a report. Frozen 11b/classification/other-family review and exit remain open.
+EVIDENCE: §9 owns step/review records; F122 and the 10d evidence own the original gap; pending human requests
+        and signing links are in PHASE-F-10D-PENDING-HUMAN-REQUESTS-SSDS-8.0.md; preliminary study diagnostics
+        are in PHASE-F-DIFFERENCE-STUDY-EVIDENCE-SSDS-8.0.md. Required unexecuted work is not passed.
 ```
 
 <details>
@@ -4056,3 +4060,43 @@ One existing evidence home retains exact identities, both failure and passes, an
 permanent report/submit records and signed decide refusal remain pending, alongside disposition of the original
 boundary qualification gap, 11b and exit review. Program source is unchanged from `11ec88e4`; its 1,879-test result
 remains the applicable code evidence, distinct from these operational observations.
+
+
+**2026-10-29 scheduled continuation (revision 58; repair qualification passed).** The user authorized a one-time
+5:30 am America/Chicago resume after the usage refresh, meaningful autonomous progress through that allowance,
+and a final account of open questions/responsibilities. The real ledger observed `6d43121b` at position 3;
+policy-object verification, request preparation and pre-rollout report compatibility all passed their isolated
+endpoint comparisons. The original position-2 append gap is unchanged. The two true permanent records are
+prepared unsigned in the checked SSDS workspace, with their complete meanings and actual signing links in
+`qualification/ssds80/PHASE-F-10D-PENDING-HUMAN-REQUESTS-SSDS-8.0.md`; no unsigned request was submitted.
+
+- The proposal review found FINDING's forbidden blocking flag/custom reasons. The final proposal conforms.
+  Independent scratch Admission reproduction then established that the actual validator wrongly admitted those
+  forms. The repair belongs to `ledger/schema.py`, already used by Admission and authenticated historical reading:
+  constrain supplied reasons to Manual/catalogue §15.1 for all five report rows and reject blocking FINDING.
+  Empty reasons and absent/false flags stay representable; no new cardinality rule is inferred. Malformed
+  historical entries halt, with no silent grandfathering. The program verified this real ledger has no such
+  historical reports (only eight INTAKE_DISPOSITION records), so this check identifies no migration need here.
+- The preliminary record-free study at immutable `6d43121b` timed out (exit 124) at one hour without its report.
+  Its retained verified scratch chain reached the real baseline, position 66; no completed per-commit results or
+  study boundary PASS are inferred from that progress. Profiling identified redundant large revisions at empty
+  judgment queries. Existing Support methods now return empty lists before computing a revision when their
+  candidate sets are empty, and validity returns F when there is no acceptance (§5.5 empty disjunction).
+  No identity, semantic owner, cache or required nonempty path changes. Four local infrastructure variants
+  were examined; final and completed intermediate projections agree at the probed position. Timings were not
+  controlled benchmarks, so no speedup ratio is claimed.
+- Fresh Codex code Review PASS; 65 focused tests and 180 independent affected test executions pass. Complete suite
+  passed: 1,886 tests in 605.604 s, 10 skipped, exit 0; no FAIL/ERROR cases. Source stayed fixed during it. A separate continuation
+  checkpoint will bind the exact validated commit, evidence and remaining duties. No scientific results,
+  scientific gate evidence or scientific variant selection occurred.
+
+The signed decide-refusal still needs a genuine human direction and actual derived obligation identity after
+the FINDING is admitted. A refused request would admit no decision or resolve the finding; preserve any human
+direction in the stakeholder home separately. Original-gap disposition, frozen 11b/classification/other-family
+review, step 12 and acceptance remain open. Pushing still requires the prescribed user-terminal route.
+
+- **Final continuation qualification:** fresh Codex plan/evidence check PASS, no material blocker or Serious
+  Challenge; post-update exact request/message validation and real status both passed isolated endpoint comparisons.
+  Both requests remain unsigned and unadmitted; the ledger is QUALIFIED at position 3, four entries. No original
+  append qualification or 10d/exit closure follows. The detailed continuation checkpoint owns repair hashes,
+  executed evidence, historical applicability and remaining human duties.

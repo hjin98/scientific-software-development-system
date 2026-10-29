@@ -309,10 +309,13 @@ class Support:
         if subject not in s.view.structure.units:
             return []
         kinds = ACCEPTANCE_KINDS.get(s.mode(subject), ())
+        candidates = s.of_kind(*kinds)
+        if not candidates:
+            return []
         scope_id, rev = s.view.scope_id(subject), s.cur(subject)
         tenure = s.tenure(subject)
         out = []
-        for rid in s.of_kind(*kinds):
+        for rid in candidates:
             record = s.record(rid)
             target = record["target"]
             if not self.passing(rid) or (target["subject"], target["scope_id"], target["rev"]) != (subject, scope_id, rev):
@@ -402,13 +405,19 @@ class Support:
 
     def required_judgments(self, subject: str) -> list[str]:
         kinds = self.s.policy.get(self.s.view.structure.domain(subject), "required_judgments")
+        candidates = self.s.of_kind(*kinds)
+        if not candidates:
+            return []
         triple = self.s.subject_triple(subject)
-        return [rid for rid in self.s.of_kind(*kinds) if self.passing(rid)
+        return [rid for rid in candidates if self.passing(rid)
                 and _triple_of(self.s.record(rid)["target"]) == triple]
 
     def gate_decisions(self, subject: str) -> list[str]:
+        candidates = self.s.of_kind("GATE_DECISION")
+        if not candidates:
+            return []
         triple = self.s.subject_triple(subject)
-        return [rid for rid in self.s.of_kind("GATE_DECISION") if self.passing(rid)
+        return [rid for rid in candidates if self.passing(rid)
                 and _triple_of(self.s.record(rid)["target"]["subject"]) == triple]
 
     def gterm(self, subject: str, gate: str, value: Callable[[Node], int]) -> int:
@@ -440,6 +449,9 @@ class Support:
 
     def _valid(self, subject: str, value: Callable[[Node], int]) -> int:
         s = self.s
+        acceptances = self.acceptances(subject)
+        if not acceptances:
+            return F  # best is F without an acceptance, independent of the other conjuncts (§5.5)
         triple = self.s.subject_triple(subject)
         status = s.status1(triple_key(*triple))
         result = F if status in ("REVOKED", "BLOCKED") else (P if status == "PROVISIONAL" else T)
@@ -447,7 +459,7 @@ class Support:
             return F
         domain = s.view.structure.domain(subject)
         best = F
-        for rid in self.acceptances(subject):
+        for rid in acceptances:
             term = value(("current", rid))
             for kind in s.policy.get(domain, "required_judgments"):
                 term = min(term, max([value(("current", q)) for q in self.required_judgments(subject)

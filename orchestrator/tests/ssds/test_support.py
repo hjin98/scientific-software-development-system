@@ -8,6 +8,7 @@ Expectations are stated from the Manual's text; the two Stage S §5 cases
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from ssds.derivation import F, P, T
 
@@ -51,6 +52,18 @@ def accept(sc: Scenario, subject: str, actor: str = HUMAN, actor_class: str = "H
 
 
 class Validity(unittest.TestCase):
+    def test_empty_judgment_queries_need_no_subject_revision(self) -> None:
+        for mode in ({'mode': 'NATIVE', 'ruleset': 'ssds-rules/1'},
+                     {'mode': 'LEGACY', 'protocol': '7.2.1'}, {'mode': 'UNGOVERNED'}):
+            with self.subTest(mode=mode):
+                sc = Scenario(TWO, {'arch.md': 'a\n', 'impl.md': 'i\n'}, modes={'arch': mode})
+                support = sc.derive()
+                with patch.object(support.s, 'cur', side_effect=AssertionError('unneeded revision')):
+                    self.assertEqual(support.acceptances('arch'), [])
+                    self.assertEqual(support.required_judgments('arch'), [])
+                    self.assertEqual(support.gate_decisions('arch'), [])
+                    self.assertEqual(support.valid('arch'), F)
+
     def test_a_current_acceptance_on_the_exact_triple_makes_a_subject_valid(self) -> None:
         sc = Scenario(TWO, {"arch.md": "a1\n", "impl.md": "i1\n"})
         self.assertEqual(sc.derive().valid("arch"), F, "no acceptance, no validity")
