@@ -23,7 +23,7 @@ STATUS: ACTIVE, revision 59. Steps 1-9 and 10a-10c are closed. The original 10d 
         their complete suite passed: 1,886 tests, 10 skipped; post-update real-program reads also passed.
         A further byte-preserving string-encoding repair has fresh Codex Review PASS; its full suite passed: 1,888 tests, 10 skipped; post-update real identities/checks passed.
 AUTHORITY: SSDP 7.2.1; G2 shadow authorization SD-55. No SSDS authority, cutover or live model campaign.
-NEXT: obtain signatures/admit the prepared FINDING and AVAILABILITY requests; continue preliminary diagnostics;
+NEXT: obtain signatures/admit the prepared FINDING and AVAILABILITY requests; resume the retained historical diagnostic;
       disposition the original append gap; perform the signed decide-refusal; freeze/run/classify 11b; then step 12.
 DECISIONS: Q-F27-Q-F29 accepted, SD-87-SD-89 (stakeholder item 72). The repair was signed and ACCEPTED.
       The user authorized the proposed remaining-record pair; both requests are prepared unsigned, not admitted.
@@ -4115,3 +4115,13 @@ the complete suite passed: 1,888 tests in 598.721 seconds, 10 skipped, exit 0, n
 post-update real status and prepared-request reports exactly match the previous parsed outputs, and both
 endpoint comparisons passed. No production edit occurred during the suite. The canonical study evidence owns attempts and variant limits.
 No frozen-candidate, other-family Review or exit claim follows.
+
+
+**End-of-allowance checkpoint, 2026-10-29.** Repairs committed at `eeb870c0` and `1abf37cf`; latest complete
+suite 1,888 tests OK (10 skipped), fresh code/record reviews and real identity/endpoint checks passed. The native
+study at `1abf37cf` timed out after 1,800 seconds without its report, reaching scratch position 154 (155 verified
+entries, no integrity halt). No completed projections or final endpoint PASS are inferred. All three study
+attempts remain incomplete; frozen 11b/classification/other-family review and step 12 remain open, alongside
+the original append gap, unsigned report/submit requests and signed decide-refusal. The continuation checkpoint
+and canonical study evidence own the exact resumable action. Usage reached 97%; the one-time automation was
+deleted. No active-plan closeout, push or acceptance occurred.

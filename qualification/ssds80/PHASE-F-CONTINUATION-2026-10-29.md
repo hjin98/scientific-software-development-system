@@ -125,3 +125,21 @@ this checkpoint; reserve enough to finish qualification, save results and report
 Serialization-repair source SHA-256: `0c82c2b4d34dead66c80374ea1b418199725fe41c2ea64db4c977a6feeb521ab`.
 Suite command is the earlier full-suite command with output `full-suite-jcs.log`. Production-source qualification
 is complete; a native historical retry on the immutable repair commit remains preliminary until completed.
+
+
+## End-of-allowance checkpoint
+
+Commits: `eeb870c007a906c91dc7943b7c8ee4f8124f10e5` (report grammar/empty queries) and
+`1abf37cf9e0ef6de445aefce27d386cb3d2a003d` (canonical string encoding), both validated and unpushed.
+The last native preliminary study timed out at 1,800 seconds, exit 124, without a report or final boundary
+comparison. Its verified scratch chain reached position 154, 155 entries, no integrity halt, last observed
+`bd515e60609841e8d2478858ceb8c6a7e08a4173`. Absorption does not prove completed projection. The canonical
+study evidence owns all three attempts and the precise next diagnostic action. No full study/classification
+or 11b/exit PASS is claimed.
+
+Usage reached **97%** of the refreshed five-hour allowance; work stops with checkpoint/report headroom.
+The one-time resume automation was deleted. No next-window wait or recurring follow-up was created.
+The remaining signatures and original-gap disposition belong to the human; the historical diagnostic,
+classification, required frozen review and exit package remain agent work after resumption. Push still needs
+the prescribed user-terminal route. The two signing links in the pending-requests record are unchanged;
+the last real-program check found both signatures absent. No new signature or human decision was fabricated.

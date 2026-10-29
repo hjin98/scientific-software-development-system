@@ -96,3 +96,39 @@ Fresh Codex serialization-repair Review: **PASS**, no blocker or Serious Challen
 48 affected tests, 1,000 seeded nested-record comparisons against pinned `eeb870c0`, and exhaustive Unicode
 scalar parity with the standard-library Python fallback all passed. Reviewed JCS SHA-256:
 `0c82c2b4d34dead66c80374ea1b418199725fe41c2ea64db4c977a6feeb521ab`. The complete suite passed: **1,888 tests in 598.721 seconds, 10 skipped, exit 0**, no FAIL/ERROR cases. Source stayed fixed. The post-update real SSDS status and prepared-request reports exactly match steps 24/25; both new endpoint comparisons passed.
+
+
+## Attempt C and final resumable state
+
+Validated encoding-repair commit: `1abf37cf9e0ef6de445aefce27d386cb3d2a003d`. Native invocation used
+`SSDS_HOME=/tmp/ssds-phase-f-preliminary-1abf37cf-20261029`, bundled Git, `PYTHONDONTWRITEBYTECODE=1`,
+`timeout 1800`, and the same script/repository/baseline, with that full candidate ID. Output:
+`/tmp/ssds-10d-20261029/preliminary-jcs-retry.log`. The log is empty; exit **124**. No concurrent restricted
+filesystem or agent probes ran during the study window. No final report or endpoint comparison completed.
+
+Verified scratch progress after termination:
+
+```json
+{
+  "candidate": "1abf37cf9e0ef6de445aefce27d386cb3d2a003d",
+  "exit": 124,
+  "timeout_seconds": 1800,
+  "entries": 155,
+  "readable_through": 154,
+  "halt": null,
+  "last_observed": "bd515e60609841e8d2478858ceb8c6a7e08a4173",
+  "report_exists": false,
+  "native_log": ""
+}
+```
+
+This is progress, not 154 completed projections, zero differences, classification or acceptance. All three
+bounded attempts remain incomplete. The latest requested population is 292 deltas after candidate initialization;
+the full native initialization/exclusion audit and per-commit output remain owed. The code's exact-byte and
+real-owner regression passed; no remaining bottleneck is diagnosed by this timeout alone.
+
+Next agent action: inspect the retained scratch state through SSDS and profile the complete iteration at the
+last held parent, including absorption/consequence projection. Choose a sufficiently bounded continuation or
+rerun strategy with durable partial-progress visibility before another broad run; do not infer missing results
+from absorption counts or bypass any real owner. Final frozen 11b/classification/other-family review and exit
+remain unexecuted. No further repair, campaign or authority change is implied.
