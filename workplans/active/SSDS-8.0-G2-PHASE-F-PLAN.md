@@ -20,12 +20,12 @@ Governing SSDP version: 7.2.1.
 STATUS: ACTIVE, revision 57. Steps 1-9 and 10a-10c are closed. The 10d fixture-side repair and 11a
         harness passed Codex code review, plan checks and the full suite (1,877 tests; 10 skipped).
 AUTHORITY: SSDP 7.2.1; G2 shadow authorization SD-55. No SSDS authority, cutover or live model campaign.
-NEXT: prepare the authorized real 10d ABSORB request for the stakeholder's signature; obtain two
-      true records for its later report/submit exercise; run/classify 11b at the frozen candidate; then step 12 and exit review.
+NEXT: dispose the actual-append boundary evidence gap; obtain two true permanent report/submit
+      records and signatures for the remaining 10d exercise; run/classify 11b at the frozen candidate; then step 12 and exit review.
 DECISIONS: Q-F27-Q-F29 accepted as recommended, SD-87-SD-89 (stakeholder record item 72).
-      Private-key signing remains the stakeholder's; later permanent report/submit records remain unchosen.
-LIMITS: real-ledger 10d, historical study/classification and frozen-candidate other-family review remain
-        unexecuted. Required unexecuted work is not passed. Deferred/fail-closed mechanisms remain in §6.
+      The repair signature was received and admitted; later permanent report/submit records remain unchosen.
+LIMITS: real-ledger repair/state/restart checks ran, with one contaminated boundary window; 10d is
+        incomplete. Historical study/classification and frozen-candidate other-family review remain unexecuted. Required unexecuted work is not passed. Deferred/fail-closed mechanisms remain in §6.
 EVIDENCE: §9 owns step/review records; §3.7 and F122 own 10d; §3.8 and F123-F124 own step 11.
 ```
 
@@ -4040,3 +4040,19 @@ No SERIOUS CHALLENGE against the accepted authority. The check is requested.
 - **Runbook invocation correction during preparation:** `python -m ssds.cli` imports definitions but invokes no CLI main, so it can return successfully without performing the command. The runbook now uses the package's existing installed `ssds` console entry point, verified through its real `--help` command. No new wrapper or production code was added. All real commands below use that entry point.
 
 - **Pre-commit acceptance, 2026-10-29: PASS.** The complete suite over the repaired source ran 1,879 tests in 634.733 s, OK (10 skipped), exit 0, with no `FAIL:` or `ERROR:` entries. Command: `cd orchestrator && PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 timeout 3000 /tmp/ssds-phase-f-20261029/bin/python -m unittest discover -s tests -t .`, with approved network access for isolated package builds. The runbook entry-point correction and Git inventory requirement passed operation review. Real preparation follows this commit; signing, adoption submission, later true records and frozen-candidate exit work remain pending.
+
+
+**Signed real repair, 2026-10-29: ACCEPT; 10d partial with a qualification gap.** The stakeholder replied "Signed."
+Admission accepted the eight-key request at position 2, no refused records/reasons. The original append's boundary
+comparison returned 1 (root metadata changed). The principal agent ran concurrent restricted read-only tools during
+that host-view window; their tmpfs mount-point setup is a demonstrated environment interference mechanism. No
+SSDS-caused write was established. The original boundary evidence remains FAILED/contaminated, not retroactively
+passed by replay. Independent diagnosis found no Serious Challenge and permitted independent state/restart checks.
+The isolated no-op and exact signed replay passed; replay appended nothing. Status/owner checks show three reserved
+leaves, empty quarantine, unchanged policy and QUALIFIED at position 2. Two restarts appended nothing, Dispatcher
+issued nothing, and the candidate probe was refused at entry without append; isolated endpoint comparisons passed.
+One existing evidence home retains exact identities, both failure and passes, and the remaining closure conditions:
+`qualification/ssds80/PHASE-F-10D-SHADOW-LEDGER-EVIDENCE-SSDS-8.0.md`. No 10d/Phase-F/exit PASS is claimed. Two true
+permanent report/submit records and signed decide refusal remain pending, alongside disposition of the original
+boundary qualification gap, 11b and exit review. Program source is unchanged from `11ec88e4`; its 1,879-test result
+remains the applicable code evidence, distinct from these operational observations.

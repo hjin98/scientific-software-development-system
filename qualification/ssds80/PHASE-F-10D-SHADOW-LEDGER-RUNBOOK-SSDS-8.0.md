@@ -41,7 +41,7 @@ around() {
 
 Wrap every SSDS command from step 2 on as `around 0 <command>` (use `around 1` for an expected CLI refusal).
 The wrapper records both exits and fails if either is unexpected; `set -e` stops the run. Make no commit,
-checkout, fetch or other edit in any registered worktree while a snapshot is open. The sensor compares endpoint
+checkout, fetch or other edit in any registered worktree while a snapshot is open. Keep each snapshot/command/comparison window in one execution context and launch no concurrent restricted filesystem tools: this host's protected-directory mount setup can change root metadata even for a read-only probe. The sensor compares endpoint
 bytes and write metadata, including ignored content, all linked worktrees and Git storage; it refuses submodules,
 unavailable worktrees and special files. It cannot exclude a transient write reverted between snapshots, so the
 read-only execution-path review remains part of the evidence. Access times may change while files are read. With linked worktrees, use Git supporting `worktree list --porcelain -z`; older Git refuses that coverage rather than certifying a partial snapshot.
@@ -113,11 +113,26 @@ refusal means the branch moved the declarations: go back to step 3. Sign only in
 ## 5. `Σ` declares the three reserved leaves
 
 ```bash
+around 0 $SSDS status --ledger $LEDGER --repository .
 around 0 $SSDS inspect --ledger $LEDGER --repository .
+around 0 python - <<'EOF'
+import json
+from pathlib import Path
+from ssds.cli import Composition
+from ssds.derivation import derive
+c = Composition("ssdp-shadow-2", Path(".").resolve())
+s = derive(c.access.chain(), c.trees, ancestry=c.access.ancestry()).s
+expected = {"ssds.manifest": "MANIFEST", "ssds.policy": "POLICY", "ssds.unclassified": "UNCLASSIFIED"}
+assert all(u in s.view.structure.units and s.view.structure.kind(u) == k for u, k in expected.items())
+assert not any(key[0] in expected for key in s.s0.quarantine)
+print(json.dumps({"reserved_leaves": expected, "quarantine": [list(k) for k in sorted(s.s0.quarantine)]}, indent=2))
+EOF
 ```
 
-Expect `ssds.manifest` (MANIFEST), `ssds.policy` (POLICY) and `ssds.unclassified` (UNCLASSIFIED) declared, and
-none of their keys quarantined.
+`status` establishes qualification/current assertion and lists subjects; `inspect` shows human attention and the
+head. Neither renders the effective declaration kinds. The explicit read through the program's derivation owner
+verifies `ssds.manifest` (MANIFEST), `ssds.policy` (POLICY) and `ssds.unclassified` (UNCLASSIFIED), with no reserved
+key quarantined. The real run evidence retains this distinction.
 
 ## 6. The restart check
 
