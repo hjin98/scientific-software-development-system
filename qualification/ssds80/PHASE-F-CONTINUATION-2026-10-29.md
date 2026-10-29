@@ -4,6 +4,12 @@ Governing SSDP: 7.2.1. Authority: Phase F revision 58, SD-55 shadow scope, SD-69
 and the user's instruction to resume at 5:30 am America/Chicago after the usage refresh. Asserter: AI
 implementing agent, Codex family. This checkpoint is decision support, not operational acceptance.
 
+**Latest follow-up: AVAILABILITY program-ACCEPTED at position 6; original FINDING refused at 5.**
+Corrected typed FINDING request `785d8fa6…` is prepared unsigned; its current signing link is in the
+pending-requests record. **New MATERIAL D4 blocker R-PROVENANCE-C7:** narrative provenance was admitted
+contrary to Manual §3.2/C7. Existing program QUALIFIED status does not establish full architecture conformance.
+No record was rewritten, scanner weakened or stricter historical reader deployed.
+
 **10d remains incomplete.** The original signed repair was accepted, but its actual-append boundary comparison
 remains FAILED/contaminated. No SSDS-caused writer was established. Later isolated checks do not qualify that
 original append. Frozen-candidate 11b, complete classification, other-family review, step 12 and acceptance
@@ -143,3 +149,35 @@ The remaining signatures and original-gap disposition belong to the human; the h
 classification, required frozen review and exit package remain agent work after resumption. Push still needs
 the prescribed user-terminal route. The two signing links in the pending-requests record are unchanged;
 the last real-program check found both signatures absent. No new signature or human decision was fabricated.
+
+
+## Signed pair follow-up: next resumable action
+
+The stakeholder said "Signed. Proceed." (decision record item 73). Native Admission refused FINDING at 5
+with SECRET_DETECTED, while AVAILABILITY was accepted at 6. Both append windows passed endpoint comparisons;
+the original repair append remains FAILED/contaminated. Metadata-only diagnosis located the false-positive
+entropy hit in the long locator; it exposed no matched secret. Initial preparation had only checked schema.
+Full-record review also found invalid narrative provenance, exposing the existing envelope validator's C7 gap.
+The accepted AVAILABILITY remains preserved with that qualification; its truthful observation/cryptographic
+acceptance does not fix the metadata defect. Reopen step 2's affected provenance enforcement and resolve safe
+historical-record handling before deploying stricter validation; no source change or data rewrite was made.
+
+Corrected FINDING request `sha256:785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd`
+is unsigned/unsubmitted at base position 6. It uses the same immutable evidence bytes via native Git blob id,
+provenance:null, and a refreshed timestamp; all targets, reasons, materiality and non-blocking flags stay fixed.
+The canonical 10d evidence retains exact requests, native outputs, comparisons, final one-test Admission rehearsal,
+review variants and C7 owner route. The pending-requests record has the exact one-command signing instruction
+using the recorded key path. No private key was accessed. Old signatures are not reused over changed bytes.
+
+Current real state: seven verified entries, position 6, no integrity halt, effective reserved leaves and empty
+quarantine; latest policy availability AVAILABLE. The implemented status reports QUALIFIED, no provisional or
+critical finding. One admitted record (AVAILABILITY) has non-null narrative provenance; that known C7 defect
+prevents treating program qualification as complete conformance. Historical study/frozen review/exit and genuine
+signed decide-refusal remain unfinished. No new upstream acceptance or Serious Challenge is asserted.
+
+Next: human reviews/signs the corrected FINDING; agent verifies and admits it with isolated boundary checks.
+Independently, plan envelope enforcement and governed handling of the already admitted nonconforming record.
+Do not grandfather/rewrite it or deploy a reader that unexpectedly halts the ledger. The existing HAS remains
+applicable on its unchanged integrated base; DS-001 is material to the limited scope of green fixture evidence.
+PEM remains frozen. Production code is unchanged from the 1,888-test validated `1abf37cf` source; those test
+results establish only their exercised properties, not the newly disproven full-envelope conformance claim.

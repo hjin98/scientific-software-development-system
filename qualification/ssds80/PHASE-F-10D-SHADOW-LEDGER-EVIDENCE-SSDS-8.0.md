@@ -17,9 +17,11 @@ cannot support an unqualified unchanged claim. Independent review identified no 
 independent state/restart checks with this gap retained. A clean isolated no-op, idempotent replay, inspection,
 restarts, Dispatcher observation and candidate refusal do not retroactively qualify that original append path.
 
-The later report/submit requests are now prepared unsigned, with review and signing links in
-`PHASE-F-10D-PENDING-HUMAN-REQUESTS-SSDS-8.0.md`; neither is admitted. The signed decide-refusal exercise, frozen
-study, complete classification and exit review remain pending. Unqualified 10d/exit closure requires disposition of the gap.
+Latest signed pair: FINDING refused at position 5 (SECRET_DETECTED on its locator); AVAILABILITY program-ACCEPTED
+at position 6. A corrected typed FINDING is prepared unsigned; the pending-requests record has the only current
+signing link. **Additional D4 conformance gap: accepted AVAILABILITY carries narrative provenance contrary to
+Manual §3.2/C7.** Program qualification is not blanket architecture conformance. Signed decide-refusal, frozen
+study, classification and exit remain pending. Unqualified 10d/exit closure requires disposition of the gap.
 
 ## Identity and prerequisite evidence
 
@@ -1451,4 +1453,376 @@ record/message identities still verify; both requests remain unsigned. This qual
   }
 }
 /home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/27-jcs-status-before.json
+```
+
+
+## Signed remaining-record pair: actual results and corrected report
+
+Authority: stakeholder record item 73, exact instruction "Signed. Proceed." Asserter: AI implementing agent,
+Codex family. Actual program results are bounded; neither accepted signatures nor green boundary comparisons
+waive the original append gap or establish full Manual conformance.
+
+- Position 4 absorbed observed HEAD `425c92581c0431efd0d4084a9e13bdde93175506`.
+- Position 5: original signed FINDING request `sha256:75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a`
+  was REJECTED, record not admitted, code SECRET_DETECTED. Authenticated carrier request id:
+  `sha256:f78c8d1b2dfa83006995de494e727f6bbdc5cb29b1b7af7afa47feea49e4a20b`.
+- Position 6: signed AVAILABILITY request `sha256:bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34`
+  was ACCEPTED with one record, no refusal. Authenticated carrier id:
+  `sha256:e248396b25fd761756adcf3411c6890d24ca1be767a42e402084141d412446ac`.
+  The real derivation owner reports latest policy-object availability AVAILABLE. Three reserved leaves remain
+  effective, quarantine empty. Program status reports QUALIFIED at position 6 (seven entries), no critical or
+  provisional entry. This describes the implemented reader, subject to the C7 gap below.
+
+**Preparation defect and bounded correction.** Initial preparation checked schema but did not rehearse the full
+Admission scan. Metadata-only diagnosis located the entropy hit solely in refs[0].locator: 67 characters,
+4.7729 bits/character, no known-credential-pattern match. No matched secret material was printed. The corrected
+locator is the native Git blob `9f6d5616f995b04d62c2a87e777005df903347ef`, independently verified to hold exactly
+the original immutable evidence bytes (SHA-256 `8d29d152af813ad6942dd272c7b8bfb52da332f91af2b605d0efa50ad7ef98a5`).
+Its containing commit `6d43121b` remains reachable in the ledger. Catalogue §3.2's REPO reference is a blob in
+a commit kept reachable; no scanner exemption or policy was added, and no source code changed.
+
+**R-PROVENANCE-C7 — MATERIAL D4 blocker; no Serious Challenge.** Full-record review found that both original
+proposals used observation/claim_limit/next_question and preparation narrative in provenance. Accepted Manual
+§3.2/C7 forbids free-text record fields; §15.1 routes report narrative to its canonical home. The catalogue's
+execution-provenance examples need not be an exhaustive key grammar to establish that restriction. The current
+`ledger/schema.py` common-envelope validator accepts any dict, and the request fixture explicitly permits a
+free-form note; those are implementation facts, not authority. The already admitted AVAILABILITY record has
+provenance keys claim_limit, observation, prepared_by, status. It remains an authenticated program-accepted
+observation with a real C7 conformance gap, not a conformant record by inference from its ACCEPT result.
+
+Route this to the existing D4 envelope validator and preparation owners. Resolve enforcement and safe treatment
+of already admitted nonconforming data through the governing schema/lifecycle owners before deploying a fix.
+Do not rewrite the record, silently grandfather it, claim schema conformance, or retroactively deploy a stricter
+reader that halts this ledger without governed handling. No source/schema/authority change was made in this turn.
+This reopens step 2's affected provenance-enforcement closure; 10d/exit remain incomplete.
+
+The corrected FINDING has provenance:null: all narrative stays in the exact same referenced evidence blob and
+readable signing brief. Other changes are locator and informational timestamp only. Target units, materiality,
+non-blocking flag, INSPECTABILITY_GAP reason and supersedes:[] are unchanged. The new request is
+`sha256:785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd`, record
+`sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307`, at base position 6.
+It is unsigned and unsubmitted; the old signature is not valid for changed bytes and is not reused.
+
+Fresh Codex review: locator-only intermediate NO-PASS on inherited provenance; final typed replacement PASS
+for unsigned preparation. Final validation log explicitly lists all three changed fields; final scratch real-
+Admission rehearsal ran one test in 0.688 seconds, OK: old locator refused, typed blob-reference report ACCEPTED.
+The scratch used a new throwaway human key and fixture guide target; it proves the exercised scanner/Admission
+path, not actual future signed admission. Final checked-home verification confirms exact request/message id,
+no signature, provenance:null, schema valid and scanner false. Production source remains at validated `1abf37cf`;
+the prior 1,888-test execution remains source-applicable but does not prove C7 conformance. No new scientific
+results, scientific gate evidence or scientific selection occurred; infrastructure proposal variants are retained.
+
+### Native commands and endpoint comparisons
+
+Command 28 intentionally retains exit 1/REJECT; comparison exit 0 is not command success. All later commands
+and comparisons below exited 0. Each complete window ran in one host context without concurrent restricted
+filesystem or agent probes. These windows qualify only themselves, not the original contaminated append.
+
+#### 28-admit-signed-finding
+
+```json
+{
+  "at": "2026-10-29T20:46:29.596741+00:00",
+  "step": "28-admit-signed-finding",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "report",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--observed-ref",
+    "ssds-8.0-graph-native-architecture",
+    "--admit",
+    "/home/samjin/.ssds/state/ssdp-shadow-2/requests/75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a"
+  ],
+  "command_exit": 1,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "admitted": [],
+  "appended": true,
+  "decision": "REJECT",
+  "ledger_id": "ssdp-shadow-2",
+  "observed_ref": "ssds-8.0-graph-native-architecture",
+  "position": 5,
+  "reasons": [],
+  "refused": [
+    [
+      "sha256:6b2dbc477713971c7011ce485b93317d2183dce8e6f4b3c39e9e26e5e61ef014",
+      [
+        "SECRET_DETECTED"
+      ]
+    ]
+  ],
+  "request_id": "sha256:f78c8d1b2dfa83006995de494e727f6bbdc5cb29b1b7af7afa47feea49e4a20b",
+  "submitted": "request sha256:75ced219d746c4f3a6894f25782d2074b42bc44280075c7de9785192fa64034a\nledger ssdp-shadow-2 at position 3, integration head 6d43121b440743a3b6e9f78b7600a40e4fc5ba7a\nsigned by human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw\nrecords:\n  FINDING sha256:6b2dbc477713971c7011ce485b93317d2183dce8e6f4b3c39e9e26e5e61ef014\n    target  {\"units\": [\"orchestrator.program\", \"ssds.manifest\", \"ssds.policy\"]}\n    outcome null\nadopted deltas: none\n"
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/28-admit-signed-finding-before.json
+```
+
+#### 29-admit-signed-availability
+
+```json
+{
+  "at": "2026-10-29T20:47:59.082358+00:00",
+  "step": "29-admit-signed-availability",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "submit",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--observed-ref",
+    "ssds-8.0-graph-native-architecture",
+    "--admit",
+    "/home/samjin/.ssds/state/ssdp-shadow-2/requests/bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "admitted": [
+    "sha256:2716f8c4df47515c93b6304a2e1bf96b03c13955102aa4820f4d9925a1ebf9e6"
+  ],
+  "appended": true,
+  "decision": "ACCEPT",
+  "ledger_id": "ssdp-shadow-2",
+  "observed_ref": "ssds-8.0-graph-native-architecture",
+  "position": 6,
+  "reasons": [],
+  "refused": [],
+  "request_id": "sha256:e248396b25fd761756adcf3411c6890d24ca1be767a42e402084141d412446ac",
+  "submitted": "request sha256:bb381a05ef168abe7ad80ad1c175faa00fb4bb0ae0e78ac86fc00284a7cd5f34\nledger ssdp-shadow-2 at position 3, integration head 6d43121b440743a3b6e9f78b7600a40e4fc5ba7a\nsigned by human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw\nrecords:\n  AVAILABILITY sha256:2716f8c4df47515c93b6304a2e1bf96b03c13955102aa4820f4d9925a1ebf9e6\n    target  {\"digest\": \"sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1\"}\n    outcome \"AVAILABLE\"\nadopted deltas: none\n"
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/29-admit-signed-availability-before.json
+```
+
+#### 30-prepare-corrected-finding
+
+```json
+{
+  "at": "2026-10-29T20:56:18.791970+00:00",
+  "step": "30-prepare-corrected-finding",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "report",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--prepare",
+    "/tmp/ssds-10d-20261029/replacement-finding-v2.json",
+    "--actor",
+    "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+request sha256:785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd
+ledger ssdp-shadow-2 at position 6, integration head 425c92581c0431efd0d4084a9e13bdde93175506
+signed by human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw
+records:
+  FINDING sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307
+    target  {"units": ["orchestrator.program", "ssds.manifest", "ssds.policy"]}
+    outcome null
+adopted deltas: none
+
+prepared in /home/samjin/.ssds/state/ssdp-shadow-2/requests/785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd
+sign it with your own key:
+  ssh-keygen -Y sign -f <your key> -n ssds /home/samjin/.ssds/state/ssdp-shadow-2/requests/785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd/request-message.txt
+then admit it:
+  ssds report --ledger ssdp-shadow-2 --repository <repository> --observed-ref <branch> --admit /home/samjin/.ssds/state/ssdp-shadow-2/requests/785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/30-prepare-corrected-finding-before.json
+```
+
+#### 31-verify-signed-record-effects
+
+```json
+{
+  "at": "2026-10-29T20:56:22.295500+00:00",
+  "step": "31-verify-signed-record-effects",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_signed_record_effects.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "position": 6,
+  "entries": 7,
+  "observed_head": "425c92581c0431efd0d4084a9e13bdde93175506",
+  "entry_kinds": {
+    "LIFECYCLE": 1,
+    "ABSORPTION": 3,
+    "ADMISSION": 3
+  },
+  "finding_admitted": false,
+  "availability_admitted": true,
+  "latest_policy_availability": "AVAILABLE",
+  "reserved_leaves": {
+    "ssds.manifest": "MANIFEST",
+    "ssds.policy": "POLICY",
+    "ssds.unclassified": "UNCLASSIFIED"
+  },
+  "quarantine": [],
+  "evidence_commit_reachable_in_ledger": true
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/31-verify-signed-record-effects-before.json
+```
+
+#### 32-status-after-signed-pair
+
+```json
+{
+  "at": "2026-10-29T20:56:30.427702+00:00",
+  "step": "32-status-after-signed-pair",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "status",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "assertion_withheld": [],
+  "critical": [],
+  "current_assertion": true,
+  "entries": 7,
+  "head": {
+    "digest": "sha256:ff0d3e37811f46dfa98a7d725e48115e750102d32f4097d1729daf95f5a62f7d",
+    "label": "QUALIFIED",
+    "position": 6,
+    "qualification": "QUALIFIED"
+  },
+  "ledger_id": "ssdp-shadow-2",
+  "obligations": [],
+  "provisional": null,
+  "qualification": "QUALIFIED",
+  "subjects": {
+    "orchestrator.program": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:b0a1898f4cbcad5c134e1274ae2bd752137052a1d823c8952d18d19c2f12f8c2",
+      "status": "unclassified"
+    },
+    "ssdp.protocol": {
+      "mode": "LEGACY",
+      "rev": "sha256:0597630d37adb088c58a2c24e0b1402e6853c14e5c9cfbfc73d7f36e73aa27fa",
+      "status": "stale"
+    },
+    "ssds.manifest": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:fb77e7dedb294322d49d4f99d3c157fbe52080aaff08833444fecf29f254e3ee",
+      "status": "unclassified"
+    },
+    "ssds.policy": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:a0c4b3794237c0a5a73ed364ac23b2f63275c0d0c63b5f81aae2c6e623fa1fa4",
+      "status": "unclassified"
+    },
+    "ssds.unclassified": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:320739ca3300644e9aba0e4829624cd1aaeae73a27305490f644ab55cfbbcf21",
+      "status": "unclassified"
+    },
+    "ssds8.manual": {
+      "mode": "LEGACY",
+      "rev": "sha256:c5090340091ca7c72257d48b6ff327c1a0703d86b88bc1097d81d90a88374b23",
+      "status": "stale"
+    }
+  }
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/32-status-after-signed-pair-before.json
+```
+
+#### 33-verify-corrected-finding
+
+```json
+{
+  "at": "2026-10-29T20:58:17.359166+00:00",
+  "step": "33-verify-corrected-finding",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_corrected_finding.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0
+}
+```
+
+```text
+{
+  "replacement_request": "sha256:785d8fa6c50221a3b2d6a0b6ec4cb25b6cfa5f68d6154e0878f5da4e2c2192dd",
+  "record": "sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307",
+  "message_matches": true,
+  "signature_present": false,
+  "schema_valid": true,
+  "secret_detected": false,
+  "provenance": null,
+  "same_narrative_home": true,
+  "non_null_admitted_provenance": [
+    {
+      "kind": "AVAILABILITY",
+      "record": "sha256:2716f8c4df47515c93b6304a2e1bf96b03c13955102aa4820f4d9925a1ebf9e6",
+      "provenance_keys": [
+        "claim_limit",
+        "observation",
+        "prepared_by",
+        "status"
+      ]
+    }
+  ],
+  "limit": "Program acceptance is not Manual C7 conformance; old AVAILABILITY is preserved."
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/33-verify-corrected-finding-before.json
+```
+
+#### replacement-locator-validation-final.log
+
+```text
+{
+  "blob": "9f6d5616f995b04d62c2a87e777005df903347ef",
+  "content_digest": "sha256:8d29d152af813ad6942dd272c7b8bfb52da332f91af2b605d0efa50ad7ef98a5",
+  "changed_fields": [
+    "refs[0].locator",
+    "recorded_at",
+    "provenance"
+  ],
+  "same_evidence_bytes": true,
+  "same_claim": true,
+  "schema_valid": true,
+  "secret_detected": false
+}
+```
+
+#### replacement-locator-rehearsal-final.log
+
+```text
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.688s
+
+OK
+{"rehearsal": "fresh throwaway-key fixture, target guide", "old_locator": "SECRET_DETECTED", "blob_locator": "ACCEPT", "real_home_access": false, "production_changes": false}
 ```

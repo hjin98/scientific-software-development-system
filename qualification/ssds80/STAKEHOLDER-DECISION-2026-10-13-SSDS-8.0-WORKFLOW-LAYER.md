@@ -352,6 +352,22 @@ This settles the named recommendations:
 
 The implementing agent (AI, Codex family) interprets the instruction to proceed and supply the signature link as authorization to carry out F122's preparation: commit the two reserved-leaf declarations and default policy, observe/absorb the branch, and prepare the human-authenticated `ABSORB` request. The stakeholder's private key remains untouched; their actual signature over the concrete request remains required before submission. No two permanent records for the later `report`/`submit` exercise were chosen by this instruction, so that choice remains open. No campaign, cutover, broader adoption or change to frozen authority is authorized.
 
+
+**73. Signed remaining-record pair (2026-10-29).** The prepared FINDING and policy-object AVAILABILITY
+requests were presented with their meaning, request/message identities and signing instructions. After asking
+for the recorded key path, the stakeholder replied:
+
+> "Signed. Proceed."
+
+This authorizes verification and submission of those exact signed requests within F122's existing shadow
+boundary. It does not authorize signing for the stakeholder, altering signed bytes, weakening the secret scan,
+waiving the original append qualification gap, native authority, a campaign or exit acceptance. Native results:
+FINDING refused at position 5 with SECRET_DETECTED (its repository locator crossed the entropy threshold);
+AVAILABILITY ACCEPTED at position 6. Both endpoint comparisons passed. The original signed request/refusal
+remain preserved. A replacement using the exact same evidence blob and content digest needs a new human
+signature; the earlier signature is not reused over changed bytes. The canonical 10d evidence owns execution
+and the pending-requests record owns the replacement's review/signing route. No new upstream decision is inferred.
+
 ## Not covered
 
 - The 2026-10-12 instruction that adopted 7.2.1 as the governing version and directed the rebase (workplan §0.4) was given in an earlier session and is not reproduced here. It remains recorded only as the workplan's paraphrase until the stakeholder restates it.
