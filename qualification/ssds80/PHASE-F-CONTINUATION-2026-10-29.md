@@ -4,7 +4,20 @@ Governing SSDP: 7.2.1. Authority: active Phase F revision 63 (scheduled-start re
 and the user's instruction to resume at 5:30 am America/Chicago after the usage refresh. Asserter: AI
 implementing agent, Codex family. This checkpoint is decision support, not operational acceptance.
 
-**Current resumable checkpoint.** Validated harness source `a1dddd32`; full suite **1,892 tests OK,
+**Current resumable checkpoint (2026-10-30, Claude-family resume of the Codex handoff).** Stakeholder direction
+this resume: C7 route **held, decide later**; original append gap **left open**; boundary-checked scratch windows
+may run in the user's terminal (the agent sandbox masks root dotfiles with `/dev/null` devices, which the sensor
+correctly refuses; it was not weakened). Cost repairs R-COST-IMPORTS (bounded path/content-keyed reuse of import
+facts at `analyzers.python.imports`) and R-COST-CHAIN-READ (one `git cat-file --batch` reader in
+`ledger.read.read_raw`, explicit-stack tree walk, unchanged authentication) are qualified: same-family NO-PASS
+(three corrupt-tree divergences) repaired, narrow re-check PASS, differential probes SAME in sha1/sha256 except
+the deliberate NUL rejection, full suite **1,901 tests OK (10 skipped)**. Read-only replay with equal results:
+15.0 s -> 7.7 s per profiled iteration; chain read 1,031 -> 2 process launches. The study-evidence section
+"Cost repairs R-COST-IMPORTS and R-COST-CHAIN-READ" owns details and limits. Real ledger untouched (still 6b8331eb,
+position 9, 10 entries). Next: a new appropriately bounded preliminary run on a fresh scratch home bound to the
+repair commit; frozen 11b, complete classification, other-family review, step 12, C7 and the original gap remain.
+
+**Previous checkpoint (superseded by the one above).** Validated harness source `a1dddd32`; full suite **1,892 tests OK,
 10 skipped**. Evidence through `82ad1bd3` retains the byte-identical partial study at255/298, all623 preliminary
 classifications and the separate profile. The final bounded repetition measurement adds metadata only:
 2,872 import analyses,718 distinct path/content inputs,2,154 repeats; no cache/source change or claimed speedup.

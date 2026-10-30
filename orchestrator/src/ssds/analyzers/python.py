@@ -9,8 +9,12 @@ incomplete.
 from __future__ import annotations
 
 import ast
+import hashlib
 import re as _re
+import sys
+import threading
 import warnings
+from collections import OrderedDict
 from dataclasses import dataclass
 
 from . import units as _units
@@ -104,9 +108,43 @@ def resolve_symbol(path: str, data: bytes, symbol: str) -> tuple[int, int] | Non
     return matches[0].start, matches[0].end
 
 
+#: Retained ``imports`` facts, least recently used first (Phase F cost inquiry: one study iteration analyzed 718
+#: distinct path/content inputs 2,872 times). A result is a pure function of the path (relative imports depend on
+#: it) and the exact bytes, so the key is the path and the bytes' SHA-256; the facts are immutable, and an
+#: incompleteness marker is part of them. The bound is on the retained objects' ``sys.getsizeof`` sizes, not a count.
+_IMPORTS_BUDGET = 8 * 1024 * 1024
+_imports_retained: OrderedDict[tuple[str, bytes], tuple[ImportFacts, int]] = OrderedDict()
+_imports_size = 0
+_imports_lock = threading.Lock()
+
+
+def _retained_size(key: tuple[str, bytes], facts: ImportFacts) -> int:
+    parts = (key, *key, facts, facts.modules, facts.markers, *facts.modules, *facts.markers)
+    return sum(sys.getsizeof(part) for part in parts)
+
+
 def imports(path: str, data: bytes) -> ImportFacts:
     """Absolute modules imported by the file, and the markers that make the set incomplete."""
 
+    global _imports_size
+    key = (path, hashlib.sha256(data).digest())
+    with _imports_lock:
+        held = _imports_retained.get(key)
+        if held is not None:
+            _imports_retained.move_to_end(key)
+            return held[0]
+    facts = _imports(path, data)
+    size = _retained_size(key, facts)
+    with _imports_lock:
+        if key not in _imports_retained and size <= _IMPORTS_BUDGET:
+            _imports_retained[key] = (facts, size)
+            _imports_size += size
+            while _imports_size > _IMPORTS_BUDGET:
+                _imports_size -= _imports_retained.popitem(last=False)[1][1]
+    return facts
+
+
+def _imports(path: str, data: bytes) -> ImportFacts:
     tree = _parse(data)
     if tree is None:
         return ImportFacts((), ("dynamic-code",))

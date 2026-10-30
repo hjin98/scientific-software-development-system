@@ -654,3 +654,179 @@ original-report write or production-source edit. Review did not execute owners o
 scratch state, or reconstruct a per-call event trace (none retained). Execution/source/log evidence and shared
 harness-owner common modes bound the claim. All prior omitted/frozen/other-family/exit/C7/original-gap duties
 remain. Reviewer DONE PROBING. Final continuation opening merely projects these reviewed factual states.
+
+
+## Cost repairs R-COST-IMPORTS and R-COST-CHAIN-READ (2026-10-30)
+
+Asserter: AI implementing agent, Claude family (Opus 5.5), resuming from the Codex-family handoff; governing SSDP 7.2.1.
+Stakeholder direction recorded at the start of this resume: C7 route **held, decide later**; original append gap
+**left open**; boundary-checked scratch windows may run in the user's terminal (the agent's Bash sandbox masks
+repository-root dotfiles with `/dev/null` character devices, and `shadow_boundary.py` correctly refuses them as
+unsupported entries — step 49 snapshot failed and executed no command; the sensor was not weakened).
+
+Both measured costs of the supplementary profile were repaired at their existing owners, with no new deriver,
+resume state or skipped analysis:
+
+- **R-COST-IMPORTS** — `analyzers/python.py`. `imports(path, data)` reuses earlier facts from a process-wide LRU
+  keyed by the path (relative imports depend on it) and the SHA-256 of the exact bytes; the analysis itself is
+  unchanged in `_imports`. Facts are immutable and keep every incompleteness marker. The bound is the summed
+  `sys.getsizeof` of retained keys/facts (8 MiB), not an entry count; an oversized result is returned exactly and
+  not retained. This accounting is approximate (dict nodes and the `(facts, size)` tuple are not counted; shared
+  strings are counted more than once), not an RSS guarantee.
+- **R-COST-CHAIN-READ** — `ledger/read.py`. `read_raw` reads every commit, tree and blob through one
+  `git cat-file --batch` process and walks raw tree objects with an explicit stack in `ls-tree -r` order, instead
+  of `cat-file commit` + `ls-tree -r -z` + `cat-file blob` per file. `verify_chain` and every authentication step
+  are unchanged. A missing object, wrong type, empty entry name, non-octal mode, truncated tree or abbreviated tree
+  line rejects the chain (`ChainRejected`) as the per-object reads did. Deliberate strict difference: a head
+  containing NUL is `ChainRejected` (formerly a plain `ValueError` from `subprocess`).
+
+### Measured effect (read-only replay, equal results)
+
+Steps 49c (pre-review source) and **49d (final source)** each ran in one host window (`compare_costs.py`;
+command 0, comparison 0, repository unchanged). They replayed the profiled iteration's derivation at positions
+255/256, checks and parent/after consequences on the read-only a1dddd32 scratch chain, alternating old source
+`7e9649d1` and the new working source twice each. Chain digest, entry bytes, object count, checks and consequence
+changes were asserted equal across all four runs and to the step-47 profile result, and every loaded `ssds`
+module was asserted to come from the variant under test. Final (49d) figures:
+
+| | old 7e9649d1 | new (final) |
+|---|---|---|
+| replay total | 15.04 s, 15.11 s | 7.61 s, 7.77 s |
+| `read_chain` of 257 entries | 3.89 s, 1,031 process launches | 0.11 s, 2 launches |
+| parent / after consequences | 1.23 s / 2.03-2.09 s | 0.01 s / 0.87-0.89 s |
+| checks | 7.66-7.67 s | 6.37-6.56 s |
+| retained import facts | — | 718 entries, 814,123 accounted bytes |
+
+49c on the pre-review source measured the same shape (14.7 s vs 7.5 s). One iteration, one host, unprofiled
+wall-clock; not a controlled benchmark, an SLA or a global memory bound. Cross-iteration reuse inside one long
+study process is expected but not measured here. Checks (structural semantics, line directives) now dominate.
+Earlier attempts are retained: step 49's snapshot was refused inside the agent sandbox (no command ran); 49b's
+first replay stopped on its own module-identity assertion because the harness prepends the repository `src`
+(fixed by importing the variant first); comparison 0 in 49b.
+
+### Review and qualification
+
+Same-family review (Claude subagent) of the first version: **NO-PASS**, three blockers in the batched tree walk,
+all reproduced by its differential probe against the real old `read_raw` in sha1 and sha256 repositories:
+B1 empty entry name accepted (would turn whole-chain rejection into a positional halt); B2 mode digits 8/9 raised
+`ValueError`; B3 nesting beyond ~1,000 levels raised `RecursionError`. Notes: NUL in head accepted; two tree lines
+rejected; width taken from commit text; several surviving test mutants; oracle not exactly the old code.
+Analyzer memo, fitness rules, architecture (§26) and scientific-checks questions: no finding.
+
+Repairs: explicit-stack walk; empty name and non-octal mode rejected; width from the batch-reported identity; tree
+line must be a full 40/64-hex first header line; NUL rejected; oracle given the old environment and JSON guard.
+The reviewer's probe then reported SAME for every case in both formats except the deliberate NUL rejection.
+New tests: `BatchedChainRead`, `StoredObjectEdges` (sha1+sha256 differential incl. tag peeling, interleaved order,
+odd directory mode, directory-entry-to-blob, 1,101-level nesting), `ImportFactReuse`. Mutants killed: cache key
+without path or content, no bound, no tree recursion, no blob/commit peel, no type check, width 20,
+subtrees-last ordering, equality instead of directory mask, no empty-name check, digit-only mode check, no NUL
+check. Equivalent mutant: taking any `tree` line (Git's own `^{commit}` peel rejects a commit not starting with it).
+
+Narrow same-family re-check of the repair: **PASS**, no blocker. Its second differential probe (35 further cases per
+object format: empty/only-subtree trees, malformed nested entries after valid siblings, trailing garbage, tag
+chains, gitlinks in nested directories, extreme directory modes, junk in commit headers, missing parents, bad or
+non-object JSON, a 300 KB blob, depth 3,000) reported SAME throughout; a cleanup probe under `-X dev` with
+ResourceWarning as error reaped the process with all pipes closed on every exception path. Its notes were taken
+up: the tree-identity regex was removed (it alone rejected an uppercase-hex tree line Git accepts, and was
+otherwise redundant with the peel), and truncated-entry and empty-mode cases were added (both mutants now
+killed). Untested-but-correct by inspection: the `_environment()` argument and the `finally` close.
+Final probes: SAME for every case in both formats except the deliberate NUL rejection.
+
+The first complete suite over the pre-re-check source passed (1,901 tests, 521.6 s, OK, 10 skipped);
+the final complete suite over the fixed final source passed: **1,901 tests in 519.492 s, OK (10 skipped),
+exit 0**, no FAIL/ERROR lines (log `full-suite-cost-repair-final.log`). Hashes of the tested files:
+`analyzers/python.py` `61073075ea6e109c71887197b17b28751847a8a12bab47883b4eba59acb6b74c`; `ledger/read.py` `11f1264a4b1e1afba8fbcdda9025cb98846a78e7a578b3216d7f37fca12f79e6`; `test_phase_f_step11a.py` `4c96d812759ed865e1fcc880a57709c67de8f71ba3466da33d6eba841312525c`. Orchestrator protocol-snapshot check
+passed; Core is unchanged. Protocol source, `dist/`, profiles, snapshots, Manual/catalogue, frozen Core
+architecture and PEM are untouched; PEM stayed cold (a clean local cost repair; no history-dependent decision).
+
+### Window records (raw evidence under `/tmp/claude-1000/ssds-phase-f-cost-20261030`)
+
+```json
+{"at": "2026-10-30T16:09:16.096399+00:00", "step": "49b-cost-comparison", "command": ["/tmp/ssds-phase-f-20261029/bin/python", "/tmp/claude-1000/ssds-phase-f-cost-20261030/compare_costs.py", "/tmp/claude-1000/ssds-phase-f-cost-20261030"], "command_exit": 1, "comparison_exit": 0, "before_sha256": "a171a5bcd1268cf55a18f153bcdd4416f98121cb7a68380f78a10c8cb496c346"}
+{"at": "2026-10-30T16:10:38.670391+00:00", "step": "49c-cost-comparison", "command": ["/tmp/ssds-phase-f-20261029/bin/python", "/tmp/claude-1000/ssds-phase-f-cost-20261030/compare_costs.py", "/tmp/claude-1000/ssds-phase-f-cost-20261030"], "command_exit": 0, "comparison_exit": 0, "before_sha256": "1dd2a614c90729eb9cabb2da718c9555e95c177b3cb709f0e126ce611a1e246e"}
+{"at": "2026-10-30T16:47:41.162334+00:00", "step": "49d-cost-comparison-final", "command": ["/tmp/ssds-phase-f-20261029/bin/python", "/tmp/claude-1000/ssds-phase-f-cost-20261030/compare_costs_final.py", "/tmp/claude-1000/ssds-phase-f-cost-20261030", "cost-comparison-final-result.json"], "command_exit": 0, "comparison_exit": 0, "before_sha256": "5cfb80bb7f3c9779a0e1f360448f76c17699c771caee6a5fbe7dcc51001c0161"}
+```
+
+Step 49 (no record): `unsupported filesystem entry in boundary snapshot: <repository>/.bash_profile` inside the agent sandbox.
+
+Result `cost-comparison-final-result.json`, SHA256 `3de9c32b5c6cf5e6a0367e37c1871c6289cd9b42215bd12d835856f53c05c82a`.
+
+<details>
+<summary>replay.py (SHA256 0c107f00b4c53a86d67aee93efc7d57c011f0f7fcd6a88e1cb93697eb9da93be)</summary>
+
+```python
+"""Read-only replay of the profiled iteration's checks and consequences over one source variant. No append."""
+import hashlib,importlib.util,json,subprocess,sys,time
+from functools import lru_cache
+from pathlib import Path
+src=Path(sys.argv[1]);sys.path.insert(0,str(src))
+root=Path('/home/samjin/agent-skills/scientific-software-development-system')
+import ssds;assert Path(ssds.__file__).resolve().is_relative_to(src.resolve()),ssds.__file__  # before the harness pins the repository src
+sys.path.insert(1,str(root/'orchestrator/scripts'))
+spec=importlib.util.spec_from_file_location('study',root/'orchestrator/scripts/difference_study.py')
+study=importlib.util.module_from_spec(spec);spec.loader.exec_module(study)
+from ssds import analyzers
+from ssds.ledger.read import read_chain
+launches=0;real=subprocess.Popen.__init__
+def counted(self,*a,**k):
+    global launches;launches+=1;return real(self,*a,**k)
+subprocess.Popen.__init__=counted
+home=study.AdmissionHome(Path('/tmp/ssds-phase-f-preliminary-a1dddd32-20261029'))
+report=home.root/'difference-study.json';raw=report.read_bytes()
+assert hashlib.sha256(raw).hexdigest()=='4d063c5a0e37a1673bf4571abb696beb9286a80c5b5adac992ab6d30de4c88cd'
+expected=json.loads(Path('/tmp/ssds-10d-20261029/pending-iteration-profile-result.json').read_text())
+@lru_cache(maxsize=8)
+def trees(commit):return study.read_tree(root,commit)
+times={};counts={}
+def stage(name,call):
+    global launches;before=launches;start=time.monotonic();result=call()
+    times[name]=time.monotonic()-start;counts[name]=launches-before;return result
+chain=stage('read_chain',lambda:read_chain(home.ledger_repository(study.LEDGER),study.LEDGER))
+assert chain.halt is None and len(chain.entries)==257 and chain.readable_through==256
+graph=study.ancestry(home.ledger_repository(study.LEDGER))
+parent=stage('derive_parent',lambda:study.derive(chain,trees,position=255,ancestry=graph))
+checks=stage('checks',lambda:study.checks(parent,expected['parent'],expected['commit']))
+before=stage('parent_consequences',lambda:study.consequence_state(parent))
+after=stage('after_consequences',lambda:study.consequence_state(study.derive(chain,trees,position=256,ancestry=graph)))
+assert json.loads(json.dumps(checks))==expected['checks']
+assert json.loads(json.dumps(study.changes(before,after)))==expected['consequence_changes']
+assert report.read_bytes()==raw
+foreign=[n for n,m in sys.modules.items() if n.split('.')[0]=='ssds' and getattr(m,'__file__',None) and not Path(m.__file__).resolve().is_relative_to(src.resolve())]
+assert not foreign,foreign
+memo=getattr(analyzers.python,'_imports_retained',None)
+print(json.dumps({'source':str(src),'chain_digest':hashlib.sha256(''.join(e.digest for e in chain.entries).encode()).hexdigest(),
+ 'entry_bytes_sha256':hashlib.sha256(b''.join(e.entry_json+e.signature for e in chain.entries)).hexdigest(),
+ 'objects':sum(len(e.objects) for e in chain.entries),'seconds':times,'total_seconds':sum(times.values()),
+ 'process_launches':counts,'checks_and_changes_match_profile':True,
+ 'retained_import_facts':None if memo is None else len(memo),
+ 'retained_import_bytes':None if memo is None else analyzers.python._imports_size},sort_keys=True))
+```
+
+</details>
+
+<details>
+<summary>compare_costs_final.py (SHA256 8469af15a9ecc7bcc51629de1d618ed474d0dee3ff87a2e3b4af255b00a3649b)</summary>
+
+```python
+"""Alternate old/new source variants of the read-only replay; equal results required."""
+import json,os,subprocess,sys
+from pathlib import Path
+out=Path(sys.argv[1]);root=Path('/home/samjin/agent-skills/scientific-software-development-system')
+variants={'old-7e9649d1':out/'old/orchestrator/src','new-working':root/'orchestrator/src'}
+runs=[]
+for round_ in range(2):
+    for name,src in variants.items():
+        env={k:v for k,v in os.environ.items() if k!='PYTHONPATH'};env['PYTHONDONTWRITEBYTECODE']='1'
+        done=subprocess.run([sys.executable,str(out/'replay.py'),str(src)],env=env,capture_output=True,text=True,timeout=900)
+        if done.returncode:print(done.stdout,done.stderr);raise SystemExit(f'{name} failed')
+        runs.append({'variant':name,'round':round_,**json.loads(done.stdout.strip().splitlines()[-1])})
+keys=('chain_digest','entry_bytes_sha256','objects','checks_and_changes_match_profile')
+assert len({tuple(r[k] for k in keys) for r in runs})==1,'variants disagree'
+result={'scope':'read-only replay of the profiled iteration at positions255/256; no append, no report write',
+ 'runs':runs,'equal_across_variants':list(keys)}
+target=out/sys.argv[2];assert not target.exists()
+target.write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+for r in runs:print(r['variant'],r['round'],round(r['total_seconds'],2),r['seconds'],r['process_launches'],r['retained_import_facts'],r['retained_import_bytes'])
+```
+
+</details>

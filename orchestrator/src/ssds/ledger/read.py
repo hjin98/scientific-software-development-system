@@ -258,30 +258,120 @@ def ledger_head(repo: Path, ledger_id: str) -> str | None:
     return result.stdout.decode("ascii").strip() if result.returncode == 0 else None
 
 
+class _Objects:
+    """One ``git cat-file --batch`` process answering every object read of a chain read, in request order.
+
+    A process per commit, tree and file made a chain read cost about four process starts per entry (Phase F cost
+    inquiry: 3,089 starts in one study iteration's three reads). The bytes are Git's stored bytes, as before; a
+    missing object or one of another type rejects the chain as the per-object reads' failure did.
+    """
+
+    def __init__(self, repo: Path) -> None:
+        self._process = subprocess.Popen(  # noqa: S603 - fixed argv
+            ["git", "-C", str(repo), "cat-file", "--batch"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_environment(),
+        )
+        self._stderr: bytes | None = None
+
+    def read(self, name: str, kind: str) -> tuple[str, bytes]:
+        """The full identity and content of object ``name``, which must be of type ``kind``."""
+
+        if "\n" in name or "\0" in name:
+            raise ChainRejected(f"not an object name: {name!r}")
+        stdin, stdout = self._process.stdin, self._process.stdout
+        assert stdin is not None and stdout is not None
+        try:
+            stdin.write(name.encode("utf-8") + b"\n")
+            stdin.flush()
+        except BrokenPipeError:
+            raise self._failure() from None
+        header = stdout.readline()
+        if not header.endswith(b"\n"):
+            raise self._failure()
+        fields = header[:-1].decode("utf-8", "replace").split(" ")
+        if len(fields) != 3 or not fields[2].isdigit():
+            raise ChainRejected(f"{name}: {' '.join(fields[1:]) or 'unreadable'}")
+        if fields[1] != kind:
+            raise ChainRejected(f"{name}: a {fields[1]}, not a {kind}")
+        size = int(fields[2])
+        data = stdout.read(size + 1)
+        if len(data) != size + 1 or not data.endswith(b"\n"):
+            raise self._failure()
+        return fields[0], data[:-1]
+
+    def _entries(self, tree: str, prefix: bytes) -> list[tuple[int, bytes, str]]:
+        """``(mode, full path, identity)`` of each entry of ``tree``, in stored order; malformed entries reject
+        the chain, as ``ls-tree`` refused them (an empty name, a mode outside octal digits, a truncated identity)."""
+
+        oid, data = self.read(tree, "tree")
+        width = len(oid) // 2
+        out = []
+        index = 0
+        while index < len(data):
+            space = data.find(b" ", index)
+            nul = data.find(b"\0", space + 1) if space >= 0 else -1
+            mode = data[index:space] if space >= 0 else b""
+            if (nul < 0 or nul == space + 1 or nul + 1 + width > len(data) or not mode
+                    or any(digit not in b"01234567" for digit in mode)):
+                raise ChainRejected(f"tree {oid} is corrupt")
+            out.append((int(mode, 8), prefix + data[space + 1 : nul], data[nul + 1 : nul + 1 + width].hex()))
+            index = nul + 1 + width
+        return out
+
+    def tree_files(self, tree: str) -> dict[str, bytes]:
+        """Every file of ``tree`` and its subtrees, at its full path, in ``ls-tree -r`` order (depth first, a
+        subtree in its place). An explicit stack: a nesting depth is not bounded by Python's recursion limit."""
+
+        files: dict[str, bytes] = {}
+        stack = [iter(self._entries(tree, b""))]
+        while stack:
+            entry = next(stack[-1], None)
+            if entry is None:
+                stack.pop()
+                continue
+            mode, path, oid = entry
+            if mode & 0o170000 == 0o040000:
+                stack.append(iter(self._entries(oid, path + b"/")))
+            else:  # a submodule's commit is no blob and rejects the chain, as ``cat-file blob`` did
+                files[path.decode("utf-8")] = self.read(oid + "^{blob}", "blob")[1]
+        return files
+
+    def _failure(self) -> ChainRejected:
+        return ChainRejected(self.close().decode("utf-8", "replace").strip() or "git cat-file ended")
+
+    def close(self) -> bytes:
+        """End the process (it ends at the end of its input); its error output."""
+
+        if self._stderr is None:
+            self._stderr = self._process.communicate()[1]
+        return self._stderr
+
+
 def read_raw(repo: Path, head: str) -> list[RawEntry]:
     """The entry chain ending at ``head``, oldest first: each entry's first parent until the genesis entry."""
 
     raws: list[RawEntry] = []
     commit: str | None = head
-    while commit is not None:
-        header = _git(repo, ["cat-file", "commit", commit]).stdout.decode("utf-8", "replace")
-        parents = tuple(line.split()[1] for line in header.split("\n\n", 1)[0].splitlines() if line.startswith("parent "))
-        tree = _git(repo, ["ls-tree", "-r", "-z", commit]).stdout
-        files = {}
-        for item in tree.split(b"\0"):
-            if not item:
-                continue
-            meta, _, path = item.partition(b"\t")
-            oid = meta.split(b" ")[2].decode("ascii")
-            files[path.decode("utf-8")] = _git(repo, ["cat-file", "blob", oid]).stdout
-        raws.append(RawEntry(commit, parents, files))
-        try:
-            position = json.loads(files.get("entry.json", b"{}")).get("position")
-        except ValueError:
-            position = None
-        if position == 0 or not parents or len(raws) > 10_000_000:
-            break
-        commit = parents[0]
+    objects = _Objects(repo)
+    try:
+        while commit is not None:
+            header = objects.read(commit + "^{commit}", "commit")[1].decode("utf-8", "replace")
+            lines = header.split("\n\n", 1)[0].splitlines()
+            parents = tuple(line.split()[1] for line in lines if line.startswith("parent "))
+            trees = [line.split()[1] for line in lines[:1] if line.startswith("tree ")]  # Git reads the first line
+            if not trees:  # Git's own parse in the ``^{commit}`` peel refuses a malformed tree line
+                raise ChainRejected(f"commit {commit} names no tree")
+            files = objects.tree_files(trees[0])
+            raws.append(RawEntry(commit, parents, files))
+            try:
+                position = json.loads(files.get("entry.json", b"{}")).get("position")
+            except ValueError:
+                position = None
+            if position == 0 or not parents or len(raws) > 10_000_000:
+                break
+            commit = parents[0]
+    finally:
+        objects.close()
     raws.reverse()
     return raws
 

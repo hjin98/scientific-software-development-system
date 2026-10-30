@@ -199,5 +199,291 @@ class Study(GenesisFixture):
             study.population(self.product, 'HEAD', lambda _: self.fail('must reject before tree read'))
 
 
+
+def per_object_read_raw(repo, head):
+    """The reader before the cost repair, a process per object: the oracle the batched reader must equal."""
+    from ssds.ledger.read import ChainRejected, RawEntry
+
+    from ssds.ledger.read import _environment
+
+    def run(*args):
+        result = subprocess.run(['git', '-C', str(repo), *args], capture_output=True, check=False, env=_environment())
+        if result.returncode:
+            raise ChainRejected(result.stderr.decode('utf-8', 'replace').strip())
+        return result.stdout
+
+    raws, commit = [], head
+    while commit is not None:
+        header = run('cat-file', 'commit', commit).decode('utf-8', 'replace')
+        parents = tuple(line.split()[1] for line in header.split('\n\n', 1)[0].splitlines() if line.startswith('parent '))
+        files = {}
+        for item in run('ls-tree', '-r', '-z', commit).split(b'\0'):
+            if item:
+                meta, _, path = item.partition(b'\t')
+                files[path.decode('utf-8')] = run('cat-file', 'blob', meta.split(b' ')[2].decode('ascii'))
+        raws.append(RawEntry(commit, parents, files))
+        try:
+            position = json.loads(files.get('entry.json', b'{}')).get('position')
+        except ValueError:
+            position = None
+        if position == 0 or not parents:
+            break
+        commit = parents[0]
+    raws.reverse()
+    return raws
+
+
+class BatchedChainRead(unittest.TestCase):
+    """Phase F cost inquiry: ``read_raw`` reads every object through one ``cat-file --batch`` process, with the
+    bytes, order and rejections of the per-object reads it replaces."""
+
+    def setUp(self):
+        import tempfile
+        from ssds.ledger.append import append_entry, create_ledger_repository, import_commits
+        from ssds.ledger.signatures import HostKey
+        from tests.ssds._fixtures import approve, entry, genesis_record, human_key, init_repo
+        from ssds.ledger.qualification import FileWitness
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        product = init_repo(root / 'product')
+        (product / 'README.md').write_text('# Demo\n')
+        baseline = commit(product, 'baseline')
+        self.ledger = create_ledger_repository(root / 'home' / 'ledgers' / 'demo.git')
+        key = HostKey.generate()
+        human_private, human_line = human_key(root)
+        import_commits(self.ledger, product, [baseline])
+        genesis = approve(genesis_record(key, human_line, FileWitness(root / 'w').root, baseline), human_private)
+        head = append_entry(self.ledger, entry('demo', 0, None, key, lifecycle=genesis), key, None,
+                            referenced=[baseline])
+        for position in (1, 2, 3):
+            data = json.dumps({'n': position}).encode()
+            objects = {'sha256:' + __import__('hashlib').sha256(data).hexdigest(): data, 'sha256:' + 'a' * 64: b'x'}
+            head = append_entry(self.ledger, entry('demo', position, head.digest, key, kind='ABSORPTION', obs=baseline,
+                                                   absorption={'fence': None}), key, head.commit, objects=objects)
+        self.head = head.commit
+
+    def git(self, *args, data=None):
+        return subprocess.run(['git', '-C', str(self.ledger), *args], input=data, capture_output=True,
+                              check=True).stdout.decode('ascii').strip()
+
+    def commit_with(self, listing):
+        tree = self.git('mktree', '--missing', data=listing.encode())
+        return self.git('commit-tree', tree, '-p', self.head, '-m', 'x')
+
+    def test_the_bytes_order_and_parents_equal_the_per_object_reads(self):
+        from ssds.ledger.read import read_chain, read_raw
+
+        batched, oracle = read_raw(self.ledger, self.head), per_object_read_raw(self.ledger, self.head)
+        self.assertEqual(batched, oracle)
+        self.assertEqual([list(r.files) for r in batched], [list(r.files) for r in oracle], 'ls-tree order')
+        self.assertTrue(any(p.startswith('objects/') for r in batched for p in r.files), 'a subtree is read')
+        self.assertEqual(len(read_chain(self.ledger, 'demo').entries), 4)
+
+    def test_one_process_reads_the_whole_chain(self):
+        from ssds.ledger import read
+
+        with patch.object(read.subprocess, 'run', side_effect=AssertionError('a process per object')):
+            with patch.object(read.subprocess, 'Popen', wraps=read.subprocess.Popen) as popen:
+                read.read_raw(self.ledger, self.head)
+        self.assertEqual(popen.call_count, 1)
+
+    def test_what_the_per_object_reads_rejected_is_rejected(self):
+        from ssds.ledger.read import ChainRejected, read_raw
+
+        blob = self.git('hash-object', '-w', '--stdin', data=b'kept')
+        cases = {
+            'a missing file': self.commit_with('100644 blob ' + 'b' * 40 + '\tentry.json\n'),
+            'a submodule commit': self.commit_with(f'160000 commit {self.head}\tsub\n'),
+            'a missing subtree': self.commit_with('040000 tree ' + 'c' * 40 + '\tobjects\n'),
+            'a head that is a blob': blob,
+            'an unknown head': 'd' * 40,
+            'a head naming two objects': f'{self.head}\n{self.head}',
+        }
+        for name, head in cases.items():
+            with self.subTest(name):
+                with self.assertRaises(ChainRejected):
+                    per_object_read_raw(self.ledger, head)
+                with self.assertRaises(ChainRejected):
+                    read_raw(self.ledger, head)
+
+    def test_a_missing_parent_and_a_missing_repository_are_rejected(self):
+        from ssds.ledger.read import ChainRejected, read_raw
+
+        tree = self.git('rev-parse', self.head + '^{tree}')
+        body = f'tree {tree}\nparent {"e" * 40}\nauthor a <a> 0 +0000\ncommitter a <a> 0 +0000\n\nx\n'
+        orphan = self.git('hash-object', '-t', 'commit', '-w', '--literally', '--stdin', data=body.encode())
+        for repo, head in ((self.ledger, orphan), (self.ledger.parent / 'absent.git', self.head)):
+            with self.subTest(str(repo), head=head):
+                with self.assertRaises(ChainRejected):
+                    per_object_read_raw(repo, head)
+                with self.assertRaises(ChainRejected):
+                    read_raw(repo, head)
+
+
+class StoredObjectEdges(unittest.TestCase):
+    """The batched reader against the per-object oracle over literally written objects, in both object formats:
+    tag peeling, ``ls-tree -r`` interleaving, entry types, malformed trees and nesting deeper than recursion."""
+
+    def outcome(self, reader, repo, head):
+        from ssds.ledger.read import ChainRejected
+        try:
+            return [(r.commit, r.parents, list(r.files.items())) for r in reader(repo, head)]
+        except ChainRejected:
+            return 'rejected'
+
+    def build(self, fmt):
+        import hashlib
+        import tempfile
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = Path(tmp.name) / 'r.git'
+        subprocess.run(['git', 'init', '-q', '--bare', f'--object-format={fmt}', str(repo)], check=True)
+
+        def git(*args, data=None):
+            return subprocess.run(['git', '-C', str(repo), *args], input=data, capture_output=True,
+                                  check=True).stdout.decode().strip()
+
+        def obj(kind, body):
+            return git('hash-object', '-t', kind, '--literally', '-w', '--stdin', data=body)
+
+        def tree(*entries):
+            return obj('tree', b''.join(m + b' ' + n + b'\0' + bytes.fromhex(o) for m, n, o in entries))
+
+        def commit(tree_line, parents=()):
+            body = tree_line + ''.join(f'parent {p}\n' for p in parents) + 'author a <a> 0 +0000\ncommitter a <a> 0 +0000\n\nm\n'
+            return obj('commit', body.encode())
+
+        entry = obj('blob', b'{"position": 0}')
+        other = obj('blob', b'x')
+        tag = obj('tag', f'object {other}\ntype blob\ntag t\ntagger a <a> 0 +0000\n\nt\n'.encode())
+        sub = tree((b'100644', b'x', other))
+        nested = tree((b'100644', b'a.txt', other), (b'40000', b'b', sub), (b'100644', b'c.txt', other),
+                      (b'100644', b'entry.json', entry), (b'120000', b'link', other), (b'40755', b'odd', sub))
+        valid = commit(f'tree {nested}\n')
+        heads = {
+            'interleaved subtrees, a symlink and an odd directory mode': valid,
+            'a second entry on top': commit(f'tree {tree((b"100644", b"entry.json", other))}\n', [valid]),
+            'an annotated tag of the head': obj('tag', f'object {valid}\ntype commit\ntag h\ntagger a <a> 0 +0000\n\nh\n'.encode()),
+            'a file entry naming a tag of a blob': commit(f'tree {tree((b"100644", b"entry.json", entry), (b"100644", b"t", tag))}\n'),
+            'two tree lines': commit(f'tree {nested}\ntree {sub}\n'),
+            'a tree line after a parent line': commit(f'parent {valid}\ntree {nested}\n'),
+            'a directory entry naming a blob holding tree bytes': commit(
+                f'tree {tree((b"40000", b"d", obj("blob", b"100644 x" + bytes(1) + bytes.fromhex(other))))}\n'),
+            'an empty name': commit(f'tree {tree((b"100644", b"", other))}\n'),
+            'a mode digit 8': commit(f'tree {tree((b"100648", b"f", other))}\n'),
+            'an abbreviated tree': commit(f'tree {nested[:12]}\n'),
+            'an uppercase tree line': commit(f'tree {nested.upper()}\n'),
+            'an empty mode': commit(f'tree {obj("tree", b" f" + bytes(1) + bytes.fromhex(other))}\n'),
+            'a truncated entry': commit(f'tree {obj("tree", b"100644 f" + bytes(1) + bytes.fromhex(other)[:-1])}\n'),
+        }
+        width = 40 if fmt == 'sha1' else 64
+        node = tree((b'100644', b'leaf', other))
+        bodies = []
+        for _ in range(1100):  # deeper than the recursion limit; one hash-object call writes them all
+            body = b'40000 d\0' + bytes.fromhex(node)
+            node = hashlib.new(fmt, b'tree %d\0' % len(body) + body).hexdigest()
+            bodies.append(body)
+        folder = Path(tempfile.mkdtemp(dir=Path(repo).parent))
+        names = []
+        for n, body in enumerate(bodies):
+            (folder / str(n)).write_bytes(body)
+            names.append(str(folder / str(n)))
+        written = git('hash-object', '-t', 'tree', '--literally', '-w', '--stdin-paths', data='\n'.join(names).encode())
+        self.assertEqual(written.split()[-1], node)
+        self.assertEqual(len(node), width)
+        heads['a 1,101-level nesting'] = commit(f'tree {tree((b"100644", b"entry.json", entry), (b"40000", b"deep", node))}\n')
+        return repo, heads
+
+    def test_the_batched_reader_equals_the_per_object_reads(self):
+        from ssds.ledger.read import read_raw
+        expected = {'interleaved subtrees, a symlink and an odd directory mode': 'read',
+                    'a second entry on top': 'read', 'an annotated tag of the head': 'read',
+                    'a file entry naming a tag of a blob': 'read', 'two tree lines': 'read',
+                    'a 1,101-level nesting': 'read', 'an uppercase tree line': 'read'}
+        for fmt in ('sha1', 'sha256'):
+            repo, heads = self.build(fmt)
+            for name, head in heads.items():
+                with self.subTest(fmt=fmt, case=name):
+                    oracle = self.outcome(per_object_read_raw, repo, head)
+                    self.assertEqual(self.outcome(read_raw, repo, head), oracle)
+                    self.assertEqual('read' if oracle != 'rejected' else 'rejected', expected.get(name, 'rejected'))
+            order = [p for _, _, files in self.outcome(read_raw, repo, heads['interleaved subtrees, a symlink and an odd directory mode']) for p, _ in files]
+            self.assertEqual(order, ['a.txt', 'b/x', 'c.txt', 'entry.json', 'link', 'odd/x'])
+
+    def test_a_name_with_a_nul_is_rejected(self):
+        from ssds.ledger.read import ChainRejected, read_raw
+        repo, heads = self.build('sha1')
+        with self.assertRaises(ChainRejected):
+            read_raw(repo, heads['two tree lines'] + '\0junk')
+
+
+class ImportFactReuse(unittest.TestCase):
+    """Phase F cost inquiry: ``imports`` reuses facts only for the same path and exact bytes, within a bound on
+    the retained objects' sizes."""
+
+    def setUp(self):
+        from collections import OrderedDict
+        from ssds.analyzers import python
+
+        self.python = python
+        for name, value in (('_imports_retained', OrderedDict()), ('_imports_size', 0)):
+            patcher = patch.object(python, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    SOURCES = {
+        'pkg/sub/a.py': b'from . import b\nfrom ..c import d\nimport os\n',
+        'other/a.py': b'from . import b\nfrom ..c import d\nimport os\n',
+        'top.py': b'from ... import x\n',
+        'dyn.py': b'import importlib\nimportlib.import_module("m")\n__import__("n")\neval("1")\n',
+        'broken.py': b'def (:\n',
+        'pkg/__init__.py': b'from .core import run\n',
+    }
+
+    def test_reused_facts_equal_fresh_analysis_and_depend_on_the_path(self):
+        python = self.python
+        first = {path: python.imports(path, data) for path, data in self.SOURCES.items()}
+        with patch.object(python, '_imports', side_effect=AssertionError('reanalyzed')):
+            again = {path: python.imports(path, data) for path, data in self.SOURCES.items()}
+        self.assertEqual(again, first)
+        self.assertEqual(first, {path: python._imports(path, data) for path, data in self.SOURCES.items()})
+        self.assertNotEqual(first['pkg/sub/a.py'].modules, first['other/a.py'].modules, 'same bytes, other path')
+        self.assertEqual(first['top.py'].markers, ('relative-import-above-package',))
+        self.assertEqual(first['broken.py'], python.ImportFacts((), ('dynamic-code',)))
+        self.assertEqual(first['dyn.py'].markers, ('dynamic-code', 'dynamic-import'))
+
+    def test_changed_bytes_at_a_path_are_analyzed_afresh(self):
+        python = self.python
+        self.assertEqual(python.imports('m.py', b'import a\n').modules, ('a',))
+        self.assertEqual(python.imports('m.py', b'import b\n').modules, ('b',))
+        self.assertEqual(python.imports('m.py', b'import a\n').modules, ('a',))
+
+    def test_the_retained_size_stays_within_the_budget_least_recent_first_out(self):
+        python = self.python
+        sizes = {}
+        for n in range(4):
+            data = f'import m{n}\n'.encode()
+            python.imports(f'f{n}.py', data)
+            sizes[n] = python._retained_size((f'f{n}.py', __import__('hashlib').sha256(data).digest()),
+                                             python._imports(f'f{n}.py', data))
+        budget = sizes[1] + sizes[2] + sizes[3]
+        python._imports_retained.clear()
+        python._imports_size = 0
+        with patch.object(python, '_IMPORTS_BUDGET', budget):
+            for n in range(4):
+                python.imports(f'f{n}.py', f'import m{n}\n'.encode())
+                self.assertLessEqual(python._imports_size, budget)
+                self.assertEqual(python._imports_size, sum(size for _, size in python._imports_retained.values()))
+            self.assertEqual([k[0] for k in python._imports_retained], ['f1.py', 'f2.py', 'f3.py'])
+            python.imports('f1.py', b'import m1\n')  # a reuse makes it the most recent
+            python.imports('f0.py', b'import m0\n')
+            self.assertEqual([k[0] for k in python._imports_retained], ['f3.py', 'f1.py', 'f0.py'])
+            big = b'\n'.join(f'import module_{n}'.encode() for n in range(2000))
+            self.assertEqual(len(python.imports('big.py', big).modules), 2000, 'an oversized result is still exact')
+            self.assertNotIn('big.py', [k[0] for k in python._imports_retained], 'and is not retained')
+
+
 if __name__ == '__main__':
     unittest.main()
