@@ -19,7 +19,9 @@ position 9, 10 entries). **Attempt E** on the repair commit `6ae91c3d`, fresh sc
 the old-source partial report are identical. Preliminary F124 classification of all 784 observations: 616 (iii),
 168 (v), no (i)/(iv); same-family review NO-PASS on one reason text, corrected. Still preliminary (C7 keeps step 2
 open, candidate not frozen). Remaining: C7 and gap decisions (held by the stakeholder), freeze the candidate,
-frozen 11b and its other-family review, step 12 and acceptance.
+frozen 11b and its other-family review, step 12 and acceptance. A separate small repair, R-CONTENT-MISSING-BLOB (typed
+`GitReadError` for a missing blob in `content.read_tree`), passed review and the full suite (1,902 tests OK);
+the plan's revision-65 addendum owns it.
 
 **Previous checkpoint (superseded by the one above).** Validated harness source `a1dddd32`; full suite **1,892 tests OK,
 10 skipped**. Evidence through `82ad1bd3` retains the byte-identical partial study at255/298, all623 preliminary

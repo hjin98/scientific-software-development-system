@@ -405,6 +405,21 @@ class OneRepresentation(unittest.TestCase):
             with self.assertRaises(ValueError):
                 read_tree(repo, "main")
 
+    def test_a_missing_blob_is_a_read_error_the_caller_can_refuse(self) -> None:
+        """A tree naming a blob the repository lacks raises ``GitReadError``, which the CLI turns into a refusal,
+        not a ``ValueError`` from the batch's ``<oid> missing`` line."""
+
+        from ssds.content import GitReadError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = init_repo(Path(tmp) / "repo")
+            kept = git(repo, "hash-object", "-w", "--stdin", data=b"kept\n")
+            listing = f"100644 blob {kept}\tkept.txt\n100644 blob {'b' * 40}\tgone.txt\n"
+            tree = git(repo, "mktree", "--missing", data=listing.encode())
+            head = git(repo, "commit-tree", tree, "-m", "a missing blob")
+            with self.assertRaises(GitReadError):
+                read_tree(repo, head)
+
 
 class Normalization(unittest.TestCase):
     """The one normalization: classified anchor comment lines leave identity (Manual §1.5), and nothing else does."""

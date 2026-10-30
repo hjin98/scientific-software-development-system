@@ -4236,3 +4236,13 @@ reserved-leaf adoption: the declaration delta stays quarantined, so the leaf dev
 observations: 616 (iii), 168 (v), no (i) or (iv); a same-family review corrected one reason text and found no
 class (iv) or Serious Challenge. This is not frozen 11b: R-PROVENANCE-C7 keeps step 2 reopened. Freezing, frozen
 11b with other-family review, step 12, C7 and the original gap remain open.
+
+**Revision 65 addendum — R-CONTENT-MISSING-BLOB.** Found while reading `content/git.py` for the chain-read repair:
+a tree naming a blob the repository lacks made `_cat_blobs` raise a bare `ValueError` from the batch's
+`<oid> missing` line, which escapes the CLI's `GitReadError` handling (`Composition.trees`, `doctrine`) as a crash
+instead of a refusal. It now raises `GitReadError` for any header other than `<oid> blob <size>` and for content
+without its terminating newline; valid bytes are unchanged. New test fails on the old code. Same-family review
+PASS (sha1/sha256 byte equivalence, real missing-blob trees, simulated ambiguous/wrong-type/truncated output).
+Full suite 1,902 tests in 514.776 s, OK (10 skipped), exit 0. Open notes: `scripts/difference_study.py` catches no
+`GitReadError` (pre-existing; a missing commit or blob there is a traceback, not "refused"); two messages are
+loosely worded. First clean local defect: PEM cold.
