@@ -888,6 +888,8 @@ Until Phase H, failure points beyond those group 4 names are untested. Until Pha
 
 Until an authorized campaign, no live agent submits to Admission.
 
+Until the upstream D1/D2 stages of the G2 workplan §5.7 are accepted (SD-90): the Dispatcher makes no prediction, reservation, future-stage reserve, AUTO route selection or benchmark ranking (U1), and its dispatch stays deterministic as built; no campaign supporting a statistical claim is proposed without its family's accepted D1 and D2 (U2, U4); no template is qualified as `HARD` while SC-U4 is open (U4); an `ENSEMBLE` specification stays held (F112) until U3's contract is accepted.
+
 Until step 4c-iv builds the schema-1 correction SD-69 adopts for Q-F6 (i), adoption by `ABSORB` is `SCHEMA_UNSUPPORTED`; until Stage S settles Q-F6 (ii), so is a change of an existing unit's kind or owning domain (reading F16). Until Phase G, a cutover an integration carries is too. Until Stage S, a quarantined key that a candidate authors to the value a foreign change put on the observed tree is refused `STRUCT_REVALIDATE` (4c-ii), a stronger rule than Manual §7.2 alone.
 
 Until steps 5-8 (4c-iii; review 23b487a N1), these fail closed:

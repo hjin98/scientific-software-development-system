@@ -3,10 +3,10 @@ kind: ssds-shadow-d3-d4-workplan
 workplan_id: SSDS-8.0-G2-SHADOW-D4-WORKPLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: accepted
+status: accepted (revision 3); revision 4 proposed (stakeholder-directed, SD-90; not yet accepted)
 created_date: 2026-10-18
-revised_date: 2026-10-19
-revision: 3
+revised_date: 2026-10-30
+revision: 4
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50, semantic candidate dddfedf72ed9711b8fcd46865b5c99eb50771ac5; amendments A1-A3 accepted, SD-53, semantic candidate 2a17a8305db5ed312dc453f9d86ccf5faee8ab74)
 governing_workplan: workplans/active/SSDS-8.0-GRAPH-NATIVE-DETERMINISTIC-ORCHESTRATION-ARCHITECTURE.md (design revision 24, accepted at G1)
 mechanism_input: orchestrator/docs/ssds-8.0-mechanism-catalogue.md (non-authoritative; residual register RR-1 to RR-11)
@@ -16,7 +16,8 @@ implementation_handoff: authorized-shadow
 g2_authorization: SD-55 (stakeholder decision record item 51); revision 3 at afd3be2640b6a6e33a3d744efd76d324c6e5931a with the post-review corrections at cb468ecad19ba41715527b4de42d90262e02cf87
 stakeholder_amendment: SD-56 (item 52), after Review; the program is `ssds` and operator data lives in an SSDS home outside every repository (Manual A7); supersedes §5.1 item 1's delivery and "no Core change", and limits §2 item 6 to Core's behavior
 phase_h_handoff: SD-75 (item 68); Phase H also builds the Ledger Store's ref restore (Phase F reading F47) and §5.7's recovery under INTEGRITY_HALT (Phase F reading F50), handed off from Phase F; by SD-76 (item 69), also §24.2's replacement lineage (re-encoding, commit identity and pseudonym mapping, and LINEAGE_MIGRATION's equal-state qualification)
-active_serious_challenge: none (SC-D1 resolved by SD-56)
+upstream_authority: SD-90 (stakeholder decision record item 77); revision 4 adds §5.7, the upstream D1/D2 stages U1-U4; revision 4 is stakeholder-directed and same-family reviewed, not yet different-family reviewed
+active_serious_challenge: SC-U4 (revision 4, §5.7; Manual §14.7 HARD-template qualification; routed to the stakeholder; blocks no Phase F work). SC-D1 resolved by SD-56
 ---
 
 Governing SSDP version: 7.2.1.
@@ -30,6 +31,12 @@ STATUS: ACCEPTED, revision 3. Independent Review PASS at afd3be2 (criterion 13; 
 GATE: G2 met. SSDS 8 D4 is AUTHORIZED FOR SHADOW IMPLEMENTATION ONLY: Stage D, Phases D-H, within §2 and
       §5. No SSDS authority over any subject; no cutover; the document-controlled 7.2.1 baseline governs.
       The shadow genesis human gate, every campaign and the external pilot need their own decisions.
+REVISION 4 (2026-10-30, SD-90; stakeholder-directed, same-family reviewed, no different-family Review yet):
+        §5.7 adds upstream D1/D2 stages for four statistical functions: U1 Dispatcher resource and route
+        decisions, U2 live measurement campaigns, U3 ENSEMBLE statistics, U4 HARD-template qualification. None is
+        started. SERIOUS CHALLENGE SC-U4 against Manual §14.7's qualification rule is routed to the stakeholder;
+        it blocks no Phase F work. Each family gates its dependent rules and implementation; U2 and U4 also gate
+        campaigns and G3 criteria 9-10. Q-U1 to Q-U5 are open.
 GOVERNS: the settlement of the mechanism catalogue against executable design models (Stage S, done at revision 1) and
          the plan for shadow implementation, Phases D-H (Stage D, authorized by G2).
 DOES NOT GOVERN: architecture (the accepted Manual owns it), any subject's governance (no SSDS authority
@@ -299,7 +306,7 @@ Stage D builds the shadow system of the architecture workplan's Phases D-H (its 
 4. **Real owners.** Each group runs at the production owner the catalogue names for it (for example, ledger-only replay as the oracle for publication classification). Fixtures alone qualify only mechanical properties (DS-001).
 5. **Phase Review.** Each phase ends with an independent implementation Review recorded in `qualification/ssds80/`. A phase PASS lets the next phase's dependent work start and accepts nothing; acceptance is G3 (criterion 15). The human gate of the shadow genesis (Phase D) is the stakeholder's.
 6. **Frozen surfaces.** §2 item 6 holds throughout; Core's own suite and the frozen-profile tests run unchanged and pass at every phase (PC-001).
-7. **Campaigns.** A live agent trajectory or any measurement spend (Manual §31.9; Phase E's burden and doctrine measurements; any live agent run in Phase F) is a campaign. It needs a frozen measurement plan (gates calibrated from simulated operating characteristics, instruments validated first, rules, custody and blinding frozen before runs), that plan's independent Review, and the stakeholder's explicit authorization, separate from G2. Without one, a phase runs on recorded histories, this repository's history and synthetic fixtures only.
+7. **Campaigns.** A live agent trajectory or any measurement spend (Manual §31.9; Phase E's burden and doctrine measurements; any live agent run in Phase F) is a campaign. It needs a frozen measurement plan (gates calibrated from simulated operating characteristics, instruments validated first, rules, custody and blinding frozen before runs), that plan's independent Review, and the stakeholder's explicit authorization, separate from G2. Without one, a phase runs on recorded histories, this repository's history and synthetic fixtures only. Its statistical design is the accepted D1 and D2 of the family whose claim it serves (U2 for §31.9, U4 for `HARD` qualification; §5.7); a run that supports no statistical claim needs no U-stage.
 
 ### 5.2 Phases
 
@@ -336,7 +343,7 @@ Groups are Manual §31.2's. Stage S cases carry over as expected values (§5.1 i
 
 ### 5.5 Exit to G3
 
-G3 (criteria 9, 10 and 15) is the stakeholder's decision on a package Stage D assembles: each phase's implementation Review; each group's executed results at its real owners, discriminators included; Phase F's classified differences with their Reviews; and the live measurement reports against the 7.2.1 baseline with their limits (Manual §31.9). Criteria 9 and 10 require that live evidence, so G3 cannot be met without the campaigns of §5.1 item 7: their separate authorization governs when and how they run, never whether they are needed. A group not executed is reported as unexecuted, never as passed.
+G3 (criteria 9, 10 and 15) is the stakeholder's decision on a package Stage D assembles: each phase's implementation Review; each group's executed results at its real owners, discriminators included; Phase F's classified differences with their Reviews; and the live measurement reports against the 7.2.1 baseline with their limits (Manual §31.9). Criteria 9 and 10 require that live evidence, so G3 cannot be met without the campaigns of §5.1 item 7: their separate authorization governs when and how they run, never whether they are needed. Their statistical design comes from U2 and U4 (§5.7), and SC-U4 must be resolved before criterion 10 is claimed. A group not executed is reported as unexecuted, never as passed.
 
 ### 5.6 Stop and reopen rules
 
@@ -344,6 +351,95 @@ G3 (criteria 9, 10 and 15) is the stakeholder's decision on a package Stage D as
 - A register row that fails at its real owner, or a needed behaviour with no row, returns to Stage S: a design-model case first, then the row's changed disposition in this workplan and its Review, then implementation.
 - A failure family that recurs after a repair triggers simplification before another additive repair (§2 item 3).
 - Any breach of the shadow boundary (§5.1 item 2) stops Stage D and goes to the stakeholder.
+
+### 5.7 Upstream D1/D2 authority stages (revision 4; SD-90)
+
+**Most of SSDS needs no D1 or D2 owner; four functions do.** SSDS's derivation, Admission, ledgers and dispatch
+compute what the Manual decides, so D3 stays their top authority and D4 conforms to it. A governed project's own
+science stays with that project's owners: the specification's D2 owner fixes claim-defining attributes, the
+statistic, tolerances and rounding (Manual §17.1, §17.3). The four functions below are different. Their
+correctness is statistical or comparative, and no deterministic specification can fix it. Each therefore needs an
+accepted D1 formulation, a D2 method or both before any D3 decision that fixes a dependent rule, and before any
+implementation. The stakeholder's note (`qualification/ssds80/STAKEHOLDER-NOTE-2026-10-30-SCHEDULER-D1-D2-AUTHORITY.md`,
+kept verbatim) states this for the Scheduler predictor. This section maps the note onto the current architecture
+and applies the same test to the rest of the project. It sits in §5, not first in the file as the note asks,
+because every gate it sets acts inside Stage D's phases; the status block routes to it.
+
+**SERIOUS CHALLENGE SC-U4 (raised at revision 4; routed to the stakeholder).** *Owner and scope:* the accepted
+Manual's `HARD`-template qualification rule (§14.7, with its §0.6 proposed defaults; catalogue §14.7), on which
+G3 criterion 10 ("every `HARD` template is qualified") and every later `HARD` adoption rest. *Basis:* (1) the false-
+positive rule, an upper bound of at most 0.01 over at least 300 clean trajectories, names no interval method or
+level in the Manual (§0.6); the catalogue adds "Wilson 95%" but not whether one- or two-sided, and the choice decides whether the stated minimum can pass. With zero false positives in 300, the
+two-sided bound is 0.0126 (fail; 381 trajectories are needed) and the one-sided bound 0.0089 (pass). (2) The
+detection rule pools at least 200 seeded violations from as few as 20 trajectories into one Wilson bound, which
+assumes independent trials. Correlated detection within a trajectory shrinks the effective sample toward 20, where
+even 20 of 20 bounds detection only at 0.84 two-sided (0.88 one-sided), so a template could become `HARD` without the 0.95 guarantee the rule
+states. Multiplicity across templates is not addressed. *Consequence:* G3 criterion 10's closure and every `HARD`
+force. Nothing built depends on it now: the forces are those §14.3 declares, and the qualification is unexecuted
+(Phase E E7). *Discriminating evidence:* the intended sidedness; within-trajectory correlation of detection in a
+pilot; a bound adjusted for that clustering. *Route:* U4 below, then a Manual amendment or a ruleset adoption at
+§14.7 and §0.6. The current text stays the baseline until then. It blocks no Phase F work.
+
+**Warranted stages.**
+
+| Family | SSDS function | D1 must define | D2 must define | Gate | State |
+|---|---|---|---|---|---|
+| **U1** Dispatcher resource and route decisions | Prediction (runtime, per-ledger consumption, token categories, cost, completion, interruption, repair rounds); reservations and uncertainty holds; future-stage (Review, Design) reserves; AUTO route selection; route recommendation from benchmark evidence (Manual §26.1 Dispatcher row; §26.4 rows §10, §11 and invariants 8-10) | the decisions predictions serve and the cost of error in each direction; each estimand as a random variable (outcome, unit, conditioning, population); completion as a derived discharge after independent judgment (§8.7, §10.4), never an agent's report, including how unresolved, abandoned, human-overridden, provisionally discharged (`DISCHARGED_PROVISIONAL` under a risk override) and `REFUSED` work counts, and at which head, since discharge is not latched; censoring and exclusions; the ranking objective's form (which quantities are constraints, which are terms; no scalar over incompatible metrics); validity regime and conservative fallback; outcome, estimation and drift uncertainty, and which ones reservations cover; external adequacy (calibration and coverage on a time-ordered holdout; a replayed history in which the Review reserve is never starved); the inspectable prediction record | distribution representation and domain; priors and pooling across the stage × model × effort × backend grid, with the shrinkage strength governed; a deterministic update rule over the recorded observation order; censoring treatment; reservation and hold sizing, including the runtime-consumption dependence; calibration procedure, metric and threshold, and the response to failure; drift detection and reset; fallback regimes that defer to live meters and hard limits; oracles defined before tuning (synthetic recovery and calibration, metamorphic pooling checks, the holdout); every numeric parameter as family, instance, default and owning layer | no D3 decision fixing a prediction-dependent rule (a reserve quantile, hold size, calibration threshold, reset rule, prediction-record shape beyond the accepted representation, or the ranking rule's form) before the D2 method is accepted, and no implementation before the accepted D3 reconciliation (rule 2) | not built: Phase F's Dispatcher makes no prediction or ranking; its dispatch order, retry budget and serialization are deterministic |
+| **U2** live measurement campaigns | the §31.9 usability and doctrine-realization measures behind G3 criteria 9 and 10 | the questions and estimands (bounded-work completion, context burden, the 7.x panel behaviours, the measured costs); the task population, with claims bounded to the duties, harnesses and models exercised (§31.9, SD-6); the comparison against the 7.2.1 baseline on the same executors and fixtures; what result meets criteria 9 and 10; adequacy and claim limits | paired design and assignment; estimators with uncertainty; gate calibration from simulated operating characteristics; sample size; multiplicity; handling of missing, aborted and censored runs; instrument-validation criteria; blinding procedure; variant disclosure | a §31.9 campaign is not proposed for authorization before U2's D1 and D2 are accepted (§5.1 item 7) | not started; no campaign authorized |
+| **U3** `ENSEMBLE` statistic evaluation | Manual §17.1 granularity `ENSEMBLE` (replicate count, statistic, seed policy) and its §17.3 outcome | not warranted for SSDS: what a passing ensemble means for a claim is the governed specification owner's D1 and D2 (§17.1) | the closed statistic vocabulary SSDS evaluates; each statistic's exact definition (estimator convention, computation order, exactness or precision, canonical output); replicate-count and seed-policy semantics; degenerate cases | `ENSEMBLE` stays held (Phase F reading F112) until the U3 contract is accepted | held |
+| **U4** `HARD`-template qualification | §14.7 and its §0.6 defaults: detection on seeded violations and false positives on clean trajectories, for every template of §14.3 proposed as `HARD` (including `credential_values`, dimensional consistency and the declarative oracles); G3 criterion 10 | per template, the detection estimand over which seeded-violation population and generator, inserted into which trajectory population; the false-positive unit and its population; what qualification licenses (a template's force) and the cost of each error | the interval method and its sidedness; clustering of detections within trajectories; multiplicity across templates; the seeding generator's validity; sample sizes; what happens on failure; resolves SC-U4 | no template's qualification is run or proposed for adoption, and G3 criterion 10 is not claimed, before U4's D1 and D2 are accepted and SC-U4 is resolved at §14.7 | not started; SC-U4 open |
+
+**Evaluated; no upstream stage warranted.**
+
+| Function | Disposition | Reopen trigger |
+|---|---|---|
+| numeric oracles `EXACT`, `ABS_TOL`, `REL_TOL`, `ULP_TOL`, `RANGE`, `MONOTONE` (§14.3; SD-81, SD-88) | a D2-level numerical contract already accepted (SD-81 calls it "a numerical contract of the evidence layer"): exact predicates over exact rationals and binary64 values, no estimator or approximation, reviewed and tested. Their adoption as `HARD` is qualified under U4 | an inexact evaluation; a statistical comparison; `SET_EQUAL`'s collection form introducing a tolerance |
+| dimensional consistency (the `DOMAIN` template of §14.3; annotation by §14.5) | deterministic dimension algebra over an imported standard (the UCUM subset in `analyzers/units.py`), with prefixes and no conversion factors. `HARD` adoption under U4 | a scale or offset conversion, logarithmic or non-UCUM units, or unit inference made `HARD` |
+| `HEURISTIC` templates, unit inference among them (§14.3) | removing every one leaves every admission decision and every discharge unchanged; template detection and false-positive rates are empirical items §31.9 measures (§32.5), and a template proposed as `HARD` goes through U4 | any heuristic gaining force |
+| probable-footprint prediction (§9.1, K4) | advisory; an error wastes work and never changes correctness | use for reservation or resource admission (it then joins U1) |
+| mutation-score threshold (§14.5) | the threshold is the contract's; the operator set is D4 test method | SSDS claiming that a default bounds test adequacy |
+| secret scan in Admission's record fields (§24.1) | a preventive detector owned by D3 security, explicitly "not a confidentiality guarantee"; fail-closed with a human route back: Phase F's false positive (a FINDING refused `SECRET_DETECTED` at position 5 on a long locator) was recovered by a corrected record accepted at 8. Its diff form, `credential_values`, is a `BOUNDARY` template qualified under U4 | a claimed false-negative bound, or an effect that cannot be recovered |
+| gate-brief coverage (§16.6) | the brief reports the coverage the governed evidence declares (complete, sampled or thresholded) and its selection rule; SSDS draws no sample and sets no threshold | SSDS choosing a sample or threshold itself |
+| PEM match-path candidates per task (§16.11 (d), §0.6 default 10) | a deterministic cap; retrieval precision and recall are §31.9 measures | §32.3's similarity recall net, a statistical retrieval |
+| publisher takeover wait (§22.3, §0.6 default 300 s) | a liveness timer; correctness rests on fencing | a claimed bound on spurious fencing |
+| operational cost measurements (derivation cost, ledger growth; Phase F revision 64's replay) | diagnostic; no service level, capacity or quota rule rests on them | such a guarantee or rule (a D2 performance model, or U1) |
+| retry budget and backoff (Phase F reading F114, operator-configured defaults; the Manual's mechanical iteration retry, §26.1), the 168 h cap, the witness model, qualification | deterministic rules or declared models, owned at D3 or as Phase F readings | a retry or backoff default justified by a claimed failure-rate model |
+
+**Rules for U1-U4.**
+
+1. **Records.** Each stage uses the change-plan template (`source/shared/templates/abstraction_concretization_change_plan_template.md`). A D1 stage produces a Scientific Method Paper (`scientific_method_paper_template.md`) that defines meaning only. A D2 stage produces a Numerical & Algorithmic Method Paper (`numerical_algorithmic_method_paper_template.md`), specific enough that two conforming implementations cannot decide or size differently. U3's D2 may instead take SD-81's form: exact definitions stated as a numerical contract, independently reviewed and settled by the stakeholder. Numerical precision is "none material" unless a parameter makes it so; the risk is statistical.
+2. **Order and acceptance.** D1, then D2. Each stays proposed until independent falsification and human ratification complete. D1 exits when Review finds no unresolved Serious Challenge and every estimand, outcome and objective is defined before use. D2 exits when Review has attempted counterexamples (for U1: small-sample bias, censoring errors, reserve starvation; for U4: sidedness and clustering) with oracles defined before tuning, and synthetic recovery and calibration tests pass. Then D3 reconciles: the Manual's sections consume the D2 handoff with no added predictor or estimator assumption, through the Manual's amendment process or a ruleset adoption where they change. Only then does D4 start; it conforms on the defined oracles, with replay tests bound to the exact method version.
+3. **What D3 already holds.** These stand without D1 or D2 and are not reopened: the Dispatcher's ownership and dependency direction (§26.1-§26.2); operator state never entering derived workflow state (§3.1, §21.1, §21.6); K4, correctness never depending on predictions; recommendation evidence never acting as quota or resource authority (invariants 8-10); an explicit route choice never bypassing the Dispatcher's resource admission (invariant 18); a configured-required resource policy that is unavailable failing closed (§26.4). Architecture 1.6.0's further rules, that live meters and hard limits outrank predictions and that feasibility precedes ranking (its §11.5-§11.6), are not in the accepted Manual: they are carried into U1 as intent for its D2 and D3 reconciliation to settle, not as accepted authority. If a D2 handoff cannot be met inside the Manual's boundaries, it is raised against D3 (Manual §32.3), never worked around in implementation.
+4. **Provisional acceptance.** Allowed before enough real runs exist, with a stated evidence trigger (for example a declared number of completed runs per active cell). Until then the conservative fallback applies; for U1 that is dispatch without predictions, as in Phase F.
+5. **Variant disclosure.** When a parameter is tuned on real history, record how many variants were tried, the selection criterion and whether held-out runs were reused. A setting chosen after seeing outcomes is reported as selected, not pre-specified.
+6. **No self-acceptance.** Agents may draft and check; only the human ratifier accepts.
+7. **Scope.** None of U1-U4 blocks Phase F-H work that fixes no dependent rule. U1 gates only resource-governed dispatch; U2 gates §31.9 campaigns, and through them G3 criteria 9 and 10; U3 gates only `ENSEMBLE` evaluation; U4 gates `HARD` qualification, and through it G3 criterion 10 (§5.5). A live run that supports no statistical claim needs no U-stage, though it is still a campaign under §5.1 item 7.
+
+**The note's references, in current terms.** The note was written against `main` at `af04557`, where the
+Scheduler was Level 3 of Architecture 1.6.0 and the SSDP 8.0 consolidated workplan was active. On this line that
+workplan is archived and Architecture 1.6.0 is frozen.
+
+| Note | Current owner |
+|---|---|
+| the Scheduler; Architecture §11.4-§11.6 | the Dispatcher's resource and route functions (Manual §26.4: Scheduler and Adapters retired as modules, their functions listed under the Dispatcher); the Manual fixes no predictor semantics |
+| Architecture §11.7, predictions and outcomes in Scheduler tables | operator state (§21.1, §21.6), never derived workflow state |
+| SSDP 8.0 Phase B and §30 items 1, 2 and 13 (ownership, API, observation boundary) | decided by the accepted Manual (§26.1-§26.2, §21.1); rule 3 above |
+| live meters and hard limits outranking predictions; feasibility before ranking (Architecture §11.5-§11.6) | not in the Manual beyond K4 and invariant 18; carried into U1's D2 and D3 reconciliation as intent (rule 3) |
+| predictions reaching the reducer only as recorded observations (§12.2) | stronger: predictions are operator state and never enter derived workflow state (§3.1, §21.1); correctness never depends on them (K4) |
+| `SchedulerAPI` (`predict`, `preview`, `admit`, `release`, `reconcile`) | not in the Manual; an interface for these is a D3 decision taken in U1's reconciliation stage |
+| "admission" of work against capacity | resource admission by the Dispatcher, distinct from ledger Admission (§8) |
+| canonical PASS after Review, not agent PASS (SSDP 8.0 §19) | a discharge SSDS derives from admitted independent judgment (§8.7, §10.4); an agent's report is a finding |
+| implementation handoff not authorized until Stages 1-3 close | rule 2: D4 starts only after the D3 reconciliation |
+| a Phase G cutover prerequisite for resource-governed runs | question Q-U1 below |
+
+**Open questions for the stakeholder** (the note's §7, translated, plus SC-U4; the recommendations are the author's):
+
+- **SC-U4.** Accept the Serious Challenge and route §14.7's qualification through U4 before any template is qualified? Recommended: yes. Meanwhile the current text stays the baseline and nothing is qualified.
+- **Q-U1.** Is U1 inside SSDS 8.0 (before G3 or G4), or a later version? Recommended: a later version. No G3 criterion needs resource governance, and Phase F's Dispatcher already runs without predictions. Choosing it means G3 accepts a Dispatcher without prediction, reservations, AUTO selection or future-stage reserves, although §26.4 lists them among its functions; they would be disclosed as unbuilt. If inside, the cutover conditions of the subjects concerned should name accepted U1 as a prerequisite for resource-governed dispatch.
+- **Q-U2.** May U1's first release cover resource predictions only (runtime, consumption, cost) and leave completion, interruption and ranking for later? Recommended: yes; both papers shrink substantially.
+- **Q-U3.** Where do the papers live? Proposed: `orchestrator/docs/ssds-8.0-dispatcher-prediction-formulation.md` and `orchestrator/docs/ssds-8.0-dispatcher-prediction-method.md` (U1); `qualification/ssds80/MEASUREMENT-FORMULATION-SSDS-8.0.md` and `qualification/ssds80/MEASUREMENT-METHOD-SSDS-8.0.md` (U2 and U4, one pair, since both qualify on live trajectories); `orchestrator/docs/ssds-8.0-ensemble-statistics-method.md` (U3); each referenced from the Manual section it serves.
+- **Q-U4.** Which run history may be used, with permission, for U1's calibration and holdout and for the U2 and U4 pilots? Its size sets how long acceptance stays provisional.
+- **Q-U5.** Who ratifies? Recommended: the stakeholder, for every human gate above.
 
 ## 6. G2 checklist
 
@@ -369,9 +465,23 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 | Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 done: Stage D made concrete (§5), register closure (§4.11), revision 1 frozen |
 | Stage D | authorized, shadow only (SD-55); Phase D under `workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md`: steps 1-7 done (the program renamed `ssds` by SD-56/SD-57, Manual A7; the shadow genesis of this repository admitted by the stakeholder's gate, `qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`); the Phase D Review of 0e49deb NO-PASS, its blockers repaired and its SERIOUS CHALLENGE SC-1 resolved by SD-58 (Manual A8); five further Reviews found implementation blockers, repaired under the SD-59 threat boundary; the Review of 39fe39b PASS on Phase D's implementation and exit, A7 and A8 confirmed (`qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-39FE39B-DIFFERENT-FAMILY-PASS.md`); Phase D complete. A7 and A8 accepted (SD-60). Phase E under `workplans/active/SSDS-8.0-G2-PHASE-E-PLAN.md`: steps 1-8 done, each step's same-family review repaired; SERIOUS CHALLENGE SC-E1 resolved by SD-61 and Manual amendment A9 accepted (SD-62); the Phase E Review of 09f3505 (different family) passed A9 and found six implementation blockers, repaired with failing-first tests; five re-Reviews and the same-family checks between them found further blockers, each repaired with failing-first tests, the item-level-no-part chain consolidated on SD-54's post-answer rule; the re-Review of c2b1ec2 PASS on Phase E's implementation and exit (`qualification/ssds80/PHASE-E-IMPLEMENTATION-REVIEW-SSDS-8.0-C2B1EC2-DIFFERENT-FAMILY-PASS.md`); Phase E complete |
 | G2 | authorized (SD-55, 2026-10-19): criterion 13 Review PASS (afd3be2), criterion 14 met |
+| upstream D1/D2 (§5.7) | revision 4 (SD-90): U1-U4 warranted, none started; U3 keeps `ENSEMBLE` held; SC-U4 open; Q-U1 to Q-U5 open; revision 4 reviewed same-family only |
 
 **Revision 1 (2026-10-18, S6).** Revision 0 opened the workplan under SD-50 and recorded Stage S as it ran (§4.4-§4.10). Revision 1 adds the register closure (§4.11) and the concrete Stage D plan (§5, replacing revision 0's outline), brings the Stage S results current with SD-53, and freezes the file for independent Review. Nothing in it authorizes Stage D.
 
 **Revision 2 (2026-10-19).** Repairs the revision 1 Review's (13d67be) blockers and non-blocking findings: B1 by the stakeholder's post-answer rule (SD-54; §4.2 §10.2/§15.5 row, §4.13, ten S3 cases); B2 by a complete finding index with a witness for every disposition and an independent inventory check (§4.9, §4.11, §4.12); N1 in §5.5 (G3 needs the live evidence); N2 in the §4.2 §26 row; N3 stays with A4 (§4.10). New Stage D discriminators are in §5.3. Nothing in it authorizes Stage D.
 
 **Revision 3 (2026-10-19).** Repairs the revision 2 Review's (d8ab75c) blockers: B1 by folding recurrence into SD-54's one answer-qualified chain, with a lifecycle property check over every answer chain (§4.2 §10.2/§15.5 row, §4.13); B2 by extracting severity-labelled titles, disposing of the seven FFBAD17 findings, and keying the inventory check by record with a self-test (§4.12). N1 is recorded as provenance (§4.13); N2 stays with A4-A6, now proposed in the Manual's working text and reviewed with this revision; N3 is followed in the handoff. Nothing in it authorizes Stage D.
+
+**Revision 4 (2026-10-30).** At the stakeholder's direction (SD-90, item 77) the author evaluated where D1 or D2
+authority is warranted across SSDS 8, starting from the stakeholder's Scheduler note, and added §5.7: four
+warranted families (U1 Dispatcher resource and route decisions, U2 live measurement campaigns, U3 `ENSEMBLE`
+statistics, U4 `HARD`-template qualification), the functions evaluated as needing none with their reopen
+triggers, the rules for the stages, the note's references mapped onto the current Manual, SERIOUS CHALLENGE
+SC-U4 against Manual §14.7, and questions Q-U1 to Q-U5. §5.1 item 7 and §5.5 now take campaigns' statistical
+design from U2 and U4. The dispositions are the author's delegated decisions, open to the stakeholder's revision.
+No architecture decision or phase scope changes; the new prerequisites are on campaigns, `HARD` qualification,
+`ENSEMBLE` evaluation and resource-governed dispatch, none of which is built or authorized. A same-family Review
+(NO-PASS: U4 missing with SC-U4, campaign wording, U1's gate order, the completion cases of the note's §3 item 3)
+was taken up in this revision; its narrow re-check (NO-PASS: rule 3 had credited the Manual with two Architecture
+1.6.0 rules) was repaired. A different-family Review has not been run.
