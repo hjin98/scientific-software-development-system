@@ -6,7 +6,9 @@ implementing agent, Codex family. This checkpoint is decision support, not opera
 
 **Latest follow-up: corrected typed FINDING ACCEPTED at position 8; AVAILABILITY program-ACCEPTED at 6.**
 The corrected report's human-attention obligation is OPEN. Original FINDING refusal at 5 is preserved.
-The pending-requests record owns the proposed decide-refusal exercise; no human decision is yet endorsed or submitted. **New MATERIAL D4 blocker R-PROVENANCE-C7:** narrative provenance was admitted
+The signed decide-refusal exercise passed: independent authentication, expected native F1 refusal,
+no append and exact attention OPEN/HUMAN/READY. Source commit `6b8331eb`; real ledger at position 9,
+10 entries. No signing action remains. **MATERIAL D4 blocker R-PROVENANCE-C7:** narrative provenance was admitted
 contrary to Manual §3.2/C7. Existing program QUALIFIED status does not establish full architecture conformance.
 No record was rewritten, scanner weakened or stricter historical reader deployed.
 
@@ -15,7 +17,7 @@ remains FAILED/contaminated. No SSDS-caused writer was established. Later isolat
 original append. Frozen-candidate 11b, complete classification, other-family review, step 12 and acceptance
 remain open. No native authority, cutover, live model campaign, PR, merge or push occurred.
 
-## Current product and evidence
+## Historical scheduled-start product and evidence (superseded by the current checkpoint below)
 
 - Branch: `ssds-8.0-graph-native-architecture`; starting HEAD `6d43121b440743a3b6e9f78b7600a40e4fc5ba7a`,
   three local unpushed commits ahead of tracking. Production source at `11ec88e4` had passed 1,879 tests,
@@ -225,3 +227,25 @@ OK (10 skipped), exit0**, no FAIL/ERROR cases, source fixed throughout. CLI hash
 `5b2f53934dce54ff5e42609748255d3b1468bb95e0bdb812649a382e21c8dbe1`. No signature bytes/modes or private
 reader checks changed. Actual signed authentication/refusal follows this source qualification; no 10d/exit
 closure or C7 remedy is inferred.
+
+
+## Resumed signed-refusal outcome — current checkpoint
+
+Source commit `6b8331ebdac9db1bc3027281db5838d0fdc64530` factors the existing F121 public-input reader;
+reviewed CLI/test hashes and the retained 1,889-test pass remain applicable. Temporary runtime/logs were lost
+across interruption; rebuilding Python 3.12.14 and the installed console yielded 23 affected tests OK (20.477s).
+The canonical 10d evidence distinguishes the retained prior suite report from currently available raw logs.
+
+Steps 40–45 verified the existing human signature, separately absorbed the source commit at position 9,
+captured the actual OPEN attention, executed native HUMAN_DECISION refusal and verified no append. Step 42's
+temporary cached-property probe error is retained; corrected step 42b passed before the actual submission.
+All endpoint comparisons passed. Final observed chain: 10 entries, position 9, digest
+`sha256:412391b059cc59d76d6265d8b305ea94b0ffe80663fcad50b1259826e2c01a30`, head `6b8331eb…`;
+no HUMAN_DECISION admitted, exact `a6dfe322…` attention remains OPEN/HUMAN/READY. Status reports QUALIFIED
+with no critical/provisional state, subject to the known C7 gap. No more signature is required for this exercise.
+
+The original append comparison remains FAILED/contaminated; provenance-C7 remains a MATERIAL D4 blocker.
+No ledger rewrite, stricter-reader deployment, waiver or 10d/exit closure. Next independent agent work:
+prepare the C7 enforcement/historical-data decision and improve visibility of a bounded preliminary historical
+diagnostic before another broad run. Final freeze/11b/classification/other-family review/step 12 remain owed.
+Push still requires the user-terminal route. The active plan remains open; no automation or next-window wait.

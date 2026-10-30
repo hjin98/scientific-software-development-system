@@ -395,6 +395,11 @@ corrected under unchanged F121 semantics. The canonical 10d evidence owns actual
 No human decision is deemed admitted unless the actual ledger establishes it; an unexpected admission fails
 the intended refusal test and must be preserved/routed.
 
+Execution follow-up (agent assertion, not a new stakeholder decision): source `6b8331eb`; independently verified
+signature and native signed refusal/no-append checks passed (steps 40–45 in canonical 10d evidence). No human
+decision was admitted; exact attention remains OPEN. No further signature for this request is pending. Original
+append-boundary and provenance-C7 gaps and later acceptance duties are unchanged.
+
 ## Not covered
 
 - The 2026-10-12 instruction that adopted 7.2.1 as the governing version and directed the rebase (workplan §0.4) was given in an earlier session and is not reproduced here. It remains recorded only as the workplan's paraphrase until the stakeholder restates it.

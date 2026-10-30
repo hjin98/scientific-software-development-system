@@ -18,10 +18,9 @@ independent state/restart checks with this gap retained. A clean isolated no-op,
 restarts, Dispatcher observation and candidate refusal do not retroactively qualify that original append path.
 
 Latest signed pair: original FINDING refused at 5 (SECRET_DETECTED); AVAILABILITY program-ACCEPTED at 6;
-corrected typed FINDING ACCEPTED at 8. Its derived human-attention obligation is OPEN. The pending-requests
-record owns the proposed unsigned decide-refusal exercise and its human-review route. **Additional D4 conformance gap: accepted AVAILABILITY carries narrative provenance contrary to
-Manual §3.2/C7.** Program qualification is not blanket architecture conformance. Signed decide-refusal, frozen
-study, classification and exit remain pending. Unqualified 10d/exit closure requires disposition of the gap.
+corrected typed FINDING ACCEPTED at 8. Its derived human-attention obligation is OPEN. The signed decide-refusal exercise has now passed (steps 40–45 below); the pending-requests
+record confirms no signing action remains. **Additional D4 conformance gap: accepted AVAILABILITY carries narrative provenance contrary to
+Manual §3.2/C7.** Program qualification is not blanket architecture conformance. Frozen study, classification and exit remain pending. Unqualified 10d/exit closure requires disposition of the gap.
 
 ## Identity and prerequisite evidence
 
@@ -2250,3 +2249,427 @@ A fresh temporary Python 3.12.14 environment and installed editable `ssds` conso
 affected regression: **23 tests in 20.477s, OK, exit 0**, covering 10c and 10d. Production hashes are unchanged.
 New native windows will have newly generated snapshots and logs, and independently rebind the real chain before
 submission. No real-ledger state, signature, key or permissions were changed during tooling reconstruction.
+
+
+## Actual signed decide-refusal: PASS for this exercise only
+
+User authorization: stakeholder item 75, followed by the instruction to continue after usage interruption.
+Source commit: `6b8331ebdac9db1bc3027281db5838d0fdc64530`. The existing human signature over request
+`sha256:11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8` independently verified
+against the registered in-force public key in the `ssds` namespace. No key/signature contents were printed,
+no private key was accessed, and no input modes or bytes were altered. No additional signature is needed.
+
+The separate alignment pass absorbed that source commit at position 9 before the refusal baseline was taken.
+Baseline: 10 entries, digest `sha256:412391b059cc59d76d6265d8b305ea94b0ffe80663fcad50b1259826e2c01a30`.
+Native `ssds decide --admit` then returned the exact expected boundary refusal:
+`a HUMAN_DECISION record: its checks belong to a later phase (F1)` (native exit 1; comparison exit 0).
+The subsequent real derivation check confirmed the same entry count, last digest and observed head, no
+HUMAN_DECISION record, and the exact attention `a6dfe322…` still OPEN, held by HUMAN and READY. Native status
+reports QUALIFIED at position 9, no critical/provisional state, with this OPEN obligation. This status is
+implemented-state evidence with the known provenance-C7 conformance gap, not full architecture acceptance.
+
+All windows ran sequentially inside one escalated host context each, with no concurrent restricted tools or
+agent probes. Git 2.53.0 supplied NUL worktree inventory. Each endpoint comparison passed. These sensors exclude
+access-time changes and cannot exclude transient reverted writes; the prior source-path review remains separate.
+Step 42 failed only because the recreated temporary probe called the cached `Workflow.obligations` tuple as a
+function. It appended nothing and its comparison passed. Step 42b corrected that probe access, without product
+edits, and passed before submission. The failed step is retained below; it is not a failed native refusal.
+
+The original position-2 append window remains FAILED/contaminated. Accepted AVAILABILITY narrative provenance
+still violates Manual §3.2/C7; R-PROVENANCE-C7 remains a MATERIAL D4 blocker. No historical data was rewritten,
+no stricter reader was deployed, and no grandfathering or waiver is inferred. Complete historical diagnostics,
+frozen-candidate 11b/classification/other-family review, step 12 and stakeholder acceptance remain unfinished.
+This exercise discharges only the genuine signed-refusal execution obligation; it does not resolve ledger
+attention or close 10d/exit. Infrastructure only: no scientific results, scientific gate evidence or scientific
+variant selection. Temporary probe corrections are recorded execution machinery, not additional product variants.
+
+### Exact resumed native windows
+
+The timestamps below are UTC; these windows ran on October 29 in America/Chicago.
+
+#### 40-retry-decide-signature
+
+```json
+{
+  "at": "2026-10-30T02:29:55.410910+00:00",
+  "step": "40-retry-decide-signature",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_future_decide_signature.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0,
+  "before_sha256": "f6866e6151af6dd9cb11d4d35e6d1ed6b1ca342523b3d2bc6ba193d1e9878c0b"
+}
+```
+
+```text
+{
+  "request": "sha256:11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8",
+  "actor": "human:SHA256:Xar4qv2hBwt+ulw0qzilYWzp5ckynnyWMLYm+kZl6lw",
+  "signature_verified": true,
+  "namespace": "ssds",
+  "entries": 9,
+  "position": 8,
+  "limit": "Read-only authentication evidence; no submission, append or resolution."
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/40-retry-decide-signature-before.json
+```
+
+#### 41-align-before-decide
+
+```json
+{
+  "at": "2026-10-30T02:30:14.866197+00:00",
+  "step": "41-align-before-decide",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "admission",
+    "serve",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--observed-ref",
+    "ssds-8.0-graph-native-architecture"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0,
+  "before_sha256": "f6866e6151af6dd9cb11d4d35e6d1ed6b1ca342523b3d2bc6ba193d1e9878c0b"
+}
+```
+
+```text
+{
+  "absorbed": true,
+  "expected": "43e9af64e232e35ff4d6b026e32b490b057e8221",
+  "ledger_id": "ssdp-shadow-2",
+  "mode": "observe-only: nothing is published (F1)",
+  "obs": "6b8331ebdac9db1bc3027281db5838d0fdc64530",
+  "observed_ref": "ssds-8.0-graph-native-architecture",
+  "position": 9
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/41-align-before-decide-before.json
+```
+
+#### 42-capture-decide-baseline
+
+```json
+{
+  "at": "2026-10-30T02:30:43.934457+00:00",
+  "step": "42-capture-decide-baseline",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/capture_decide_baseline.py"
+  ],
+  "command_exit": 1,
+  "comparison_exit": 0,
+  "before_sha256": "f6866e6151af6dd9cb11d4d35e6d1ed6b1ca342523b3d2bc6ba193d1e9878c0b"
+}
+```
+
+```text
+Traceback (most recent call last):
+  File "/tmp/ssds-10d-20261029/capture_decide_baseline.py", line 11, in <module>
+    o=next(o for o in w.obligations() if o.id==attention)
+                      ^^^^^^^^^^^^^^^
+TypeError: 'tuple' object is not callable
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/42-capture-decide-baseline-before.json
+```
+
+#### 42b-capture-decide-baseline
+
+```json
+{
+  "at": "2026-10-30T02:31:10.343919+00:00",
+  "step": "42b-capture-decide-baseline",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/capture_decide_baseline.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0,
+  "before_sha256": "c4e91ecaaf47fa5a3148b722b51cb88b7c866b78874cbeec379b9daa2c933573"
+}
+```
+
+```text
+{
+  "entries": 10,
+  "position": 9,
+  "last_digest": "sha256:412391b059cc59d76d6265d8b305ea94b0ffe80663fcad50b1259826e2c01a30",
+  "expected_head": "6b8331ebdac9db1bc3027281db5838d0fdc64530",
+  "attention": "sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875",
+  "attention_discharge": "OPEN",
+  "human_decision_records": 0,
+  "holder": "HUMAN",
+  "readiness": "READY"
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/42b-capture-decide-baseline-before.json
+```
+
+#### 43-signed-decide-refusal
+
+```json
+{
+  "at": "2026-10-30T02:31:29.074363+00:00",
+  "step": "43-signed-decide-refusal",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "decide",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--observed-ref",
+    "ssds-8.0-graph-native-architecture",
+    "--admit",
+    "/home/samjin/.ssds/state/ssdp-shadow-2/requests/11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8"
+  ],
+  "command_exit": 1,
+  "comparison_exit": 0,
+  "before_sha256": "c4e91ecaaf47fa5a3148b722b51cb88b7c866b78874cbeec379b9daa2c933573"
+}
+```
+
+```text
+{
+  "refused": "a HUMAN_DECISION record: its checks belong to a later phase (F1)"
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/43-signed-decide-refusal-before.json
+```
+
+#### 44-verify-decide-refusal
+
+```json
+{
+  "at": "2026-10-30T02:31:49.135790+00:00",
+  "step": "44-verify-decide-refusal",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_decide_refusal.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0,
+  "before_sha256": "c4e91ecaaf47fa5a3148b722b51cb88b7c866b78874cbeec379b9daa2c933573"
+}
+```
+
+```text
+{
+  "entries": 10,
+  "position": 9,
+  "last_digest": "sha256:412391b059cc59d76d6265d8b305ea94b0ffe80663fcad50b1259826e2c01a30",
+  "expected_head": "6b8331ebdac9db1bc3027281db5838d0fdc64530",
+  "attention": "sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875",
+  "attention_discharge": "OPEN",
+  "human_decision_records": 0,
+  "holder": "HUMAN",
+  "readiness": "READY",
+  "signed_refusal_verified": true,
+  "appended": false,
+  "refusal": "a HUMAN_DECISION record: its checks belong to a later phase (F1)",
+  "limit": "Specific signed refusal passed; original append and provenance-C7 gaps remain open. No 10d/exit acceptance."
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/44-verify-decide-refusal-before.json
+```
+
+#### 45-status-after-decide
+
+```json
+{
+  "at": "2026-10-30T02:33:05.546289+00:00",
+  "step": "45-status-after-decide",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/ssds",
+    "status",
+    "--ledger",
+    "ssdp-shadow-2",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0,
+  "before_sha256": "f4c4dd7fa812ffda7cefe8e05df6fc9a114562c7adfde41a949c60d9320f3b8d"
+}
+```
+
+```text
+{
+  "assertion_withheld": [],
+  "critical": [],
+  "current_assertion": true,
+  "entries": 10,
+  "head": {
+    "digest": "sha256:412391b059cc59d76d6265d8b305ea94b0ffe80663fcad50b1259826e2c01a30",
+    "label": "QUALIFIED",
+    "position": 9,
+    "qualification": "QUALIFIED"
+  },
+  "ledger_id": "ssdp-shadow-2",
+  "obligations": [
+    {
+      "discharge": "OPEN",
+      "holder": "HUMAN",
+      "id": "sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875",
+      "kind": "HUMAN_ATTENTION",
+      "plan": null,
+      "readiness": "READY",
+      "target": {
+        "report": "sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307"
+      }
+    }
+  ],
+  "provisional": null,
+  "qualification": "QUALIFIED",
+  "subjects": {
+    "orchestrator.program": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:6d69f165a02db36a49a5121c9714e546ea88756f74c698d6062c40f69bea37ad",
+      "status": "unclassified"
+    },
+    "ssdp.protocol": {
+      "mode": "LEGACY",
+      "rev": "sha256:0597630d37adb088c58a2c24e0b1402e6853c14e5c9cfbfc73d7f36e73aa27fa",
+      "status": "stale"
+    },
+    "ssds.manifest": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:fb77e7dedb294322d49d4f99d3c157fbe52080aaff08833444fecf29f254e3ee",
+      "status": "unclassified"
+    },
+    "ssds.policy": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:a0c4b3794237c0a5a73ed364ac23b2f63275c0d0c63b5f81aae2c6e623fa1fa4",
+      "status": "unclassified"
+    },
+    "ssds.unclassified": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:7375c423a0093f27722bd82a941c1958d418dbbbbfa9b9765f59e1fbe8eddbf9",
+      "status": "unclassified"
+    },
+    "ssds8.manual": {
+      "mode": "LEGACY",
+      "rev": "sha256:c5090340091ca7c72257d48b6ff327c1a0703d86b88bc1097d81d90a88374b23",
+      "status": "stale"
+    }
+  }
+}
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/45-status-after-decide-before.json
+```
+
+<details>
+<summary>Recreated execution helpers used for steps 40–45</summary>
+
+These are retained inert execution evidence. They replace the superseded future-verifier snippet above.
+
+### run_step.py
+
+```python
+"""Sequential host-only snapshot/command/comparison window; no concurrent probes."""
+import datetime,hashlib,json,os,subprocess,sys
+from pathlib import Path
+root=Path('/home/samjin/agent-skills/scientific-software-development-system')
+out=Path('/tmp/ssds-10d-20261029'); name=sys.argv[1]; argv=sys.argv[2:]
+assert argv and '/' not in name
+before=out/(name+'-before.json'); assert not before.exists(), 'never overwrite a window'
+env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1','PYTHONPATH':str(root/'orchestrator/src'),
+     'PATH':'/home/samjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback:'+os.environ['PATH']}
+sensor=[sys.executable,str(root/'orchestrator/scripts/shadow_boundary.py')]
+with (out/(name+'-snapshot.log')).open('x') as f:
+    take=subprocess.run(sensor+['snapshot','--repository',str(root),'--out',str(before)],env=env,stdout=f,stderr=subprocess.STDOUT)
+assert take.returncode==0, 'snapshot failed; command not executed'
+with (out/(name+'-command.log')).open('x') as f:
+    command=subprocess.run(argv,env=env,stdout=f,stderr=subprocess.STDOUT)
+with (out/(name+'-compare.log')).open('x') as f:
+    compare=subprocess.run(sensor+['compare','--repository',str(root),'--before',str(before)],env=env,stdout=f,stderr=subprocess.STDOUT)
+record={'at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'step':name,'command':argv,
+        'command_exit':command.returncode,'comparison_exit':compare.returncode,
+        'before_sha256':hashlib.sha256(before.read_bytes()).hexdigest()}
+with (out/'steps.jsonl').open('a') as f: f.write(json.dumps(record)+'\n')
+print(json.dumps(record,indent=2))
+print((out/(name+'-command.log')).read_text())
+print((out/(name+'-compare.log')).read_text())
+raise SystemExit(0 if command.returncode==compare.returncode==0 else 1)
+```
+
+### verify_future_decide_signature.py
+
+```python
+"""SSDS-only read-only preflight. Never print key or signature contents."""
+import json
+from pathlib import Path
+from ssds.admission.request import request_id, request_message
+from ssds.cli import Composition, read_prepared
+from ssds.derivation import trust_roots
+from ssds.ledger.signatures import verify_sshsig
+rid='sha256:11c18b81ea93d1eae3e084ce6ce79268995209d821ea89cdca535d35ac446be8'
+c=Composition('ssdp-shadow-2',Path('/home/samjin/agent-skills/scientific-software-development-system'))
+chain=c.access.chain()
+assert chain.halt is None and chain.readable_through==len(chain.entries)-1
+state=c.state()
+req=json.loads(state.read_private(c.request_parts(rid,'request.json')))
+assert request_id(req)==rid and req['binding'] is None and len(req['records'])==1
+assert req['records'][0]['id']=='sha256:1ae2a28268b3bfd24cdf6cb451ec3cd0d95d824d63683ecb1c0a16abc12386fd'
+message=request_message(req)
+assert state.read_private(c.request_parts(rid,'request-message.txt'))==message
+loaded,signature=read_prepared(state.path(c.request_parts(rid,'request.json')).parent)
+assert loaded==req
+actor=req['records'][0]['actor']
+public=trust_roots(chain.entries[:chain.readable_through+1]).humans[actor]
+assert verify_sshsig(public,message,signature), 'invalid signature'
+print(json.dumps({'request':rid,'actor':actor,'signature_verified':True,'namespace':'ssds',
+ 'entries':len(chain.entries),'position':chain.readable_through,
+ 'limit':'Read-only authentication evidence; no submission, append or resolution.'},indent=2))
+```
+
+### capture_decide_baseline.py
+
+```python
+import json
+from pathlib import Path
+from ssds.cli import Composition
+from ssds.admission.request import expected_head
+from ssds.derivation import derive,Workflow
+attention='sha256:a6dfe322ed404619dfef8b48d39eb45f2daa93a3e26196f5bab9e0cbfbbe5875'
+c=Composition('ssdp-shadow-2',Path('/home/samjin/agent-skills/scientific-software-development-system'))
+chain=c.access.chain()
+assert chain.halt is None and chain.readable_through==len(chain.entries)-1
+w=Workflow(derive(chain,c.trees,ancestry=c.access.ancestry()))
+o=next(o for o in w.obligations if o.id==attention)
+assert o.kind=='HUMAN_ATTENTION' and w.discharge(o)=='OPEN',o
+assert 'sha256:6cb7310af48103616eed3c65c4047b7353374f4b754cc2d23e991d6de32fd307' in json.dumps(o.target)
+assert not any(f.record['kind']=='HUMAN_DECISION' for f in w.s.records.values())
+result={'entries':len(chain.entries),'position':chain.readable_through,'last_digest':chain.entries[-1].digest,
+ 'expected_head':expected_head(chain.entries),'attention':attention,'attention_discharge':w.discharge(o),
+ 'human_decision_records':0,'holder':o.holder,'readiness':w.readiness(o).state}
+Path('/tmp/ssds-10d-20261029/decide-refusal-baseline.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result,indent=2))
+```
+
+### verify_decide_refusal.py
+
+```python
+import json
+from pathlib import Path
+from ssds.cli import Composition
+from ssds.admission.request import expected_head
+from ssds.derivation import derive,Workflow
+p=Path('/tmp/ssds-10d-20261029'); before=json.loads((p/'decide-refusal-baseline.json').read_text())
+step=next(json.loads(s) for s in (p/'steps.jsonl').read_text().splitlines() if json.loads(s)['step']=='43-signed-decide-refusal')
+assert step['command_exit']==1 and step['comparison_exit']==0,step
+result=json.loads((p/'43-signed-decide-refusal-command.log').read_text())
+assert 'HUMAN_DECISION' in result['refused'] and 'later phase (F1)' in result['refused'],result
+c=Composition('ssdp-shadow-2',Path('/home/samjin/agent-skills/scientific-software-development-system'))
+chain=c.access.chain()
+assert chain.halt is None and chain.readable_through==len(chain.entries)-1
+assert len(chain.entries)==before['entries'] and chain.entries[-1].digest==before['last_digest']
+assert expected_head(chain.entries)==before['expected_head']
+w=Workflow(derive(chain,c.trees,ancestry=c.access.ancestry()))
+o=next(o for o in w.obligations if o.id==before['attention'])
+assert w.discharge(o)=='OPEN' and not any(f.record['kind']=='HUMAN_DECISION' for f in w.s.records.values())
+print(json.dumps({**before,'signed_refusal_verified':True,'appended':False,'attention_discharge':w.discharge(o),
+ 'refusal':result['refused'],'limit':'Specific signed refusal passed; original append and provenance-C7 gaps remain open. No 10d/exit acceptance.'},indent=2))
+```
+
+</details>
