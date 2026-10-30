@@ -1,10 +1,21 @@
 # Phase F continuation — scheduled 2026-10-29 work
 
-Governing SSDP: 7.2.1. Authority: Phase F revision 58, SD-55 shadow scope, SD-69, stakeholder item 72,
+Governing SSDP: 7.2.1. Authority: active Phase F revision 63 (scheduled-start revision 58), SD-55 shadow scope, SD-69, stakeholder item 72,
 and the user's instruction to resume at 5:30 am America/Chicago after the usage refresh. Asserter: AI
 implementing agent, Codex family. This checkpoint is decision support, not operational acceptance.
 
-**Latest follow-up: corrected typed FINDING ACCEPTED at position 8; AVAILABILITY program-ACCEPTED at 6.**
+**Current resumable checkpoint.** Validated harness source `a1dddd32`; full suite **1,892 tests OK,
+10 skipped**. Evidence through `82ad1bd3` retains the byte-identical partial study at255/298, all623 preliminary
+classifications and the separate profile. The final bounded repetition measurement adds metadata only:
+2,872 import analyses,718 distinct path/content inputs,2,154 repeats; no cache/source change or claimed speedup.
+All actual signed-refusal work is complete; no signature is pending. Real-ledger observation stays at6b8331eb,
+position9/10entries, with exact attention OPEN/HUMAN/READY. Original append FAILED/contaminated and C7 remain
+blocking; no real admissions/stricter deployment while historical handling is unresolved. Next: decide the C7
+route/gap disposition, then bound immutable-fact reuse and its acceptance before another broad preliminary run.
+Frozen11b/full classification/other-family review/step12 remain open. Detailed execution/limits below and in the
+canonical10d/difference-study evidence. The plan stays active; no push/PR/merge or recurring resume was created.
+
+**Real-ledger follow-up: corrected typed FINDING ACCEPTED at position 8; AVAILABILITY program-ACCEPTED at 6.**
 The corrected report's human-attention obligation is OPEN. Original FINDING refusal at 5 is preserved.
 The signed decide-refusal exercise passed: independent authentication, expected native F1 refusal,
 no append and exact attention OPEN/HUMAN/READY. Source commit `6b8331eb`; real ledger at position 9,
@@ -287,3 +298,18 @@ The human disposition options are in canonical10d evidence; no C7 migration/reti
 The next agent action is a justified repeated-work reduction/budget plan before another broad study, plus the
 pending human historical-data/gap decisions. The active plan remains open and unarchived; no recurring timer,
 next-window wait, PR, merge, push, native cutover or campaign was created.
+
+
+Final bounded source-cost inquiry (step48) executed the original import analyzer on every call and exactly
+reproduced the supplementary checks/changes:2,872 calls,718 distinct path/content inputs,2,154 repeats,
+5,470,321 distinct input bytes, largest209,606. No cache/source change/scratch append; native0/compare0.
+The difference-study evidence and import-reuse JSON own exact metadata/source/limits. Next candidate work is
+bounded immutable-fact reuse at the existing analyzer owner, preserving path identity, markers and memory
+lifetime; no global cache size/speedup claim or production adoption is made. No new broad run was started.
+
+Remaining human responsibilities: decide C7 historical-data/lineage treatment from the reviewed canonical10d
+package; disposition the original contaminated append gap without retroactive qualification; keep future
+private-key/signature/final-acceptance actions human; push only through the prescribed terminal route. There
+is no pending signature now. Agent responsibilities remain the justified cost repair/run, all43 omitted study
+rows, the frozen11b/classification/other-family review and step12. Current source qualification:1,892 tests OK,
+10 skipped; later commits are evidence-only. No active-plan closure or archive is authorized.

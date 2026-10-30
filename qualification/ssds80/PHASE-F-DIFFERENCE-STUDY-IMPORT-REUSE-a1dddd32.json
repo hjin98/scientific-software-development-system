@@ -1,0 +1,23 @@
+{
+  "candidate": "a1dddd329912c6825a6bb95910f4e0c11941e4e6",
+  "commit": "cee55f617a7837461ecb86ba10d123f5edc9fbf0",
+  "elapsed_seconds_unprofiled_with_counting": 10.94540883299942,
+  "imports_calls": 2872,
+  "largest_unique_input_bytes": 209606,
+  "limits": [
+    "one pending iteration only, not a global cache capacity bound",
+    "no cache introduced or measured speedup claimed",
+    "no source, original report or scratch ledger append",
+    "original historical study stays incomplete255/298",
+    "prospective reuse needs bounded lifetime/key/memory and exact semantic-equivalence validation"
+  ],
+  "original_report_sha256": "4d063c5a0e37a1673bf4571abb696beb9286a80c5b5adac992ab6d30de4c88cd",
+  "parent": "cc02814673752b6ad53575e9ca509eada8a71bbd",
+  "repeated_identical_inputs": 2154,
+  "repeated_input_fact_disagreements": 0,
+  "same_checks_and_changes_as_profile": true,
+  "scope": "read-only supplementary repetition count; original import analyzer executes on every call",
+  "sum_input_bytes_all_calls": 21881284,
+  "sum_unique_input_bytes": 5470321,
+  "unique_path_content_inputs": 718
+}

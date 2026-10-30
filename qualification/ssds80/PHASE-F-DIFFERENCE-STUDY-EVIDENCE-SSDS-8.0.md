@@ -538,3 +538,119 @@ Review limits: no rerun of genesis/structural/derivation owners, independent ini
 scratch-state check or repeated boundary probe. Both artifacts and review share the harness/production owners;
 common-mode limitations remain. Same-family recorded-consistency/classification Review cannot substitute for
 frozen11b, omitted rows, complete classification or independent other-family Review. DONE PROBING.
+
+
+## Final bounded repetition measurement — no cache introduced
+
+Step48 replayed only the supplementary iteration's checks and parent/after consequence projection on historical
+positions255/256 of the existing scratch chain. Every imports call executed the original pure analyzer; the
+wrapper counted path/content-hash input identities and asserted identical repeated facts. Checks and consequence
+changes exactly matched the earlier profile result. No source, scratch append or original report write occurred.
+Native exit0/comparison0 in one isolated host window; source hash remains the reviewed a1dddd32 harness.
+
+Measured2,872 imports calls over718 distinct path/content inputs:2,154 repeats. Input-byte sum across calls:
+21,881,284; distinct-input bytes:5,470,321; largest single input:209,606 bytes. Repeated facts disagreed0 times.
+Retained artifact `PHASE-F-DIFFERENCE-STUDY-IMPORT-REUSE-a1dddd32.json`, SHA256 `17a30e320045690aff30af3f25a5f9db3011ccdd15b1a938c7a5abdc3a54b091`.
+This is one iteration's duplication/memory-input observation, not a global cache capacity/memory bound,
+a controlled benchmark, a measured speedup or proof that all analyzer consumers are correct. The wrapper
+retains only digest/size/count metadata; it does not reuse returned facts or retain/print source values.
+
+Concrete next local experiment: compare bounded reuse of the immutable import facts at the existing analyzer
+owner, keyed by the pinned analyzer implementation, path and exact content, with unmodified results and all
+failure/incompleteness markers. Choose a lifetime and memory bound using the real workload before production
+adoption; a count-only cache limit is not a global byte bound. Do not cache mutable ASTs, collapse different paths
+(relative-import meaning depends on path), skip an analysis, or infer full-study conformance from this one sample.
+Prefer the smallest existing-owner change; repeated Git process setup is a separately measured remaining cost,
+not a reason to bypass chain authentication. Any eventual source candidate still owes independent code review,
+affected tests and full acceptance before another appropriately budgeted preliminary run.
+
+```json
+{
+  "at": "2026-10-30T04:07:31.241372+00:00",
+  "step": "48-count-import-reuse",
+  "command": [
+    "timeout",
+    "120",
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/count_import_reuse.py"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0,
+  "before_sha256": "4b182f5b6366e979211c1e114b75df61c11732b965527436550f8e360c762dc8"
+}
+```
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/48-count-import-reuse-before.json
+```
+
+<details>
+<summary>Exact read-only repetition-counter source</summary>
+
+```python
+"""Count identical pure-owner inputs; always execute the original analyzer. No cache or source change."""
+import hashlib,importlib.util,json,sys,time
+from dataclasses import asdict
+from functools import lru_cache
+from pathlib import Path
+from unittest.mock import patch
+root=Path('/home/samjin/agent-skills/scientific-software-development-system')
+sys.path.insert(0,str(root/'orchestrator/scripts'))
+spec=importlib.util.spec_from_file_location('study',root/'orchestrator/scripts/difference_study.py')
+study=importlib.util.module_from_spec(spec);spec.loader.exec_module(study)
+from ssds import analyzers
+from ssds.ledger.read import read_chain
+home=study.AdmissionHome(Path('/tmp/ssds-phase-f-preliminary-a1dddd32-20261029'))
+report_path=home.root/'difference-study.json';raw=report_path.read_bytes();report=json.loads(raw)
+assert hashlib.sha256(raw).hexdigest()=='4d063c5a0e37a1673bf4571abb696beb9286a80c5b5adac992ab6d30de4c88cd'
+chain=read_chain(home.ledger_repository(study.LEDGER),study.LEDGER)
+assert chain.halt is None and len(chain.entries)==257 and chain.readable_through==256
+expected=json.loads(Path('/tmp/ssds-10d-20261029/pending-iteration-profile-result.json').read_text())
+owner=analyzers.python.imports;seen={};calls=0;total_bytes=0
+@lru_cache(maxsize=8)
+def trees(commit):return study.read_tree(root,commit)
+def counted(path,data):
+    global calls,total_bytes
+    result=owner(path,data)  # never reuse/replace its result
+    key=(path,hashlib.sha256(data).hexdigest())
+    value=hashlib.sha256(json.dumps(asdict(result),sort_keys=True).encode()).hexdigest()
+    if key in seen:
+        assert seen[key]['result']==value
+        seen[key]['calls']+=1
+    else:seen[key]={'bytes':len(data),'calls':1,'result':value}
+    calls+=1;total_bytes+=len(data)
+    return result
+started=time.monotonic();graph=study.ancestry(home.ledger_repository(study.LEDGER))
+with patch.object(analyzers.python,'imports',counted):
+    parent=study.derive(chain,trees,position=255,ancestry=graph)
+    checks=study.checks(parent,expected['parent'],expected['commit'])
+    before=study.consequence_state(parent)
+    after=study.consequence_state(study.derive(chain,trees,position=256,ancestry=graph))
+assert json.loads(json.dumps(checks))==expected['checks']
+assert json.loads(json.dumps(study.changes(before,after)))==expected['consequence_changes']
+assert report_path.read_bytes()==raw
+result={'scope':'read-only supplementary repetition count; original import analyzer executes on every call',
+ 'candidate':report['candidate'],'parent':expected['parent'],'commit':expected['commit'],
+ 'original_report_sha256':hashlib.sha256(raw).hexdigest(),'same_checks_and_changes_as_profile':True,
+ 'imports_calls':calls,'unique_path_content_inputs':len(seen),'repeated_identical_inputs':calls-len(seen),
+ 'sum_input_bytes_all_calls':total_bytes,'sum_unique_input_bytes':sum(v['bytes'] for v in seen.values()),
+ 'largest_unique_input_bytes':max(v['bytes'] for v in seen.values()),
+ 'repeated_input_fact_disagreements':0,'elapsed_seconds_unprofiled_with_counting':time.monotonic()-started,
+ 'limits':['one pending iteration only, not a global cache capacity bound','no cache introduced or measured speedup claimed',
+ 'no source, original report or scratch ledger append','original historical study stays incomplete255/298',
+ 'prospective reuse needs bounded lifetime/key/memory and exact semantic-equivalence validation']}
+out=Path('/tmp/ssds-10d-20261029/import-reuse-count-result.json');assert not out.exists()
+out.write_text(json.dumps(result,sort_keys=True,indent=2)+'\n');print(json.dumps(result,indent=2))
+```
+
+</details>
+
+
+Fresh Codex final counter/evidence review: **PASS**, no blocker, unexplained closure or Serious Challenge.
+The artifact matches the raw result/native log; exact helper source, identity bindings, arithmetic, report
+SHA/INCOMPLETE255/298 and command0/comparison0 agree. The helper always calls/returns the original analyzer,
+checks repeated-fact fingerprints and exactly reproduces prior checks/changes; it contains no ledger append,
+original-report write or production-source edit. Review did not execute owners or boundary probes, inspect
+scratch state, or reconstruct a per-call event trace (none retained). Execution/source/log evidence and shared
+harness-owner common modes bound the claim. All prior omitted/frozen/other-family/exit/C7/original-gap duties
+remain. Reviewer DONE PROBING. Final continuation opening merely projects these reviewed factual states.
