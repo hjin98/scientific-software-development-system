@@ -262,3 +262,28 @@ tests, fresh independent Codex code/plan-conformance review, four adversarial pr
 was changed by this harness repair. The study evidence owns exact hashes, failed/interrupted test launches,
 coverage limits and the bounded preliminary run that follows the source commit. This is local F123 execution
 visibility, not a new workplan contract or frozen-candidate acceptance.
+
+
+## Current preliminary-study checkpoint after a1dddd32
+
+Source commit `a1dddd329912c6825a6bb95910f4e0c11941e4e6` passed fresh review and 1,892-test full acceptance.
+Attempt D timed out at3600s, native124, with outer endpoint comparison0. Its report's own final boundary is
+UNEXECUTED/unchanged:null; it remains INCOMPLETE at255/298 deltas (66 through baseline,189 after). Retained
+JSON/partial classification/profile artifacts and exact hashes are owned by the difference-study evidence.
+740 excluded identities/reasons and initial consequences remain available;43 rows are unfinished, pending
+CHECKS on cee55f61 after cc028146. Partial agent triage:510 reserved-leaf genesis deviations and113 informational
+conditional credential-template observations; no consequence changes in completed rows, no actual credential
+or current-policy defect inferred. Frozen11b/full classification/other-family review remain owed.
+
+A separate isolated profile completed that one pending iteration on the scratch ledger (256 ->257 entries,
+readable256/nohalt); it did not alter or resume the original255-row report. Both profile command/comparison
+passed. Existing analyzer import-fact computation and repeated raw-chain Git launches are the next measured
+cost owners; no optimization was added. Do not infer missing rows or reuse the profile-mutated scratch home as
+though it were untouched. No source changes, real-ledger alignment or new signatures followed a1dddd32.
+
+The real ledger remains preserved at its last observed6b8331eb/position9/10entries. Signed-refusal PASS and
+OPEN/HUMAN/READY attention stand. Original append FAILED/contaminated and provenance-C7 blocker stay open.
+The human disposition options are in canonical10d evidence; no C7 migration/retirement/schema fix is authorized.
+The next agent action is a justified repeated-work reduction/budget plan before another broad study, plus the
+pending human historical-data/gap decisions. The active plan remains open and unarchived; no recurring timer,
+next-window wait, PR, merge, push, native cutover or campaign was created.

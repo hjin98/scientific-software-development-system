@@ -1,0 +1,79 @@
+{
+  "after_entries": 257,
+  "before_entries": 256,
+  "candidate": "a1dddd329912c6825a6bb95910f4e0c11941e4e6",
+  "checks": {
+    "1": {
+      "credential_template": [
+        {
+          "applicability": "if policy enabled it; supplemental template, no current-policy verdict",
+          "code": "credential_values",
+          "detail": "workplans/active/SSDS-8.0-G2-PHASE-F-PLAN.md: an added line carries a credential-shaped value",
+          "owners": [
+            "ssds.unclassified"
+          ]
+        }
+      ],
+      "request_scan": "no submitted strings or LEDGER objects to scan"
+    },
+    "2": [
+      {
+        "code": "STRUCT_RESERVED_LEAF",
+        "detail": "ssds.manifest is not declared (\u00a71.8)",
+        "unit": "ssds.manifest"
+      },
+      {
+        "code": "STRUCT_RESERVED_LEAF",
+        "detail": "ssds.policy is not declared (\u00a71.8)",
+        "unit": "ssds.policy"
+      }
+    ],
+    "3": [],
+    "4": {
+      "reason": "no evaluated records: no relevant record dependencies or cycles",
+      "status": "vacuous"
+    }
+  },
+  "commit": "cee55f617a7837461ecb86ba10d123f5edc9fbf0",
+  "consequence_changes": {
+    "drift": {
+      "added": [],
+      "changed": [],
+      "removed": []
+    },
+    "ill_formed": {
+      "added": [],
+      "changed": [],
+      "removed": []
+    },
+    "integrity": {
+      "added": [],
+      "changed": [],
+      "removed": []
+    },
+    "obligations": {
+      "added": [],
+      "changed": [],
+      "removed": []
+    },
+    "quarantine": {
+      "added": [],
+      "changed": [],
+      "removed": []
+    }
+  },
+  "limit": "original report remains INCOMPLETE at255/298; remaining43 rows/final harness boundary/classification unexecuted",
+  "original_report_sha256": "4d063c5a0e37a1673bf4571abb696beb9286a80c5b5adac992ab6d30de4c88cd",
+  "parent": "cc02814673752b6ad53575e9ca509eada8a71bbd",
+  "scope": "one supplementary pending iteration on the scratch ledger; not a resumed/completed historical study",
+  "timings_seconds": {
+    "absorb": 4.403142688999651,
+    "after_consequences": 4.970718708000277,
+    "checks": 15.885810366999976,
+    "derive_after": 0.0020937970002705697,
+    "derive_parent": 0.23591751299954922,
+    "held_head_after": 4.223100668999905,
+    "held_head_before": 4.202771070000381,
+    "parent_consequences": 3.213427120000233
+  }
+}
