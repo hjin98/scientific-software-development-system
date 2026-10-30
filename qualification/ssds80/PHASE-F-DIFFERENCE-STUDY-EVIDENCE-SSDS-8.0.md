@@ -830,3 +830,146 @@ for r in runs:print(r['variant'],r['round'],round(r['total_seconds'],2),r['secon
 ```
 
 </details>
+
+
+## Attempt E: 6ae91c3d — COMPLETE preliminary study, not frozen 11b
+
+Step 50 ran one host window (user's terminal; no agent tool ran during it) around the existing harness through a
+progress-only watcher identical to step 46's except its log path. Candidate **`6ae91c3d733365246018fe18f49dd4fadddc6db8`**
+(the cost-repair commit), new scratch home `/tmp/claude-1000/ssds-phase-f-preliminary-6ae91c3d-20261030`,
+budget 7,200 s. Native exit **0** after about 1,650 s; outer window comparison **0** (repository unchanged).
+The report's own final boundary comparison **executed and PASSED** (`unchanged: true`), status **COMPLETE**.
+
+Population: 1,042 first-parent commits = 740 exclusions + initialization `09f35057` + **301 evaluated deltas**
+(the a1dddd32 population plus `82ad1bd3`, `7e9649d1`, `6ae91c3d`); 66 through the real baseline and 235 after.
+Findings by code: STRUCT_RESERVED_LEAF 600, credential_values 154, AUTH_PROTECTED 14; one row with consequence
+changes. Retained report `PHASE-F-DIFFERENCE-STUDY-PRELIMINARY-6ae91c3d.json`, 630,251 bytes, SHA256
+`a6d4943e66bace0b6da6b88f60b986807ac39b73ba98c59313e55d2fd5061cd0`.
+
+**Regression evidence for the cost repairs.** All 255 rows shared with the a1dddd32 partial report (old source)
+are identical, as are initialization and exclusions, and the old row order is a prefix of the new. The repairs
+changed no study result on that common population.
+
+**Rows beyond the earlier partial report.** Commit `11ec88e4` (row 288) declares the reserved leaves and creates
+`.ssds/policy.toml` (`schema = 1`, no listed surfaces). On the scratch ledger its absorption quarantines the eight
+declaration keys and derives eight INTAKE obligations ("quarantined delta"): absorption never changes the effective
+structure and Admission never adopts on its own (Manual §8.6, §18), and the scratch genesis has no counterpart of
+the human `ABSORB` adoption the real ledger admitted at position 2 (SD-69). Effective structure therefore keeps the
+reserved-leaf deviation on rows 289-300. The genesis-named policy path is always protected (`protected_surfaces`);
+the manifest is not. Row 288 touches the policy file and authors the `ssds.policy` unit; afterwards the quarantined
+file belongs to `ssds.unclassified`, so `protected_touched` (unit granularity) flags every later write to that unit
+although rows 289-300 never change the policy file. In any structure the Manual accepts, `ssds.policy` is its own
+leaf and unit- and path-level detection coincide; this is a conservative consequence of the class (iii) deviation.
+
+### Preliminary classification, not other-family/frozen acceptance
+
+`PHASE-F-DIFFERENCE-STUDY-PRELIMINARY-6ae91c3d-CLASSIFICATION.json` maps all **784** observations to source
+report, commit, check and index. Preliminary F124 classes: **616 (iii)** (576 genesis deviation before 11ec88e4;
+24 reserved-leaf repair quarantined in scratch; 16 row-288 quarantine keys and INTAKE obligations of the absorbed
+repair), **168 (v)** (14 protected touches, authorship unestablished; 154 credential templates, policy enablement
+absent). No class (i) or (iv) defect is established.
+No matched line or value was retrieved or retained. Classification SHA256
+`03c353d4e40b126e7b75099fb56cfd3b793a831c53066581dc8b6fdd4bf37900`; generator `classify_complete.py` SHA256
+`1223aa2f7a3e6767173509ac64d989e165b61c870fc5d6b59a6b687be5ab57ad` (raw evidence directory).
+
+Same-family classification review: **NO-PASS** on one reason text (it wrongly said the committed policy protects
+the manifest and policy files); corrected as above. It independently rebuilt all 784 identities and sources,
+confirmed the 255-row identity, the contiguous parent chain, the baseline split and every count, and found the
+protected-touch behaviour consistent with the Manual (§1.2/SD-14 effective-unit write set, §1.8-§1.9, §8.3,
+§25.3; F14): not class (iv), no Serious Challenge. Its note that the 16 row-288 consequences are not a refusal was
+taken up (reclassified from (ii) to (iii); decision-neutral). Open presentation note for the derivation owner: the
+detail "ssds.unclassified is a protected surface" (`writescope.py`) means the unit *contains* one.
+
+Limits: this candidate is not frozen — R-PROVENANCE-C7 keeps step 2 reopened, so source may still change, and a
+preliminary result is not promoted into 11b by completing. Checks 1 and 3 are conditional, check 4 vacuous;
+record-dependent behaviour needs an authorized campaign. Consequences belong to the scratch ledger. Frozen 11b,
+its classification and independent other-family review remain required, as do step 12, C7 and the original gap.
+
+#### 50-preliminary-study-6ae91c3d
+
+```json
+{
+  "at": "2026-10-30T17:16:35.990049+00:00",
+  "step": "50-preliminary-study-6ae91c3d",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/claude-1000/ssds-phase-f-cost-20261030/watch_study.py",
+    "6ae91c3d733365246018fe18f49dd4fadddc6db8",
+    "/tmp/claude-1000/ssds-phase-f-preliminary-6ae91c3d-20261030",
+    "7200"
+  ],
+  "command_exit": 0,
+  "comparison_exit": 0,
+  "before_sha256": "8ac063c8ff03620841862264f0045b4208d08ae16f863459b438c71a47e2c8ff"
+}
+```
+
+```text
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/claude-1000/ssds-phase-f-cost-20261030/50-preliminary-study-6ae91c3d-before.json
+```
+
+Watcher `watch_study.py` SHA256 `fa3ccfd56e9aab9c6f7afd9e48c51886f02239551399c9b39ae488c272f2fb5a` (step 46 source with its log path changed); window helper `run_step.py` SHA256 `ca88b7f1deeb16b163f8ed14f8b8f01d02326195c31ad35004c6b15c857c1abe` (step-46 helper with its output directory changed).
+
+<details>
+<summary>classify_complete.py</summary>
+
+```python
+"""Preliminary F124 classification of the complete 6ae91c3d preliminary report. Retains no matched line/value."""
+import collections,hashlib,json
+from pathlib import Path
+q=Path('/home/samjin/agent-skills/scientific-software-development-system/qualification/ssds80')
+p=q/'PHASE-F-DIFFERENCE-STUDY-PRELIMINARY-6ae91c3d.json';raw=p.read_bytes();d=json.loads(raw)
+sha=hashlib.sha256(raw).hexdigest();assert sha=='a6d4943e66bace0b6da6b88f60b986807ac39b73ba98c59313e55d2fd5061cd0'
+assert d['execution']['status']=='COMPLETE' and d['boundary']['status']=='PASSED' and len(d['commits'])==301
+repair=[i for i,r in enumerate(d['commits']) if r['commit'].startswith('11ec88e4')];assert len(repair)==1;repair=repair[0]
+rows=[]
+def add(row,check,index,finding,cls,reason):
+    source={'commit':row['commit'],'check':check,'index':index}
+    identity=hashlib.sha256(json.dumps({'source':source,'finding':finding},sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    rows.append({'id':'sha256:'+identity,'source':source,'code':finding.get('code',finding.get('kind')),'class':cls,'reason':reason})
+for i,row in enumerate(d['commits']):
+    c=row['checks']
+    assert c['4']['status']=='vacuous'
+    if i==repair: assert c['2']==[]
+    else: assert {f['unit'] for f in c['2']}=={'ssds.manifest','ssds.policy'} and len(c['2'])==2
+    for n,f in enumerate(c['2']):
+        assert f['code']=='STRUCT_RESERVED_LEAF'
+        add(row,'2',n,f,'iii','reserved_leaf_genesis_deviation' if i<repair else 'reserved_leaf_repair_quarantined_in_scratch')
+    for n,f in enumerate(c['3']):
+        assert f['code']=='AUTH_PROTECTED' and f['applicability']=='would be refused if agent-made; authorship not established' and i>=repair
+        add(row,'3',n,f,'v','protected_touch_authorship_unestablished')
+    for n,f in enumerate(c['1']['credential_template']):
+        assert f['code']=='credential_values' and f['applicability']=='if policy enabled it; supplemental template, no current-policy verdict'
+        add(row,'1.credential_template',n,f,'v','unmet_policy_enablement')
+    for field,change in row['consequence_changes'].items():
+        for kind in ('added','removed','changed'):
+            for n,item in enumerate(change[kind]):
+                assert i==repair and field in ('obligations','quarantine') and kind=='added'
+                v=item['value']
+                if field=='obligations':
+                    assert v['kind']=='INTAKE' and v['detail']=='quarantined delta' and v['about'][0] in ('ssds.manifest','ssds.policy')
+                else:
+                    assert v[0] in ('ssds.manifest','ssds.policy')
+                add(row,f'consequences.{field}.{kind}',n,item,'iii','reserved_leaf_repair_absorbed_as_foreign_change')
+result={'schema':1,'status':'PRELIMINARY_NOT_FROZEN_ACCEPTANCE','asserter':'AI implementing agent, Claude family',
+ 'governing_protocol':'7.2.1','authority':'Phase F F123/F124; class reasons are preliminary agent interpretations, not other-family acceptance',
+ 'candidate':d['candidate'],'source_report':p.name,'source_sha256':sha,'completed_deltas':301,'expected_deltas':301,
+ 'reasons':{
+  'reserved_leaf_genesis_deviation':{'class':'iii','meaning':'Before the reserved-leaf repair commit 11ec88e4 the bounded historical genesis exempts only ssds.manifest and ssds.policy; their absence on each evaluated tree is the declared genesis deviation.'},
+  'reserved_leaf_repair_quarantined_in_scratch':{'class':'iii','meaning':'From 11ec88e4 the trees declare the leaves, but the scratch genesis has no counterpart of the human ABSORB adoption that SD-69 makes the exception and that the real ledger admitted at position 2; the declaration delta stays quarantined, so effective structure keeps the genesis deviation. Scratch-genesis rule, not a document-control or SSDS defect.'},
+  'protected_touch_authorship_unestablished':{'class':'v','meaning':'11ec88e4 creates .ssds/policy.toml, the genesis-named policy path that protected_surfaces always protects (the committed policy itself lists no surfaces; the manifest is not protected). Row 288 touches it by path and by authoring the ssds.policy unit. While ssds.policy stays quarantined in scratch, the file belongs to ssds.unclassified, so protected_touched flags every later write-set touch of that unit (unit granularity), although rows 289-300 never change the policy file. In any structure the Manual accepts ssds.policy is its own leaf and unit- and path-level detection coincide; this is a conservative consequence of the class iii deviation, not an SSDS defect. The agent-authorship predicate is not established; no current-policy refusal or defect follows.'},
+  'unmet_policy_enablement':{'class':'v','meaning':'Supplemental credential-values template if policy enabled it; enablement not established. No credential value or actual defect is inferred; matched lines/values are neither retained nor reconstructed.'},
+  'reserved_leaf_repair_absorbed_as_foreign_change':{'class':'iii','meaning':'Absorbing 11ec88e4 quarantines its eight reserved-leaf declaration keys and derives their INTAKE obligations (Manual 8.6, 18.2, 18.5): absorption never changes the effective structure and Admission never adopts on its own. The real ledger received the same quarantine and then the human ABSORB adoption at position 2 (SD-69); the scratch genesis has no counterpart. Consequence of the scratch genesis rule, not a refusal or defect.'}},
+ 'summary':dict(sorted(collections.Counter(r['class'] for r in rows).items())),
+ 'by_reason':dict(sorted(collections.Counter(r['reason'] for r in rows).items())),'observations':rows,
+ 'limits':['preliminary run on a non-frozen candidate: R-PROVENANCE-C7 keeps step 2 reopened, so source may still change',
+           'no class i or iv defect established by this preliminary classification',
+           'checks 1/3 are conditional, check 4 vacuous; record-dependent effects require the later authorized campaign',
+           'consequences belong to the scratch ledger, which lacks the real ledger human adoption records',
+           'frozen 11b, its classification and independent other-family review remain required']}
+out=q/'PHASE-F-DIFFERENCE-STUDY-PRELIMINARY-6ae91c3d-CLASSIFICATION.json'
+assert not out.exists();out.write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+print(json.dumps({'observations':len(rows),'classes':result['summary'],'by_reason':result['by_reason'],'classification_sha256':hashlib.sha256(out.read_bytes()).hexdigest()},indent=2))
+```
+
+</details>

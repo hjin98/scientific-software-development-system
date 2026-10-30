@@ -14,8 +14,12 @@ facts at `analyzers.python.imports`) and R-COST-CHAIN-READ (one `git cat-file --
 the deliberate NUL rejection, full suite **1,901 tests OK (10 skipped)**. Read-only replay with equal results:
 15.0 s -> 7.7 s per profiled iteration; chain read 1,031 -> 2 process launches. The study-evidence section
 "Cost repairs R-COST-IMPORTS and R-COST-CHAIN-READ" owns details and limits. Real ledger untouched (still 6b8331eb,
-position 9, 10 entries). Next: a new appropriately bounded preliminary run on a fresh scratch home bound to the
-repair commit; frozen 11b, complete classification, other-family review, step 12, C7 and the original gap remain.
+position 9, 10 entries). **Attempt E** on the repair commit `6ae91c3d`, fresh scratch home, 7,200 s budget:
+**COMPLETE 301/301** in about 1,650 s, harness boundary PASSED, window comparison 0; its 255 rows shared with
+the old-source partial report are identical. Preliminary F124 classification of all 784 observations: 616 (iii),
+168 (v), no (i)/(iv); same-family review NO-PASS on one reason text, corrected. Still preliminary (C7 keeps step 2
+open, candidate not frozen). Remaining: C7 and gap decisions (held by the stakeholder), freeze the candidate,
+frozen 11b and its other-family review, step 12 and acceptance.
 
 **Previous checkpoint (superseded by the one above).** Validated harness source `a1dddd32`; full suite **1,892 tests OK,
 10 skipped**. Evidence through `82ad1bd3` retains the byte-identical partial study at255/298, all623 preliminary
