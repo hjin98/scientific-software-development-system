@@ -2673,3 +2673,66 @@ print(json.dumps({**before,'signed_refusal_verified':True,'appended':False,'atte
 ```
 
 </details>
+
+## R-PROVENANCE-C7 remediation decision prepared for the stakeholder
+
+Status: **proposed, unaccepted; no deployment or lifecycle action authorized by this text**. Asserter: AI
+implementing agent, Codex family. The signed-refusal result above changes none of this decision's premises.
+
+The frozen Manual at `39ad6f13980edb2f27e8e72236351038eb49c334`, §3.2/C7, requires typed non-narrative
+record fields. §3.6/P2 prohibits silently changing a schema's meaning or re-adjudicating old records. §5.7
+requires an integrity halt for an authenticated syntactically invalid entry, keeping earlier historical views.
+§27.2 permits only a human-gated declared READ/MIGRATE/REJECT treatment, retaining old records; MIGRATE
+re-encodes only in a replacement lineage. These are distinct obligations. A newly tightened dict check alone
+would make this program's previously accepted record fail historical verification; retaining its program ACCEPT
+does not prove Manual conformance. No contradiction in the accepted parent has been established.
+
+The actual admitted nonconforming record remains AVAILABILITY `2716f8c4…` at position 6, with narrative keys
+`observation`, `claim_limit`, `prepared_by`, `status`. Do not mutate those bytes or replace its authenticated
+identity. The corrected FINDING and signed-refusal request use provenance:null, so neither supplies a repair
+for that historical record. No new real-ledger submissions are needed for the completed signing exercises.
+
+The eventual validator belongs in `ledger/schema.py`, shared by Admission and authenticated reading. A concrete
+repair must declare each permitted execution-provenance member and its type, not merely reject whitespace or
+rename arbitrary narrative as a token. Catalogue §3.2 lists route/harness/model-family/model/attempt/toolchain;
+that list alone is insufficient to delete other semantically required control facts. Current owner inventory:
+
+| Existing control use | Owning producer/consumer to reconcile | Required proof before deployment |
+|---|---|---|
+| Common execution provenance | Catalogue §3.2; Manual §12.2/§16.5/§21 | Closed grammar, optionality and null rules, bounded identifiers/attempts; narrative remains in referenced content |
+| `judge` lineage/route/model/toolchain | `dispatcher.schedule.judge_provenance` | Retain attested binding as authority; audit provenance cannot manufacture independence |
+| `run` / `report` identities | `dispatcher.realize` producer and request recovery | Preserve idempotency and correlation; no arbitrary-text escape |
+| `reissue_of` | `admission.request`, `admission.authenticate`, `admission.authorize`, `derivation.workflow` | Retained-body equality, cited refusal identity and existing auth/discharge behavior remain intact |
+| `approval` actor/signature | `admission.engine.admit_lifecycle`, `admission.lifecycle.lifecycle_message`, verified ledger reader | Preserve the exact signed message/identity and authentication grammar; never confuse this typed cryptographic proof with narrative |
+| Tests using free-form note/narrative/signature payloads | `test_admission_requests`, `test_phase_f_step4b`, `test_briefs` and affected execution fixtures | Reconcile each oracle with C7; test secret/input bounds through a legal real input surface, without weakening scanners or rewriting expected results to conceal defects |
+
+This is a bounded source inventory, not proof that all runtime/imported provenance shapes have been enumerated.
+The inspected current implementation is source commit `6b8331eb`; no accepted authority or PEM was edited.
+
+**Recommended immediate disposition:** preserve the current ledger, requests and public signatures untouched;
+hold further real admissions and stricter reader deployment while completing independent scratch qualification.
+This is the existing bounded safety posture, not a new compatibility exception or an unqualified PASS.
+
+**Human decision still needed before the source fix can be deployed on real state:**
+
+1. Preserve this lineage and authorize a separately specified lifecycle/compatibility repair under §27.2,
+   with explicit treatment of its known nonconformance. Its already accepted narrative never becomes conformant
+   through READ alone. Replacement-lineage re-encoding/equal-state qualification remains Phase H (SD-76);
+   a plan extension or earlier-owner acceptance would be needed to bring it forward.
+2. Authorize retirement of this shadow experiment and a fresh shadow genesis, keeping the old experiment and
+   its failed/limited evidence intact. Retirement/genesis require their own concrete human-gated records and
+   review; the agent must prepare those before requesting signatures. SD-89 forbids registering the same human
+   key on two live ledgers, so the old lineage must cease to be live before key reuse. A fresh clean run cannot
+   retroactively qualify the original append or erase this C7 finding.
+
+No route is silently selected. A bare in-place schema tightening that unexpectedly halts the current ledger,
+a null-only provenance ban, an arbitrary-dict grandfather, hand-edited history, or an unimplemented migration
+presented as available is not an admissible shortcut. Existing program QUALIFIED status stays explicitly bounded.
+Before any eventual deployment: accepted grammar/historical disposition, negative schema and scanner tests,
+real Admission/authenticated-reader fixtures, replay of all affected producer/consumer cases, compatibility
+preflight, fresh code/plan review, full acceptance and bounded native execution evidence remain required.
+
+Fresh Codex review of the proposed C7 decision package: PASS, no blocker or Serious Challenge. Exact Manual
+owners, existing permissive validator/control consumers, SD-76 and SD-89 were independently checked. Review
+performed no real-home/key/native operation. This is a decision-package review, not complete shape coverage,
+implementation qualification, lifecycle acceptance or permission to deploy. The original finding remains open.

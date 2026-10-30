@@ -183,40 +183,71 @@ def study(repository: Path, candidate: str, proposed_home: Path, *, modes: dict 
     graph = ancestry(ledger_repo)
     admission = observe_only(home.root, LEDGER, trees, repository, graph, shadow_boundary)
     support = derive(admission.held_head(), trees, ancestry=graph)
-    initial = previous = consequence_state(support)
+    report_path = home.root / "difference-study.json"
     report = {"schema": 1, "governing_protocol": PROTOCOL, "candidate": candidate, "real_baseline": real_baseline,
-              "initialization": {"commit": commits[0], "modes": modes, "consequences": initial,
+              "initialization": {"commit": commits[0], "modes": modes, "consequences": None,
                                  "exempt_reserved_leaves": sorted(EXEMPT)},
               "excluded": excluded, "commits": [], "summary": {},
+              "execution": {"status": "INCOMPLETE", "phase": "INITIAL_CONSEQUENCES",
+                            "expected_deltas": len(commits) - 1, "pending": None},
+              "boundary": {"status": "UNEXECUTED", "unchanged": None, "differences": [],
+                           "scope": "endpoint fingerprints; transient reverted writes and access times excluded"},
               "limits": ["shadow infrastructure qualification; no authority or scientific outcome claim",
                          "checks 1 and 3 include conditional observations, not current-policy refusals",
                          "check 4 is vacuous; record-dependent checks need an authorized campaign",
                          "consequences belong to this scratch ledger, not the real ledger",
                          "classification and independent other-family review belong to frozen-candidate 11b"]}
     counts = Counter()
+
+    def save() -> None:
+        """One inspectable report, replaced only after a whole new JSON document is written.
+
+        Completed rows/counts exclude the pending commit even if its absorption finished.
+        This is process-interruption visibility, not a resumable ledger or power-loss guarantee.
+        """
+        evaluated = len(report["commits"])
+        report["summary"] = {"evaluated": evaluated, "excluded": len(excluded),
+                             "findings_by_code": dict(sorted(counts.items()))}
+        if real_baseline is not None:
+            split = commits.index(real_baseline)
+            report["summary"].update(before_or_at_real_baseline=min(evaluated, split),
+                                     after_real_baseline=max(0, evaluated - split))
+        temporary = report_path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+        temporary.replace(report_path)
+
+    save()
+    initial = previous = consequence_state(support)
+    report["initialization"]["consequences"] = initial
     for parent, commit in zip(commits, commits[1:]):
+        report["execution"].update(phase="CHECKS", pending={"parent": parent, "commit": commit})
+        save()
         found = checks(support, parent, commit)
-        for finding in found["2"] + found["3"] + found["1"]["credential_template"]:
-            counts[finding["code"]] += 1
+        report["execution"]["phase"] = "ABSORPTION"
+        save()
         chain = admission.held_head()
         if expected_head(chain.entries[:chain.readable_through + 1]) != parent:
             raise ValueError("scratch ledger moved outside the study")
         admission.absorb(list(chain.entries[:chain.readable_through + 1]), commit)
+        report["execution"]["phase"] = "CONSEQUENCES"
+        save()
         support = derive(admission.held_head(), trees, ancestry=graph)
         current = consequence_state(support)
         report["commits"].append({"commit": commit, "parent": parent, "checks": found,
                                   "consequence_changes": changes(previous, current)})
+        for finding in found["2"] + found["3"] + found["1"]["credential_template"]:
+            counts[finding["code"]] += 1
         previous = current
-    report["summary"] = {"evaluated": len(report["commits"]), "excluded": len(excluded),
-                         "findings_by_code": dict(sorted(counts.items()))}
-    if real_baseline is not None:
-        split = commits.index(real_baseline)
-        report["summary"].update(before_or_at_real_baseline=split, after_real_baseline=len(commits) - split - 1)
+        report["execution"].update(phase="BETWEEN_COMMITS", pending=None)
+        save()
+    report["execution"]["phase"] = "BOUNDARY"
+    save()
     changed = differences(before, snapshot(repository))
-    report["boundary"] = {"unchanged": not changed, "differences": changed,
+    report["boundary"] = {"status": "FAILED" if changed else "PASSED", "unchanged": not changed,
+                          "differences": changed,
                           "scope": "endpoint fingerprints; transient reverted writes and access times excluded"}
-    report_path = home.root / "difference-study.json"
-    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    report["execution"].update(status="FAILED_BOUNDARY" if changed else "COMPLETE", phase="FINISHED")
+    save()
     if changed:
         raise ValueError(f"product boundary changed; inspect {report_path}")
     return report

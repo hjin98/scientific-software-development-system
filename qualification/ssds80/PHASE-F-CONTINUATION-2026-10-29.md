@@ -249,3 +249,16 @@ No ledger rewrite, stricter-reader deployment, waiver or 10d/exit closure. Next 
 prepare the C7 enforcement/historical-data decision and improve visibility of a bounded preliminary historical
 diagnostic before another broad run. Final freeze/11b/classification/other-family review/step 12 remain owed.
 Push still requires the user-terminal route. The active plan remains open; no automation or next-window wait.
+
+C7 decision package is now concrete in the canonical 10d evidence: frozen Manual §§3.2/3.6/5.7/27.2,
+current producer/consumer inventory, preserve-and-hold recommendation, and the distinct human choices of a
+governed lineage-preserving lifecycle repair or retirement/fresh shadow genesis. No new signature request or
+lifecycle action is prepared/authorized. The unchanged ledger stays preserved while scratch work continues.
+
+The existing difference-study harness now atomically checkpoints its one report at owner boundaries, with
+explicit incomplete/pending state and no completed row/count before consequence projection. Eight focused
+tests, fresh independent Codex code/plan-conformance review, four adversarial probes and the complete suite
+(**1,892 tests in604.170s, OK, 10 skipped, exit0**) pass. No semantic owner, frozen authority or real ledger
+was changed by this harness repair. The study evidence owns exact hashes, failed/interrupted test launches,
+coverage limits and the bounded preliminary run that follows the source commit. This is local F123 execution
+visibility, not a new workplan contract or frozen-candidate acceptance.

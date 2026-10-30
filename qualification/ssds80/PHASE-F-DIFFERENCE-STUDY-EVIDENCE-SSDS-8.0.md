@@ -132,3 +132,72 @@ last held parent, including absorption/consequence projection. Choose a sufficie
 rerun strategy with durable partial-progress visibility before another broad run; do not infer missing results
 from absorption counts or bypass any real owner. Final frozen 11b/classification/other-family review and exit
 remain unexecuted. No further repair, campaign or authority change is implied.
+
+## Resumed diagnostic: progress retention at the existing harness owner
+
+The prior temporary scratch ledgers/logs disappeared across the usage interruption. Their verified positions
+above remain historical reports, not currently re-readable evidence. The earlier instruction to profile the
+retained last parent is therefore unavailable on those stores. Do not reconstruct their missing projections.
+
+Local D4 repair planned within F123: publish the existing `difference-study.json` atomically at initialization
+and each checks/absorption/consequence boundary. Explicit INCOMPLETE status, pending phase/commit and expected
+population prevent partial output from looking like a completed study. Only a fully projected commit enters
+the completed rows/counts; an absorbed but unprojected commit stays pending. Product-boundary status remains
+UNEXECUTED until the actual final comparison; only a complete successful run can report COMPLETE/unchanged.
+This adds visibility to the existing report, no resume engine, alternate semantic owner, skipped check or cache.
+It preserves every F123 owner, conditional observation, identity and final F124 review obligation. A sufficiently
+bounded preliminary run on an immutable reviewed source can then retain useful partial results without claiming
+frozen-candidate acceptance. Tests must discriminate interruption before checks and after absorption, including
+row/count identity, expected population and absent boundary/complete claims. Fresh code Review precedes commit.
+
+Progress-retention implementation is now in the existing harness. Focused final regression: **8 tests in
+4.363s, OK**; independent fresh Codex review: **PASS**, no blocker or Serious Challenge, with the same eight
+tests independently passing in 5.555s and four additional adversarial fixture probes in 2.528s. Those probes
+cover initial-projection interruption, failed atomic replace preserving prior whole JSON, final snapshot failure
+leaving INCOMPLETE/UNEXECUTED, and pending credential findings excluded from completed counts. No real ledger or
+human key was accessed; scratch fixture credentials only. Source SHA256:
+`3035fd1d5b768bee2c005b7540e3a73226f96564d8ec81c682efc0d70a27dde6`;
+tests SHA256 `9d15ba665d546283789690170a2773f9d98d653f7781cdca86c315920401be0d`.
+
+The first focused launch found a test-only JSON tuple/list round-trip comparison error; the assertion was
+corrected to compare JSON values, not Python-only tuple representation. Its failed log is retained separately.
+The first full-suite launch had a mislocated requirements-file argument and was deliberately terminated (143)
+before acceptance, without changing source. It is not a suite PASS. The requirements were then installed from
+the actual `orchestrator/requirements-dev.txt`; a separate full suite is running over fixed source. No commit
+or historical run acceptance is inferred while that result is pending.
+
+Review claim limit: setup, scratch genesis and first derivation precede the first report write; interruption
+there can still produce no report. Atomic replacement protects process-interruption inspectability, not
+power-loss durability. New checkpoints are not resumable execution, complete classification, another-family
+review, real-ledger qualification or frozen 11b. F123's exact report JSON shape was delegated; the additional
+execution/boundary fields change no accepted semantic contract or review threshold.
+
+<details>
+<summary>Independent progress-retention probe output</summary>
+
+```text
+test_final_snapshot_failure_never_claims_complete_or_unchanged (__main__.Probe.test_final_snapshot_failure_never_claims_complete_or_unchanged) ... ok
+test_initial_projection_interruption_is_explicit (__main__.Probe.test_initial_projection_interruption_is_explicit) ... ok
+test_pending_credential_findings_are_not_completed_counts (__main__.Probe.test_pending_credential_findings_are_not_completed_counts) ... ok
+test_publication_failure_preserves_previous_whole_document (__main__.Probe.test_publication_failure_preserves_previous_whole_document) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 2.528s
+
+OK
+```
+
+</details>
+
+Recreated-runtime identities: Python 3.12.14, Git 2.53.0, typer 0.27.3, pydantic 2.14.2, cryptography 50.0.2,
+hypothesis 6.170.13 and build 1.6.1. Runtime dependencies came from `pyproject.toml`; acceptance dependencies
+from `requirements-dev.txt`. These describe this execution environment, not new supported-version policy.
+
+**Progress-retention final assembled acceptance: PASS.** Full suite over fixed source: **1,892 tests in
+604.170s, OK (10 skipped), exit 0**, no FAIL/ERROR cases. The source/test hashes above remain unchanged.
+Command, from `orchestrator`: `PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 timeout 3000
+/tmp/ssds-phase-f-20261029/bin/python -m unittest discover -s tests -t .`; raw final log
+`/tmp/ssds-10d-20261029/full-suite-study-progress-final.log`. The earlier terminated launch is not substituted
+for this completed run. No frozen protocol/source, profiles/snapshots, Manual/catalogue, Core architecture or
+PEM bytes changed. Next: commit this reviewed harness, bind its immutable identity and run one bounded preliminary
+study in a new scratch home. Final frozen 11b/other-family review/exit remain unexecuted.

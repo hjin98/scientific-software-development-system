@@ -62,6 +62,90 @@ class Study(GenesisFixture):
         stored = json.loads((self.root / 'study-home/difference-study.json').read_text())
         self.assertEqual(stored['candidate'], credential)
         self.assertEqual(stored['initialization']['modes'], {'*': {'mode': 'UNGOVERNED'}})
+        self.assertEqual(stored, json.loads(json.dumps(result)))
+        self.assertEqual(stored['execution'], {'status': 'COMPLETE', 'phase': 'FINISHED',
+                                              'expected_deltas': 7, 'pending': None})
+        self.assertEqual(stored['boundary']['status'], 'PASSED')
+
+    def test_interrupted_checks_retain_only_completed_commit_rows(self):
+        guide = self.product / 'guide.md'
+        guide.write_text(guide.read_text() + '\nFirst change.\n')
+        first = commit(self.product, 'first evaluated delta')
+        guide.write_text(guide.read_text() + '\nSecond change.\n')
+        second = commit(self.product, 'interrupted evaluated delta')
+        owner = study.checks
+
+        def interrupt(support, parent, candidate):
+            if candidate == second:
+                raise RuntimeError('fixture interruption before checks')
+            return owner(support, parent, candidate)
+
+        with patch.object(study, 'checks', side_effect=interrupt), self.assertRaises(RuntimeError):
+            self.run_study(second)
+        stored = json.loads((self.root / 'study-home/difference-study.json').read_text())
+        self.assertEqual(stored['execution'], {'status': 'INCOMPLETE', 'phase': 'CHECKS',
+                                              'expected_deltas': 2,
+                                              'pending': {'parent': first, 'commit': second}})
+        self.assertEqual([r['commit'] for r in stored['commits']], [first])
+        self.assertEqual(stored['summary']['evaluated'], 1)
+        self.assertEqual(stored['summary']['before_or_at_real_baseline'], 0)
+        self.assertEqual(stored['summary']['after_real_baseline'], 1)
+        self.assertEqual(stored['summary']['findings_by_code'], {})
+        self.assertEqual(stored['boundary']['status'], 'UNEXECUTED')
+        self.assertIsNone(stored['boundary']['unchanged'])
+
+    def test_absorbed_commit_is_not_reported_complete_before_projection(self):
+        guide = self.product / 'guide.md'
+        guide.write_text(guide.read_text() + '\nChanged.\n')
+        candidate = commit(self.product, 'absorbed but unprojected delta')
+        owner = study.consequence_state
+        calls = 0
+
+        def interrupt(support):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise RuntimeError('fixture interruption after absorption')
+            return owner(support)
+
+        with patch.object(study, 'consequence_state', side_effect=interrupt), self.assertRaises(RuntimeError):
+            self.run_study(candidate)
+        stored = json.loads((self.root / 'study-home/difference-study.json').read_text())
+        self.assertEqual(stored['execution'], {'status': 'INCOMPLETE', 'phase': 'CONSEQUENCES',
+                                              'expected_deltas': 1,
+                                              'pending': {'parent': self.baseline, 'commit': candidate}})
+        self.assertEqual(stored['commits'], [])
+        self.assertEqual(stored['summary']['evaluated'], 0)
+        self.assertIsNone(stored['boundary']['unchanged'])
+        self.assertEqual(stored['boundary']['status'], 'UNEXECUTED')
+        from ssds.ledger.read import read_chain
+        chain = read_chain(self.root / 'study-home/ledgers/difference-study.git', 'difference-study')
+        self.assertIsNone(chain.halt)
+        self.assertEqual(study.expected_head(chain.entries), candidate)
+
+    def test_completed_projection_with_changed_product_is_not_complete(self):
+        guide = self.product / 'guide.md'
+        guide.write_text(guide.read_text() + '\nCommitted change.\n')
+        candidate = commit(self.product, 'evaluated delta')
+        owner = study.consequence_state
+        calls = 0
+
+        def change_product(support):
+            nonlocal calls
+            calls += 1
+            result = owner(support)
+            if calls == 2:
+                guide.write_text(guide.read_text() + '\nUnexpected product write.\n')
+            return result
+
+        with patch.object(study, 'consequence_state', side_effect=change_product), self.assertRaises(ValueError):
+            self.run_study(candidate)
+        stored = json.loads((self.root / 'study-home/difference-study.json').read_text())
+        self.assertEqual(stored['summary']['evaluated'], 1)
+        self.assertEqual(stored['execution']['status'], 'FAILED_BOUNDARY')
+        self.assertEqual(stored['boundary']['status'], 'FAILED')
+        self.assertFalse(stored['boundary']['unchanged'])
+        self.assertTrue(stored['boundary']['differences'])
 
     def test_historical_initialization_retains_unclassified_requirement(self):
         from ssds.content import read_tree
