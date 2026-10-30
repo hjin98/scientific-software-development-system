@@ -207,3 +207,21 @@ is retained in canonical evidence), observe/absorb any moved branch first, captu
 decide in an isolated window, then verify exact refusal/count/OPEN attention. Keep any actual endorsed intent in
 the stakeholder home separately; refusal is not an admitted decision. Original-gap disposition, C7 enforcement
 and governed historical-data handling, complete historical study/frozen review and exit remain unfinished.
+
+
+## Signed decide: loader checkpoint
+
+User "Signed. Proceed." endorses the prepared ACKNOWLEDGE carrier only for the required refusal exercise
+(stakeholder item75). Step39 read-only preflight failed before authentication because the auxiliary verifier
+misused the private-output reader for public signer input mode0664; comparison passed, no append. No re-signing
+or chmod was requested. A bounded review resolved SD59/F121 applicability; the existing program input loader
+is factored as cli.read_prepared and reused for verification. Private-file guards, signature bytes/permissions,
+policy and accepted authority remain unchanged. Focused23 tests and fresh independent11-test code review pass;
+complete suite runs over fixed source. Original append/C7 gaps remain open; actual signed refusal is still owed.
+
+
+**Shared F121 loader final qualification:** fresh code Review PASS; complete suite **1,889 tests in614.527s,
+OK (10 skipped), exit0**, no FAIL/ERROR cases, source fixed throughout. CLI hash remains
+`5b2f53934dce54ff5e42609748255d3b1468bb95e0bdb812649a382e21c8dbe1`. No signature bytes/modes or private
+reader checks changed. Actual signed authentication/refusal follows this source qualification; no 10d/exit
+closure or C7 remedy is inferred.

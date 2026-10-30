@@ -81,6 +81,22 @@ def canonical_signature(text: str) -> str:
     return "\n".join([ARMOR[0], *(body[i:i + 70] for i in range(0, len(body), 70)), ARMOR[1]]) + "\n"
 
 
+def read_prepared(directory: Path) -> tuple[Any, str]:
+    """F121's human-supplied inputs, also used by read-only signature preflight.
+
+    The signature is public input created by the human's signer, not a private
+    operator file. Keep the same reader and canonicalization as signed admission.
+    This loads data only; it neither authenticates nor submits the request.
+    """
+
+    try:
+        request = json.loads((directory / "request.json").read_bytes())
+        signature = canonical_signature((directory / "request-message.txt.sig").read_text(encoding="ascii"))
+    except (OSError, ValueError, RecursionError) as exc:
+        raise Refused(f"cannot read the prepared request in {directory}: {exc}") from None
+    return request, signature
+
+
 def _summary(ledger_id: str, rid: str, request: dict, actor: str) -> str:
     """A readable account of a prepared request: each record's kind, target and outcome, and each adopted delta."""
 
@@ -310,11 +326,7 @@ class Composition:
         verifies, and of the kinds ``command`` submits when it is named (review of 2d03161c, N4). The report
         carries the summary of what was submitted, which is what the signature covers (N3)."""
 
-        try:
-            request = json.loads((directory / "request.json").read_bytes())
-            signature = canonical_signature((directory / "request-message.txt.sig").read_text(encoding="ascii"))
-        except (OSError, ValueError, RecursionError) as exc:  # N5: deeply nested input is refused too
-            raise Refused(f"cannot read the prepared request in {directory}: {exc}") from None
+        request, signature = read_prepared(directory)
         records = request.get("records") if isinstance(request, dict) else None
         actors = {r.get("actor") for r in records if isinstance(r, dict)} if isinstance(records, list) else set()
         if len(actors) != 1 or not isinstance(next(iter(actors)), str):

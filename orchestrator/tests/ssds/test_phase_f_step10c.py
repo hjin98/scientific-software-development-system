@@ -131,6 +131,28 @@ class Prepare(Prepared):
 
 
 class Admit(Prepared):
+    def test_public_signature_input_uses_the_same_read_only_loader_as_admission(self) -> None:
+        from ssds.cli import read_prepared
+        from ssds.ledger.qualification import HomeRefused
+        from ssds.ledger.signatures import verify_sshsig
+
+        directory = self.prepare("submit", availability())
+        self.sign(directory)
+        signature_path = directory / "request-message.txt.sig"
+        signature_path.chmod(0o664)  # external public signer input; no privacy repair is performed
+        before = {name: (directory / name).read_bytes()
+                  for name in ("request.json", "request-message.txt", "request-message.txt.sig")}
+        request, signature = read_prepared(directory)
+        self.assertEqual(request, self.stored(directory))
+        self.assertTrue(verify_sshsig(self.public, request_message(request), signature))
+        self.assertEqual(before, {name: (directory / name).read_bytes() for name in before})
+        self.assertEqual(stat.S_IMODE(signature_path.stat().st_mode), 0o664)
+        composition = self.composition()
+        with self.assertRaises(HomeRefused):
+            composition.state().read_private(composition.request_parts(request_id(request), "request-message.txt.sig"))
+        self.assertEqual(composition.admit_prepared(directory, "main", command="submit")["decision"], "ACCEPT")
+        self.assertEqual(stat.S_IMODE(signature_path.stat().st_mode), 0o664)
+
     def test_a_prepared_request_signed_and_admitted(self) -> None:
         directory = self.prepare("submit", availability())
         self.sign(directory)

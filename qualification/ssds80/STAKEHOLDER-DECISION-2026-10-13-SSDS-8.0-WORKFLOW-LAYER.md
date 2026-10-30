@@ -381,6 +381,20 @@ prepared an unsigned ACKNOWLEDGE proposal for F122's signed-refusal exercise; no
 proposal is inferred from this instruction. A fresh human signature/review remains required before that test.
 No new upstream decision or runtime/exit acceptance is recorded.
 
+
+**75. Signed decide-refusal exercise (2026-10-29).** After the proposed ACKNOWLEDGE request, actual attention
+target, effects if admitted and expected Phase F refusal were presented, the stakeholder replied:
+
+> "Signed. Proceed."
+
+This endorses that exact acknowledgment carrier for the bounded refusal exercise and authorizes independent
+signature verification and submission. It is not technical qualification, a gap waiver or a ledger-recorded
+resolution. Native refusal itself cannot prove authentication, so independent registered-key verification is
+required. The initial auxiliary reader failed before verifying the signature; the public-input loader was
+corrected under unchanged F121 semantics. The canonical 10d evidence owns actual outcomes and limitations.
+No human decision is deemed admitted unless the actual ledger establishes it; an unexpected admission fails
+the intended refusal test and must be preserved/routed.
+
 ## Not covered
 
 - The 2026-10-12 instruction that adopted 7.2.1 as the governing version and directed the rebase (workplan §0.4) was given in an earlier session and is not reproduced here. It remains recorded only as the workplan's paraphrase until the stakeholder restates it.

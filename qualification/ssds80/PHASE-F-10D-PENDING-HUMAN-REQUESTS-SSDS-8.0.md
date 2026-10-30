@@ -1,4 +1,9 @@
-# Phase F 10d — proposed signed decide-refusal exercise
+# Phase F 10d — signed decide-refusal exercise pending execution
+
+**The human has signed and authorized this exact request. No further signing action is needed.**
+The initial auxiliary verifier selected the wrong private-file reader for the public signature. The shared F121
+input-loader correction passed fresh Review and the 1,889-test suite; actual signature/refusal checks follow.
+The proposal/review instructions below are preserved history, not a request to sign again.
 
 Governing SSDP 7.2.1; F1, F121–F122. Asserter: AI implementing agent, Codex family.
 

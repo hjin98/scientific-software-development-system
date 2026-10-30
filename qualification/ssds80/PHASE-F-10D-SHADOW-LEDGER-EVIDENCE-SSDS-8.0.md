@@ -2177,3 +2177,76 @@ assert verify_sshsig(public,message,canonical_signature(raw_signature.decode('as
 print(json.dumps({'request':rid,'actor':actor,'signature_verified':True,'namespace':'ssds',
                   'limit':'Read-only authentication evidence; no submission, append or resolution.'},indent=2))
 ```
+
+
+## Signed decide follow-up: auxiliary input-reader correction
+
+The user replied "Signed. Proceed." for request `11c18b81…`. Initial read-only preflight (step 39) exited 1
+with HomeRefused before authentication/submission because the temporary verifier used DispatcherHome.read_private
+for the human-created public signature, whose mode is 0664. Its endpoint comparison passed. The aligned-head
+command in the same set-e sequence did not run. No signature failure, append or resolution is inferred.
+
+Bounded independent source/contract review found no 0600 requirement for this public human input in SD-59/F121:
+SD-59 fixes containment/symlinks/atomic publication, while F121 explicitly creates three private program outputs
+and loads the human signature as an input. Existing Composition.admit_prepared used JSON/ASCII Path reads,
+canonicalization and bounded error handling. The temporary verifier had selected the wrong owner. No signature
+file, permissions, key, private-file guard, ledger record, policy or accepted authority was altered.
+
+The D4 refactor factors that exact existing loader into cli.read_prepared and uses it both for signed admission
+and read-only signature preflight. It does not authenticate or submit by itself. The verifier retains checked
+request/message reads, exact request-id/message equality, registered in-force public-key verification and the
+same namespace. Its prior private-signature-reader source above is superseded; do not reuse it for signer input.
+
+Focused 10c/10d regression: 23 tests in 20.637 seconds, OK. New real-owner fixture test verifies a public0664
+signature read/authentication without input/mode mutation, confirms private read_private still refuses that mode,
+and checks actual fixture Admission ACCEPT. Fresh Codex code Review PASS; independent 11 Admit tests in11.902s
+OK, including identity, malformed/tampered input and boundary paths. Reviewed CLI SHA256:
+`5b2f53934dce54ff5e42609748255d3b1468bb95e0bdb812649a382e21c8dbe1`. Complete suite is running over fixed
+production source; acceptance and actual real signature/refusal remain unexecuted at this paragraph's checkpoint.
+No scientific results, scientific gate evidence or scientific selection occurred; two auxiliary input-reader
+variants were examined under the unchanged F121 contract. Original append/C7 gaps remain open.
+
+```json
+{
+  "at": "2026-10-29T21:32:32.412293+00:00",
+  "step": "39-verify-decide-signature",
+  "command": [
+    "/tmp/ssds-phase-f-20261029/bin/python",
+    "/tmp/ssds-10d-20261029/verify_future_decide_signature.py"
+  ],
+  "command_exit": 1,
+  "comparison_exit": 0
+}
+```
+
+```text
+Traceback (most recent call last):
+  File "/tmp/ssds-10d-20261029/verify_future_decide_signature.py", line 18, in <module>
+    raw_signature = state.read_private(c.request_parts(rid,'request-message.txt.sig'))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/src/ssds/dispatcher/home.py", line 127, in read_private
+    self._private(descriptor, parts[-1], single=False)  # before any read, whatever it is
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/src/ssds/dispatcher/home.py", line 102, in _private
+    raise HomeRefused(f"{name} is readable by others ({oct(stat.S_IMODE(info.st_mode))})")
+ssds.ledger.qualification.HomeRefused: request-message.txt.sig is readable by others (0o664)
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/ssds-10d-20261029/39-verify-decide-signature-before.json
+```
+
+
+**Shared F121 loader final qualification:** fresh code Review PASS; complete suite **1,889 tests in614.527s,
+OK (10 skipped), exit0**, no FAIL/ERROR cases, source fixed throughout. CLI hash remains
+`5b2f53934dce54ff5e42609748255d3b1468bb95e0bdb812649a382e21c8dbe1`. No signature bytes/modes or private
+reader checks changed. Actual signed authentication/refusal follows this source qualification; no 10d/exit
+closure or C7 remedy is inferred.
+
+### Resumption after usage interruption
+
+On 2026-10-29 the source/test hashes still match the reviewed shared-loader candidate above. The temporary
+`/tmp/ssds-10d-20261029` logs/scripts and `/tmp/ssds-phase-f-20261029` runtime were no longer present, including
+in the escalated host view. The earlier suite result remains a retained contemporaneous report; its raw log
+is unavailable at this resumption. No earlier raw evidence is reconstructed and presented as an original.
+A fresh temporary Python 3.12.14 environment and installed editable `ssds` console were created. Recreated-runtime
+affected regression: **23 tests in 20.477s, OK, exit 0**, covering 10c and 10d. Production hashes are unchanged.
+New native windows will have newly generated snapshots and logs, and independently rebind the real chain before
+submission. No real-ledger state, signature, key or permissions were changed during tooling reconstruction.
