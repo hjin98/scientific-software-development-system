@@ -453,7 +453,36 @@ to accept it and route the qualification through U4. The stakeholder answered:
   a resolution, a new threshold or any revision-4 disposition beyond SC-U4; revision 4 as a whole, Q-U1 to Q-U5
   and its different-family Review remain open.
 
+
+**79. The open-question compendium (2026-10-30).** The author compiled every open question with a recommendation:
+A1, the R-PROVENANCE-C7 route: retire `ssdp-shadow-2` and start a fresh shadow genesis, in the order (1) C7
+enforcement qualified in scratch, (2) retirement with the current program, (3) deployment of the enforcement, (4)
+fresh genesis with the reserved leaves declared from the start, (5) 10d's signed append redone in a clean host
+window; A2, the original append: require a new clean append, the original kept FAILED, no retroactive pass; A3,
+fold three small fixes (the study's `GitReadError` handling, the protected-touch detail wording, two blob-reader
+messages) into the next source batch before freezing; Q-U1, U1 in a later version, its Dispatcher functions
+disclosed as unbuilt at G3; Q-U2, U1's first release resource predictions only; Q-U3, the paper locations G2
+workplan §5.7 proposes; Q-U4, this repository's history and synthetic fixtures only until a campaign is
+authorized; Q-U5, the stakeholder ratifies every human gate; revision 4 left proposed, its different-family Review
+bundled into the next Codex round (the frozen-candidate 11b Review), then accepted; C1, freeze after the C7 change
+and the small fixes pass review and the full suite, then rerun 11b in a host window; C2, A10's follow-ups after
+Phase F (SD-64 decision 8). The stakeholder answered:
+
+> "Proceed with your recommendation."
+
+- **SD-92 (A1):** route R-PROVENANCE-C7 by retirement of `ssdp-shadow-2` and a fresh shadow genesis, in the order
+  above. Retirement and genesis each need their own concrete, reviewed, human-signed records; none is signed or
+  executed by this item. SD-89 holds: the old ledger stops being live before the human key is registered again.
+  The old experiment, its C7 finding and its failed original append stay recorded.
+- **SD-93 (A2):** 10d closes only on a later signed append that passes in a clean window; the original stays FAILED.
+- **SD-94 (A3, C1):** the three small fixes join the C7 source batch; the candidate is frozen after that batch
+  passes review and the full suite.
+- **SD-95 (Q-U1 to Q-U5, revision 4, C2):** answered as recommended above. Revision 4 stays proposed until its
+  different-family Review in the next Codex round.
+
+No campaign, native authority, cutover or acceptance of revision 4 follows.
+
 ## Not covered
 
 - The 2026-10-12 instruction that adopted 7.2.1 as the governing version and directed the rebase (workplan §0.4) was given in an earlier session and is not reproduced here. It remains recorded only as the workplan's paraphrase until the stakeholder restates it.
-- Acceptance of any marked product inspectability surface (none is marked) and of the mechanism catalogue beyond the settled register of the G2 workplan; the shadow genesis gate, campaigns, G3 and G4: these are later decisions. The architecture and the Manual were accepted at G1 (item 46, SD-50); G2 was authorized by item 51 (SD-55); the program name and data home were decided by item 52 (SD-56) and the approval key by item 53 (SD-57); the bounding rule of §6.5 by item 54 (SD-58); the Phase D threat boundary for the SSDS home by item 55 (SD-59); amendments A7 and A8 were accepted by item 56 (SD-60); SC-E1 was resolved by item 57 (SD-61, amendment A9) and A9 accepted by item 58 (SD-62); the SSDP 8.0 Amendment 1 handoff was routed to a later re-derivation by item 59 (SD-63); Phase F's questions and A10's open decisions were settled by item 60 (SD-64); A10 revision 1's re-Review was approved by item 61 (SD-65); A10 was accepted, and Q-F4 and Q-F5 settled, by item 62 (SD-66 to SD-68); Q-F6 and Q-F7 were settled by item 63 (SD-69); Q-F8 and Q-F9 by item 64 (SD-70); Q-F10 by item 65 (SD-71); Q-F11 by item 66 (SD-72); Q-F12 by item 67 (SD-73); Q-F13 and Q-F14 by item 68 (SD-74, SD-75); Q-F16 by item 69 (SD-76); Q-F17 and Q-F18 by item 70 (SD-77, SD-78); Q-F19 to Q-F26 by item 71 (SD-79 to SD-86); Q-F27 to Q-F29 by item 72 (SD-87 to SD-89); the upstream D1/D2 stages by item 77 (SD-90); SC-U4 by item 78 (SD-91). The shadow genesis was approved at Phase D step 7 by the stakeholder's own SSH signature over its digest, which the ledger records (`qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`); that signature is the record of the approval, so no instruction is reproduced for it here.
+- Acceptance of any marked product inspectability surface (none is marked) and of the mechanism catalogue beyond the settled register of the G2 workplan; the shadow genesis gate, campaigns, G3 and G4: these are later decisions. The architecture and the Manual were accepted at G1 (item 46, SD-50); G2 was authorized by item 51 (SD-55); the program name and data home were decided by item 52 (SD-56) and the approval key by item 53 (SD-57); the bounding rule of §6.5 by item 54 (SD-58); the Phase D threat boundary for the SSDS home by item 55 (SD-59); amendments A7 and A8 were accepted by item 56 (SD-60); SC-E1 was resolved by item 57 (SD-61, amendment A9) and A9 accepted by item 58 (SD-62); the SSDP 8.0 Amendment 1 handoff was routed to a later re-derivation by item 59 (SD-63); Phase F's questions and A10's open decisions were settled by item 60 (SD-64); A10 revision 1's re-Review was approved by item 61 (SD-65); A10 was accepted, and Q-F4 and Q-F5 settled, by item 62 (SD-66 to SD-68); Q-F6 and Q-F7 were settled by item 63 (SD-69); Q-F8 and Q-F9 by item 64 (SD-70); Q-F10 by item 65 (SD-71); Q-F11 by item 66 (SD-72); Q-F12 by item 67 (SD-73); Q-F13 and Q-F14 by item 68 (SD-74, SD-75); Q-F16 by item 69 (SD-76); Q-F17 and Q-F18 by item 70 (SD-77, SD-78); Q-F19 to Q-F26 by item 71 (SD-79 to SD-86); Q-F27 to Q-F29 by item 72 (SD-87 to SD-89); the upstream D1/D2 stages by item 77 (SD-90); SC-U4 by item 78 (SD-91); the compendium of open questions by item 79 (SD-92 to SD-95). The shadow genesis was approved at Phase D step 7 by the stakeholder's own SSH signature over its digest, which the ledger records (`qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`); that signature is the record of the approval, so no instruction is reproduced for it here.
