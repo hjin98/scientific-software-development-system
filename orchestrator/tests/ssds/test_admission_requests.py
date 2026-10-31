@@ -21,15 +21,48 @@ from ._fixtures import record, sshsig
 from .test_admission_genesis import GenesisFixture, product_state
 
 
-def finding(units=("guide",), materiality="ROUTINE", note: str | None = None) -> dict:
-    """A report; ``note`` goes into its free-form provenance, where the closed schema admits arbitrary text."""
+def finding(units=("guide",), materiality="ROUTINE", note: str | None = None, carrying: str | None = None) -> dict:
+    """A report; a ``note`` makes it a distinct record through its typed provenance (an attempt number keyed by the
+    note), since provenance carries no text (§3.2, C7; reading F125). ``carrying`` puts a token-shaped value in a
+    typed token member (``toolchain``), where the record's own scan must still find a secret. Text that is no
+    token goes in a stored object (:func:`stored`)."""
+
+    import hashlib
 
     from ssds.ledger.read import with_id
 
     rec = record("FINDING", target={"units": list(units)}, fields={"materiality": materiality})
     if note is not None:
-        rec = with_id({**rec, "provenance": {"note": note}})
+        rec = with_id({**rec, "provenance": {"attempt": int(hashlib.sha256(note.encode()).hexdigest()[:7], 16)}})
+    if carrying is not None:
+        rec = with_id({**rec, "provenance": {"toolchain": carrying}})
     return rec
+
+
+def signed_long() -> dict:
+    """A report with a string beyond a record string's bound in a typed token member, where the grammar (tokens stop
+    at 200 characters, F125) refuses it too. :func:`slot_long` is the bound alone."""
+
+    return finding(carrying="x" * 5000)
+
+
+def slot_long() -> dict:
+    """A task result whose slots carry a string beyond a record string's bound: an object-typed field the schema does
+    not type (deferred item D-C7-OBJECTS, F125), so the bound alone refuses it."""
+
+    return record("TASK_RESULT", target={"task": "t-1"}, outcome="COMPLETE", fields={"slots": {"x": "x" * 5000}})
+
+
+def stored(value) -> dict[str, str]:
+    """A request's ``objects`` holding ``value`` as one ``LEDGER``-store object: the legal surface for arbitrary
+    text, which Admission's bounded checks scan (§24.1)."""
+
+    import hashlib
+
+    from ssds.core.api.v1 import canonical_json
+
+    text = canonical_json(value).decode("utf-8")
+    return {"sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest(): text}
 
 
 def unbound(*codes: str) -> tuple[str, ...]:
@@ -194,17 +227,93 @@ class SchemaAndSecrets(RequestFixture):
         for value in ("-----BEGIN OPENSSH PRIVATE KEY-----", "ghp_" + "a1B2" * 9, "AKIA" + "ABCDEFGHIJKLMNOP",
                       "postgres://user:hunter2@db.example.org/x", "xoxb-" + "1234567890-abcdef"):
             with self.subTest(value=value[:12]):
-                self.assertRefused([finding(note=value)], "SECRET_DETECTED")
+                self.assertIn("SECRET_DETECTED", self.admit(self.request([finding()], objects=stored(value))).reasons)
+                if " " not in value:  # a token-shaped one is also found in the record's own typed field
+                    record_ = finding(carrying=value)
+                    self.assertEqual(self.admit(self.request([record_])).refused, ((record_["id"], ("SECRET_DETECTED",)),))
 
     def test_high_entropy_is_detected_but_not_in_digests_or_identities(self) -> None:
-        self.assertRefused([finding(note="Zq8vR2xK9mW4pT7nL3sY6cB1")], "SECRET_DETECTED")
-        decision = self.admit(self.request([finding(note="sha256:" + "a1" * 32)]))
-        self.assertNotIn("SECRET_DETECTED", {c for _, why in decision.refused for c in why})
+        self.assertRefused([finding(carrying="Zq8vR2xK9mW4pT7nL3sY6cB1")], "SECRET_DETECTED")
+        decision = self.admit(self.request([finding(carrying="sha256:" + "a1" * 32)]))
+        self.assertEqual(decision.refused, ())
 
     def test_bounds_are_enforced(self) -> None:
-        self.assertRefused([finding(note="x" * 5000)], "SCHEMA_BOUND")
+        self.assertIn("SCHEMA_OBJECT", self.admit(self.request([finding()], objects=stored("x" * (1 << 20)))).reasons)
+        self.assertRefused([signed_long()], "SCHEMA_BOUND")
         decision = self.admit(self.request([finding(note=str(i)) for i in range(257)]))
         self.assertIn("SCHEMA_BOUND", decision.reasons)
+
+
+class ProvenanceGrammar(RequestFixture):
+    """R-PROVENANCE-C7 (§3.2, C7; reading F125): Admission refuses narrative provenance and admits every typed shape
+    the program's producers stamp."""
+
+    def test_narrative_or_untyped_provenance_is_refused(self) -> None:
+        from ssds.ledger.read import with_id
+
+        sig = "-----BEGIN SSH SIGNATURE-----\n" + "A" * 70 + "\n-----END SSH SIGNATURE-----\n"
+        cases = {
+            "narrative": {"observation": "retained", "claim_limit": "bounded", "status": "reviewed"},
+            "empty": {}, "unknown member": {"reissue_of": "sha256:" + "ab" * 32, "note": "x"},
+            "text in a token member": {"model_family": "family a"}, "attempt as text": {"attempt": "narrow"},
+            "negative attempt": {"attempt": -1}, "boolean attempt": {"attempt": True}, "huge attempt": {"attempt": 2**31},
+            "run not a nonce": {"run": "run-1"}, "citation not a digest": {"reissue_of": "sha1:" + "c3" * 20},
+            "judge with a missing member": {"judge": {"lineage_class": "UNKNOWN", "route": "MANUAL"}},
+            "judge with an extra member": {"judge": {"lineage_class": "UNKNOWN", "route": "MANUAL",
+                                                     "model_family": None, "toolchain": None, "note": "x"}},
+            "approval not a signature": {"approval": {"actor": "human:x", "signature": "signed by me"}},
+            "approval with an extra member": {"approval": {"actor": "human:x", "signature": sig, "why": "x"}},
+            "approval on a record that is no lifecycle record": {"approval": {"actor": "human:x", "signature": sig}},
+            "approval by a non-human actor": {"approval": {"actor": "agent:x/1", "signature": sig}},
+            "a signature of 65 lines": {"approval": {"actor": "human:x", "signature": sig.replace(
+                "A" * 70 + "\n", ("A" * 70 + "\n") * 65)}},
+            "a signature with a trailing blank line": {"approval": {"actor": "human:x", "signature": sig + "\n"}},
+            "a list": [], "a string": "provenance",
+        }
+        for name, provenance in cases.items():
+            with self.subTest(name):
+                rec = with_id({**finding(), "provenance": provenance})
+                self.assertIn("SCHEMA_RECORD", dict(self.admit(self.request([rec])).refused)[rec["id"]])
+
+    def test_a_lifecycle_records_approval_is_exactly_a_human_armoured_signature(self) -> None:
+        """The approval member's own grammar, on the one tier that may carry it (F125): exact armour of at most
+        64 lines, a human actor, nothing after the trailer."""
+
+        from ssds.ledger.read import record_violations, with_id
+
+        sig = "-----BEGIN SSH SIGNATURE-----\n" + ("A" * 70 + "\n") * 4 + "-----END SSH SIGNATURE-----\n"
+        retirement = record("LINEAGE_RETIREMENT", target=None,
+                            fields={"successor": {"ledger_id": "demo-2", "genesis_digest": "sha256:" + "ab" * 32}})
+        good = {"actor": "human:SHA256:" + "A" * 43, "signature": sig}
+        self.assertEqual(record_violations(with_id({**retirement, "provenance": {"approval": good}})), [])
+        for name, approval in {"65 lines": {**good, "signature": sig.replace("A" * 70 + "\n", ("A" * 70 + "\n") * 17)},
+                               "a trailing blank line": {**good, "signature": sig + "\n"},
+                               "CRLF armour": {**good, "signature": sig.replace("\n", "\r\n")},
+                               "an agent actor": {**good, "actor": "agent:someone/1"},
+                               "a machinery actor": {**good, "actor": "machinery:runner@x"}}.items():
+            with self.subTest(name):
+                self.assertTrue(record_violations(with_id({**retirement, "provenance": {"approval": approval}})))
+
+    def test_every_producer_shape_is_admitted(self) -> None:
+        import secrets
+
+        from ssds.dispatcher import judge_provenance
+        from ssds.ledger.read import with_id
+
+        class Issued:
+            envelope = {"lineage_class": "HUMAN_ATTESTED_FRESH", "route": "MANUAL"}
+
+        shapes = [None, judge_provenance(Issued, None, None), judge_provenance(Issued, "family-a", "toolchain-1"),
+                  {"run": secrets.token_hex(16)}, {"report": secrets.token_hex(16)},
+                  {"reissue_of": "sha256:" + "ab" * 32}, {**judge_provenance(Issued, None, None),
+                                                          "reissue_of": "sha256:" + "ab" * 32},
+                  {"route": "HARNESS", "harness": "h-1", "model_family": "family-a", "model": "m-1", "attempt": 0,
+                   "toolchain": "tc-1"}]
+        for provenance in shapes:
+            with self.subTest(provenance=provenance):
+                rec = with_id({**finding(), "provenance": provenance})
+                # step 1 lists every record failing a record-level check, even in an unbound request (above)
+                self.assertNotIn(rec["id"], dict(self.admit(self.request([rec])).refused))
 
 
 class References(RequestFixture):
@@ -239,7 +348,7 @@ class SalvageAndQueue(RequestFixture):
 
     def test_an_authenticated_rejected_request_salvages_its_never_lost_records(self) -> None:
         issued = self.issue()
-        report, bad = self.bind(finding(), issued), self.bind(finding(note="ghp_" + "a1B2" * 9), issued)
+        report, bad = self.bind(finding(), issued), self.bind(finding(carrying="ghp_" + "a1B2" * 9), issued)
         decision = self.admit(self.signed(issued, [report, bad]))
         self.assertEqual(decision.decision, "REJECT")
         self.assertEqual(decision.admitted, (report["id"],))
@@ -298,7 +407,7 @@ class StepTwoReview(RequestFixture):
         issued = self.issue()
         good = self.bind(finding(), issued)
         broken = self.bind({**finding(materiality="MATERIAL"), "id": "sha256:" + "f" * 64}, issued, keep_id=True)
-        secret = self.bind(finding(note="ghp_" + "a1B2" * 9), issued)
+        secret = self.bind(finding(carrying="ghp_" + "a1B2" * 9), issued)
         dangling = self.bind(record("FINDING", target={"records": [secret["id"]]}, fields={"materiality": "ROUTINE"}), issued)
         digest, text = ledger_object({"token": "Zq8vR2xK9mW4pT7nL3sY6cB1Hk5Jd0Fg"})
         decision = self.admit(self.signed(issued, [good, broken, secret, dangling], extra={"extra": True},
@@ -349,8 +458,16 @@ class StepTwoReview(RequestFixture):
     def test_b5_a_secret_never_hides_under_an_identity_key_name(self) -> None:
         from ssds.ledger.read import with_id
 
-        hidden = with_id({**finding(), "provenance": {"signature": "Zq8vR2xK9mW4pT7nL3sY6cB1Hk5Jd0Fg"}})
-        self.assertEqual(self.admit(self.request([hidden])).refused, ((hidden["id"], ("SECRET_DETECTED",)),))
+        # C7 leaves no free key to hide under (reading F125); identity-named typed members are still scanned
+        secret = "Zq8vR2xK9mW4pT7nL3sY6cB1Hk5Jd0Fg"
+        for provenance in ({"model": secret}, {"judge": {"lineage_class": "UNKNOWN", "route": secret,
+                                                         "model_family": None, "toolchain": None}}):
+            hidden = with_id({**finding(), "provenance": provenance})
+            with self.subTest(provenance=list(provenance)):
+                self.assertEqual(self.admit(self.request([hidden])).refused, ((hidden["id"], ("SECRET_DETECTED",)),))
+        named = with_id({**finding(), "provenance": {"approval": {"actor": "human:x", "signature": secret}}})
+        self.assertIn("SECRET_DETECTED", dict(self.admit(self.request([named])).refused)[named["id"]],
+                      "a value under the key `signature` is scanned unless it is an armoured signature")
 
     def test_b6_untrusted_input_is_rejected_and_never_blocks_the_queue(self) -> None:
         for bad in (self.request([finding()], base_position=0.5), self.request([finding()], claims=[{"x": 1}]),
@@ -388,7 +505,7 @@ class StepTwoReview(RequestFixture):
     def test_b8_the_remaining_credential_forms_and_request_fields(self) -> None:
         for value in ("github_pat_" + "A1b2" * 11, "sk-" + "A1b2C3d4" * 3, "AIza" + "B" * 35):
             with self.subTest(value=value[:12]):
-                self.assertEqual(self.admit(self.request([finding(note=value)])).refused[0][1], ("SECRET_DETECTED",))
+                self.assertEqual(self.admit(self.request([finding(carrying=value)])).refused[0][1], ("SECRET_DETECTED",))
         self.assertIn("SECRET_DETECTED", self.admit(self.request([finding()], binding={"note": "ghp_" + "a1B2" * 9})).reasons)
 
     def test_b8_the_identity_is_the_catalogue_formula(self) -> None:
@@ -400,8 +517,10 @@ class StepTwoReview(RequestFixture):
         self.assertEqual(request_id(req), "sha256:" + hashlib.sha256(b"ssds.request.v1" + canonical_json(req)).hexdigest())
 
     def test_b8_bounds_trigger_exactly_their_code(self) -> None:
-        long = finding(note="x" * 5000)
+        long = slot_long()
         self.assertEqual(self.admit(self.request([long])).refused, ((long["id"], ("SCHEMA_BOUND",)),))
+        both = signed_long()
+        self.assertEqual(self.admit(self.request([both])).refused, ((both["id"], ("SCHEMA_BOUND", "SCHEMA_RECORD")),))
 
 
 class StepTwoRereview(RequestFixture):

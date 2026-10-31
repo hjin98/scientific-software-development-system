@@ -133,7 +133,7 @@ def protected_touched(frame: Any, policy: Any, policy_path: str | None) -> list[
     view = frame.view
     protected = protected_surfaces(view, policy, policy_path)
     found: list[tuple[str, tuple[str, ...]]] = [
-        (f"{u} is a protected surface", (u,)) for u in sorted(frame.write_set)
+        (f"{u} contains a protected surface", (u,)) for u in sorted(frame.write_set)
         if any(intersects(view, protected, a[1], a[2], a[3]) for a in _region_atoms(frame, u))]
     for path, (before, after) in frame.changed_files.items():
         length = max(len(before or b""), len(after or b""))

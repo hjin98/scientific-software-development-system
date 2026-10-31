@@ -39,6 +39,12 @@ from ssds.ledger.signatures import HostKey, entry_message
 from ._fixtures import approve, commit, entry, genesis_record, human_key, init_repo, record
 
 
+def orphan_id() -> str:
+    """A citation that is no record identity (a digest's grammar with the wrong prefix)."""
+
+    return "sha1:" + "c3" * 20
+
+
 class LedgerFixture(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -220,6 +226,39 @@ class ChainVerification(LedgerFixture):
                 self.assertEqual((chain.halt, chain.readable_through), (1, 0), chain.halt_reasons)
                 self.assertTrue(any('reason outside' in p or 'FINDING cannot block' in p
                                     for p in chain.halt_reasons), chain.halt_reasons)
+
+    def test_authenticated_narrative_provenance_halts_without_grandfathering(self) -> None:
+        """R-PROVENANCE-C7 (§3.2, C7; reading F125): an admitted record whose provenance carries narrative halts
+        authenticated reading at its position; every typed shape the producers stamp reads."""
+
+        from ssds.ledger.read import with_id
+
+        raws = self.raws()
+        previous = json.loads(raws[1].files['entry.json'])['prev']
+        good = record('FINDING', target={'units': ['readme']}, fields={'materiality': 'ROUTINE'})
+        admitted = {'request_id': 'sha256:' + '1' * 64, 'decision': 'ACCEPT', 'reasons': [],
+                    'base_commit': self.baseline, 'admitted_commit': self.baseline,
+                    'adopted_deltas': [], 'integrates': None, 'refused': []}
+        body = entry('demo', 1, previous, self.key, kind='ADMISSION', obs=self.baseline,
+                     admission=admitted, records=[good])
+        typed = [None, {'run': '0f' * 16}, {'report': 'a1' * 16}, {'reissue_of': 'sha256:' + 'b2' * 32},
+                 {'judge': {'lineage_class': 'ATTESTED_FRESH', 'route': 'HARNESS', 'model_family': None,
+                            'toolchain': None}},
+                 {'route': 'HARNESS', 'harness': 'h-1', 'model_family': 'family-a', 'model': None, 'attempt': 2,
+                  'toolchain': 'tc-1'}]
+        for provenance in typed:
+            with self.subTest(typed=provenance):
+                ok = {**body, 'records': [with_id({**good, 'provenance': provenance})]}
+                self.assertIsNone(verify_chain('demo', [raws[0], self.resigned(raws[1], ok)]).halt)
+        narrative = {'observation': 'the policy object is retained', 'claim_limit': 'bounded', 'prepared_by':
+                     'agent', 'status': 'reviewed'}  # position 6's keys on the real shadow ledger
+        for provenance in (narrative, {}, {'attempt': 'narrow'}, {'reissue_of': orphan_id()},
+                           {'judge': {'lineage_class': 'ATTESTED_FRESH', 'route': 'HARNESS'}}):
+            with self.subTest(narrative=provenance):
+                bad = {**body, 'records': [with_id({**good, 'provenance': provenance})]}
+                chain = verify_chain('demo', [raws[0], self.resigned(raws[1], bad)])
+                self.assertEqual((chain.halt, chain.readable_through), (1, 0), chain.halt_reasons)
+                self.assertTrue(any('provenance' in p for p in chain.halt_reasons), chain.halt_reasons)
 
     def test_an_unreadable_schema_version_is_not_corruption(self) -> None:
         raws = self.raws()

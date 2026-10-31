@@ -317,7 +317,7 @@ class Refused(Retained):
         issued, req = self.resubmit()
         (rec,) = req["records"]
         forged = with_id({**rec, "provenance": {**rec["provenance"], "model_family": "forged"}})
-        twin = with_id({**rec, "provenance": {**rec["provenance"], "note": "twin"}})
+        twin = with_id({**rec, "provenance": {**rec["provenance"], "attempt": 1}})
         for records in ([forged], [rec, twin]):
             with self.subTest(records=len(records)):
                 bad = {**req, "records": records}

@@ -168,7 +168,8 @@ class ReviewBriefs(unittest.TestCase):
         result["binding"] = dict(fresh(agent("maker"), "t-1"), obligation=f.item().obligation.id,
                                  item={"unit": "plan.work.item", "rev": f.sc.rev("plan.work.item")})
         result["refs"] = [{"store": "REPO", "digest": "sha256:" + "9" * 64, "media_type": "text/markdown"}]
-        result["provenance"] = {"narrative": "AUTHOR-NARRATIVE-MARKER"}
+        # the author's own provenance, in a typed member since C7 admits no narrative there (reading F125)
+        result["provenance"] = {"toolchain": "AUTHOR-NARRATIVE-MARKER"}
         f.sc.admit(with_id(result))
         return f, x, cand, result
 

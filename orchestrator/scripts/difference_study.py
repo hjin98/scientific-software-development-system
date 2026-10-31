@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from shadow_boundary import differences, git, outside, snapshot  # noqa: E402
 from ssds.admission.genesis import AdmissionHome, GenesisSpec, admit_genesis, prepare_genesis  # noqa: E402
 from ssds.admission.request import expected_head, observe_only, shadow_boundary  # noqa: E402
-from ssds.content import ancestry, read_tree  # noqa: E402
+from ssds.content import GitReadError, ancestry, read_tree  # noqa: E402
 from ssds.core.api.v1 import canonical_json  # noqa: E402
 from ssds.derivation import Consequences, Frame, Transformation, Workflow, derive, protected_touched  # noqa: E402
 from ssds.derivation import baseline  # noqa: E402
@@ -264,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("SSDS_HOME must explicitly name a new scratch home")
     try:
         report = study(args.repository, args.candidate, Path(home), real_baseline=args.baseline)
-    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+    except (ValueError, OSError, subprocess.SubprocessError, GitReadError) as exc:
         parser.exit(1, f"difference study refused: {exc}\n")
     print(json.dumps({"report": str(Path(home).resolve() / "difference-study.json"), **report["summary"]}))
     return 0

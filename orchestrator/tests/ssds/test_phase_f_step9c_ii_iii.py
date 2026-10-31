@@ -41,7 +41,7 @@ def narrow_incomplete(r: Runs, head: str) -> dict:
                                     "claim": [{"unit": "code", "rev": view.rev("code")}]}, "INCOMPLETE",
                     actor=f"machinery:dispatcher@{RUNNER_KEY}", actor_class="MACHINERY",
                     fields={"execution": basis, "configuration": {"regime": "default"}})
-    real = with_id({**real, "provenance": {"attempt": "narrow"}})
+    real = with_id({**real, "provenance": {"attempt": 1}})
     r.sc.admit(real)
     return real
 
@@ -64,7 +64,7 @@ def other_anchor(r: Runs, head: str) -> dict:
                                     "claim": [{"unit": "code", "rev": view.rev("code")}]}, "INCOMPLETE",
                     actor=f"machinery:dispatcher@{RUNNER_KEY}", actor_class="MACHINERY",
                     fields={"execution": basis, "configuration": {"regime": "default"}})
-    real = with_id({**real, "provenance": {"attempt": f"other-{head}"}})
+    real = with_id({**real, "provenance": {"attempt": int(head[:7], 16)}})
     r.sc.admit(real)
     return real
 

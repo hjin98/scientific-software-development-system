@@ -200,6 +200,23 @@ class Study(GenesisFixture):
 
 
 
+class StudyRefusals(unittest.TestCase):
+    def test_a_content_read_error_is_a_refusal_not_a_traceback(self):
+        """A missing commit or blob raises ``GitReadError``; the study reports it as refused (review of e4a2590d)."""
+        import contextlib
+        import io
+
+        from ssds.content import GitReadError
+
+        err = io.StringIO()
+        with patch.dict(os.environ, {'SSDS_HOME': '/nonexistent/scratch'}), \
+                patch.object(study, 'study', side_effect=GitReadError('object x is missing')), \
+                contextlib.redirect_stderr(err), self.assertRaises(SystemExit) as stop:
+            study.main(['--repository', '.', '--candidate', 'a' * 40])
+        self.assertEqual(stop.exception.code, 1)
+        self.assertIn('difference study refused: object x is missing', err.getvalue())
+
+
 def per_object_read_raw(repo, head):
     """The reader before the cost repair, a process per object: the oracle the batched reader must equal."""
     from ssds.ledger.read import ChainRejected, RawEntry

@@ -2676,7 +2676,10 @@ print(json.dumps({**before,'signed_refusal_verified':True,'appended':False,'atte
 
 ## R-PROVENANCE-C7 remediation decision prepared for the stakeholder
 
-Status: **proposed, unaccepted; no deployment or lifecycle action authorized by this text**. Asserter: AI
+Status: **proposed, unaccepted; no deployment or lifecycle action authorized by this text**. **Decided since (2026-10-30):** the
+stakeholder chose route 2, retirement and a fresh shadow genesis (SD-92, item 79), with a new human key for the
+successor (SD-96, item 80) and 10d closing only on a new clean append (SD-93). Reading F125 and the
+retirement/genesis runbook own the execution; this section stays the decision's background. Asserter: AI
 implementing agent, Codex family. The signed-refusal result above changes none of this decision's premises.
 
 The frozen Manual at `39ad6f13980edb2f27e8e72236351038eb49c334`, §3.2/C7, requires typed non-narrative

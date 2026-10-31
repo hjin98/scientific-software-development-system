@@ -27,6 +27,8 @@ UNIT_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}(?:\.[a-z0-9][a-z0-9_-]{0,62})*(
 ACTOR_RE = re.compile(r"^(?:human|agent|machinery|admission):[\x21-\x7e]{1,200}$")
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_.:/@+-]{1,200}$")
 TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
+NONCE_RE = re.compile(r"^[0-9a-f]{32}$")
+SSHSIG_RE = re.compile(r"-----BEGIN SSH SIGNATURE-----\n(?:[A-Za-z0-9+/=]{1,76}\n){1,64}-----END SSH SIGNATURE-----\n?")
 
 ACTOR_CLASSES = frozenset({"HUMAN", "AGENT", "MACHINERY", "ADMISSION"})
 BASIS_MODES = frozenset({"content", "validity", "execution", "record", "standing", "identity"})
@@ -292,12 +294,34 @@ _ENVELOPE_REQUIRED: dict[str, Check] = {
          "envelope": is_digest})),
     "governs": lambda v: shape({"mode": one_of("NATIVE"), "ruleset": is_token})(v)
     or shape({"mode": one_of("LEGACY"), "protocol": is_token})(v),
-    "provenance": lambda v: v is None or isinstance(v, dict),
+    "provenance": lambda v: v is None or _PROVENANCE(v),
     "refs": list_of(shape({"store": one_of("LEDGER", "REPO", "HOME", "RUNNER"), "digest": is_digest,
                            "media_type": is_token}, {"locator": is_token})),
     "recorded_at": lambda v: isinstance(v, str) and bool(TIMESTAMP_RE.match(v)),
     "fields": is_json_object,
 }
+
+#: Execution provenance (§3.2, C7; Phase F reading F125): ``null`` or a non-empty object of typed members, never
+#: narrative, which belongs in a referenced object. Catalogue §3.2's members, and those the program's producers stamp:
+#: a judge's audit facts (``dispatcher.judge_provenance``), a runner's run and report nonces (``dispatcher.realize``),
+#: a resubmission's citation (``admission.request``) and a lifecycle record's human approval (``admission.engine``).
+_PROVENANCE_MEMBERS: dict[str, Check] = {
+    "route": is_token,
+    "harness": is_token,
+    "model_family": optional(is_token),
+    "model": optional(is_token),
+    "attempt": lambda v: is_int(v) and v < 2**31,
+    "toolchain": optional(is_token),
+    "judge": shape({"lineage_class": one_of("ATTESTED_FRESH", "HUMAN_ATTESTED_FRESH", "UNKNOWN"), "route": is_token,
+                    "model_family": optional(is_token), "toolchain": optional(is_token)}),
+    "run": lambda v: isinstance(v, str) and bool(NONCE_RE.match(v)),
+    "report": lambda v: isinstance(v, str) and bool(NONCE_RE.match(v)),
+    "reissue_of": is_digest,
+    "approval": shape({"actor": lambda v: isinstance(v, str) and v.startswith("human:") and bool(ACTOR_RE.match(v)),
+                       "signature": lambda v: isinstance(v, str) and bool(SSHSIG_RE.fullmatch(v))}),
+}
+_PROVENANCE = lambda v: bool(v) and shape({}, _PROVENANCE_MEMBERS)(v)  # noqa: E731 - one check among the table's
+
 
 _BASIS_TARGET = {
     "content": UNIT_REV,
@@ -402,6 +426,8 @@ def record_violations(record: Any) -> list[str]:
         problems.append(f"reason outside the {record['kind']} vocabulary")
     if record["kind"] == "FINDING" and fields.get("blocking") is True:
         problems.append("FINDING cannot block")
+    if isinstance(record["provenance"], dict) and "approval" in record["provenance"] and spec.tier != "lifecycle":
+        problems.append("only a lifecycle record carries a human approval in its provenance")  # F125
     if set(fields) - set(spec.fields):
         problems.append(f"unknown kind fields {sorted(set(fields) - set(spec.fields))}")
     if spec.required - set(fields):

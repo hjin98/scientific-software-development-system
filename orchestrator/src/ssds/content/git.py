@@ -115,11 +115,13 @@ def _cat_blobs(repo: Path, oids: list[str]) -> dict[str, bytes]:
     for oid in unique:
         header_end = out.find(b"\n", position)
         fields = out[position:header_end].decode("ascii", "replace").split(" ") if header_end >= 0 else []
+        if len(fields) == 2 and fields[0] == oid:  # "<oid> missing" or "<oid> ambiguous"
+            raise GitReadError(f"object {oid} is {fields[1]}")
         if len(fields) != 3 or fields[0] != oid or fields[1] != "blob" or not fields[2].isdigit():
-            raise GitReadError(f"unexpected object {' '.join(fields) or 'output'} for {oid}")  # "<oid> missing"
+            raise GitReadError(f"unexpected answer for blob {oid}: {' '.join(fields) or 'no output'}")
         start, size = header_end + 1, int(fields[2])
         if start + size >= len(out) or out[start + size] != 0x0A:
-            raise GitReadError(f"truncated object {oid}")
+            raise GitReadError(f"blob {oid} is truncated or malformed in cat-file's output")
         contents[oid] = out[start : start + size]
         position = start + size + 1
     return contents

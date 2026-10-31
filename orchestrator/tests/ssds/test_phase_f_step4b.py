@@ -287,7 +287,7 @@ class Recheck(RequestFixture):
         closed = self.bind(finding(note="closed"), reviewer)
         closed = with_id({**closed, "binding": {**closed["binding"], "lineage": [session, "session:X"]}})
         open_ = with_id({**closed, "binding": {**closed["binding"], "lineage": [session, "session:X", "UNKNOWN"]},
-                         "provenance": {"note": "open"}})
+                         "provenance": {"attempt": 1}})
         decision = self.admit(self.signed(reviewer, [closed, open_]))
         self.assertEqual(decision.admitted, (open_["id"],), "session:X's closure stays open")
         self.assertEqual(dict(decision.refused)[closed["id"]], ("AUTH_ENVELOPE",))
@@ -949,7 +949,7 @@ class Reissue(RequestFixture):
                  "another lineage class": (with_id({**orphan, "binding": {**rebound, "lineage_class": "ATTESTED_FRESH"},
                                                     "provenance": {"reissue_of": orphan["id"]}}), True),
                  "another provenance": (with_id({**orphan, "binding": rebound,  # review of 26907956, B2
-                                                 "provenance": {"reissue_of": orphan["id"], "note": "x"}}), True)}
+                                                 "provenance": {"reissue_of": orphan["id"], "attempt": 1}}), True)}
         for name, (resubmitted, still_open) in cases.items():
             with self.subTest(name=name):
                 entry = self.admission.admission_entry(head, self.baseline, "sha256:" + "0" * 64, "ACCEPT", [],
