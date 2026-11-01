@@ -93,10 +93,11 @@ def main() -> int:
             now, then = read["ledgers"], json.loads(FROZEN_READ.read_text())["ledgers"]
             record["home"], record["ssds"] = read["home"], read["ssds"]
             record["differences"] = [] if read["home"] == str(Path.home() / ".ssds") else [f"home {read['home']}"]
-            record["differences"] += [f"{ledger}.{k}: {now.get(ledger, {}).get(k)!r}, at 8cf829c3 {then[ledger].get(k)!r}"
-                                     for ledger in sorted(set(now) | set(then))
-                                     for k in sorted(set(now.get(ledger, {})) | set(then.get(ledger, {})))
-                                     if now.get(ledger, {}).get(k) != then.get(ledger, {}).get(k)]
+            record["differences"] += [f"{ledger}.{k}: {now.get(ledger, {}).get(k)!r}, "
+                                      f"at 8cf829c3 {then.get(ledger, {}).get(k)!r}"
+                                      for ledger in sorted(set(now) | set(then))
+                                      for k in sorted(set(now.get(ledger, {})) | set(then.get(ledger, {})))
+                                      if now.get(ledger, {}).get(k) != then.get(ledger, {}).get(k)]
     except BaseException as exc:  # the compare still runs
         record["interrupted"] = f"{type(exc).__name__}: {exc}"
     finally:
