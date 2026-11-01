@@ -27,8 +27,8 @@ CURRENT: runbook A-C executed 2026-10-31. ssdp-shadow-3 (genesis 9d404721, basel
 BLOCKERS: the original append boundary FAILED/contaminated, and ssdp-shadow-2's accepted AVAILABILITY breaks C7;
         both stay recorded on the retired ledger. 10d is incomplete until a clean signed append on ssdp-shadow-3
         (SD-93). Program QUALIFIED is not full architecture conformance.
-NEXT: 10d on ssdp-shadow-3 per F126 (review PASS; Q-F30 answered by SD-97): the wrapper and helpers, the
-      scratch rehearsal, then W1-W9; no real request is prepared before the rehearsal passes; frozen 11b with classification and the other-family review (SD-95); step 12 and
+NEXT: 10d on ssdp-shadow-3 per F126 (Q-F30 answered by SD-97; tools reviewed and repaired, rehearsal 2 PASS):
+      the real W1-W9, once the stakeholder authorizes it; frozen 11b with classification and the other-family review (SD-95); step 12 and
       acceptance. Required unexecuted work is not passed.
 EVIDENCE: for ssdp-shadow-2, the canonical 10d evidence owns native results and the C7 route, and the pending-
         requests record its (closed) signatures; for ssdp-shadow-3, the retirement runbook owns A-C and F126's new
@@ -4387,3 +4387,4 @@ Notes taken up:
 - The tools' digests are recorded per window, and PREFLIGHT-A's digest is enforced.
 - A read-only READ window was added.
 F126 changes only in the multi-command list, W3 and READ. The rehearsal is re-run from a fresh home with the repaired tools.
+Rehearsal 2, from a fresh scratch home with the repaired tools of `76a283b4`, passed all 16 windows (G1-W9 and READ) with every output check met. The real run W1-W9 waits on the stakeholder's authorization; nothing is prepared on `ssdp-shadow-3`.

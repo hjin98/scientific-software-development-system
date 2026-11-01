@@ -3,8 +3,8 @@ Governing SSDP version: 7.2.1.
 # SSDS 8 Phase F — step 10d on `ssdp-shadow-3`: evidence
 
 ```text
-STATUS: tools repaired after their review (plan revision 71); rehearsal 2 from a fresh home is next. No real
-        window has run and nothing is prepared on ssdp-shadow-3.
+STATUS: REHEARSAL 2 PASS (16 windows, repaired tools of 76a283b4, 2026-11-01). The real run needs the
+        stakeholder's authorization; no real window has run and nothing is prepared on ssdp-shadow-3.
 AUTHORITY: plan reading F126 (revision 69, review PASS); SD-93 (10d closes only on a later clean signed append);
            SD-97 (item 81, Q-F30 (a): the FINDING and the policy object's AVAILABILITY).
 SHADOW: no SSDS authority over any subject; nothing is carried from ssdp-shadow-2 (F44).
@@ -121,6 +121,23 @@ This rehearsal uses a fresh scratch home, `/tmp/claude-1000/ssds-10d-rehearsal/h
 | W1 | PASS | `76a283b4` absorbed at position 1 (output check met) |
 | W2 | PASS | `status` check met; helper `state` reports no problems (reserved leaves, empty quarantine, policy unchanged and held, availability `null`) |
 | W3 | PASS | operator state unchanged across `dispatcher serve` (2 files fingerprinted before and after); `would_issue: []`, `issued: []` |
+| W4a | PASS | FINDING built at position 1, narrative blob `bce87d68…8ef2` of `dedcc936` (this file), shown to carry the position-1 head `sha256:63c6a58e…38b9`; prepared as request `sha256:84b3dbab…68f0`, record `sha256:4397f173…08d3`. Checks clean, the record content shown |
+| W4b | PASS | absorbed `dedcc936` at 2, then `ACCEPT` at 3 (output check met) |
+| W5a | PASS | AVAILABILITY of the policy object, prepared as request `sha256:6f9d4b54…f738`. Checks clean |
+| W5b | PASS | `ACCEPT` at 4 |
+| W6 | PASS | the second serve absorbs nothing. Chain: genesis, two absorptions, the FINDING and the AVAILABILITY; nothing follows the last admission. Policy availability `AVAILABLE` |
+| W7a | PASS | ACKNOWLEDGE of obligation `sha256:a37bd8b9…0da9`, prepared as request `sha256:93120e64…dc5f`. Checks clean |
+| W7b | PASS | baseline 5 entries, obligation `OPEN`; `decide --admit` exited 1 with exactly the F1 refusal |
+| W7c | PASS | signature verified independently; nothing appended; obligation `OPEN`; one `boundary.jsonl` line, under the signed request's identity |
+| W8 | PASS | candidate refused at entry, nothing appended, one line logged |
+| W9 | PASS | extract matched (133 files); both reads give 5 entries, `QUALIFIED`, no record violation; output checks met (in the rehearsal the retired ledgers are not read) |
+| READ | PASS | `status` and `state`, read-only |
+
+Every window's preconditions held, including the `.ssds/` and `orchestrator/` move check and PREFLIGHT-A's
+digest. Each window record carries the tools' digests, and every compare reported the repository unchanged.
+Rehearsal 2 passes with the repaired tools. It proves the path, not the real admission, and its throwaway
+signatures are no evidence of the stakeholder's approval. The real run is the next step and needs the
+stakeholder's authorization.
 
 ### Rehearsal 2 W2: `inspect` output (rehearsal 2's FINDING narrative home)
 
