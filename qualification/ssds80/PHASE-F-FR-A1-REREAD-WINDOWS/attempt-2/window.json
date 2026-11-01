@@ -1,0 +1,35 @@
+{
+  "at": "2026-11-01T20:47:07.119710+00:00",
+  "candidate": "c8122d66edbf7d19320f7b155e0c31033566b854",
+  "ignored_under_src": [
+    "!! orchestrator/src/ssds.egg-info/"
+  ],
+  "tools_sha256": {
+    "PHASE-F-FR-A1-REREAD-WINDOW.py": "71ecdbd4686f5868e739dbfeada0ca969bc373da4be7408ff52815d6ec38d610",
+    "shadow_boundary.py": "79770bc29f27fe1ba773b7c98270b32c7e82f23cd04b334ae00222a33a757722",
+    "W9-c7.json": "553bf4116f6ad6ad41559f0f6f339720a269976f0e9fa643258f931b9a26f6a2",
+    "preflight-a.py": "f2fecb328d47ad676f83a119887083c637330cf3489e90aa9aa8323fc582a969"
+  },
+  "command": [
+    "/tmp/claude-1000/ssds-runtime-20261030/bin/python",
+    "-I",
+    "-B",
+    "/tmp/claude-1000/ssds-fra1-reread-c8122d66-2/preflight-a.py",
+    "--tree",
+    "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/src",
+    "--out",
+    "/tmp/claude-1000/ssds-fra1-reread-c8122d66-2/reread.json",
+    "--ledgers",
+    "ssdp-shadow-3",
+    "ssdp-shadow-2",
+    "ssdp-shadow"
+  ],
+  "read_exit": 0,
+  "home": "/home/samjin/.ssds",
+  "ssds": "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/src/ssds/__init__.py",
+  "differences": [],
+  "compared": true,
+  "compare_exit": 0,
+  "before_sha256": "54febb450a765e95b183cfbf2449dad497df3a95eb9d422386daf68fecc49e7a",
+  "result": "PASS"
+}

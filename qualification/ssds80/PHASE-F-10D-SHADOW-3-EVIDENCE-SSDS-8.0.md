@@ -359,7 +359,8 @@ carrier (F1), and the attention obligation stays `OPEN`.
 
 Limits:
 - 10d closes on the frozen `8cf829c3`, whose ledger grammar has the FR-A1 defect (plan revision 72). The repaired
-  reader re-reads these ledgers afterwards; that result, not this one, shows whether FR-A1 touches them.
+  reader at `c8122d66` re-read all three ledgers in a passing window (plan revision 75, re-read attempt 2), and
+  every field equals W9's: FR-A1 touches no record on them.
 - The raw logs of W1-W5a are lost to the reboot (above).
 - Program `QUALIFIED` is not full architecture conformance, and nothing here gives SSDS authority over any subject.
 

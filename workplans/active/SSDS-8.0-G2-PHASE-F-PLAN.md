@@ -30,10 +30,11 @@ CURRENT: runbook A-C executed 2026-10-31. ssdp-shadow-3 (genesis 9d404721, basel
 BLOCKERS: none open at the candidate's source: the narrow other-family re-check passed A (FR-A1) and B
         (D-GRAMMAR-ENDPOINTS), and its two tool blockers RC-C1 (classifier) and RC-D1 (re-read window) are
         repaired, not re-checked. 11b re-ran COMPLETE at c8122d66 (942 observations, 696 (iii), 246 (v); the 308
-        frozen rows identical). Re-read attempt 1 read equal to W9 but FAILED its compare (concurrent review).
+        frozen rows identical). Re-read attempt 2 PASS: all three ledgers read under the repaired reader equal
+        W9's frozen read field for field, compare 0 (attempt 1 FAILED its compare during the review).
         G2 revision 4 accepted (SD-99); root regression passes. Program QUALIFIED is not full architecture
         conformance.
-NEXT: re-read attempt 2 (SD-98); then step 12 and acceptance. Whether RC-C1/RC-D1 get an other-family check is
+NEXT: step 12 and acceptance. Whether RC-C1/RC-D1 get an other-family check is
       the stakeholder's call. Required unexecuted work is not passed.
 EVIDENCE: for ssdp-shadow-2, the canonical 10d evidence owns native results and the C7 route, and the pending-
         requests record its (closed) signatures; for ssdp-shadow-3, the retirement runbook owns A-C and F126's new
@@ -4553,3 +4554,11 @@ four tools (SD-100).
   - It ran the window script before RC-D1's repair. Its outcome does not depend on that repair, because the
     comparison finished and the compare failed.
   - Attempt 2 runs with the repaired script and a new out directory, now that the review has finished (SD-98).
+- **Re-read attempt 2: `PASS`** (SD-98; repaired script; the review had finished).
+  - `PHASE-F-FR-A1-REREAD-WINDOWS/attempt-2/`: read exit 0, comparison finished, `differences: []`, compare 0
+    ("unchanged since before.json"; `before.json` sha256 `54febb450a765e95b183cfbf2449dad497df3a95eb9d422386daf68fecc49e7a`).
+  - Under the FR-A1-repaired reader, `ssdp-shadow-3` reads `QUALIFIED` with 6 entries and no violation,
+    `ssdp-shadow-2` reads `INTEGRITY_HALT` at 6, and `ssdp-shadow` reads `RETIRED`: every field as the `8cf829c3`
+    reader read in W9.
+  - So FR-A1 touches no record on any ledger, revision 72's step 5 is met, and 10d's closure on `8cf829c3` stands
+    as disclosed.
