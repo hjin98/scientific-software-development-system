@@ -211,7 +211,8 @@ def steps(mode: str, window: str, name: str, a: argparse.Namespace) -> list[tupl
                                  str(PRE_C7_EXTRACT / "orchestrator" / "src"), "--out", str(pre),
                                  "--ledgers", *m["ledgers"]], 0, (pre, read_back(mode, "pre-c7")))]
     if window == "READ":  # read-only: what the ledger holds, e.g. after a FAILED window (F126)
-        return [("status", [*cli, "status", *where], 0, None), ("state", [*helper, "state", *where], 0, None)]
+        # state first: status exits 1 without a current assertion, which is likely after a FAILED window (re-check)
+        return [("state", [*helper, "state", *where], 0, None), ("status", [*cli, "status", *where], 0, None)]
     raise SystemExit(f"no window {window}")
 
 

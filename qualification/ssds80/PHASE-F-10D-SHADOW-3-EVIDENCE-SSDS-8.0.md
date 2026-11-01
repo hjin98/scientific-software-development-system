@@ -32,7 +32,7 @@ drops every `PYTHON*` variable. Each step's outcome is one of:
 |---|---|---|
 | `PHASE-F-10D-SHADOW-3-RUN.py` | F126's one entry point: interpreter, mode, home and ledger checks before any SSDS import; `cli` and `script` forms; module-origin assertion | `a3f05b3ff88a0a49d9894db41312e14d5c83d7e69b272d024a79bb0d682ef257` |
 | `PHASE-F-10D-SHADOW-3-HELPER.py` | the fixed helper: `state` (W2, W6, READ), `records` and `check` (W4a, W5a, W7a), `operator-state` (W3), `baseline` (W7b), `verify-decide` (W7c), `candidate` (W8) | `6cb4e8a6af8114760f6c80e48bc1cf35a83d37da8b028d5b7025bd00cd9bc6a0` |
-| `PHASE-F-10D-SHADOW-3-WINDOW.py` | the window runner: preconditions, snapshot, the fixed commands with their output checks, compare | `ec59ce6b38fd5e633cb2cc0b335e9929031b2f0a0cc7a714e5f1065b98aadf32` |
+| `PHASE-F-10D-SHADOW-3-WINDOW.py` | the window runner: preconditions, snapshot, the fixed commands with their output checks, compare | `49d6c98bee0192c403770e0831516c4ebf17dfd59a36565cd65985aa327637fc` |
 | `PHASE-F-RETIREMENT-2-PREFLIGHT-A.py` | W9's read-back (unchanged) | `f2fecb328d47ad676f83a119887083c637330cf3489e90aa9aa8323fc582a969` |
 | `orchestrator/scripts/shadow_boundary.py` | the boundary sensor (frozen source) | `79770bc29f27fe1ba773b7c98270b32c7e82f23cd04b334ae00222a33a757722` |
 | `orchestrator/scripts/shadow_genesis.py` | the rehearsal's scratch genesis only (frozen source; refused in `--mode real`) | `50254ac27051f63fbef9aaaab1581e210191dd7135f3feec56736b573208da01` |
@@ -131,7 +131,15 @@ This rehearsal uses a fresh scratch home, `/tmp/claude-1000/ssds-10d-rehearsal/h
 | W7c | PASS | signature verified independently; nothing appended; obligation `OPEN`; one `boundary.jsonl` line, under the signed request's identity |
 | W8 | PASS | candidate refused at entry, nothing appended, one line logged |
 | W9 | PASS | extract matched (133 files); both reads give 5 entries, `QUALIFIED`, no record violation; output checks met (in the rehearsal the retired ledgers are not read) |
-| READ | PASS | `status` and `state`, read-only |
+| READ | PASS | `status` and `state`, read-only (runner `ec59ce6b…`) |
+| READ-2 | see below | after the re-check's note, `state` runs before `status`, so that READ still reports when `status` exits 1 (no current assertion); runner `49d6c98b…` |
+
+**Re-check of `2ef1c5d0`: PASS.** No blockers. Its notes:
+- READ's order is changed, as above.
+- A non-private file under `state/ssdp-shadow-3/` would make W3 INCOMPLETE: the fail-closed side.
+- A Ctrl-C during the compare itself would skip the window record: negligible.
+
+The review cycle stops here.
 
 Every window's preconditions held, including the `.ssds/` and `orchestrator/` move check and PREFLIGHT-A's
 digest. Each window record carries the tools' digests, and every compare reported the repository unchanged.
