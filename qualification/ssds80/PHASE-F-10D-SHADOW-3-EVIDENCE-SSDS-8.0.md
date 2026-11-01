@@ -108,6 +108,51 @@ The first rehearsal below ran on the tools as committed in `0914017a`, and it is
 `/tmp/claude-1000/ssds-10d-rehearsal/rehearsal-1/`. The rehearsal is re-run from a fresh home with the repaired
 tools (rehearsal 2).
 
+## Rehearsal 2 (`--mode rehearsal`, tools of `76a283b4`)
+
+This rehearsal uses a fresh scratch home, `/tmp/claude-1000/ssds-10d-rehearsal/home`, with the ledger
+`ssdp-shadow-3-rehearsal` and the same throwaway key. Its window records are in
+`/tmp/claude-1000/ssds-10d-rehearsal/windows/windows.jsonl`.
+
+| window | result | what it showed |
+|---|---|---|
+| G1 | PASS | scratch genesis prepared, digest `sha256:181d3d97…ffe0a` |
+| G2 | PASS | admitted: entry `sha256:6756a583…c0a4e`, `QUALIFIED` at 0 |
+| W1 | PASS | `76a283b4` absorbed at position 1 (output check met) |
+| W2 | PASS | `status` check met; helper `state` reports no problems (reserved leaves, empty quarantine, policy unchanged and held, availability `null`) |
+| W3 | PASS | operator state unchanged across `dispatcher serve` (2 files fingerprinted before and after); `would_issue: []`, `issued: []` |
+
+### Rehearsal 2 W2: `inspect` output (rehearsal 2's FINDING narrative home)
+
+`ssds inspect --ledger ssdp-shadow-3-rehearsal` at position 1, whose head is
+`sha256:63c6a58e9abf68a47d9282965b1e9a145b0bc8cb989672a4b9a03b75e0bb38b9`, printed:
+
+```json
+{
+  "answer": {
+    "digest": [],
+    "entries": [],
+    "head": {
+      "digest": "sha256:63c6a58e9abf68a47d9282965b1e9a145b0bc8cb989672a4b9a03b75e0bb38b9",
+      "label": "QUALIFIED",
+      "position": 1,
+      "qualification": "QUALIFIED"
+    }
+  },
+  "head": {
+    "digest": "sha256:63c6a58e9abf68a47d9282965b1e9a145b0bc8cb989672a4b9a03b75e0bb38b9",
+    "label": "QUALIFIED",
+    "position": 1,
+    "qualification": "QUALIFIED"
+  },
+  "query": "inspect"
+}
+```
+
+The finding is as in rehearsal 1. `inspect` names the head and nothing of the effective structure that the
+derivation holds: no units, kinds, reserved leaves, policy object or quarantine. It is a `MATERIAL`, non-blocking
+inspectability gap on `orchestrator.program`, `ssds.manifest` and `ssds.policy`.
+
 ## Rehearsal 1 (`--mode rehearsal`, tools of `0914017a`; superseded)
 
 Scratch home `/tmp/claude-1000/ssds-10d-rehearsal/home` (now under `rehearsal-1/`), ledger `ssdp-shadow-3-rehearsal`, throwaway key
