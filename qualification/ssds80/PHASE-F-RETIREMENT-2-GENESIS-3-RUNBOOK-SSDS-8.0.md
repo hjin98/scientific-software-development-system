@@ -3,7 +3,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8 Phase F — retirement of `ssdp-shadow-2` and genesis of `ssdp-shadow-3`: runbook
 
 ```text
-STATUS: steps A and B EXECUTED 2026-10-31 (execution record below); C and D not executed. Nothing in this
+STATUS: steps A-C EXECUTED 2026-10-31 (execution record below); D (the 10d replan) not executed. Nothing in this
         runbook is signed or appended by the author.
 AUTHORITY: SD-92 (item 79): retire ssdp-shadow-2 and start a fresh shadow genesis after C7 enforcement is
            qualified; SD-96 (item 80): ssdp-shadow-3 is approved with a new human key, so SD-89 (one human key
@@ -69,7 +69,8 @@ with no other tool running (SD-93's clean-window discipline).
 
 **A, 2026-10-31: as expected.** One host window in the stakeholder's terminal, no other tool running: boundary
 snapshot of the product repository, the pre-C7 read, the C7 read, then the compare. The reader is
-`PHASE-F-RETIREMENT-2-PREFLIGHT-A.py` (sha256 `2336c03c…9ba`). For a given program tree, it reads each chain with that
+`PHASE-F-RETIREMENT-2-PREFLIGHT-A.py` (sha256 `2336c03c…9ba` as committed in `8cf829c3`; the later copy adds only
+`--ledgers`, with the same default). For a given program tree, it reads each chain with that
 tree's `read_raw` and `verify_chain`; it takes the qualification from `Admission.qualification`, bound without
 `__post_init__` so no host key is loaded or created; and it runs that tree's `record_violations` over every record
 at every position. It asserts that every `ssds` module loads from the named tree. The full reports are in
@@ -108,6 +109,33 @@ unchanged.
 - Qualification is `QUALIFIED` at 0, with a current assertion and no findings, critical items or obligations. The
   C7 reader, read back independently, finds 1 entry, no halt and no record violations; the approval key is the new
   human key.
+
+**C, 2026-10-31: `ssdp-shadow-2` `RETIRED` at 10.** Both steps ran from the `git archive` extract of `3ea6d029`
+(re-checked byte-identical to the commit) under the rebuilt runtime. Each ran through
+`PHASE-F-RETIREMENT-2-RUN-FROM-TREE.py`, which runs the script in-process and asserts that every loaded `ssds`
+module came from the extract; both runs report 83 modules, all from the extract. Each step had its own boundary
+window, and each compare reported the product repository unchanged.
+- `prepare` builds a `LINEAGE_RETIREMENT` after position 9:
+  - actor: the SD-57 key `human:SHA256:Xar4qv2h…6lw`;
+  - successor: `ssdp-shadow-3`, genesis digest `sha256:13063316…20e4`, which matches B's entry;
+  - ruleset and `governs`: from the genesis; provenance null;
+  - id: `sha256:117e9d9c…1bec`.
+  The approval message names the ledger, position 10, the prior entry digest `sha256:412391b0…1a30` and the record
+  id. The author reviewed the record before the signature was requested.
+- The stakeholder signed with the SD-57 key, and `admit` printed `LINEAGE_RETIREMENT at 10`, `RETIRED`.
+
+**After C (step D1), one boundary window, both programs, all three ledgers.** Full reports:
+`PHASE-F-RETIREMENT-2-AFTER-C-PRE-C7-3ea6d029.json` (sha256 `cddc63e6…b1b`) and
+`PHASE-F-RETIREMENT-2-AFTER-C-C7-aba09fea.json` (sha256 `eb028b98…cb4`).
+
+| ledger | head commit | entries | last entry digest | pre-C7 (`3ea6d029`) | C7 (`aba09fea`, frozen source) |
+|---|---|---|---|---|---|
+| `ssdp-shadow-2` | `bb8b890492fc01cb4c4b2b640c96d1d792d6ca7c` | 11 | `sha256:cb4f00e4…55ab` | `RETIRED`, readable through 10 | `INTEGRITY_HALT` at 6, readable through 5; violations at 6 alone (the retirement at 10 is C7-clean) |
+| `ssdp-shadow-3` | `9d404721a17748f8cb1ec14c5e20b2cedc33745c` | 1 | `sha256:13063316…20e4` | `QUALIFIED` | `QUALIFIED` |
+| `ssdp-shadow` | `5b9e3f245f5fbf5b4bbc77cd18424b751307ead9` | 2 | `sha256:ef50e86c…c236` | `RETIRED` | `RETIRED` |
+
+This is D1's expected end state. Step D2, the 10d replan on `ssdp-shadow-3`, is a plan revision with its own
+review, before any request is prepared.
 
 ## What stays recorded
 

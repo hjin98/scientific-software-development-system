@@ -1,0 +1,49 @@
+{
+  "home": "/home/samjin/.ssds",
+  "ledgers": {
+    "ssdp-shadow": {
+      "entries": 2,
+      "halt": null,
+      "halt_reasons": [],
+      "head_commit": "5b9e3f245f5fbf5b4bbc77cd18424b751307ead9",
+      "last_digest": "sha256:ef50e86c51f42e9a79cd880ae8e3b3f5475bace4b27c82566fbcbc86d7b8c236",
+      "last_lifecycle": "LINEAGE_RETIREMENT",
+      "qualification": "RETIRED",
+      "readable_through": 1,
+      "record_violations_by_position": {},
+      "unreadable": null
+    },
+    "ssdp-shadow-2": {
+      "entries": 11,
+      "halt": 6,
+      "halt_reasons": [
+        "record: field provenance outside its grammar"
+      ],
+      "head_commit": "bb8b890492fc01cb4c4b2b640c96d1d792d6ca7c",
+      "last_digest": "sha256:cb4f00e4d15c3c297c9b7407c8d82e3b8689f93efb06f8b8c0945e34146855ab",
+      "last_lifecycle": "LINEAGE_RETIREMENT",
+      "qualification": "INTEGRITY_HALT",
+      "readable_through": 5,
+      "record_violations_by_position": {
+        "6": [
+          "field provenance outside its grammar"
+        ]
+      },
+      "unreadable": null
+    },
+    "ssdp-shadow-3": {
+      "entries": 1,
+      "halt": null,
+      "halt_reasons": [],
+      "head_commit": "9d404721a17748f8cb1ec14c5e20b2cedc33745c",
+      "last_digest": "sha256:13063316a050b7423cfd77ed9eebb205105eccca28be848f6a3e5acc378020e4",
+      "last_lifecycle": "GENESIS",
+      "qualification": "QUALIFIED",
+      "readable_through": 0,
+      "record_violations_by_position": {},
+      "unreadable": null
+    }
+  },
+  "ssds": "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/src/ssds/__init__.py",
+  "tree": "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/src"
+}

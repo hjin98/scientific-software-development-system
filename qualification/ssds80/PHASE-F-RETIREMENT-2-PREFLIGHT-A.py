@@ -20,6 +20,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tree", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--ledgers", nargs="+", default=list(LEDGERS))
     args = parser.parse_args()
     tree = args.tree.resolve()
     sys.path.insert(0, str(tree))
@@ -39,7 +40,7 @@ def main() -> int:
 
     home = Home(ssds_home())
     report = {"tree": str(tree), "ssds": str(origin), "home": str(home.root), "ledgers": {}}
-    for ledger_id in LEDGERS:
+    for ledger_id in args.ledgers:
         out: dict = {}
         report["ledgers"][ledger_id] = out
         repository = home.ledger_repository(ledger_id)
