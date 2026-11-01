@@ -1,0 +1,92 @@
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form script
+{
+  "chain": [
+    {
+      "decision": null,
+      "digest": "sha256:13063316a050b7423cfd77ed9eebb205105eccca28be848f6a3e5acc378020e4",
+      "entry_kind": "LIFECYCLE",
+      "lifecycle": "GENESIS",
+      "obs": null,
+      "position": 0,
+      "records": []
+    },
+    {
+      "decision": null,
+      "digest": "sha256:e1b5aa530ace76991ae67c479adc483fed78b2ac8f7d760307e39c9e48ff2f20",
+      "entry_kind": "ABSORPTION",
+      "lifecycle": null,
+      "obs": "9a805a5d511cf04ce6ee84eb7d218841c0121245",
+      "position": 1,
+      "records": []
+    },
+    {
+      "decision": null,
+      "digest": "sha256:7bc84eefea276b9bafe0a72d365919856ed70b6b6c89ca89c8ee5e91286e93a7",
+      "entry_kind": "ABSORPTION",
+      "lifecycle": null,
+      "obs": "625ec37f02f520f17af6b5986b7000c204c3e974",
+      "position": 2,
+      "records": []
+    },
+    {
+      "decision": "ACCEPT",
+      "digest": "sha256:41bc5babebb4b564c5e741f35d364009f3edcd2be086b1c67904e16065db221e",
+      "entry_kind": "ADMISSION",
+      "lifecycle": null,
+      "obs": "625ec37f02f520f17af6b5986b7000c204c3e974",
+      "position": 3,
+      "records": [
+        {
+          "id": "sha256:5ac61fc7be4278b9a6d43b4bbb2c238708bff76ab2a47e03cb2a175c2de62508",
+          "kind": "FINDING"
+        }
+      ]
+    },
+    {
+      "decision": null,
+      "digest": "sha256:c1f9cc3843d9e33a7d68250b3fcf44db03389307f86f5607f01da38b3435b2d8",
+      "entry_kind": "ABSORPTION",
+      "lifecycle": null,
+      "obs": "1fc873d42f6756b15d5e755a0354ddbca1d7f9f6",
+      "position": 4,
+      "records": []
+    },
+    {
+      "decision": "ACCEPT",
+      "digest": "sha256:5306152f719e1f5144bf1710c9dde20da952174cc0a851b1f7ee68c51b38d740",
+      "entry_kind": "ADMISSION",
+      "lifecycle": null,
+      "obs": "1fc873d42f6756b15d5e755a0354ddbca1d7f9f6",
+      "position": 5,
+      "records": [
+        {
+          "id": "sha256:e380a939ef63d820bcd7b7ffd9e20fda1474ff57093e4f7292436fed7af40945",
+          "kind": "AVAILABILITY"
+        }
+      ]
+    }
+  ],
+  "entries": 6,
+  "expected_head": "1fc873d42f6756b15d5e755a0354ddbca1d7f9f6",
+  "humans": [
+    "human:SHA256:gLJS5DKMqU8agEomGoVXOxmBj98ZZCyOsbIDGuOMxxI"
+  ],
+  "ledger": "ssdp-shadow-3",
+  "policy": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1",
+  "policy_availability": "AVAILABLE",
+  "policy_object": {
+    "bytes": 11,
+    "digest_matches": true,
+    "text": "schema = 1\n"
+  },
+  "policy_unchanged": true,
+  "position": 5,
+  "problems": [],
+  "quarantine": [],
+  "reserved_leaves": {
+    "ssds.manifest": "MANIFEST",
+    "ssds.policy": "POLICY",
+    "ssds.unclassified": "UNCLASSIFIED"
+  }
+}
+ssds modules: 94 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src

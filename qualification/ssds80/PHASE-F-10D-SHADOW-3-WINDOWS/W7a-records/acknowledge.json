@@ -1,0 +1,35 @@
+[
+  {
+    "basis": [
+      {
+        "class": "EXACT",
+        "mode": "identity",
+        "target": {
+          "record": "sha256:5ac61fc7be4278b9a6d43b4bbb2c238708bff76ab2a47e03cb2a175c2de62508"
+        }
+      }
+    ],
+    "fields": {},
+    "frame": "ADMITTED",
+    "governs": {
+      "mode": "LEGACY",
+      "protocol": "7.2.1"
+    },
+    "kind": "HUMAN_DECISION",
+    "outcome": "ACKNOWLEDGE",
+    "provenance": null,
+    "reason": [],
+    "recorded_at": "2026-11-01T12:54:18Z",
+    "refs": [],
+    "ruleset": {
+      "analyzers": "sha256:dd3f77b9bb229bce543e97388fc8cb70ac5b8e3d8315142b0db490e753e73864",
+      "policy": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1",
+      "system": "ssds-rules/1"
+    },
+    "schema": 1,
+    "supersedes": [],
+    "target": {
+      "obligation": "sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0"
+    }
+  }
+]

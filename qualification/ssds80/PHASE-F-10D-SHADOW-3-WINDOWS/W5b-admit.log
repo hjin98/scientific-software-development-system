@@ -1,0 +1,16 @@
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form cli
+{
+  "admitted": [
+    "sha256:e380a939ef63d820bcd7b7ffd9e20fda1474ff57093e4f7292436fed7af40945"
+  ],
+  "appended": true,
+  "decision": "ACCEPT",
+  "ledger_id": "ssdp-shadow-3",
+  "observed_ref": "ssds-8.0-graph-native-architecture",
+  "position": 5,
+  "reasons": [],
+  "refused": [],
+  "request_id": "sha256:0a884ffe0911e1f14a3810bf499946e469f7d62688d4fe0a739a20760e90cd5a",
+  "submitted": "request sha256:076be481238346369bcc5e9e93ce0ffe0470d905e17b1a2c4d6a04ed93db4941\nledger ssdp-shadow-3 at position 3, integration head 625ec37f02f520f17af6b5986b7000c204c3e974\nsigned by human:SHA256:gLJS5DKMqU8agEomGoVXOxmBj98ZZCyOsbIDGuOMxxI\nrecords:\n  AVAILABILITY sha256:e380a939ef63d820bcd7b7ffd9e20fda1474ff57093e4f7292436fed7af40945\n    target  {\"digest\": \"sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1\"}\n    outcome \"AVAILABLE\"\nadopted deltas: none\n"
+}
+ssds modules: 97 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src

@@ -1,0 +1,11 @@
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form cli
+{
+  "absorbed": false,
+  "expected": "1fc873d42f6756b15d5e755a0354ddbca1d7f9f6",
+  "ledger_id": "ssdp-shadow-3",
+  "mode": "observe-only: nothing is published (F1)",
+  "obs": "1fc873d42f6756b15d5e755a0354ddbca1d7f9f6",
+  "observed_ref": "ssds-8.0-graph-native-architecture",
+  "position": 5
+}
+ssds modules: 94 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src

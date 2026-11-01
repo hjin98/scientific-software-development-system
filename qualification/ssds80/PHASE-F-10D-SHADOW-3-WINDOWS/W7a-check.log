@@ -1,0 +1,35 @@
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form script
+{
+  "message_matches": true,
+  "records": [
+    {
+      "basis": [
+        {
+          "class": "EXACT",
+          "mode": "identity",
+          "target": {
+            "record": "sha256:5ac61fc7be4278b9a6d43b4bbb2c238708bff76ab2a47e03cb2a175c2de62508"
+          }
+        }
+      ],
+      "fields": {},
+      "id": "sha256:8b9192b8b02cb19fdbcbbaa64823459484d1df562af8053ab1f7eb7753b1a2ad",
+      "kind": "HUMAN_DECISION",
+      "outcome": "ACKNOWLEDGE",
+      "problems": [],
+      "provenance": null,
+      "reason": [],
+      "recorded_at": "2026-11-01T12:54:18Z",
+      "refs": [],
+      "supersedes": [],
+      "target": {
+        "obligation": "sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0"
+      }
+    }
+  ],
+  "request": "sha256:fb9869d791447a1031d71e197b1ac83b552acead234b4d740479ca56baf45ccb",
+  "request_problems": [],
+  "signature_present": false,
+  "summary": "request sha256:fb9869d791447a1031d71e197b1ac83b552acead234b4d740479ca56baf45ccb\nledger ssdp-shadow-3 at position 5, integration head 1fc873d42f6756b15d5e755a0354ddbca1d7f9f6\nsigned by human:SHA256:gLJS5DKMqU8agEomGoVXOxmBj98ZZCyOsbIDGuOMxxI\nrecords:\n  HUMAN_DECISION sha256:8b9192b8b02cb19fdbcbbaa64823459484d1df562af8053ab1f7eb7753b1a2ad\n    target  {\"obligation\": \"sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0\"}\n    outcome \"ACKNOWLEDGE\"\nadopted deltas: none\n"
+}
+ssds modules: 84 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src
