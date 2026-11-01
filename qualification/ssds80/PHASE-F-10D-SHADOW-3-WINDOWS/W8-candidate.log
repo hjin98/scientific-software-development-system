@@ -1,0 +1,10 @@
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form script
+{
+  "appended": false,
+  "new_boundary_lines": [
+    "{\"at\": \"2026-11-01T19:25:26Z\", \"reason\": \"a candidate: the real shadow ledger observes and never publishes (F1)\", \"request_id\": \"sha256:6aea8eaa5cd7837f3b5e4f529fdddcdce14f807f39b29ef57ce8542575d9b81a\"}"
+  ],
+  "refused_at_entry": "a candidate: the real shadow ledger observes and never publishes (F1)",
+  "request": "sha256:6aea8eaa5cd7837f3b5e4f529fdddcdce14f807f39b29ef57ce8542575d9b81a"
+}
+ssds modules: 94 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src

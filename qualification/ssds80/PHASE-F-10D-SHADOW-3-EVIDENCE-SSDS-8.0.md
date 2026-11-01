@@ -3,9 +3,10 @@ Governing SSDP version: 7.2.1.
 # SSDS 8 Phase F — step 10d on `ssdp-shadow-3`: evidence
 
 ```text
-STATUS: REAL RUN IN PROGRESS (authorized 2026-11-01). W1-W7a PASS; FINDING ACCEPT at 3 and AVAILABILITY
-        ACCEPT at 5 (SD-93's closing append); the refused-decide request awaits the stakeholder's signature;
-        W7b-W9 remain. Host reboot after W5a disclosed below. Rehearsal 2 PASS (16 windows).
+STATUS: REAL RUN COMPLETE (authorized 2026-11-01). W1-W9 PASS on 8cf829c3; FINDING ACCEPT at 3 and AVAILABILITY
+        ACCEPT at 5 (SD-93's closing append); the signed ACKNOWLEDGE refused at entry with nothing appended (F1);
+        W9 reads all three ledgers as expected. Host reboot after W5a disclosed below. Rehearsal 2 PASS (16 windows).
+        The FR-A1 grammar repair (plan revision 72) follows 10d and is disclosed with it.
 AUTHORITY: plan reading F126 (revision 69, review PASS); SD-93 (10d closes only on a later clean signed append);
            SD-97 (item 81, Q-F30 (a): the FINDING and the policy object's AVAILABILITY).
 SHADOW: no SSDS authority over any subject; nothing is carried from ssdp-shadow-2 (F44).
@@ -307,7 +308,11 @@ record), are in `PHASE-F-10D-SHADOW-3-WINDOWS/`.
 | READ | PASS | 4 entries: genesis, absorptions of `9a805a5d` (1) and `625ec37f` (2), and the FINDING `ACCEPT` at 3. `QUALIFIED`, a current assertion, no provisional entry or critical finding. One obligation, `HUMAN_ATTENTION` on the FINDING, `OPEN` and `HUMAN`-held. Helper `state` reports no problems; policy availability `null` |
 | W5b | PASS | the stakeholder had signed with `ssds-genesis-3` before the reboot. `submit --admit` absorbed `1fc873d4` at 4, then admitted the AVAILABILITY: `ACCEPT` at 5, appended, nothing refused. **SD-93's closing append, part 2**: W4b and W5b are both `ACCEPT` in passing windows |
 | W6 | PASS | `admission serve` twice: `absorbed: false` at 5 both times, since the head had not moved. Chain: 0 genesis, 1, 2 and 4 absorptions, 3 FINDING, 5 AVAILABILITY; no fence after the records-only admissions (F120). Policy availability now `AVAILABLE`; no problems |
-| W7a | PASS | ACKNOWLEDGE of the derived attention obligation `sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0` (holder `HUMAN`, `OPEN`), basis the FINDING (`identity`, `EXACT`), provenance `null`, no refs or fields. Prepared at position 5 as request `sha256:fb9869d791447a1031d71e197b1ac83b552acead234b4d740479ca56baf45ccb`, record `sha256:8b9192b8b02cb19fdbcbbaa64823459484d1df562af8053ab1f7eb7753b1a2ad`. Checks clean; no signature yet |
+| W7a | PASS | ACKNOWLEDGE of the derived attention obligation `sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0` (holder `HUMAN`, `OPEN`), basis the FINDING (`identity`, `EXACT`), provenance `null`, no refs or fields. Prepared at position 5 as request `sha256:fb9869d791447a1031d71e197b1ac83b552acead234b4d740479ca56baf45ccb`, record `sha256:8b9192b8b02cb19fdbcbbaa64823459484d1df562af8053ab1f7eb7753b1a2ad`. Checks clean; signed by the stakeholder afterwards |
+| W7b | PASS | baseline: 6 entries, head `1fc873d4`, last digest `sha256:5306152f…d740`, obligation `OPEN` and `HUMAN`-held, no human decision, no `boundary.jsonl` line. `decide --admit` exited 1 with exactly the F1 refusal, "a HUMAN_DECISION record: its checks belong to a later phase (F1)" |
+| W7c | PASS | `verify-decide`: the signature verifies; still 6 entries with the same last digest, nothing appended, no human decision, obligation still `OPEN`. One new `boundary.jsonl` line, whose `request_id` is the signed request's `sha256:21a282e9…b81e` (the request with its human binding) |
+| W8 | PASS | candidate refused at entry ("a candidate: the real shadow ledger observes and never publishes (F1)"), nothing appended, one `boundary.jsonl` line |
+| W9 | PASS | extract matched by content (133 files, nothing extra). C7 read: `ssdp-shadow-3` 6 entries, `QUALIFIED`, no record violation; `ssdp-shadow-2` 11 entries, `INTEGRITY_HALT` at 6 ("field provenance outside its grammar"), readable through 5; `ssdp-shadow` 2 entries, `RETIRED`. Pre-C7 read: `ssdp-shadow-3` the same; `ssdp-shadow-2` `RETIRED`, readable through 10, no violation; `ssdp-shadow` `RETIRED`. Each retired ledger equals its after-step-C record (output checks met); 83 modules each, all from the tree read |
 
 ### Host reboot after W5a (2026-11-01, about 12:47 UTC)
 
@@ -338,6 +343,20 @@ Repairs, between windows:
 The author also listed `~/.ssds/ledgers/` once with `ls`, read-only, outside the program; nothing else in the home
 was touched.
 
+### 10d closure
+
+SD-93's condition holds: after the contaminated boundary of `ssdp-shadow-2`, two clean signed appends, the FINDING
+(3) and the AVAILABILITY (5), were admitted on `ssdp-shadow-3` in passing windows. All F126 windows W1-W9 passed on
+`8cf829c3`, every compare exited 0, and no window left a change in the repository. The ledger holds 6 entries:
+genesis, absorptions at 1, 2 and 4, the FINDING at 3 and the AVAILABILITY at 5. The ACKNOWLEDGE stays a refused
+carrier (F1), and the attention obligation stays `OPEN`.
+
+Limits:
+- 10d closes on the frozen `8cf829c3`, whose ledger grammar has the FR-A1 defect (plan revision 72). The repaired
+  reader re-reads these ledgers afterwards; that result, not this one, shows whether FR-A1 touches them.
+- The raw logs of W1-W5a are lost to the reboot (above).
+- Program `QUALIFIED` is not full architecture conformance, and nothing here gives SSDS authority over any subject.
+
 ## Pending signatures
 
 Each real signature is the stakeholder's, with `ssds-genesis-3`, made between windows.
@@ -346,4 +365,4 @@ Each real signature is the stakeholder's, with `ssds-genesis-3`, made between wi
 |---|---|---|---|
 | W4 `report` (SD-97 FINDING) | `sha256:2490ee294a496a23e28e80850887a975c06460dacd5d14908bb37f489ef3ce2f` | FINDING `sha256:5ac61fc7…2508`, `MATERIAL`, non-blocking, `INSPECTABILITY_GAP`, targets `orchestrator.program`, `ssds.manifest`, `ssds.policy` | signed and admitted, `ACCEPT` at 3 (closed) |
 | W5 `submit` (SD-97 AVAILABILITY) | `sha256:076be481238346369bcc5e9e93ce0ffe0470d905e17b1a2c4d6a04ed93db4941` | AVAILABILITY `sha256:e380a939…0945` of `sha256:da93db77…3ea1`, `AVAILABLE` | signed and admitted, `ACCEPT` at 5 (closed) |
-| W7 `decide` (the ACKNOWLEDGE, expected refused at entry, F1) | `sha256:fb9869d791447a1031d71e197b1ac83b552acead234b4d740479ca56baf45ccb` | HUMAN_DECISION `sha256:8b9192b8…a2ad`, `ACKNOWLEDGE` of obligation `sha256:93ef38df…71d0` | requested 2026-11-01 |
+| W7 `decide` (the ACKNOWLEDGE, expected refused at entry, F1) | `sha256:fb9869d791447a1031d71e197b1ac83b552acead234b4d740479ca56baf45ccb` | HUMAN_DECISION `sha256:8b9192b8…a2ad`, `ACKNOWLEDGE` of obligation `sha256:93ef38df…71d0` | signed; refused at entry in W7b as expected, nothing appended (closed) |

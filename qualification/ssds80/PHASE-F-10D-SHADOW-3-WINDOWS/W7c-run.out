@@ -1,0 +1,28 @@
+===== W7c verify-decide
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form script
+{
+  "actor": "human:SHA256:gLJS5DKMqU8agEomGoVXOxmBj98ZZCyOsbIDGuOMxxI",
+  "appended": false,
+  "discharge": "OPEN",
+  "entries": 6,
+  "holder": "HUMAN",
+  "human_decisions": 0,
+  "last_digest": "sha256:5306152f719e1f5144bf1710c9dde20da952174cc0a851b1f7ee68c51b38d740",
+  "new_boundary_lines": [
+    {
+      "at": "2026-11-01T19:25:17Z",
+      "reason": "a HUMAN_DECISION record: its checks belong to a later phase (F1)",
+      "request_id": "sha256:21a282e9c4585a67b5f2ab2e0bba8842fdd65c407f66cf747c292b6bb284b81e"
+    }
+  ],
+  "obligation": "sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0",
+  "request": "sha256:fb9869d791447a1031d71e197b1ac83b552acead234b4d740479ca56baf45ccb",
+  "signature_verified": true,
+  "signed_request": "sha256:21a282e9c4585a67b5f2ab2e0bba8842fdd65c407f66cf747c292b6bb284b81e"
+}
+ssds modules: 87 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src
+
+===== W7c compare
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/claude-1000/ssds-10d-shadow-3/windows/W7c-before.json
+
+{"mode": "real", "window": "W7c", "result": "PASS", "compare_exit": 0, "commands": [["verify-decide", 0, 0, null]]}

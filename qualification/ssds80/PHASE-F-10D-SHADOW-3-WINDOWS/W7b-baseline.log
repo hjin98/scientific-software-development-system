@@ -1,0 +1,14 @@
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form script
+{
+  "boundary_lines": 0,
+  "discharge": "OPEN",
+  "entries": 6,
+  "expected_head": "1fc873d42f6756b15d5e755a0354ddbca1d7f9f6",
+  "finding": "sha256:5ac61fc7be4278b9a6d43b4bbb2c238708bff76ab2a47e03cb2a175c2de62508",
+  "holder": "HUMAN",
+  "human_decisions": 0,
+  "last_digest": "sha256:5306152f719e1f5144bf1710c9dde20da952174cc0a851b1f7ee68c51b38d740",
+  "ledger": "ssdp-shadow-3",
+  "obligation": "sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0"
+}
+ssds modules: 97 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src
