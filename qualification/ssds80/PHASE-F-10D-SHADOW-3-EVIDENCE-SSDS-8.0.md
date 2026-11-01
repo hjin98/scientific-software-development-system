@@ -3,8 +3,8 @@ Governing SSDP version: 7.2.1.
 # SSDS 8 Phase F — step 10d on `ssdp-shadow-3`: evidence
 
 ```text
-STATUS: REHEARSAL 2 PASS (16 windows, repaired tools of 76a283b4, 2026-11-01). The real run needs the
-        stakeholder's authorization; no real window has run and nothing is prepared on ssdp-shadow-3.
+STATUS: REAL RUN IN PROGRESS (authorized 2026-11-01). W1-W3 PASS on ssdp-shadow-3; W4a (the FINDING's
+        preparation) is next. Rehearsal 2 PASS (16 windows).
 AUTHORITY: plan reading F126 (revision 69, review PASS); SD-93 (10d closes only on a later clean signed append);
            SD-97 (item 81, Q-F30 (a): the FINDING and the policy object's AVAILABILITY).
 SHADOW: no SSDS authority over any subject; nothing is carried from ssdp-shadow-2 (F44).
@@ -244,7 +244,54 @@ structure from the inspection surface, and non-blocking. In the real run this se
 
 ## Real run (`--mode real`, `ssdp-shadow-3`)
 
-Not yet run.
+The stakeholder authorized the real run on 2026-11-01 ("Authorize real run"). It uses the home `~/.ssds` and the
+ledger `ssdp-shadow-3`, with the tools of `79bbfb5f`: RUN `a3f05b3f…`, HELPER `6cb4e8a6…`, WINDOW `49d6c98b…`.
+Window records are in `/tmp/claude-1000/ssds-10d-shadow-3/windows/windows.jsonl`, and each command's full output is
+in `<window>-<label>.log` beside it. Every window ran in the stakeholder's terminal with no other tool running.
+
+| window | result | what it showed |
+|---|---|---|
+| W1 | PASS | the move check found nothing under `.ssds/` or `orchestrator/` changed since `8cf829c3`. This first use recorded the observed ref `ssds-8.0-graph-native-architecture`, and head `9a805a5d` was absorbed at position 1, entry `sha256:e1b5aa53…2f20` |
+| W2 | PASS | `status`: `QUALIFIED`, a current assertion, no provisional entry, no critical finding, no obligation. Helper `state`: `ssds.manifest` `MANIFEST`, `ssds.policy` `POLICY`, `ssds.unclassified` `UNCLASSIFIED`; empty quarantine; the policy digest unchanged (`sha256:da93db77…3ea1`); the policy object held (11 bytes, `schema = 1`, digest matches); policy availability `null` before any AVAILABILITY (observed, not a criterion). The registered human is `human:SHA256:gLJS5DKMqU8agEomGoVXOxmBj98ZZCyOsbIDGuOMxxI` (`ssds-genesis-3`) |
+| W3 | PASS | `would_issue: []`, `issued: []`, no run ref (the compare covers the product repository's refs). Operator state `state/ssdp-shadow-3/` (`high-water.json`, `observed-ref.jsonl`) unchanged across `dispatcher serve` |
+
+### Real W2: `inspect` output (the FINDING's narrative home, SD-97)
+
+`ssds inspect --ledger ssdp-shadow-3` at position 1, whose head is
+`sha256:e1b5aa530ace76991ae67c479adc483fed78b2ac8f7d760307e39c9e48ff2f20`, printed, apart from the wrapper's lines:
+
+```json
+{
+  "answer": {
+    "digest": [],
+    "entries": [],
+    "head": {
+      "digest": "sha256:e1b5aa530ace76991ae67c479adc483fed78b2ac8f7d760307e39c9e48ff2f20",
+      "label": "QUALIFIED",
+      "position": 1,
+      "qualification": "QUALIFIED"
+    }
+  },
+  "head": {
+    "digest": "sha256:e1b5aa530ace76991ae67c479adc483fed78b2ac8f7d760307e39c9e48ff2f20",
+    "label": "QUALIFIED",
+    "position": 1,
+    "qualification": "QUALIFIED"
+  },
+  "query": "inspect"
+}
+```
+
+**The finding (SD-97).** On `ssdp-shadow-3`, `ssds inspect` names the head and nothing of the effective structure.
+It shows no units, kinds, reserved leaves, policy object or quarantine. The same derivation owner holds all of
+them, as W2's helper `state` shows in the same window: the three reserved leaves with their kinds, the empty
+quarantine, and the policy object `sha256:da93db77…3ea1`. So a human cannot confirm the effective structure, which
+includes the reserved leaves `ssds.manifest` and `ssds.policy`, from the inspection surface of the program
+(`orchestrator.program`).
+
+That is an inspectability gap, `MATERIAL` and non-blocking. It is checked against the frozen program at
+`8cf829c3`, whose `orchestrator/` the window's preconditions show unchanged. It makes no claim beyond what this
+output and the helper's reading show.
 
 ## Pending signatures
 
