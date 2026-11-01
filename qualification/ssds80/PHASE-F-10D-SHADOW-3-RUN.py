@@ -15,6 +15,7 @@ import os
 import pwd
 import runpy
 import sys
+import traceback
 from pathlib import Path
 
 RUNTIME = "/tmp/claude-1000/ssds-runtime-20261030/bin/python"
@@ -107,6 +108,9 @@ def main() -> int:
                 refuse("shadow_genesis.py runs only in the rehearsal")
             one_value(rest, "--ledger-id", ledger)
         elif script == PREFLIGHT:
+            options_given = [x.split("=", 1)[0] for x in rest if x.startswith("-")]
+            if sorted(options_given) != ["--ledgers", "--out", "--tree"]:
+                refuse(f"the read-back takes exactly --tree, --out and --ledgers, not {options_given}")
             found = values(rest, "--ledgers")
             if len(found) != 1 or found[0] != READ_BACK[mode]:
                 refuse(f"the read-back names --ledgers {' '.join(READ_BACK[mode])}, not {found}")
@@ -144,6 +148,9 @@ def main() -> int:
         code = exited.code if isinstance(exited.code, int) else (0 if exited.code is None else 1)
         if not isinstance(exited.code, int) and exited.code is not None:
             print(exited.code)
+    except BaseException:  # reported, and the origin check below still decides the exit (review note 8)
+        traceback.print_exc()
+        code = 1
     finally:
         loaded = {name: Path(m.__file__).resolve() for name, m in list(sys.modules.items())
                   if (name == "ssds" or name.startswith("ssds.")) and getattr(m, "__file__", None)}

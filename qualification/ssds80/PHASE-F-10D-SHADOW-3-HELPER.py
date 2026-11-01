@@ -8,6 +8,7 @@ writes is its ``--out``, which must lie outside the repository.
     records --kind availability                        W5a: the policy object's AVAILABILITY of SD-97
     records --kind acknowledge --finding <record id>   W7a: an ACKNOWLEDGE of the FINDING's attention obligation
     check --request <request id>                       W4a, W5a, W7a: Admission's step-1 checks of a prepared request
+    operator-state --out <file> [--compare <file>]     W3: the ledger's operator state, fingerprinted and compared
     baseline --finding <record id>                     W7b: the ledger and obligation before the refused decide
     verify-decide --request <id> --baseline <file>     W7c: the signature, verified independently, and no append
     candidate                                          W8: one candidate request through the library API, refused
@@ -16,6 +17,7 @@ writes is its ``--out``, which must lie outside the repository.
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -125,11 +127,18 @@ def records(c: Composition, args) -> dict:
             fail(f"the narrative commit {commit} is not on {BRANCH}")
         blob = git("rev-parse", "--verify", f"{commit}:{path}").decode().strip()
         content = git("cat-file", "blob", blob)
+        # SD-97: the narrative is this ledger's own W2 inspect output, taken at W1's head (review blocker 1)
+        w2_head = chain.entries[1].digest if len(chain.entries) > 1 else None
+        text = content.decode("utf-8", "replace")
+        if w2_head is None or c.access.ledger_id not in text or w2_head not in text:
+            fail(f"the narrative {commit}:{path} does not show {c.access.ledger_id}'s inspect output at its "
+                 f"position-1 head {w2_head}")
         ref = {"store": "REPO", "digest": "sha256:" + hashlib.sha256(content).hexdigest(),
                "media_type": "text/markdown", "locator": blob}
         record = envelope(chain, "FINDING", {"units": FINDING_UNITS}, None, ["INSPECTABILITY_GAP"], [], [ref],
                           {"materiality": "MATERIAL", "blocking": False})
-        facts = {"narrative": {"commit": commit, "path": path, "blob": blob, "bytes": len(content)}}
+        facts = {"narrative": {"commit": commit, "path": path, "blob": blob, "bytes": len(content),
+                               "shows_w2_head": w2_head}}
     elif args.kind == "availability":
         s = derive(chain, c.trees, ancestry=c.access.ancestry()).s
         policy = s.h.ruleset(s.n)["policy"]
@@ -173,11 +182,15 @@ def check(c: Composition, args) -> dict:
     store, request = prepared(c, args.request)
     out = {"request": args.request, "request_problems": request_problems(request),
            "records": [{"kind": r.get("kind"), "id": r.get("id"), "provenance": r.get("provenance"),
-                        "problems": record_problems(r, record_violations)} for r in request["records"]],
+                        "problems": record_problems(r, record_violations),
+                        # what summary.txt leaves out, shown for the review with the stakeholder (review blocker 1)
+                        "target": r.get("target"), "outcome": r.get("outcome"), "reason": r.get("reason"),
+                        "fields": r.get("fields"), "refs": r.get("refs"), "basis": r.get("basis"),
+                        "supersedes": r.get("supersedes"), "recorded_at": r.get("recorded_at")}
+                       for r in request["records"]],
            "message_matches": store.read_private(c.request_parts(args.request, "request-message.txt"))
            == request_message(request),
-           "signature_present": store.read_private(c.request_parts(args.request, "request-message.txt.sig"))
-           is not None,
+           "signature_present": store.path(c.request_parts(args.request, "request-message.txt.sig")).exists(),
            "summary": (store.read_private(c.request_parts(args.request, "summary.txt")) or b"").decode()}
     bad = out["request_problems"] or any(r["problems"] or r["provenance"] is not None for r in out["records"])
     if bad or not out["message_matches"]:
@@ -231,6 +244,28 @@ def verify_decide(c: Composition, args) -> dict:
     return result
 
 
+def operator_state(c: Composition, args) -> dict:
+    """The files of ``state/<ledger>/``, each read through the home's checked primitive and fingerprinted; with
+    ``--compare``, what changed since an earlier fingerprint (F8: dispatcher serve leaves operator state unchanged)."""
+
+    store = c.state()
+    root = store.path(("state", c.access.ledger_id))
+    files = {}
+    for directory, _, names in sorted(os.walk(root)) if root.is_dir() else []:
+        for file in sorted(names):
+            parts = ("state", c.access.ledger_id, *Path(directory, file).relative_to(root).parts)
+            # a signature is the human's public input, which read_prepared reads directly too; the rest is private
+            data = store.path(parts).read_bytes() if file.endswith(".sig") else store.read_private(parts)
+            files["/".join(parts[2:])] = None if data is None else {
+                "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    result = {"ledger": c.access.ledger_id, "files": files}
+    if args.compare is not None:
+        earlier = json.loads(Path(args.compare).read_text(encoding="utf-8"))["files"]
+        result["changed"] = sorted(k for k in set(files) | set(earlier) if files.get(k) != earlier.get(k))
+    outside(args.out).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return result
+
+
 def candidate(c: Composition, args) -> dict:
     chain = readable(c)
     before = len(boundary_lines(c))
@@ -253,10 +288,10 @@ def candidate(c: Composition, args) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(allow_abbrev=False)  # the wrapper matches options exactly (review note 5)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("state", "records", "check", "baseline", "verify-decide", "candidate"):
-        p = commands.add_parser(name)
+    for name in ("state", "records", "check", "baseline", "verify-decide", "operator-state", "candidate"):
+        p = commands.add_parser(name, allow_abbrev=False)
         p.add_argument("--ledger", required=True)
         p.add_argument("--repository", type=Path, default=REPOSITORY)
         if name == "records":
@@ -271,12 +306,15 @@ def main() -> int:
             p.add_argument("--out", required=True, type=Path)
         if name == "verify-decide":
             p.add_argument("--baseline", required=True, type=Path)
+        if name == "operator-state":
+            p.add_argument("--out", required=True, type=Path)
+            p.add_argument("--compare", type=Path)
     args = parser.parse_args()
     if args.repository.resolve() != REPOSITORY:
         fail(f"--repository is {REPOSITORY}")
     c = Composition(args.ledger, args.repository)
     run = {"state": state, "records": records, "check": check, "baseline": baseline, "verify-decide": verify_decide,
-           "candidate": candidate}[args.command]
+           "operator-state": operator_state, "candidate": candidate}[args.command]
     result = run(c, args)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 1 if result.get("problems") else 0

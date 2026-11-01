@@ -3,8 +3,8 @@ Governing SSDP version: 7.2.1.
 # SSDS 8 Phase F — step 10d on `ssdp-shadow-3`: evidence
 
 ```text
-STATUS: REHEARSAL PASS (G1-W9, 15 windows, 2026-11-01). The real run (W1-W9 in --mode real) needs the
-        stakeholder's authorization; no real window has run and nothing is prepared on ssdp-shadow-3.
+STATUS: tools repaired after their review (plan revision 71); rehearsal 2 from a fresh home is next. No real
+        window has run and nothing is prepared on ssdp-shadow-3.
 AUTHORITY: plan reading F126 (revision 69, review PASS); SD-93 (10d closes only on a later clean signed append);
            SD-97 (item 81, Q-F30 (a): the FINDING and the policy object's AVAILABILITY).
 SHADOW: no SSDS authority over any subject; nothing is carried from ssdp-shadow-2 (F44).
@@ -23,16 +23,16 @@ the wrapper. It writes only under the mode's window directory, which is
 for the real run. A repeated window takes `--attempt n`, so no window's files are overwritten. The runner sets
 `SSDS_HOME` to `/tmp/claude-1000/ssds-10d-rehearsal/home` in the rehearsal and removes it for the real run, and it
 drops every `PYTHON*` variable. Each step's outcome is one of:
-- `PASS`: every precondition holds, every command exits as expected and the compare passes;
+- `PASS`: every precondition holds, every command exits as expected, every output check of F126's expected outcome holds and the compare passes;
 - `FAILED`: the compare failed;
-- `INCOMPLETE`: the compare passed but a command exited otherwise;
+- `INCOMPLETE`: the compare passed but a command exited otherwise or an output check failed (a refusal in a passing window is one);
 - `NOT STARTED`: a precondition failed or the snapshot was refused.
 
 | file | role | sha256 |
 |---|---|---|
-| `PHASE-F-10D-SHADOW-3-RUN.py` | F126's one entry point: interpreter, mode, home and ledger checks before any SSDS import; `cli` and `script` forms; module-origin assertion | `b0f90f26f44b7d68870960b971f36dd7a71697cbe5122673e1e168b0f351ccdb` |
-| `PHASE-F-10D-SHADOW-3-HELPER.py` | the fixed helper: `state` (W2, W6), `records` and `check` (W4a, W5a, W7a), `baseline` (W7b), `verify-decide` (W7c), `candidate` (W8) | `6388c6a87ee5251186de9495745c0b7bebf3e12d3c9b94941db5dbf630361168` |
-| `PHASE-F-10D-SHADOW-3-WINDOW.py` | the window runner: preconditions, snapshot, the fixed commands, compare | `7e0ba41d17f43acc0369f95ae3328ebcb9b0ae224c3b92e13aa425cf6b0bb9e2` |
+| `PHASE-F-10D-SHADOW-3-RUN.py` | F126's one entry point: interpreter, mode, home and ledger checks before any SSDS import; `cli` and `script` forms; module-origin assertion | `a3f05b3ff88a0a49d9894db41312e14d5c83d7e69b272d024a79bb0d682ef257` |
+| `PHASE-F-10D-SHADOW-3-HELPER.py` | the fixed helper: `state` (W2, W6, READ), `records` and `check` (W4a, W5a, W7a), `operator-state` (W3), `baseline` (W7b), `verify-decide` (W7c), `candidate` (W8) | `6cb4e8a6af8114760f6c80e48bc1cf35a83d37da8b028d5b7025bd00cd9bc6a0` |
+| `PHASE-F-10D-SHADOW-3-WINDOW.py` | the window runner: preconditions, snapshot, the fixed commands with their output checks, compare | `ec59ce6b38fd5e633cb2cc0b335e9929031b2f0a0cc7a714e5f1065b98aadf32` |
 | `PHASE-F-RETIREMENT-2-PREFLIGHT-A.py` | W9's read-back (unchanged) | `f2fecb328d47ad676f83a119887083c637330cf3489e90aa9aa8323fc582a969` |
 | `orchestrator/scripts/shadow_boundary.py` | the boundary sensor (frozen source) | `79770bc29f27fe1ba773b7c98270b32c7e82f23cd04b334ae00222a33a757722` |
 | `orchestrator/scripts/shadow_genesis.py` | the rehearsal's scratch genesis only (frozen source; refused in `--mode real`) | `50254ac27051f63fbef9aaaab1581e210191dd7135f3feec56736b573208da01` |
@@ -71,11 +71,48 @@ author's sandbox, so they are not boundary-checked:
   steps A-C, were deleted, and so were those under the repository's `orchestrator/src`. That leaves only
   `ssds.egg-info/` ignored under `src`.
 
-## Rehearsal (`--mode rehearsal`)
+## Tool review (plan revision 71)
 
-Scratch home `/tmp/claude-1000/ssds-10d-rehearsal/home`, ledger `ssdp-shadow-3-rehearsal`, throwaway key
+The same-family review of `16712232` gave **NO-PASS**: two blockers, no Serious Challenge. Both are repaired.
+- **B1, the narrative check.** `records --kind finding` now requires the narrative blob to show the ledger id and its
+  position-1 head, which is what W2's `inspect` prints. A rehearsal narrative is refused on any other ledger: this
+  was checked on the dev ledger. `check` now shows each record's target, outcome, reason, fields, refs, basis and
+  `recorded_at` for the review, since `summary.txt` omits them.
+- **B2, operator state in W3.** W3 now runs between two `operator-state` fingerprints of `state/<ledger>/`, read
+  through the home's checked primitive; a signature, which is the human's public input, is read directly, as
+  `read_prepared` does. W3 requires no change and `would_issue: []`.
+
+Notes taken up:
+- Output checks per window, in the runner's `steps`:
+  - W1: `absorbed` at 1;
+  - W2: `QUALIFIED`, a current assertion, no provisional entry or critical finding, and helper `problems: []`;
+  - W4b and W5b: `ACCEPT`, appended, nothing refused;
+  - W6: the second serve absorbs nothing, and at most one absorption follows the last admission;
+  - W7b: the exact F1 refusal;
+  - W8: nothing appended;
+  - W9: the live ledger is `QUALIFIED` with no violation, and in the real run each retired ledger's entries, head,
+    last digest, qualification, halt and readable prefix equal the committed after-step-C reports.
+- The compare and the window record run even when a command crashes or the runner is interrupted.
+- The helper refuses abbreviated options, and the wrapper gives PREFLIGHT-A exactly `--tree`, `--out` and
+  `--ledgers`.
+- The `.ssds/` and `orchestrator/` move check runs in every window.
+- Each window records the tools' digests and refuses a PREFLIGHT-A that is not F126's `f2fecb32…a969`.
+- A read-only `READ` window was added.
+- The wrapper reports an uncaught exception and keeps the origin check.
+
+Two notes are worded, not coded. The rehearsal rehearses the same construction code; the record bytes differ
+(`recorded_at`, the narrative, the genesis's `ruleset` and `governs`). W6's third process is the helper's
+`state`, which supports "the entries are compared".
+
+The first rehearsal below ran on the tools as committed in `0914017a`, and it is superseded. Its files are kept in
+`/tmp/claude-1000/ssds-10d-rehearsal/rehearsal-1/`. The rehearsal is re-run from a fresh home with the repaired
+tools (rehearsal 2).
+
+## Rehearsal 1 (`--mode rehearsal`, tools of `0914017a`; superseded)
+
+Scratch home `/tmp/claude-1000/ssds-10d-rehearsal/home` (now under `rehearsal-1/`), ledger `ssdp-shadow-3-rehearsal`, throwaway key
 `/tmp/claude-1000/ssds-10d-rehearsal/key/throwaway` (the author's, scratch only). Window records are in
-`/tmp/claude-1000/ssds-10d-rehearsal/windows/windows.jsonl`, and each command's full output is in
+`/tmp/claude-1000/ssds-10d-rehearsal/rehearsal-1/windows/windows.jsonl`, and each command's full output is in
 `<window>-<label>.log` beside it. Every window ran in the stakeholder's terminal with no other tool running.
 Signing happened between windows.
 
