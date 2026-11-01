@@ -3,7 +3,8 @@ Governing SSDP version: 7.2.1.
 # SSDS 8 Phase F — retirement of `ssdp-shadow-2` and genesis of `ssdp-shadow-3`: runbook
 
 ```text
-STATUS: PREPARED, not executed. Nothing in this runbook is signed or appended by the author.
+STATUS: step A EXECUTED 2026-10-31, as expected (execution record below); B-D not executed. Nothing in this
+        runbook is signed or appended by the author.
 AUTHORITY: SD-92 (item 79): retire ssdp-shadow-2 and start a fresh shadow genesis after C7 enforcement is
            qualified; SD-96 (item 80): ssdp-shadow-3 is approved with a new human key, so SD-89 (one human key
            per live ledger) holds throughout. Plan readings F44-F45 (retirement), F125 (C7), Manual §19.9, §24.2.
@@ -63,6 +64,29 @@ with no other tool running (SD-93's clean-window discipline).
 2. 10d is replanned on `ssdp-shadow-3` (SD-93): its genesis already declares the reserved leaves, so the repair
    append is moot; the signed append that closes 10d is the records exercise, in a clean window. That replanning
    is a plan revision with its own review, before any request is prepared.
+
+## Execution record
+
+**A, 2026-10-31: as expected.** One host window in the stakeholder's terminal, no other tool running: boundary
+snapshot of the product repository, the pre-C7 read, the C7 read, then the compare. The reader is
+`PHASE-F-RETIREMENT-2-PREFLIGHT-A.py` (sha256 `2336c03c…9ba`). For a given program tree, it reads each chain with that
+tree's `read_raw` and `verify_chain`; it takes the qualification from `Admission.qualification`, bound without
+`__post_init__` so no host key is loaded or created; and it runs that tree's `record_violations` over every record
+at every position. It asserts that every `ssds` module loads from the named tree. The full reports are in
+`PHASE-F-RETIREMENT-2-PREFLIGHT-A-PRE-C7-3ea6d029.json` (sha256 `362e01cd…1d3`) and
+`PHASE-F-RETIREMENT-2-PREFLIGHT-A-C7-46dbcc4b.json` (sha256 `687e2032…7db`).
+
+| ledger | head commit | entries | last entry digest | pre-C7 (`3ea6d029`) | C7 (`46dbcc4b`) |
+|---|---|---|---|---|---|
+| `ssdp-shadow-2` | `085cd6b4de04acbf2727844ad5c4484643dacafb` | 10 | `sha256:412391b0…1a30` | `QUALIFIED`, readable through 9; sweep finds nothing | `INTEGRITY_HALT` at 6, readable through 5; sweep finds `field provenance outside its grammar` at 6 alone |
+| `ssdp-shadow` | `5b9e3f245f5fbf5b4bbc77cd18424b751307ead9` | 2 | `sha256:ef50e86c…c236` | `RETIRED` | `RETIRED`; the candidate does not halt it |
+
+The compare reported the product repository unchanged since the snapshot. The first attempt stopped at the
+snapshot, before any ledger was read. The system Git is 2.34.1, which has no `worktree list -z`, and a clean app
+worktree (`.claude/worktrees/friendly-euler-4610a1`, whose commit `401d66bb` stays on branch
+`claude/friendly-euler-4610a1`) was registered. With the stakeholder's approval it was removed and pruned; the
+sensor was not changed. Any linked worktree registered later will stop a window the same way until Git is 2.36 or
+newer.
 
 ## What stays recorded
 

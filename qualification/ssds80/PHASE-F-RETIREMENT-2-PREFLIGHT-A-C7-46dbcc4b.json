@@ -1,0 +1,37 @@
+{
+  "home": "/home/samjin/.ssds",
+  "ledgers": {
+    "ssdp-shadow": {
+      "entries": 2,
+      "halt": null,
+      "halt_reasons": [],
+      "head_commit": "5b9e3f245f5fbf5b4bbc77cd18424b751307ead9",
+      "last_digest": "sha256:ef50e86c51f42e9a79cd880ae8e3b3f5475bace4b27c82566fbcbc86d7b8c236",
+      "last_lifecycle": "LINEAGE_RETIREMENT",
+      "qualification": "RETIRED",
+      "readable_through": 1,
+      "record_violations_by_position": {},
+      "unreadable": null
+    },
+    "ssdp-shadow-2": {
+      "entries": 10,
+      "halt": 6,
+      "halt_reasons": [
+        "record: field provenance outside its grammar"
+      ],
+      "head_commit": "085cd6b4de04acbf2727844ad5c4484643dacafb",
+      "last_digest": "sha256:412391b059cc59d76d6265d8b305ea94b0ffe80663fcad50b1259826e2c01a30",
+      "last_lifecycle": null,
+      "qualification": "INTEGRITY_HALT",
+      "readable_through": 5,
+      "record_violations_by_position": {
+        "6": [
+          "field provenance outside its grammar"
+        ]
+      },
+      "unreadable": null
+    }
+  },
+  "ssds": "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/src/ssds/__init__.py",
+  "tree": "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/src"
+}
