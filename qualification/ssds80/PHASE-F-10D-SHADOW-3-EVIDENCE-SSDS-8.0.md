@@ -39,6 +39,12 @@ drops every `PYTHON*` variable. Each step's outcome is one of:
 | `orchestrator/scripts/shadow_boundary.py` | the boundary sensor (frozen source) | `79770bc29f27fe1ba773b7c98270b32c7e82f23cd04b334ae00222a33a757722` |
 | `orchestrator/scripts/shadow_genesis.py` | the rehearsal's scratch genesis only (frozen source; refused in `--mode real`) | `50254ac27051f63fbef9aaaab1581e210191dd7135f3feec56736b573208da01` |
 
+**Retired from the tracked tree after 10d (plan revision 74).** The first four files import the program, which the
+repository's containment fitness rule (`orchestrator/tests/test_layout_and_fitness.py`, `ContainmentTests`) allows
+only under `orchestrator/`; the full suite run for FR-A1 found it. They were removed once 10d closed. Each stays
+recoverable, byte for byte, at `7d22f708` (for example `git show 7d22f708:qualification/ssds80/PHASE-F-10D-SHADOW-3-RUN.py`),
+with the sha256 above. The FR-A1 re-read extracts PREFLIGHT-A from there and checks F126's pin.
+
 **What the wrapper refuses.** Each of these exits 2 before any SSDS import:
 - an interpreter other than the pinned runtime, or a run without `-I -B`;
 - in the rehearsal, `SSDS_HOME` unset, or resolving outside `/tmp/claude-1000/ssds-10d-rehearsal/` (including the

@@ -185,6 +185,35 @@ class ClosedSchema(unittest.TestCase):
                                                          'verifier = "REVIEW"\n',
             "verifier not a template": base + contract.replace('"REVIEW"', '{ check = "required_evidence" }'),
         }
+        # D-GRAMMAR-ENDPOINTS: each grammar is matched whole, so a value with a final newline is outside it; each
+        # legal value beside it parses
+        digest = "sha256:" + "a" * 64
+        legal = {
+            "governing": base + f'governing = ["numerics.solver@{digest}"]\n',
+            "criterion": base + 'acceptance_criteria = [ { id = "ac1", evidence = "tests.x" } ]\n',
+            "template": base + contract.replace('"REVIEW"', '{ check = "OBLIGATION.required_evidence" }'),
+            "evidence verifier": base + contract.replace('"REVIEW"', '{ evidence = "tests.x", runner = "ci" }'),
+            "evidence specs": base + contract.replace('write_scope = ["src/"]',
+                                                      'write_scope = ["src/"]\nevidence_specs = ["tests.x"]'),
+        }
+        for name, body in legal.items():
+            with self.subTest(legal=name):
+                self.assertIsInstance(parse_item(body.encode()), Item)
+        newline = {
+            "item id": base.replace('item = "x"', 'item = "x\\n"'),
+            "ref": base.replace('"#x"', '"#x\\n"'),
+            "governing unit": legal["governing"].replace("solver@", "solver\\n@"),
+            "governing revision": legal["governing"].replace(f'{digest}"', f'{digest}\\n"'),
+            "criterion id": legal["criterion"].replace('"ac1"', '"ac1\\n"'),
+            "criterion evidence": legal["criterion"].replace('"tests.x"', '"tests.x\\n"'),
+            "obligation id": base + contract.replace('id = "o1"', 'id = "o1\\n"'),
+            "template": legal["template"].replace('required_evidence"', 'required_evidence\\n"'),
+            "evidence verifier": legal["evidence verifier"].replace('"tests.x"', '"tests.x\\n"'),
+            "evidence specs": legal["evidence specs"].replace('"tests.x"', '"tests.x\\n"'),
+        }
+        for name, body in newline.items():
+            with self.subTest(final_newline=name):
+                self.assertFails(body)
         for name, body in cases.items():
             with self.subTest(case=name):
                 self.assertFails(body)

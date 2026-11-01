@@ -8,6 +8,7 @@ admission halves are Phase F.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -227,6 +228,26 @@ class ChainVerification(LedgerFixture):
                 self.assertTrue(any('reason outside' in p or 'FINDING cannot block' in p
                                     for p in chain.halt_reasons), chain.halt_reasons)
 
+    def test_every_grammar_is_the_whole_value(self) -> None:
+        """FR-A1: `$` alone matches before a final newline, so each envelope grammar refuses a value with one."""
+
+        from ssds.ledger.read import record_violations, with_id
+
+        good = record('FINDING', target={'units': ['readme']}, fields={'materiality': 'ROUTINE'})
+        self.assertEqual(record_violations(with_id(good)), [])
+        for name, change in {'actor': {'actor': good['actor'] + '\n'},
+                             'recorded_at': {'recorded_at': good['recorded_at'] + '\n'},
+                             'unit': {'target': {'units': ['readme\n']}},
+                             'supersedes digest': {'supersedes': ['sha256:' + 'ab' * 32 + '\n']},
+                             'ruleset system token': {'ruleset': {**good['ruleset'],
+                                                                  'system': good['ruleset']['system'] + '\n'}}}.items():
+            with self.subTest(name):
+                self.assertTrue(record_violations(with_id({**good, **change})))
+        from ssds.ledger.schema import is_commit
+
+        self.assertTrue(is_commit('ab' * 20))
+        self.assertFalse(is_commit('ab' * 20 + '\n'))
+
     def test_authenticated_narrative_provenance_halts_without_grandfathering(self) -> None:
         """R-PROVENANCE-C7 (§3.2, C7; reading F125): an admitted record whose provenance carries narrative halts
         authenticated reading at its position; every typed shape the producers stamp reads."""
@@ -253,6 +274,7 @@ class ChainVerification(LedgerFixture):
         narrative = {'observation': 'the policy object is retained', 'claim_limit': 'bounded', 'prepared_by':
                      'agent', 'status': 'reviewed'}  # position 6's keys on the real shadow ledger
         for provenance in (narrative, {}, {'attempt': 'narrow'}, {'reissue_of': orphan_id()},
+                           {'run': '0f' * 16 + '\n'}, {'report': 'a1' * 16 + '\n'},  # FR-A1: whole-value grammar
                            {'judge': {'lineage_class': 'ATTESTED_FRESH', 'route': 'HARNESS'}}):
             with self.subTest(narrative=provenance):
                 bad = {**body, 'records': [with_id({**good, 'provenance': provenance})]}
@@ -275,6 +297,10 @@ class ChainVerification(LedgerFixture):
         raws = self.raws()
         extra = RawEntry(raws[1].commit, raws[1].parents, {**raws[1].files, "notes.txt": b"x"})
         self.assertEqual(verify_chain("demo", [raws[0], extra]).halt, 1)
+        # FR-A1: an object path is the whole name, so one with a final newline is outside the layout
+        name = hashlib.sha256(b"{}").hexdigest()  # its content names it, so only the final newline is wrong
+        stray = RawEntry(raws[1].commit, raws[1].parents, {**raws[1].files, f"objects/{name}.json\n": b"{}"})
+        self.assertEqual(verify_chain("demo", [raws[0], stray]).halt, 1)
 
 
 class GenesisChecks(LedgerFixture):

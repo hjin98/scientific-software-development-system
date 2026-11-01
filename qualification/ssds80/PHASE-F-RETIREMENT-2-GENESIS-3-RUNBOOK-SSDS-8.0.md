@@ -77,6 +77,9 @@ at every position. It asserts that every `ssds` module loads from the named tree
 `PHASE-F-RETIREMENT-2-PREFLIGHT-A-PRE-C7-3ea6d029.json` (sha256 `362e01cd…1d3`) and
 `PHASE-F-RETIREMENT-2-PREFLIGHT-A-C7-46dbcc4b.json` (sha256 `687e2032…7db`).
 
+PREFLIGHT-A was retired from the tracked tree after 10d (Phase F plan revision 74: it imports the program, which
+the containment fitness rule allows only under `orchestrator/`). It stays recoverable at `7d22f708`.
+
 | ledger | head commit | entries | last entry digest | pre-C7 (`3ea6d029`) | C7 (`46dbcc4b`) |
 |---|---|---|---|---|---|
 | `ssdp-shadow-2` | `085cd6b4de04acbf2727844ad5c4484643dacafb` | 10 | `sha256:412391b0…1a30` | `QUALIFIED`, readable through 9; sweep finds nothing | `INTEGRITY_HALT` at 6, readable through 5; sweep finds `field provenance outside its grammar` at 6 alone |

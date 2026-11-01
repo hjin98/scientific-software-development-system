@@ -258,6 +258,10 @@ class ProvenanceGrammar(RequestFixture):
             "text in a token member": {"model_family": "family a"}, "attempt as text": {"attempt": "narrow"},
             "negative attempt": {"attempt": -1}, "boolean attempt": {"attempt": True}, "huge attempt": {"attempt": 2**31},
             "run not a nonce": {"run": "run-1"}, "citation not a digest": {"reissue_of": "sha1:" + "c3" * 20},
+            # FR-A1: a grammar is the whole value, so a final newline is outside it
+            "run with a final newline": {"run": "a1" * 16 + "\n"}, "report with a final newline": {"report": "a1" * 16 + "\n"},
+            "citation with a final newline": {"reissue_of": "sha256:" + "ab" * 32 + "\n"},
+            "token member with a final newline": {"model_family": "family-a\n"},
             "judge with a missing member": {"judge": {"lineage_class": "UNKNOWN", "route": "MANUAL"}},
             "judge with an extra member": {"judge": {"lineage_class": "UNKNOWN", "route": "MANUAL",
                                                      "model_family": None, "toolchain": None, "note": "x"}},
@@ -290,6 +294,7 @@ class ProvenanceGrammar(RequestFixture):
                                "a trailing blank line": {**good, "signature": sig + "\n"},
                                "CRLF armour": {**good, "signature": sig.replace("\n", "\r\n")},
                                "an agent actor": {**good, "actor": "agent:someone/1"},
+                               "an actor with a final newline": {**good, "actor": good["actor"] + "\n"},
                                "a machinery actor": {**good, "actor": "machinery:runner@x"}}.items():
             with self.subTest(name):
                 self.assertTrue(record_violations(with_id({**retirement, "provenance": {"approval": approval}})))

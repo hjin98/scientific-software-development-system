@@ -95,7 +95,7 @@ def _term(text: str) -> tuple[Dimension, str]:
     if not match:
         raise ValueError("empty term")
     token, rest = match.group(0), text[match.end():]
-    parsed = _TERM.match(token)
+    parsed = _TERM.fullmatch(token)
     if not parsed:
         raise ValueError(f"unsupported term {token}")
     name, power = parsed.group(1), int(parsed.group(2) or 1)

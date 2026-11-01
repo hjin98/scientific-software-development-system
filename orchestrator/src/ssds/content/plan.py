@@ -337,7 +337,7 @@ def _keys(table: Any, allowed: frozenset[str], required: frozenset[str], what: s
 def _strings(value: Any, what: str, pattern: re.Pattern[str] | None = None) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(v, str) and v for v in value):
         raise _Grammar(f"{what} is a list of strings")
-    if pattern is not None and not all(pattern.match(v) for v in value):
+    if pattern is not None and not all(pattern.fullmatch(v) for v in value):
         raise _Grammar(f"{what} outside its grammar")
     if len(set(value)) != len(value):
         raise _Grammar(f"{what} repeats an entry")
@@ -347,14 +347,14 @@ def _strings(value: Any, what: str, pattern: re.Pattern[str] | None = None) -> t
 def _ref(value: Any, what: str) -> Ref:
     table = _keys(value, frozenset({"ref"}), frozenset({"ref"}), what)
     ref = table["ref"]
-    if not isinstance(ref, str) or not ref.startswith("#") or not SEGMENT_RE.match(ref[1:]):
+    if not isinstance(ref, str) or not ref.startswith("#") or not SEGMENT_RE.fullmatch(ref[1:]):
         raise _Grammar(f"{what} is a ref '#name'")
     return Ref(ref[1:])
 
 
 def _check(value: Any, what: str) -> Check:
     table = _keys(value, frozenset({"check", "params"}), frozenset({"check"}), what)
-    if not isinstance(table["check"], str) or not _TEMPLATE.match(table["check"]):
+    if not isinstance(table["check"], str) or not _TEMPLATE.fullmatch(table["check"]):
         raise _Grammar(f"{what} names a template FAMILY.template")
     params = table.get("params", {})
     if not isinstance(params, dict):
@@ -368,7 +368,7 @@ def _verifier(value: Any) -> Verifier:
     if isinstance(value, dict) and "check" in value:
         return _check(value, "verifier")
     table = _keys(value, frozenset({"evidence", "runner"}), frozenset({"evidence", "runner"}), "verifier")
-    if not isinstance(table["evidence"], str) or not ID_RE.match(table["evidence"]):
+    if not isinstance(table["evidence"], str) or not ID_RE.fullmatch(table["evidence"]):
         raise _Grammar("an evidence verifier names a specification unit")
     if not isinstance(table["runner"], str) or not table["runner"]:
         raise _Grammar("an evidence verifier names a runner class")
@@ -393,7 +393,7 @@ def _contract(raw: Any) -> Contract:
     obligations = []
     for raw_obligation in obligations_raw:
         ob = _keys(raw_obligation, _OBLIGATION_KEYS, frozenset({"id", "statement", "verifier"}), "obligation")
-        if not isinstance(ob["id"], str) or not SEGMENT_RE.match(ob["id"]):
+        if not isinstance(ob["id"], str) or not SEGMENT_RE.fullmatch(ob["id"]):
             raise _Grammar("an obligation id follows the segment grammar")
         secondary = ob.get("secondary", [])
         if not isinstance(secondary, list):
@@ -425,7 +425,7 @@ def _contract(raw: Any) -> Contract:
 
 def _item(raw: dict[str, Any]) -> Item:
     table = _keys(raw, _ITEM_KEYS, frozenset({"item", "kind", "objective"}), "item")
-    if not isinstance(table["item"], str) or not SEGMENT_RE.match(table["item"]):
+    if not isinstance(table["item"], str) or not SEGMENT_RE.fullmatch(table["item"]):
         raise _Grammar("an item id follows the segment grammar")
     kind = table["kind"]
     if kind not in ITEM_KINDS:
@@ -439,16 +439,16 @@ def _item(raw: dict[str, Any]) -> Item:
     governing = []
     for entry in _strings(table.get("governing", []), "governing"):
         unit, sep, revision = entry.partition("@")
-        if not sep or not ID_RE.match(unit) or not _REVISION.match(revision):
+        if not sep or not ID_RE.fullmatch(unit) or not _REVISION.fullmatch(revision):
             raise _Grammar("a governing entry is '<unit>@sha256:<revision>'")
         governing.append((unit, revision))
     criteria = []
     for raw_criterion in table.get("acceptance_criteria", []):
         criterion = _keys(raw_criterion, frozenset({"id", "evidence"}), frozenset({"id", "evidence"}), "acceptance criterion")
-        if not isinstance(criterion["id"], str) or not SEGMENT_RE.match(criterion["id"]):
+        if not isinstance(criterion["id"], str) or not SEGMENT_RE.fullmatch(criterion["id"]):
             raise _Grammar("an acceptance criterion id follows the segment grammar")
         evidence = criterion["evidence"]
-        if not isinstance(evidence, str) or not (evidence == REVIEW or ID_RE.match(evidence)):
+        if not isinstance(evidence, str) or not (evidence == REVIEW or ID_RE.fullmatch(evidence)):
             raise _Grammar("an acceptance criterion names an evidence specification or REVIEW")
         criteria.append((criterion["id"], evidence))
     if len({c for c, _ in criteria}) != len(criteria):

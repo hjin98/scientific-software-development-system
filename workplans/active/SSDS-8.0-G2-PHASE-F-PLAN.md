@@ -3,7 +3,7 @@ kind: ssds-shadow-phase-plan
 workplan_id: SSDS-8.0-G2-PHASE-F-PLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: active (revision 73 records 10d complete on ssdp-shadow-3, W1-W9 PASS at 8cf829c3; revision 72 records frozen 11b at 8cf829c3, its other-family review (NO-PASS A, B; PASS C) and the FR-A1/FR-B1 route; revision 71 takes up the 10d tool review: W3's fingerprints and a READ window; revision 70 records SD-97, Q-F30 answered (a); revision 69 adds reading F126, step 10d on `ssdp-shadow-3`, and Q-F30; revision 68 records runbook steps B and C, `ssdp-shadow-3` live and `ssdp-shadow-2` retired; revision 67 freezes the candidate at 8cf829c3 and records runbook step A; revision 66 adds reading F125, the closed provenance grammar, and the SD-92 to SD-95 route; revision 65 records the complete preliminary study at 6ae91c3d and its preliminary classification; revision 64 records the qualified chain-read/import-fact cost repairs and the stakeholder hold on C7 and the original gap; revision 63 records actual independently authenticated decide-refusal/no-append PASS with attention OPEN; revision 62 records the signed-refusal follow-up and shared F121 public-input loader qualification; revision 61 records corrected FINDING acceptance and the unsigned proposed decide-refusal carrier; revision 60 records the signed pair, corrected unsigned FINDING and reopened C7 provenance enforcement; revision 59 records the incomplete preliminary retry and byte-preserving serialization repair qualification; revision 58 records the scheduled continuation, two unsigned human requests, and schema/performance repair qualification; revision 57 records SD-87 to SD-89 and the authorized 10d signature preparation; revision 56 repairs the step-11 population and conditional classification after the Codex check of revision 55; revision 55 splits step 11 into 11a-11b with readings F123-F124; revision 54 takes up the check of d89c5d41: the 10d row synced, F121's stale-base sentence reconciled, the helper's output named, Q-F29 for cross-ledger replay, a dry run against the real manifest recorded; revision 53 amends F122 after step 10d's fixture rehearsal: the policy file the genesis default names is committed with the declarations, and a helper writes the ABSORB inputs; revision 52 repairs F119-F122 after the check of 603295c8; revision 51 splits step 10 into 10a-10d with readings F119-F122; revision 50 makes F116's inexact ULP reference a static error with Q-F28 and names two more inherited facts in F118, after the re-check of 1e0d5c8a; revision 49 repairs F118 after the re-check of fdfd99c9 and states F116's ULP reference; revision 48 repairs F116-F118 after the check of 6f512acd, with Q-F27; revision 47 adds step 9g with readings F116-F118 after SD-79 to SD-86; revision 46 splits 9f-ii into parts with readings F111-F115 and Q-F26; revision 45 splits 9e into two parts with readings F105-F110 and Q-F24; revision 44 details 9f-i with reading F104; revision 43 repairs F101 after the check of b5364cc3; revision 42 splits 9d into three parts with readings F96-F103; revision 41 splits 9c-ii into four parts with readings F88-F95; revision 40 repairs F87 (re-check PASS at abcd03de) after the check of 298a12a0, with Q-F23; revision 39 details 9c-i with reading F87; revision 38 repairs Q-F21 item 8 and F84-F86 after the check of db0bf1ce; revision 37 details 9b with readings F84-F86 and widens Q-F21; revision 36 repairs Q-F20-Q-F22 and splits 9c after the check of 09df7c27; revision 35 splits step 9 into 9a-9f-ii with readings F75-F83 and Q-F19-Q-F22; 8f repaired; 8g-i and 8g-ii built; revision 34 repairs F74 after the re-check of 25bd1d0d; revision 33 repairs F73-F74 after the check of 53216046; revision 32 splits step 8g into 8g-i and 8g-ii with readings F73-F74; revision 31 details step 8d with reading F72; revision 30 splits step 8 into 8a-8g with readings F65-F71 and Q-F17-Q-F18; revision 29 repairs F63-F64 after the check of 66ac030b, with Q-F16; revision 28 details steps 7f and 7g with readings F63-F64; revision 27 bounds F59's held test after the re-check of 3b6ebcc0; revision 26 repairs F59 and F62 after the check of c36b278e and withdraws Q-F15; revision 25 splits step 7e into 7e-i and 7e-ii with readings F59-F62 and Q-F15; revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
+status: active (revision 74 applies FR-A1 and the D-GRAMMAR-ENDPOINTS repair, retires the 10d tools from the tree and re-freezes; revision 73 records 10d complete on ssdp-shadow-3, W1-W9 PASS at 8cf829c3; revision 72 records frozen 11b at 8cf829c3, its other-family review (NO-PASS A, B; PASS C) and the FR-A1/FR-B1 route; revision 71 takes up the 10d tool review: W3's fingerprints and a READ window; revision 70 records SD-97, Q-F30 answered (a); revision 69 adds reading F126, step 10d on `ssdp-shadow-3`, and Q-F30; revision 68 records runbook steps B and C, `ssdp-shadow-3` live and `ssdp-shadow-2` retired; revision 67 freezes the candidate at 8cf829c3 and records runbook step A; revision 66 adds reading F125, the closed provenance grammar, and the SD-92 to SD-95 route; revision 65 records the complete preliminary study at 6ae91c3d and its preliminary classification; revision 64 records the qualified chain-read/import-fact cost repairs and the stakeholder hold on C7 and the original gap; revision 63 records actual independently authenticated decide-refusal/no-append PASS with attention OPEN; revision 62 records the signed-refusal follow-up and shared F121 public-input loader qualification; revision 61 records corrected FINDING acceptance and the unsigned proposed decide-refusal carrier; revision 60 records the signed pair, corrected unsigned FINDING and reopened C7 provenance enforcement; revision 59 records the incomplete preliminary retry and byte-preserving serialization repair qualification; revision 58 records the scheduled continuation, two unsigned human requests, and schema/performance repair qualification; revision 57 records SD-87 to SD-89 and the authorized 10d signature preparation; revision 56 repairs the step-11 population and conditional classification after the Codex check of revision 55; revision 55 splits step 11 into 11a-11b with readings F123-F124; revision 54 takes up the check of d89c5d41: the 10d row synced, F121's stale-base sentence reconciled, the helper's output named, Q-F29 for cross-ledger replay, a dry run against the real manifest recorded; revision 53 amends F122 after step 10d's fixture rehearsal: the policy file the genesis default names is committed with the declarations, and a helper writes the ABSORB inputs; revision 52 repairs F119-F122 after the check of 603295c8; revision 51 splits step 10 into 10a-10d with readings F119-F122; revision 50 makes F116's inexact ULP reference a static error with Q-F28 and names two more inherited facts in F118, after the re-check of 1e0d5c8a; revision 49 repairs F118 after the re-check of fdfd99c9 and states F116's ULP reference; revision 48 repairs F116-F118 after the check of 6f512acd, with Q-F27; revision 47 adds step 9g with readings F116-F118 after SD-79 to SD-86; revision 46 splits 9f-ii into parts with readings F111-F115 and Q-F26; revision 45 splits 9e into two parts with readings F105-F110 and Q-F24; revision 44 details 9f-i with reading F104; revision 43 repairs F101 after the check of b5364cc3; revision 42 splits 9d into three parts with readings F96-F103; revision 41 splits 9c-ii into four parts with readings F88-F95; revision 40 repairs F87 (re-check PASS at abcd03de) after the check of 298a12a0, with Q-F23; revision 39 details 9c-i with reading F87; revision 38 repairs Q-F21 item 8 and F84-F86 after the check of db0bf1ce; revision 37 details 9b with readings F84-F86 and widens Q-F21; revision 36 repairs Q-F20-Q-F22 and splits 9c after the check of 09df7c27; revision 35 splits step 9 into 9a-9f-ii with readings F75-F83 and Q-F19-Q-F22; 8f repaired; 8g-i and 8g-ii built; revision 34 repairs F74 after the re-check of 25bd1d0d; revision 33 repairs F73-F74 after the check of 53216046; revision 32 splits step 8g into 8g-i and 8g-ii with readings F73-F74; revision 31 details step 8d with reading F72; revision 30 splits step 8 into 8a-8g with readings F65-F71 and Q-F17-Q-F18; revision 29 repairs F63-F64 after the check of 66ac030b, with Q-F16; revision 28 details steps 7f and 7g with readings F63-F64; revision 27 bounds F59's held test after the re-check of 3b6ebcc0; revision 26 repairs F59 and F62 after the check of c36b278e and withdraws Q-F15; revision 25 splits step 7e into 7e-i and 7e-ii with readings F59-F62 and Q-F15; revision 24 repairs F56 after the check of 8f10d755; revision 23 details step 7c with readings F54-F57; revision 22 repairs F50's table after the check of 31b3ed34; revision 21 details step 7b with readings F50-F53; revision 20 splits step 7 into 7a-7g with readings F44-F48 and Q-F13; revision 19 splits step 6 into 6a-6g with readings F38-F42 and Q-F11; revision 18 splits step 5 into 5a-5f with readings F29-F34 and Q-F9; revision 17 details step 4e with readings F26-F28 and splits it into 4e-i and 4e-ii; revision 16 details step 4d with readings F22-F25; revision 15 after the check of c50eb56c: an adoption names the current delta, SD-69's targets literal, Q-F8; revision 14 detailed step 4c-iv with reading F21, a delta's identity; revision 13 after the check of ad8daeb6: 4c-iv admits only ABSORB, F1 and §6 amended; revision 12 placed SD-69's schema correction and adoption path as step 4c-iv and the ledger's repair at step 10; revision 11 adds reading F20, the freeze's regions, after the 2aadf33 review; revision 10 reverted revision 9's split and added reading F19, the outermost owner's content; revision 9 split F18's whole-structure checks; revision 8 adds reading F18 and Q-F7, the reserved leaves; revision 7, after the re-check of efa2c450; revision 6, after the same-family plan review of 96e13c0b; revision 5 split step 4c into 4c-i to 4c-iii with readings F14-F17 and Q-F6; revision 4, after the same-family plan review of b10018de; revision 3 split step 4 into 4a-4e with readings F10-F11; revision 2 after the same-family plan reviews of 07284144 and 53e8c119)
 created_date: 2026-10-24
 governing_workplan: workplans/active/SSDS-8.0-G2-SHADOW-D4-WORKPLAN.md (revision 3, Stage D, §5.2 Phase F row)
 governing_architecture: orchestrator/docs/ssds-8.0-architecture.md (accepted at G1, SD-50; amendments A1-A9 accepted, SD-53, SD-55, SD-60, SD-62)
@@ -17,7 +17,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 73. Steps 1-9 and 10a-10d are closed; step 2's provenance enforcement was reopened on
+STATUS: ACTIVE, revision 74. Steps 1-9 and 10a-10d are closed; step 2's provenance enforcement was reopened on
         MATERIAL D4 blocker R-PROVENANCE-C7 and its source is now qualified (1,907 tests, 10 skipped). Frozen
         candidate 8cf829c34020ebffb5ad50ad7ba5b03343c005ce (SD-94); its source equals 46dbcc4b.
 AUTHORITY: SSDP 7.2.1; G2 shadow SD-55. No native authority, cutover, campaign or new upstream acceptance.
@@ -26,12 +26,13 @@ CURRENT: runbook A-C executed 2026-10-31. ssdp-shadow-3 (genesis 9d404721, basel
         under the pre-C7 program and reads INTEGRITY_HALT at 6 under C7 (disclosed, not rewritten). 10d complete
         on 8cf829c3 (F126, W1-W9 PASS): FINDING (3) and AVAILABILITY (5) ACCEPT, SD-93's clean signed append; the
         signed ACKNOWLEDGE refused at entry (F1). No signature pending.
-BLOCKERS: FR-A1 (revision 72): the frozen candidate's ledger grammars accept a final newline; repair prepared, not
-        applied. FR-B1 repaired, awaiting the other-family re-check. Program QUALIFIED is not full architecture
-        conformance.
-NEXT: FR-A1's source repair (revision 72), full suite, re-freeze, re-read the three ledgers (real home: needs the
-      stakeholder's authorization), 11b again at the new candidate and a narrow other-family re-check; then step 12
-      and acceptance. Required unexecuted work is not passed.
+BLOCKERS: the re-frozen candidate (revision 74: FR-A1 and D-GRAMMAR-ENDPOINTS repaired, full suite 1,911 OK)
+        still needs the ledger re-read (real home: the stakeholder's authorization), 11b at the candidate and the
+        narrow other-family re-check. Root regression fails one test until the stakeholder decides G2 revision 4.
+        Program QUALIFIED is not full architecture conformance.
+NEXT: 11b at the re-frozen candidate (scratch window); the re-read window once authorized; the narrow Codex
+      re-check of FR-A1, FR-B1 and the endpoint repair; then step 12 and acceptance. Required unexecuted work is
+      not passed.
 EVIDENCE: for ssdp-shadow-2, the canonical 10d evidence owns native results and the C7 route, and the pending-
         requests record its (closed) signatures; for ssdp-shadow-3, the retirement runbook owns A-C and F126's new
         evidence file owns 10d and its pending signatures. The continuation checkpoint owns exact resume; §9 owns
@@ -4453,3 +4454,59 @@ Rehearsal 2, from a fresh scratch home with the repaired tools of `76a283b4`, pa
 - **10d closes** under SD-93 on the FINDING (3) and the AVAILABILITY (5), disclosed with FR-A1: the repaired reader
   re-reads the ledgers in revision 72's step 5. The evidence file `PHASE-F-10D-SHADOW-3-EVIDENCE-SSDS-8.0.md` owns
   the windows and their limits; its window logs are committed beside it.
+
+**Revision 74 — FR-A1 and D-GRAMMAR-ENDPOINTS applied; the 10d tools retired; re-freeze.**
+- **FR-A1** is applied as prepared in revision 72 (its same-family check passed there). The stored `.txt` copies are
+  removed, since the repair is now in `orchestrator/`.
+- **D-GRAMMAR-ENDPOINTS, audited and repaired, not deferred.** The final-newline defect was reachable at 18
+  whole-value grammar sites in other owners:
+  - `content/manifest.py` (symbol and anchor terms);
+  - `content/plan.py` (item, ref, template, evidence, obligation, governing unit and revision, criterion, and the
+    `_strings` patterns);
+  - `content/structure.py` (the identity grammar, and the ignore patterns);
+  - `content/git.py` (`read_tree`'s object id), `analyzers/units.py` (a UCUM term) and `analyzers/python.py`
+    (`_REQUIREMENTS_FILE`, `$` → `\Z`).
+
+  Each now matches the whole value. The ignore patterns also compile with `re.DOTALL`, so Git-style wildcards cross
+  a newline in a path, as Git's do. Left as they are, with reasons:
+  - `core/git.py` `_SCP_LIKE`: its input is stripped;
+  - the line parsers in `core/canonical.py`, `content/lines.py`, `content/resolve.py` and `content/plan.py`: their
+    lines carry no LF;
+  - `_QUANTITY_SUFFIX`: it reads identifiers;
+  - presence scanners.
+
+  Each site has a test with a legal control, and reverting any one site alone fails a test (18 of 18).
+  - **Same-family check: NO-PASS** on one blocker, DGE-1: trailing blank lines in two test files. Repaired. On
+    the semantics, PASS on all four questions.
+  - It also showed no tracked path in any commit, and no committed manifest or policy string, contains a newline.
+    So the repair cannot change the historical study's result.
+  - Its notes are taken up: the new test classes now sit above `if __name__ == "__main__"`.
+- **R-CONTAINMENT-TOOLS.** The first full suite run on FR-A1 failed two containment fitness tests
+  (`orchestrator/tests/test_layout_and_fitness.py`):
+  - `PHASE-F-RETIREMENT-2-PREFLIGHT-A.py`, committed in `8cf829c3` itself, imports the program outside
+    `orchestrator/`, and so do the 10d tools (`RUN`, `HELPER`) and the FR-A1 `.txt` copies' paths.
+  - So the frozen commit `8cf829c3` failed this repository acceptance test. Its `orchestrator/` was qualified at
+    `46dbcc4b` (revision 66), before PREFLIGHT-A existed. The program source is not affected.
+  - With 10d closed, the four tools (`WINDOW`, `RUN`, `HELPER`, PREFLIGHT-A) are removed from the tree. They stay
+    recoverable at `7d22f708` with their recorded sha256s.
+  - The re-read window (`qualification/ssds80/PHASE-F-FR-A1-REREAD-WINDOW.py`) extracts PREFLIGHT-A from there and
+    checks F126's pin.
+  - This is the author's call, reversible, and offered to the stakeholder to confirm.
+- **Root regression: one failure, older than this revision.**
+  `tests/test_protocol_80_orchestrator_consolidation.py` requires the G2 workplan's status to be exactly `accepted`.
+  Since `b5f811d5` (G2 revision 4) it reads `accepted (revision 3); revision 4 proposed`, and so it did at
+  `8cf829c3`. It resolves with the stakeholder's decision on revision 4. Until then the root regression is a
+  disclosed blocking check.
+- **Qualification at the repair.**
+  - The program suite: 1,911 tests OK, 10 skipped, on the pinned runtime. The installed-product build ran with
+    PyPI reachable, since the sandbox blocks it by default.
+  - Repository acceptance: release state, PEM, protocol snapshot, skill packages built and validated, dist parity,
+    and `git diff --check` all pass. The root regression has the one failure above.
+- **Re-freeze (SD-94's rule).** The candidate is this revision's commit: its `orchestrator/` holds FR-A1 and the
+  endpoint repair. From here the freeze record names the full suite and repository acceptance at the candidate
+  commit itself.
+- **Still to run at the candidate:**
+  1. 11b, in a scratch window, then reclassify;
+  2. the re-read window (`~/.ssds`, read only), which needs the stakeholder's authorization. Its result must equal
+     W9's committed `W9-c7.json` field for field;
+  3. one narrow other-family re-check of FR-A1, FR-B1 and the endpoint repair.

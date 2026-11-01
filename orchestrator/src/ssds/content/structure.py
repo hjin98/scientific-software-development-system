@@ -77,11 +77,12 @@ def _ignore_regex(pattern: str) -> re.Pattern[str]:
     core = "".join(out)
     lead = "" if anchored else "(?:.*/)?"
     tail = "/.*" if directory else "(?:/.*)?"
-    return re.compile(f"^{lead}{core}{tail}$")
+    # matched whole (fullmatch), and `.` crosses a newline in a path as Git's wildcards do (FR-A1's pattern)
+    return re.compile(f"^{lead}{core}{tail}$", re.DOTALL)
 
 
 def ignored(path: str, patterns: tuple[str, ...]) -> bool:
-    return any(_ignore_regex(p).match(path) for p in patterns)
+    return any(_ignore_regex(p).fullmatch(path) for p in patterns)
 
 
 class Structure:
@@ -175,7 +176,7 @@ def static_errors(structure: Structure) -> list[StaticError]:
         errors.append(StaticError(code, uid, detail))
 
     for uid, unit in units.items():
-        if not ID_RE.match(uid) or len(uid.encode("utf-8")) > 255:
+        if not ID_RE.fullmatch(uid) or len(uid.encode("utf-8")) > 255:
             err("IDENTITY_GRAMMAR", uid, "identity outside the grammar")
         if uid.startswith("ssds.") and uid not in SYSTEM_UNITS:
             err("RESERVED_IDENTITY", uid, "the ssds. prefix is reserved for system units")

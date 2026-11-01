@@ -26,6 +26,9 @@ class Units(unittest.TestCase):
         self.assertEqual(dimension("(m/s)2"), dimension("m2/s2"))
         self.assertIsNone(dimension("furlong"), "outside the subset: not analyzable")
         self.assertIsNone(dimension("m/("))
+        # D-GRAMMAR-ENDPOINTS: a term is matched whole, so a newline inside an expression is outside the subset
+        self.assertIsNotNone(dimension("m.s"))
+        self.assertIsNone(dimension("m\n.s"))
 
 
 class DimensionalConsistency(unittest.TestCase):

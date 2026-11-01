@@ -199,7 +199,7 @@ def verify_chain(ledger_id: str, raws: Sequence[RawEntry]) -> Chain:
         for path, data in raw.files.items():
             if path in ("entry.json", "entry.sig"):
                 continue
-            match = _OBJECT_PATH.match(path)
+            match = _OBJECT_PATH.fullmatch(path)
             if not match or hashlib.sha256(data).hexdigest() != match.group(1):
                 layout_ok = False
             else:

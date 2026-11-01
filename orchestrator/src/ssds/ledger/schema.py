@@ -21,6 +21,7 @@ SCHEMA_VERSION = 1
 READABLE_SCHEMAS = frozenset({1})
 SYSTEM_RULESET = "ssds-rules/1"
 
+# Every grammar below is matched whole, with fullmatch: `$` alone also matches before a final newline (review FR-A1).
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 UNIT_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}(?:\.[a-z0-9][a-z0-9_-]{0,62})*(?:\.~)?$")
@@ -46,19 +47,19 @@ Check = Callable[[Any], bool]
 
 
 def is_digest(v: Any) -> bool:
-    return isinstance(v, str) and bool(DIGEST_RE.match(v))
+    return isinstance(v, str) and bool(DIGEST_RE.fullmatch(v))
 
 
 def is_commit(v: Any) -> bool:
-    return isinstance(v, str) and bool(COMMIT_RE.match(v))
+    return isinstance(v, str) and bool(COMMIT_RE.fullmatch(v))
 
 
 def is_unit(v: Any) -> bool:
-    return isinstance(v, str) and bool(UNIT_RE.match(v))
+    return isinstance(v, str) and bool(UNIT_RE.fullmatch(v))
 
 
 def is_token(v: Any) -> bool:
-    return isinstance(v, str) and bool(TOKEN_RE.match(v))
+    return isinstance(v, str) and bool(TOKEN_RE.fullmatch(v))
 
 
 def is_bool(v: Any) -> bool:
@@ -277,7 +278,7 @@ _ENVELOPE_REQUIRED: dict[str, Check] = {
     "kind": lambda v: isinstance(v, str) and v in KINDS,
     "schema": lambda v: v == SCHEMA_VERSION,
     "ruleset": shape({"system": is_token, "policy": is_digest, "analyzers": is_digest}),
-    "actor": lambda v: isinstance(v, str) and bool(ACTOR_RE.match(v)),
+    "actor": lambda v: isinstance(v, str) and bool(ACTOR_RE.fullmatch(v)),
     "actor_class": lambda v: isinstance(v, str) and v in ACTOR_CLASSES,
     "frame": lambda v: v == "ADMITTED" or _frame_ok(v),
     "target": lambda v: True,  # checked per kind
@@ -297,7 +298,7 @@ _ENVELOPE_REQUIRED: dict[str, Check] = {
     "provenance": lambda v: v is None or _PROVENANCE(v),
     "refs": list_of(shape({"store": one_of("LEDGER", "REPO", "HOME", "RUNNER"), "digest": is_digest,
                            "media_type": is_token}, {"locator": is_token})),
-    "recorded_at": lambda v: isinstance(v, str) and bool(TIMESTAMP_RE.match(v)),
+    "recorded_at": lambda v: isinstance(v, str) and bool(TIMESTAMP_RE.fullmatch(v)),
     "fields": is_json_object,
 }
 
@@ -314,10 +315,10 @@ _PROVENANCE_MEMBERS: dict[str, Check] = {
     "toolchain": optional(is_token),
     "judge": shape({"lineage_class": one_of("ATTESTED_FRESH", "HUMAN_ATTESTED_FRESH", "UNKNOWN"), "route": is_token,
                     "model_family": optional(is_token), "toolchain": optional(is_token)}),
-    "run": lambda v: isinstance(v, str) and bool(NONCE_RE.match(v)),
-    "report": lambda v: isinstance(v, str) and bool(NONCE_RE.match(v)),
+    "run": lambda v: isinstance(v, str) and bool(NONCE_RE.fullmatch(v)),
+    "report": lambda v: isinstance(v, str) and bool(NONCE_RE.fullmatch(v)),
     "reissue_of": is_digest,
-    "approval": shape({"actor": lambda v: isinstance(v, str) and v.startswith("human:") and bool(ACTOR_RE.match(v)),
+    "approval": shape({"actor": lambda v: isinstance(v, str) and v.startswith("human:") and bool(ACTOR_RE.fullmatch(v)),
                        "signature": lambda v: isinstance(v, str) and bool(SSHSIG_RE.fullmatch(v))}),
 }
 _PROVENANCE = lambda v: bool(v) and shape({}, _PROVENANCE_MEMBERS)(v)  # noqa: E731 - one check among the table's

@@ -396,7 +396,7 @@ def requirement_name(requirement: str) -> str:
     return "-".join(part for part in head.lower().replace("_", "-").replace(".", "-").split("-") if part)
 
 
-_REQUIREMENTS_FILE = _re.compile(r"(^|/)([^/]*(requirements|constraints)[^/]*\.(txt|in)|requirements/[^/]+\.(txt|in))$")
+_REQUIREMENTS_FILE = _re.compile(r"(^|/)([^/]*(requirements|constraints)[^/]*\.(txt|in)|requirements/[^/]+\.(txt|in))\Z")
 _UNCHECKABLE = ("-r", "-c", "-e", "--requirement", "--constraint", "--editable", "-i", "--index-url",
                 "--extra-index-url", "-f", "--find-links")
 

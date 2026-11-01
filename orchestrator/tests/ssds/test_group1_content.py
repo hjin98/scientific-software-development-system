@@ -24,6 +24,8 @@ from ssds.content import (
     write_set,
 )
 
+from ssds.content.structure import ignored
+
 from ._fixtures import git, init_repo, structure_of, view
 from ._fixtures import manifest as _manifest, tree as _tree
 
@@ -532,6 +534,8 @@ class StaticChecks(unittest.TestCase):
         self.assertIn("SIBLING_OVERLAP", self.errors(whole_and_span))
         legal = SHARED
         self.assertEqual(self.errors(legal), set(), "two symbols on one file whose names do not nest")
+        # D-GRAMMAR-ENDPOINTS: the identity grammar is matched whole, so an id with a final newline is outside it
+        self.assertIn("IDENTITY_GRAMMAR", self.errors('[[unit]]\nid = "a\\n"\nkind = "D4"\nscope = [{ prefix = "a/" }]\n'))
 
     def test_new_terms_must_resolve(self) -> None:
         units = '[[unit]]\nid = "a"\nkind = "D4"\nscope = [{ file = "a.md", heading = ["Gone"] }]\n'
@@ -544,6 +548,14 @@ class StaticChecks(unittest.TestCase):
         failure = parse_manifest(manifest('[[unit]]\nid = "a"\nkind = "D4"\nscope = []\nowner = "x"\n'))
         self.assertIsInstance(failure, ManifestFailure)
         self.assertEqual(failure.reason, "GRAMMAR")
+        # D-GRAMMAR-ENDPOINTS: a symbol or an anchor name with a final newline is outside its grammar
+        for term in ('{ file = "a.py", symbol = "f" }', '{ file = "a.md", anchor = "x" }'):
+            with self.subTest(term=term):
+                legal = '[[unit]]\nid = "a"\nkind = "D4"\nscope = [%s]\n' % term
+                self.assertNotIsInstance(parse_manifest(manifest(legal)), ManifestFailure)
+                bad = parse_manifest(manifest(legal.replace('f"', 'f\\n"').replace('x"', 'x\\n"')))
+                self.assertIsInstance(bad, ManifestFailure)
+                self.assertEqual(bad.reason, "GRAMMAR")
         v = TreeView(tree({".ssds/manifest.toml": b"schema = [\n"}), structure_of(tree({}, "")))
         self.assertIn("MANIFEST_UNPARSED", {f.code for f in v.integrity_findings})
 
@@ -571,6 +583,21 @@ class AnalyzedSourceWarnings(unittest.TestCase):
         self.assertEqual(seen, [])
         self.assertIn("check", names)
         self.assertEqual(imports.modules, ("re",))
+
+class GrammarEndpoints(unittest.TestCase):
+    """D-GRAMMAR-ENDPOINTS: a path or object identity is matched whole; `$` alone also matches before a final newline."""
+
+    def test_ignore_patterns_match_the_whole_path(self) -> None:
+        self.assertTrue(ignored("build", ("build",)))
+        self.assertFalse(ignored("build\n", ("build",)), "a different path, not ignored by 'build'")
+        # Git's wildcards cross any character but '/', a newline included
+        self.assertTrue(ignored("a\nb/c.log", ("*.log",)))
+        self.assertTrue(ignored("out/a\nb", ("out/",)))
+
+    def test_read_tree_takes_a_whole_object_identity(self) -> None:
+        with self.assertRaisesRegex(ValueError, "full object identity"):
+            read_tree(Path(tempfile.gettempdir()), "a" * 40 + "\n")
+
 
 if __name__ == "__main__":
     unittest.main()

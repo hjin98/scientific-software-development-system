@@ -98,11 +98,11 @@ def parse_term(raw: Any) -> Term:
                 raise _Grammar("a heading path is a non-empty list of headings")
             return Term("heading", raw["file"], tuple(value))
         if kind == "symbol":
-            if not isinstance(value, str) or not re.match(r"^[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*$", value):
+            if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*", value):
                 raise _Grammar("a symbol is a dotted qualified name")
             return Term("symbol", raw["file"], value)
         if kind == "anchor":
-            if not isinstance(value, str) or not SEGMENT_RE.match(value):
+            if not isinstance(value, str) or not SEGMENT_RE.fullmatch(value):
                 raise _Grammar("an anchor name follows the segment grammar")
             return Term("anchor", raw["file"], value)
     raise _Grammar(f"unknown scope term {sorted(keys)}")

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import unittest
 
+from ssds.analyzers.python import is_requirements_file
 from ssds.derivation.conformance import CLEAN, INCOMPLETE, SIGNAL, VIOLATION
 
 from .test_conformance import accepted_plan, conformance, realize, submit
@@ -115,6 +116,14 @@ class Boundary(unittest.TestCase):
         token = "Zx9kQ2mP8vR4tY7wL1nB6cF3hJ5dS0gA"
         self.assertEqual(classes_of("BOUNDARY.credential_values", {"src/solver.py": f"TOKEN = '{token}'\n"}), {VIOLATION})
         self.assertEqual(classes_of("BOUNDARY.credential_values", {"src/solver.py": "def step():\n    return 1\n"}), {CLEAN})
+
+
+class RequirementsFiles(unittest.TestCase):
+    def test_the_whole_path_is_matched(self) -> None:
+        """D-GRAMMAR-ENDPOINTS: `$` alone also matches before a final newline, a different path."""
+
+        self.assertTrue(is_requirements_file("src/requirements.txt"))
+        self.assertFalse(is_requirements_file("src/requirements.txt\n"))
 
 
 if __name__ == "__main__":

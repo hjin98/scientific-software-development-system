@@ -84,7 +84,7 @@ def branch_head(repo: Path, name: str) -> str | None:
 def read_tree(repo: Path, commit: str) -> Tree:
     """The tree of ``commit`` (a full object identity) in ``repo``."""
 
-    if not _OBJECT_ID.match(commit):
+    if not _OBJECT_ID.fullmatch(commit):
         raise ValueError("read_tree takes a full object identity, never a ref name")
     listing = _git(repo, ["ls-tree", "-r", "-z", "--full-tree", commit])
     records = []
