@@ -1,0 +1,139 @@
+===== READ state
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form script
+{
+  "chain": [
+    {
+      "decision": null,
+      "digest": "sha256:13063316a050b7423cfd77ed9eebb205105eccca28be848f6a3e5acc378020e4",
+      "entry_kind": "LIFECYCLE",
+      "lifecycle": "GENESIS",
+      "obs": null,
+      "position": 0,
+      "records": []
+    },
+    {
+      "decision": null,
+      "digest": "sha256:e1b5aa530ace76991ae67c479adc483fed78b2ac8f7d760307e39c9e48ff2f20",
+      "entry_kind": "ABSORPTION",
+      "lifecycle": null,
+      "obs": "9a805a5d511cf04ce6ee84eb7d218841c0121245",
+      "position": 1,
+      "records": []
+    },
+    {
+      "decision": null,
+      "digest": "sha256:7bc84eefea276b9bafe0a72d365919856ed70b6b6c89ca89c8ee5e91286e93a7",
+      "entry_kind": "ABSORPTION",
+      "lifecycle": null,
+      "obs": "625ec37f02f520f17af6b5986b7000c204c3e974",
+      "position": 2,
+      "records": []
+    },
+    {
+      "decision": "ACCEPT",
+      "digest": "sha256:41bc5babebb4b564c5e741f35d364009f3edcd2be086b1c67904e16065db221e",
+      "entry_kind": "ADMISSION",
+      "lifecycle": null,
+      "obs": "625ec37f02f520f17af6b5986b7000c204c3e974",
+      "position": 3,
+      "records": [
+        {
+          "id": "sha256:5ac61fc7be4278b9a6d43b4bbb2c238708bff76ab2a47e03cb2a175c2de62508",
+          "kind": "FINDING"
+        }
+      ]
+    }
+  ],
+  "entries": 4,
+  "expected_head": "625ec37f02f520f17af6b5986b7000c204c3e974",
+  "humans": [
+    "human:SHA256:gLJS5DKMqU8agEomGoVXOxmBj98ZZCyOsbIDGuOMxxI"
+  ],
+  "ledger": "ssdp-shadow-3",
+  "policy": "sha256:da93db77ebb07776dbd095f79fe28cbf4d42340c27bc33547ed7eeb2d3c93ea1",
+  "policy_availability": null,
+  "policy_object": {
+    "bytes": 11,
+    "digest_matches": true,
+    "text": "schema = 1\n"
+  },
+  "policy_unchanged": true,
+  "position": 3,
+  "problems": [],
+  "quarantine": [],
+  "reserved_leaves": {
+    "ssds.manifest": "MANIFEST",
+    "ssds.policy": "POLICY",
+    "ssds.unclassified": "UNCLASSIFIED"
+  }
+}
+ssds modules: 94 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src
+
+===== READ status
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form cli
+{
+  "assertion_withheld": [],
+  "critical": [],
+  "current_assertion": true,
+  "entries": 4,
+  "head": {
+    "digest": "sha256:41bc5babebb4b564c5e741f35d364009f3edcd2be086b1c67904e16065db221e",
+    "label": "QUALIFIED",
+    "position": 3,
+    "qualification": "QUALIFIED"
+  },
+  "ledger_id": "ssdp-shadow-3",
+  "obligations": [
+    {
+      "discharge": "OPEN",
+      "holder": "HUMAN",
+      "id": "sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0",
+      "kind": "HUMAN_ATTENTION",
+      "plan": null,
+      "readiness": "READY",
+      "target": {
+        "report": "sha256:5ac61fc7be4278b9a6d43b4bbb2c238708bff76ab2a47e03cb2a175c2de62508"
+      }
+    }
+  ],
+  "provisional": null,
+  "qualification": "QUALIFIED",
+  "subjects": {
+    "orchestrator.program": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:78a67e64231be19d42d2b031d9e05d1b3b0c406a6ff571646eee140a40ed98ae",
+      "status": "unclassified"
+    },
+    "ssdp.protocol": {
+      "mode": "LEGACY",
+      "rev": "sha256:0597630d37adb088c58a2c24e0b1402e6853c14e5c9cfbfc73d7f36e73aa27fa",
+      "status": "stale"
+    },
+    "ssds.manifest": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:fb77e7dedb294322d49d4f99d3c157fbe52080aaff08833444fecf29f254e3ee",
+      "status": "unclassified"
+    },
+    "ssds.policy": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:a0c4b3794237c0a5a73ed364ac23b2f63275c0d0c63b5f81aae2c6e623fa1fa4",
+      "status": "unclassified"
+    },
+    "ssds.unclassified": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:9226fdef0b604a32eb2f21671f4b9edb7b9aa1310881dcb937e3d573f8981363",
+      "status": "unclassified"
+    },
+    "ssds8.manual": {
+      "mode": "LEGACY",
+      "rev": "sha256:c5090340091ca7c72257d48b6ff327c1a0703d86b88bc1097d81d90a88374b23",
+      "status": "stale"
+    }
+  }
+}
+ssds modules: 86 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src
+
+===== READ compare
+/home/samjin/agent-skills/scientific-software-development-system: unchanged since /tmp/claude-1000/ssds-10d-shadow-3/windows/READ-before.json
+
+{"mode": "real", "window": "READ", "result": "PASS", "compare_exit": 0, "commands": [["state", 0, 0, null], ["status", 0, 0, null]]}

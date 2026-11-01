@@ -1,0 +1,62 @@
+wrapper: mode real, ledger ssdp-shadow-3, home /home/samjin/.ssds, tree /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src, form cli
+{
+  "assertion_withheld": [],
+  "critical": [],
+  "current_assertion": true,
+  "entries": 4,
+  "head": {
+    "digest": "sha256:41bc5babebb4b564c5e741f35d364009f3edcd2be086b1c67904e16065db221e",
+    "label": "QUALIFIED",
+    "position": 3,
+    "qualification": "QUALIFIED"
+  },
+  "ledger_id": "ssdp-shadow-3",
+  "obligations": [
+    {
+      "discharge": "OPEN",
+      "holder": "HUMAN",
+      "id": "sha256:93ef38dfbf8a66e9bfe61b9c807fc2c11cc6d02655c2ddd5d25855bbdfd571d0",
+      "kind": "HUMAN_ATTENTION",
+      "plan": null,
+      "readiness": "READY",
+      "target": {
+        "report": "sha256:5ac61fc7be4278b9a6d43b4bbb2c238708bff76ab2a47e03cb2a175c2de62508"
+      }
+    }
+  ],
+  "provisional": null,
+  "qualification": "QUALIFIED",
+  "subjects": {
+    "orchestrator.program": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:78a67e64231be19d42d2b031d9e05d1b3b0c406a6ff571646eee140a40ed98ae",
+      "status": "unclassified"
+    },
+    "ssdp.protocol": {
+      "mode": "LEGACY",
+      "rev": "sha256:0597630d37adb088c58a2c24e0b1402e6853c14e5c9cfbfc73d7f36e73aa27fa",
+      "status": "stale"
+    },
+    "ssds.manifest": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:fb77e7dedb294322d49d4f99d3c157fbe52080aaff08833444fecf29f254e3ee",
+      "status": "unclassified"
+    },
+    "ssds.policy": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:a0c4b3794237c0a5a73ed364ac23b2f63275c0d0c63b5f81aae2c6e623fa1fa4",
+      "status": "unclassified"
+    },
+    "ssds.unclassified": {
+      "mode": "UNGOVERNED",
+      "rev": "sha256:9226fdef0b604a32eb2f21671f4b9edb7b9aa1310881dcb937e3d573f8981363",
+      "status": "unclassified"
+    },
+    "ssds8.manual": {
+      "mode": "LEGACY",
+      "rev": "sha256:c5090340091ca7c72257d48b6ff327c1a0703d86b88bc1097d81d90a88374b23",
+      "status": "stale"
+    }
+  }
+}
+ssds modules: 86 loaded, all from /home/samjin/agent-skills/scientific-software-development-system/orchestrator/src
