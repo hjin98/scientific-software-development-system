@@ -3,7 +3,7 @@ kind: ssds-shadow-d3-d4-workplan
 workplan_id: SSDS-8.0-G2-SHADOW-D4-WORKPLAN
 protocol_version: 7.2.1
 target_system_version: 8.0.0
-status: accepted (revision 3); revision 4 proposed (stakeholder-directed, SD-90; not yet accepted)
+status: accepted
 created_date: 2026-10-18
 revised_date: 2026-10-30
 revision: 4
@@ -16,7 +16,7 @@ implementation_handoff: authorized-shadow
 g2_authorization: SD-55 (stakeholder decision record item 51); revision 3 at afd3be2640b6a6e33a3d744efd76d324c6e5931a with the post-review corrections at cb468ecad19ba41715527b4de42d90262e02cf87
 stakeholder_amendment: SD-56 (item 52), after Review; the program is `ssds` and operator data lives in an SSDS home outside every repository (Manual A7); supersedes §5.1 item 1's delivery and "no Core change", and limits §2 item 6 to Core's behavior
 phase_h_handoff: SD-75 (item 68); Phase H also builds the Ledger Store's ref restore (Phase F reading F47) and §5.7's recovery under INTEGRITY_HALT (Phase F reading F50), handed off from Phase F; by SD-76 (item 69), also §24.2's replacement lineage (re-encoding, commit identity and pseudonym mapping, and LINEAGE_MIGRATION's equal-state qualification)
-upstream_authority: SD-90 (stakeholder decision record item 77); revision 4 adds §5.7, the upstream D1/D2 stages U1-U4; revision 4 is stakeholder-directed and same-family reviewed, not yet different-family reviewed
+upstream_authority: SD-90 (stakeholder decision record item 77); revision 4 adds §5.7, the upstream D1/D2 stages U1-U4; revision 4 passed the different-family review of 8cf829c3 (part C) and is accepted (SD-99, item 82)
 active_serious_challenge: SC-U4 (revision 4, §5.7; Manual §14.7 HARD-template qualification; accepted and routed through U4 by SD-91, open until §14.7 is resolved; blocks no Phase F work). SC-D1 resolved by SD-56
 ---
 
@@ -468,7 +468,7 @@ Every Manual §32.3 trigger applies. In addition: a Stage S model needs a semant
 | Stage S | S1 done (§4.4); S2 done (§4.5, §4.6); S3 done (§4.7, §4.8); A1-A3 accepted (SD-53); S4 index done, no finding open (§4.9, §4.10); S5 done (§4.10); S6 done: Stage D made concrete (§5), register closure (§4.11), revision 1 frozen |
 | Stage D | authorized, shadow only (SD-55); Phase D under `workplans/active/SSDS-8.0-G2-PHASE-D-PLAN.md`: steps 1-7 done (the program renamed `ssds` by SD-56/SD-57, Manual A7; the shadow genesis of this repository admitted by the stakeholder's gate, `qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`); the Phase D Review of 0e49deb NO-PASS, its blockers repaired and its SERIOUS CHALLENGE SC-1 resolved by SD-58 (Manual A8); five further Reviews found implementation blockers, repaired under the SD-59 threat boundary; the Review of 39fe39b PASS on Phase D's implementation and exit, A7 and A8 confirmed (`qualification/ssds80/PHASE-D-IMPLEMENTATION-REVIEW-SSDS-8.0-39FE39B-DIFFERENT-FAMILY-PASS.md`); Phase D complete. A7 and A8 accepted (SD-60). Phase E under `workplans/active/SSDS-8.0-G2-PHASE-E-PLAN.md`: steps 1-8 done, each step's same-family review repaired; SERIOUS CHALLENGE SC-E1 resolved by SD-61 and Manual amendment A9 accepted (SD-62); the Phase E Review of 09f3505 (different family) passed A9 and found six implementation blockers, repaired with failing-first tests; five re-Reviews and the same-family checks between them found further blockers, each repaired with failing-first tests, the item-level-no-part chain consolidated on SD-54's post-answer rule; the re-Review of c2b1ec2 PASS on Phase E's implementation and exit (`qualification/ssds80/PHASE-E-IMPLEMENTATION-REVIEW-SSDS-8.0-C2B1EC2-DIFFERENT-FAMILY-PASS.md`); Phase E complete |
 | G2 | authorized (SD-55, 2026-10-19): criterion 13 Review PASS (afd3be2), criterion 14 met |
-| upstream D1/D2 (§5.7) | revision 4 (SD-90): U1-U4 warranted, none started; U3 keeps `ENSEMBLE` held; SC-U4 accepted and routed through U4 (SD-91), open until §14.7 is resolved; Q-U1 to Q-U5 answered as recommended (SD-95); revision 4 reviewed same-family only |
+| upstream D1/D2 (§5.7) | revision 4 (SD-90): U1-U4 warranted, none started; U3 keeps `ENSEMBLE` held; SC-U4 accepted and routed through U4 (SD-91), open until §14.7 is resolved; Q-U1 to Q-U5 answered as recommended (SD-95); revision 4 reviewed (different family, PASS) and accepted (SD-99) |
 
 **Revision 1 (2026-10-18, S6).** Revision 0 opened the workplan under SD-50 and recorded Stage S as it ran (§4.4-§4.10). Revision 1 adds the register closure (§4.11) and the concrete Stage D plan (§5, replacing revision 0's outline), brings the Stage S results current with SD-53, and freezes the file for independent Review. Nothing in it authorizes Stage D.
 
@@ -491,3 +491,10 @@ was taken up in this revision; its narrow re-check (NO-PASS: rule 3 had credited
 
 **SD-91 (2026-10-30).** The stakeholder accepted SC-U4 and its route through U4 (item 78). §5.7's text is
 unchanged except for SC-U4's state; revision 4 as a whole stays proposed.
+
+**SD-99 (2026-11-01).** Part C of the different-family review of `8cf829c3`
+(`qualification/ssds80/PHASE-F-FROZEN-REVIEW-SSDS-8.0-8CF829C3-DIFFERENT-FAMILY.md`) passed revision 4. The
+stakeholder accepted it (item 82). This accepts §5.7 as the plan of the upstream stages. Each of U1-U4 still needs
+its own D1/D2 work and acceptance, and SC-U4 stays open until Manual §14.7 is resolved. The review's note 3 (§5.7's
+introduction calls all four families statistical, more broadly than U3's contract) stays a wording note for U3's
+own work.

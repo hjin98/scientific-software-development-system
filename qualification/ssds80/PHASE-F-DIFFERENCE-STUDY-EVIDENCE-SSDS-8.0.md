@@ -1123,3 +1123,8 @@ and read no real ledger.
 The 814 frozen observations are among them, since their rows are identical; the 128 new ones come from the 33 new
 rows. The limits stay those of the frozen classification. Accepting 11b waits for the narrow other-family re-check
 (plan revision 74) and is the stakeholder's decision.
+
+**Narrow other-family re-check (`PHASE-F-RECHECK-SSDS-8.0-C8122D66-DIFFERENT-FAMILY.md`).** It passed the
+population, the 308 unchanged rows and all 942 actual classifications. Its RC-C1 found that the classifier did not
+bind each obligation id to its target. That is now repaired (plan revision 75), and the repaired classifier
+reproduces the preliminary, frozen and re-frozen classifications exactly.

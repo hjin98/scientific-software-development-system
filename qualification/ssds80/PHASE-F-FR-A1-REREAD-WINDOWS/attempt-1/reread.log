@@ -1,0 +1,3 @@
+ssdp-shadow-3 {"entries": 6, "halt": null, "readable_through": 5, "qualification": "QUALIFIED", "record_violations_by_position": {}, "chain_rejected": null, "qualification_error": null, "error": null}
+ssdp-shadow-2 {"entries": 11, "halt": 6, "readable_through": 5, "qualification": "INTEGRITY_HALT", "record_violations_by_position": {"6": ["field provenance outside its grammar"]}, "chain_rejected": null, "qualification_error": null, "error": null}
+ssdp-shadow {"entries": 2, "halt": null, "readable_through": 1, "qualification": "RETIRED", "record_violations_by_position": {}, "chain_rejected": null, "qualification_error": null, "error": null}

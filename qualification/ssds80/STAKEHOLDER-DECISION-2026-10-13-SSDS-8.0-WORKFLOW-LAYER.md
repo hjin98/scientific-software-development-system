@@ -508,7 +508,32 @@ head. The stakeholder chose:
   longer true is not prepared but goes back to the stakeholder. No request is prepared, signed or appended by this
   item; each signature stays the stakeholder's.
 
-## Not covered
+**82. The re-read, G2 revision 4 and the retired tools (2026-11-01).** After plan revision 74 re-froze the
+candidate at `c8122d66` (FR-A1 and D-GRAMMAR-ENDPOINTS repaired), the author asked three questions:
+1. Do you authorize the ledger re-read, which reads all three ledgers in `~/.ssds`, read only, with the repaired
+   reader through `qualification/ssds80/PHASE-F-FR-A1-REREAD-WINDOW.py`?
+2. Do you accept G2 workplan revision 4, which passed the other-family review of `8cf829c3` technically (part C)?
+   Accepting it also clears the root regression test that requires the G2 status `accepted`.
+3. Is retiring the four Phase F tools that import the program from the tracked tree acceptable (R-CONTAINMENT-TOOLS),
+   instead of moving them into `orchestrator/scripts/`?
+
+The stakeholder chose:
+
+> "I accept all 3."
+
+- **SD-98:** the re-read window runs at `c8122d66`, read only: nothing is prepared, signed or appended, and no
+  other use of `~/.ssds` is authorized.
+  - The stakeholder ran attempt 1 themself while the other-family re-check was still running. Its read equalled
+    W9's field for field. Its compare failed, because the repository changed during the snapshot (the review's
+    concurrent Git activity).
+  - The author proposed one more run after the re-check finishes, with a new out directory, and the stakeholder
+    chose: "Yes, rerun after".
+- **SD-99:** G2 workplan revision 4 (§5.7, the upstream D1/D2 stages U1-U4, and SC-U4's routing through U4) is
+  accepted. This accepts the plan of the stages, not the stages themselves: U1-U4 still need their own D1/D2 work
+  and acceptance, SC-U4 stays open until §14.7 is resolved, and the Phase F plan's fail-closed restrictions
+  "Until the upstream D1/D2 stages …" stand.
+- **SD-100:** the four tools stay retired from the tracked tree, recoverable byte for byte at `7d22f708` with their
+  recorded sha256s (plan revision 74).
 
 - The 2026-10-12 instruction that adopted 7.2.1 as the governing version and directed the rebase (workplan §0.4) was given in an earlier session and is not reproduced here. It remains recorded only as the workplan's paraphrase until the stakeholder restates it.
-- Acceptance of any marked product inspectability surface (none is marked) and of the mechanism catalogue beyond the settled register of the G2 workplan; the shadow genesis gate, campaigns, G3 and G4: these are later decisions. The architecture and the Manual were accepted at G1 (item 46, SD-50); G2 was authorized by item 51 (SD-55); the program name and data home were decided by item 52 (SD-56) and the approval key by item 53 (SD-57); the bounding rule of §6.5 by item 54 (SD-58); the Phase D threat boundary for the SSDS home by item 55 (SD-59); amendments A7 and A8 were accepted by item 56 (SD-60); SC-E1 was resolved by item 57 (SD-61, amendment A9) and A9 accepted by item 58 (SD-62); the SSDP 8.0 Amendment 1 handoff was routed to a later re-derivation by item 59 (SD-63); Phase F's questions and A10's open decisions were settled by item 60 (SD-64); A10 revision 1's re-Review was approved by item 61 (SD-65); A10 was accepted, and Q-F4 and Q-F5 settled, by item 62 (SD-66 to SD-68); Q-F6 and Q-F7 were settled by item 63 (SD-69); Q-F8 and Q-F9 by item 64 (SD-70); Q-F10 by item 65 (SD-71); Q-F11 by item 66 (SD-72); Q-F12 by item 67 (SD-73); Q-F13 and Q-F14 by item 68 (SD-74, SD-75); Q-F16 by item 69 (SD-76); Q-F17 and Q-F18 by item 70 (SD-77, SD-78); Q-F19 to Q-F26 by item 71 (SD-79 to SD-86); Q-F27 to Q-F29 by item 72 (SD-87 to SD-89); the upstream D1/D2 stages by item 77 (SD-90); SC-U4 by item 78 (SD-91); the compendium of open questions by item 79 (SD-92 to SD-95); the successor key by item 80 (SD-96); Q-F30 by item 81 (SD-97). The shadow genesis was approved at Phase D step 7 by the stakeholder's own SSH signature over its digest, which the ledger records (`qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`); that signature is the record of the approval, so no instruction is reproduced for it here.
+- Acceptance of any marked product inspectability surface (none is marked) and of the mechanism catalogue beyond the settled register of the G2 workplan; the shadow genesis gate, campaigns, G3 and G4: these are later decisions. The architecture and the Manual were accepted at G1 (item 46, SD-50); G2 was authorized by item 51 (SD-55); the program name and data home were decided by item 52 (SD-56) and the approval key by item 53 (SD-57); the bounding rule of §6.5 by item 54 (SD-58); the Phase D threat boundary for the SSDS home by item 55 (SD-59); amendments A7 and A8 were accepted by item 56 (SD-60); SC-E1 was resolved by item 57 (SD-61, amendment A9) and A9 accepted by item 58 (SD-62); the SSDP 8.0 Amendment 1 handoff was routed to a later re-derivation by item 59 (SD-63); Phase F's questions and A10's open decisions were settled by item 60 (SD-64); A10 revision 1's re-Review was approved by item 61 (SD-65); A10 was accepted, and Q-F4 and Q-F5 settled, by item 62 (SD-66 to SD-68); Q-F6 and Q-F7 were settled by item 63 (SD-69); Q-F8 and Q-F9 by item 64 (SD-70); Q-F10 by item 65 (SD-71); Q-F11 by item 66 (SD-72); Q-F12 by item 67 (SD-73); Q-F13 and Q-F14 by item 68 (SD-74, SD-75); Q-F16 by item 69 (SD-76); Q-F17 and Q-F18 by item 70 (SD-77, SD-78); Q-F19 to Q-F26 by item 71 (SD-79 to SD-86); Q-F27 to Q-F29 by item 72 (SD-87 to SD-89); the upstream D1/D2 stages by item 77 (SD-90); SC-U4 by item 78 (SD-91); the compendium of open questions by item 79 (SD-92 to SD-95); the successor key by item 80 (SD-96); Q-F30 by item 81 (SD-97); the re-read, G2 revision 4 and the retired tools by item 82 (SD-98 to SD-100). The shadow genesis was approved at Phase D step 7 by the stakeholder's own SSH signature over its digest, which the ledger records (`qualification/ssds80/PHASE-D-STEP7-SHADOW-GENESIS-EVIDENCE-SSDS-8.0.md`); that signature is the record of the approval, so no instruction is reproduced for it here.

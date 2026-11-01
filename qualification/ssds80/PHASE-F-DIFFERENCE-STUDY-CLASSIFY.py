@@ -30,10 +30,20 @@ def identity(source: dict, finding) -> str:
     return "sha256:" + hashlib.sha256(body).hexdigest()
 
 
+def intake_identity(about: list) -> str:
+    """The harness's identity of a consequence obligation, ``"s3:" + sha256(canonical_json({kind, about}))``
+    (``difference_study.consequence_state``). For a list of two printable-ASCII strings, which the caller checks,
+    sorted compact JSON is the RFC 8785 form, so no program code is imported here."""
+
+    body = json.dumps({"kind": "INTAKE", "about": about}, sort_keys=True, separators=(",", ":")).encode()
+    return "s3:" + hashlib.sha256(body).hexdigest()
+
+
 def repair_consequences(changes: dict) -> bool:
-    """The exact consequence of absorbing 11ec88e4 with no adoption (Manual §18.2-§18.5; review FR-B1): the eight
-    declaration keys of the two reserved leaves quarantined, each once, its value the key itself, and one OPEN
-    INTAKE obligation per key, its id its key; nothing else added, changed or removed."""
+    """The exact consequence of absorbing 11ec88e4 with no adoption (Manual §18.2-§18.5; reviews FR-B1, RC-C1): the
+    eight declaration keys of the two reserved leaves quarantined, each once, its value the key itself, and one OPEN
+    INTAKE obligation per key, its id its key and the identity of its own target, each id once; nothing else added,
+    changed or removed."""
 
     expected = {(unit, field) for unit in ("ssds.manifest", "ssds.policy")
                 for field in ("kind", "role", "scope", "subject")}
@@ -58,10 +68,14 @@ def repair_consequences(changes: dict) -> bool:
         if set(item) != {"key", "value"} or not isinstance(value, dict) \
                 or set(value) != {"about", "detail", "discharge", "id", "kind"} or value["id"] != item["key"] \
                 or (value["kind"], value["detail"], value["discharge"]) != ("INTAKE", "quarantined delta", "OPEN") \
-                or not isinstance(value["about"], list):
+                or not isinstance(value["about"], list) or len(value["about"]) != 2 \
+                or not all(isinstance(s, str) and s.isascii() and s.isprintable() for s in value["about"]) \
+                or value["id"] != intake_identity(value["about"]):
             return False
         abouts.append(tuple(value["about"]))
-    return sorted(keys) == sorted(expected) and sorted(abouts) == sorted(expected)
+    ids = [item["key"] for item in changes["obligations"]["added"]]
+    return (sorted(keys) == sorted(expected) and sorted(abouts) == sorted(expected)
+            and len(set(ids)) == len(ids) == len(expected))
 
 
 def classify(report: dict) -> list[dict]:

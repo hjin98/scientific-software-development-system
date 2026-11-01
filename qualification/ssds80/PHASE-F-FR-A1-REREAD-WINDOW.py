@@ -33,6 +33,7 @@ FROZEN_READ = HERE / "PHASE-F-10D-SHADOW-3-WINDOWS" / "W9-c7.json"  # the 8cf829
 SENSOR = REPOSITORY / "orchestrator" / "scripts" / "shadow_boundary.py"
 SOURCE = REPOSITORY / "orchestrator" / "src"
 LEDGERS = ["ssdp-shadow-3", "ssdp-shadow-2", "ssdp-shadow"]
+MISSING = "<missing>"
 
 
 def git(*args: str) -> subprocess.CompletedProcess:
@@ -93,11 +94,15 @@ def main() -> int:
             now, then = read["ledgers"], json.loads(FROZEN_READ.read_text())["ledgers"]
             record["home"], record["ssds"] = read["home"], read["ssds"]
             record["differences"] = [] if read["home"] == str(Path.home() / ".ssds") else [f"home {read['home']}"]
-            record["differences"] += [f"{ledger}.{k}: {now.get(ledger, {}).get(k)!r}, "
-                                      f"at 8cf829c3 {then.get(ledger, {}).get(k)!r}"
+            # field for field: a field missing on one side differs even from an explicit null (review N1)
+            record["differences"] += [f"{ledger}.{k}: {now.get(ledger, {}).get(k, MISSING)!r}, "
+                                      f"at 8cf829c3 {then.get(ledger, {}).get(k, MISSING)!r}"
                                       for ledger in sorted(set(now) | set(then))
                                       for k in sorted(set(now.get(ledger, {})) | set(then.get(ledger, {})))
-                                      if now.get(ledger, {}).get(k) != then.get(ledger, {}).get(k)]
+                                      if now.get(ledger, {}).get(k, MISSING) != then.get(ledger, {}).get(k, MISSING)]
+            record["differences"] += [f"ledger {ledger} read on one side only"
+                                      for ledger in sorted(set(now) ^ set(then))]
+            record["compared"] = True
     except BaseException as exc:  # the compare still runs
         record["interrupted"] = f"{type(exc).__name__}: {exc}"
     finally:
@@ -106,8 +111,10 @@ def main() -> int:
                 [RUNTIME, "-I", "-B", str(SENSOR), "compare", "--repository", str(REPOSITORY), "--before",
                  str(before)], env=env, stdout=f, stderr=subprocess.STDOUT).returncode
         record["before_sha256"] = sha256(before)
+        # PASS only when the comparison itself finished: an interruption is never PASS (review RC-D1)
         record["result"] = ("FAILED" if record["compare_exit"] else
-                            "PASS" if record.get("read_exit") == 0 and record.get("differences") == [] else
+                            "PASS" if record.get("read_exit") == 0 and record.get("compared") is True
+                            and record.get("differences") == [] and "interrupted" not in record else
                             "INCOMPLETE")
         (out / "window.json").write_text(json.dumps(record, indent=2) + "\n")
     print((out / "reread.log").read_text())
