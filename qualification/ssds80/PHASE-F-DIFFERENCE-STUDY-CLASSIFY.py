@@ -42,8 +42,16 @@ def classify(report: dict) -> list[dict]:
 
     for row in report["commits"]:
         checks = row["checks"]
+        if set(checks) != {"1", "2", "3", "4"} or set(checks["1"]) != {"credential_template", "request_scan"}:
+            raise SystemExit(f"{row['commit']}: unexpected check keys: unclassified")
         if checks["4"].get("status") != "vacuous":
             raise SystemExit(f"{row['commit']}: check 4 is not vacuous: unclassified")
+        if not isinstance(checks["1"]["request_scan"], str) or not checks["1"]["request_scan"].startswith("no submitted"):
+            raise SystemExit(f"{row['commit']}: check 1's request scan found something: unclassified")
+        # check 2: exactly the two exempted leaves, except at the repair commit, which declares them
+        units = sorted(f.get("unit") for f in checks["2"])
+        if units != ([] if row["commit"] == REPAIR else ["ssds.manifest", "ssds.policy"]):
+            raise SystemExit(f"{row['commit']}: check 2 units {units}: unclassified")
         for index, finding in enumerate(checks["2"]):
             if finding["code"] != "STRUCT_RESERVED_LEAF" or finding["unit"] not in ("ssds.manifest", "ssds.policy"):
                 raise SystemExit(f"{row['commit']}: check 2 finding {finding['code']}: unclassified")
@@ -51,7 +59,10 @@ def classify(report: dict) -> list[dict]:
                       else "reserved_leaf_genesis_deviation")
             add(row, "2", index, finding, finding["code"], reason)
         for index, finding in enumerate(checks["3"]):
-            if finding["code"] != "AUTH_PROTECTED" or finding["applicability"] != PROTECTED:
+            # a protected touch only from the repair commit on: of ssds.policy there, of ssds.unclassified after
+            owners = ["ssds.policy"] if row["commit"] == REPAIR else ["ssds.unclassified"]
+            if finding["code"] != "AUTH_PROTECTED" or finding["applicability"] != PROTECTED \
+                    or (row["commit"] != REPAIR and row["commit"] not in after_repair) or finding["owners"] != owners:
                 raise SystemExit(f"{row['commit']}: check 3 finding {finding['code']}: unclassified")
             add(row, "3", index, finding, finding["code"], "protected_touch_authorship_unestablished")
         for index, finding in enumerate(checks["1"]["credential_template"]):
@@ -65,7 +76,14 @@ def classify(report: dict) -> list[dict]:
                     intake = group == "obligations" and change == "added" and value.get("kind") == "INTAKE" \
                         and value.get("detail") == "quarantined delta" \
                         and value.get("about", [None])[0] in ("ssds.manifest", "ssds.policy")
-                    quarantined = group == "quarantine" and change == "added"
+                    key = None
+                    if group == "quarantine" and isinstance(item.get("key"), str):
+                        try:
+                            key = json.loads(item["key"])  # a quarantine key is the JSON text of (unit, field)
+                        except ValueError:
+                            key = None
+                    quarantined = group == "quarantine" and change == "added" and isinstance(key, list) \
+                        and key[:1] in (["ssds.manifest"], ["ssds.policy"])
                     if row["commit"] != REPAIR or not (intake or quarantined):
                         raise SystemExit(f"{row['commit']}: consequence {group}.{change}: unclassified")
                     add(row, f"consequences.{group}.{change}", index, item, None,
