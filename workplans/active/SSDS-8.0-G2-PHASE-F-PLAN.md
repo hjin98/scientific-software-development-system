@@ -4416,13 +4416,29 @@ Rehearsal 2, from a fresh scratch home with the repaired tools of `76a283b4`, pa
   2. a same-family check of the repair;
   3. the full suite;
   4. re-freeze at the repair commit (SD-94's rule);
-  5. re-read all three ledgers with the repaired reader (PREFLIGHT-A);
+  5. re-read all three ledgers with the repaired reader: PREFLIGHT-A with
+     `--ledgers ssdp-shadow-3 ssdp-shadow-2 ssdp-shadow`, since its default omits the live ledger. Each ledger's halt
+     state and `record_violations` must equal the `8cf829c3` reader's: `ssdp-shadow-3` `QUALIFIED`, `ssdp-shadow-2`
+     `INTEGRITY_HALT` at 6, `ssdp-shadow` `RETIRED`. Provenance `null` covers only the nonce members; for actor,
+     digest, unit, timestamp and commit this step is the evidence. Any difference reopens how 10d's closure is
+     disclosed;
   6. 11b again at the new candidate, reclassified;
   7. a narrow other-family re-check of FR-A1 and FR-B1 (the Codex budget was exhausted by this round).
 
   10d closes on `8cf829c3`, disclosed with the later grammar repair.
 - **Registered: D-GRAMMAR-ENDPOINTS.** The same `match`/`$` pattern appears in content-parser grammars outside the
-  ledger schema (`content/manifest.py`, `content/spec.py`, `content/plan.py`, `content/git.py`, `analyzers/units.py`,
-  and the line-based parsers in `core/canonical.py`, `content/lines.py` and `content/resolve.py`). Those are other
-  owners, mostly applied to single lines. Their audit is a disclosed deferred item, done before the exit or reported
+  ledger schema:
+  - `content/structure.py` (178: unit ids, which reach ledger targets; 84: ignore patterns);
+  - `content/manifest.py`, `content/spec.py`, `content/plan.py`, `content/git.py:87` and `analyzers/units.py`;
+  - `core/git.py:447` (`_SCP_LIKE`);
+  - the line-based parsers in `core/canonical.py`, `content/lines.py` and `content/resolve.py`.
+
+  Those are other owners, mostly applied to single lines. Until their audit, a unit id with a final newline that a
+  content parser accepts fails closed at the ledger schema instead of being admitted; the 11b re-run over the real
+  repository covers that case in practice. The audit is a disclosed deferred item, done before the exit or reported
   there.
+- **The repair's same-family check: PASS**, no blockers. Its note N1 is folded in: discriminators now cover
+  every changed site (`is_commit`, the approval actor, and a stray object named by its own content digest with a
+  final newline). Each was mutation-checked by reverting that one site, and each mutant fails. The non-discriminating
+  `reason token` case is replaced with `ruleset.system`. The two modules pass, 127 tests. Notes N2 and N3 are taken
+  up above. The repair files are refreshed.

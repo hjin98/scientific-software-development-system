@@ -8,6 +8,7 @@ admission halves are Phase F.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -238,9 +239,14 @@ class ChainVerification(LedgerFixture):
                              'recorded_at': {'recorded_at': good['recorded_at'] + '\n'},
                              'unit': {'target': {'units': ['readme\n']}},
                              'supersedes digest': {'supersedes': ['sha256:' + 'ab' * 32 + '\n']},
-                             'reason token': {'reason': ['ANOMALY\n']}}.items():
+                             'ruleset system token': {'ruleset': {**good['ruleset'],
+                                                                  'system': good['ruleset']['system'] + '\n'}}}.items():
             with self.subTest(name):
                 self.assertTrue(record_violations(with_id({**good, **change})))
+        from ssds.ledger.schema import is_commit
+
+        self.assertTrue(is_commit('ab' * 20))
+        self.assertFalse(is_commit('ab' * 20 + '\n'))
 
     def test_authenticated_narrative_provenance_halts_without_grandfathering(self) -> None:
         """R-PROVENANCE-C7 (§3.2, C7; reading F125): an admitted record whose provenance carries narrative halts
@@ -291,6 +297,10 @@ class ChainVerification(LedgerFixture):
         raws = self.raws()
         extra = RawEntry(raws[1].commit, raws[1].parents, {**raws[1].files, "notes.txt": b"x"})
         self.assertEqual(verify_chain("demo", [raws[0], extra]).halt, 1)
+        # FR-A1: an object path is the whole name, so one with a final newline is outside the layout
+        name = hashlib.sha256(b"{}").hexdigest()  # its content names it, so only the final newline is wrong
+        stray = RawEntry(raws[1].commit, raws[1].parents, {**raws[1].files, f"objects/{name}.json\n": b"{}"})
+        self.assertEqual(verify_chain("demo", [raws[0], stray]).halt, 1)
 
 
 class GenesisChecks(LedgerFixture):

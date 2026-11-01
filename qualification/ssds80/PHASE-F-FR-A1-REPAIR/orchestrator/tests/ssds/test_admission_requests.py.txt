@@ -294,6 +294,7 @@ class ProvenanceGrammar(RequestFixture):
                                "a trailing blank line": {**good, "signature": sig + "\n"},
                                "CRLF armour": {**good, "signature": sig.replace("\n", "\r\n")},
                                "an agent actor": {**good, "actor": "agent:someone/1"},
+                               "an actor with a final newline": {**good, "actor": good["actor"] + "\n"},
                                "a machinery actor": {**good, "actor": "machinery:runner@x"}}.items():
             with self.subTest(name):
                 self.assertTrue(record_violations(with_id({**retirement, "provenance": {"approval": approval}})))
