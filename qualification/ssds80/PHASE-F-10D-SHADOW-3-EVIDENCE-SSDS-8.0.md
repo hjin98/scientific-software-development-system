@@ -3,8 +3,8 @@ Governing SSDP version: 7.2.1.
 # SSDS 8 Phase F — step 10d on `ssdp-shadow-3`: evidence
 
 ```text
-STATUS: TOOLS COMMITTED; dev check in scratch done; the rehearsal (G1-W9 in --mode rehearsal) is next. No real
-        window has run and nothing is prepared on ssdp-shadow-3.
+STATUS: REHEARSAL PASS (G1-W9, 15 windows, 2026-11-01). The real run (W1-W9 in --mode real) needs the
+        stakeholder's authorization; no real window has run and nothing is prepared on ssdp-shadow-3.
 AUTHORITY: plan reading F126 (revision 69, review PASS); SD-93 (10d closes only on a later clean signed append);
            SD-97 (item 81, Q-F30 (a): the FINDING and the policy object's AVAILABILITY).
 SHADOW: no SSDS authority over any subject; nothing is carried from ssdp-shadow-2 (F44).
@@ -86,6 +86,21 @@ Signing happened between windows.
 | W1 | PASS | the precondition found nothing under `.ssds/` or `orchestrator/` moved since `8cf829c3`; head `0914017a` absorbed at position 1 |
 | W2 | PASS | `status`: `QUALIFIED`, current assertion, no provisional entry, no critical finding, no obligation. Helper `state`: the reserved leaves `MANIFEST`, `POLICY` and `UNCLASSIFIED`; empty quarantine; policy digest unchanged; policy object held (11 bytes, digest matches); policy availability `null` (no AVAILABILITY yet, as observed) |
 | W3 | PASS | `would_issue: []`, nothing issued, no run ref |
+| W4a | PASS | FINDING built at position 1. Narrative: blob `77ac4936…5533` of `a68c725d`, this file, 8,600 bytes, content `sha256:cb920603…8519`. Prepared as request `sha256:a477ab9c…02dd`, record `sha256:916b9043…214c`. Admission's step-1 checks: no request or record problem, provenance `null`, the message matches, no signature yet |
+| W4b | PASS | absorbed `a68c725d` at 2, then `ACCEPT` at 3 |
+| W5a | PASS | AVAILABILITY of `sha256:da93db77…3ea1`, `AVAILABLE`. Prepared as request `sha256:179c8d6a…8468`, record `sha256:803dc33c…a077`. Checks clean |
+| W5b | PASS | `ACCEPT` at 4, with no absorption (head unmoved) |
+| W6 | PASS | two `admission serve` runs: `absorbed: false` at 4 both times. Chain: 0 genesis, 1 and 2 absorptions, 3 FINDING, 4 AVAILABILITY; no fence after the records-only admissions. Policy availability `AVAILABLE`; no problems |
+| W7a | PASS | ACKNOWLEDGE of the derived `HUMAN_ATTENTION` obligation `sha256:62c76f80…b765` (holder `HUMAN`), basis the FINDING. Prepared as request `sha256:bf0ff55d…07cb2`. Checks clean |
+| W7b | PASS | baseline 5 entries, obligation `OPEN`, no human decision. `decide --admit` refused at entry, "a HUMAN_DECISION record: its checks belong to a later phase (F1)", exit 1 as expected |
+| W7c | PASS | signature verified independently against the registered key. Nothing appended (5 entries, same last digest). Obligation still `OPEN` and `HUMAN`-held. One new `boundary.jsonl` line, under the signed request's identity |
+| W8 | PASS | candidate refused at entry ("the real shadow ledger observes and never publishes (F1)"), nothing appended, one `boundary.jsonl` line |
+| W9 | PASS | the `3ea6d029` extract matched by content (133 files, nothing extra). C7 read: 5 entries, `QUALIFIED`, no record violations, 83 modules all from the repository's `src`. Pre-C7 read: the same, 83 modules all from the extract |
+
+Every window's preconditions held: `orchestrator/` equals `8cf829c3` and is clean, no bytecode is present (only
+`ssds.egg-info/` is ignored under `src`), and no linked worktree is registered. Every compare reported the
+repository unchanged. The rehearsal proves the path, not the real admission; its throwaway signatures are no
+evidence of the stakeholder's approval.
 
 ### Rehearsal W2: `inspect` output (the rehearsal FINDING's narrative home)
 
