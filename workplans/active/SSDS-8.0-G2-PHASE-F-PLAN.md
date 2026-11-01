@@ -17,19 +17,19 @@ Governing SSDP version: 7.2.1.
 # SSDS 8.0 — Stage D Phase F plan: Admission and Dispatcher in shadow
 
 ```text
-STATUS: ACTIVE, revision 67. Steps 1-9 and 10a-10c were closed; step 2's provenance enforcement was reopened on
+STATUS: ACTIVE, revision 68. Steps 1-9 and 10a-10c were closed; step 2's provenance enforcement was reopened on
         MATERIAL D4 blocker R-PROVENANCE-C7 and its source is now qualified (1,907 tests, 10 skipped). Frozen
         candidate 8cf829c34020ebffb5ad50ad7ba5b03343c005ce (SD-94); its source equals 46dbcc4b.
 AUTHORITY: SSDP 7.2.1; G2 shadow SD-55. No native authority, cutover, campaign or new upstream acceptance.
-CURRENT: real ledger ssdp-shadow-2 unchanged since obs 6b8331eb: 10 entries, last digest sha256:412391b0...1a30.
-        Runbook step A (2026-10-31): pre-C7 reader QUALIFIED; C7 reader INTEGRITY_HALT at 6 alone; ssdp-shadow
-        RETIRED under both. C7 enforcement is not deployed on real state. No signature pending.
-BLOCKERS: original append boundary FAILED/contaminated; accepted AVAILABILITY has narrative provenance
-        contrary to Manual §3.2/C7. Program QUALIFIED is not full architecture conformance. 10d incomplete.
-NEXT: runbook step B (ssdp-shadow-3 genesis, baseline the frozen candidate, new key per SD-96), then C (retire
-      ssdp-shadow-2 on the pre-C7 program), then D (replan 10d on ssdp-shadow-3, SD-93); frozen 11b with
-      classification and the other-family review (SD-95), step 12 and acceptance remain open. Required unexecuted
-      work is not passed.
+CURRENT: runbook A-C executed 2026-10-31. ssdp-shadow-3 (genesis 9d404721, baseline the frozen candidate, new
+        key ssds-genesis-3) is the live shadow ledger, QUALIFIED at 0. ssdp-shadow-2 is RETIRED at 10 under the
+        pre-C7 program and reads INTEGRITY_HALT at 6 under C7 (disclosed, not rewritten). No signature pending.
+BLOCKERS: the original append boundary FAILED/contaminated, and ssdp-shadow-2's accepted AVAILABILITY breaks C7;
+        both stay recorded on the retired ledger. 10d is incomplete until a clean signed append on ssdp-shadow-3
+        (SD-93). Program QUALIFIED is not full architecture conformance.
+NEXT: step D2: the 10d replan on ssdp-shadow-3 (plan revision plus review, before any request); frozen 11b with
+      classification and the other-family review (SD-95); step 12 and acceptance. Required unexecuted work is not
+      passed.
 EVIDENCE: canonical 10d evidence owns native results/C7 route; pending-requests record owns current signature;
         continuation checkpoint owns exact resume; §9 owns step/review history. No Serious Challenge identified.
 ```
@@ -4281,3 +4281,10 @@ through each program's own reader in one boundary-checked window; every result w
 record). Its first attempt stopped at the sensor's linked-worktree refusal on Git 2.34.1; the clean app worktree was
 removed with the stakeholder's approval, and the sensor is unchanged. Steps B-D, frozen 11b and the other-family
 review follow.
+
+**Revision 68 — runbook steps B and C executed.** `ssdp-shadow-3`'s genesis (baseline `8cf829c3`, human key
+`ssds-genesis-3`) was admitted and is `QUALIFIED` at 0. `ssdp-shadow-2`'s `LINEAGE_RETIREMENT`, signed with the
+SD-57 key and naming `ssdp-shadow-3`'s genesis digest, was admitted at 10 by the pre-C7 program. Under C7 the retired
+ledger reads `INTEGRITY_HALT` at 6, as F125 disclosed. Every window's boundary compare reported the product
+repository unchanged; the runbook's execution record owns the details. No 10d append, frozen 11b or review is
+claimed.
