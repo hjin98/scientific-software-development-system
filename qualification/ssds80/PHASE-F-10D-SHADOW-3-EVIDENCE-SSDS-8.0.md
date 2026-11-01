@@ -296,6 +296,35 @@ That is an inspectability gap, `MATERIAL` and non-blocking. It is checked agains
 `8cf829c3`, whose `orchestrator/` the window's preconditions show unchanged. It makes no claim beyond what this
 output and the helper's reading show.
 
+### Host reboot after W5a (2026-11-01, about 12:47 UTC)
+
+The host rebooted after W5a and after the stakeholder signed the W5 request. No window was open: W5a had finished
+`PASS` and its logs had been read. A W5b attempt typed afterwards never started, because its log redirect into the
+wiped directory failed before the runner ran, so nothing touched the ledger. The reboot cleared `/tmp`, and with it:
+- the pinned runtime `/tmp/claude-1000/ssds-runtime-20261030`;
+- the `3ea6d029` extract;
+- the rehearsal homes and keys;
+- every raw window log of the rehearsals and of real W1-W5a.
+
+`~/.ssds`, and with it the ledger and the signed request, is outside `/tmp` and unaffected. What stays of the lost
+windows is this file's records of them, made from their logs before the reboot, and the ledger's own entries,
+which W9 reads back. The raw logs themselves are lost, and that is disclosed here.
+
+Repairs, between windows:
+- **Runtime.** Rebuilt at the same pinned path by the original procedure (`uv venv --python 3.12`, then
+  `uv pip install -e orchestrator -r requirements-dev.txt`). It is CPython 3.12.16 with typer 0.27.3, the two
+  versions recorded for the first build. Its packages: `annotated-doc==0.0.5`, `annotated-types==0.8.0`, `build==1.6.1`, `cffi==2.1.1`, `cryptography==50.0.2`, `hypothesis==6.170.14`, `markdown-it-py==4.2.0`, `mdurl==0.1.2`, `packaging==26.3`, `pycparser==3.12`, `pydantic==2.14.2`, `pydantic-core==2.50.2`, `pygments==2.21.0`, `pyperclip==1.11.0`, `pyproject-hooks==1.3.3`, `python-frontmatter==1.3.0`, `pyyaml==6.0.3`, `rich==15.0.0`, `shellingham==1.5.4`, `sortedcontainers==2.4.0`, `typer==0.27.3`, `typing-extensions==4.16.0`, `typing-inspection==0.4.4`, plus `ssds` editable from `orchestrator`. The first build's full package list was not recorded, so other
+  versions cannot be compared. The program's dependencies carry only lower bounds. The program source is the
+  frozen `8cf829c3`, unchanged.
+- **Extract.** `git archive 3ea6d029` was re-extracted at the same path. W9's precondition compares it by content
+  (133 files, nothing extra).
+- **Logs.** From here on, each real window's logs and record are copied into
+  `qualification/ssds80/PHASE-F-10D-SHADOW-3-WINDOWS/` and committed between windows.
+- **READ.** A READ window runs first, to confirm what the ledger holds after the reboot.
+
+The author also listed `~/.ssds/ledgers/` once with `ls`, read-only, outside the program; nothing else in the home
+was touched.
+
 ## Pending signatures
 
 Each real signature is the stakeholder's, with `ssds-genesis-3`, made between windows.
