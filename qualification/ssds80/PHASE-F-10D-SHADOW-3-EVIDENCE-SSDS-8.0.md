@@ -73,7 +73,52 @@ author's sandbox, so they are not boundary-checked:
 
 ## Rehearsal (`--mode rehearsal`)
 
-Not yet run.
+Scratch home `/tmp/claude-1000/ssds-10d-rehearsal/home`, ledger `ssdp-shadow-3-rehearsal`, throwaway key
+`/tmp/claude-1000/ssds-10d-rehearsal/key/throwaway` (the author's, scratch only). Window records are in
+`/tmp/claude-1000/ssds-10d-rehearsal/windows/windows.jsonl`, and each command's full output is in
+`<window>-<label>.log` beside it. Every window ran in the stakeholder's terminal with no other tool running.
+Signing happened between windows.
+
+| window | result | what it showed |
+|---|---|---|
+| G1 | PASS | scratch genesis prepared at the frozen baseline, digest `sha256:70f06595…fcbc` |
+| G2 | PASS | admitted: entry `sha256:72c5bcf1…d39f`, `QUALIFIED` at 0 with a current assertion |
+| W1 | PASS | the precondition found nothing under `.ssds/` or `orchestrator/` moved since `8cf829c3`; head `0914017a` absorbed at position 1 |
+| W2 | PASS | `status`: `QUALIFIED`, current assertion, no provisional entry, no critical finding, no obligation. Helper `state`: the reserved leaves `MANIFEST`, `POLICY` and `UNCLASSIFIED`; empty quarantine; policy digest unchanged; policy object held (11 bytes, digest matches); policy availability `null` (no AVAILABILITY yet, as observed) |
+| W3 | PASS | `would_issue: []`, nothing issued, no run ref |
+
+### Rehearsal W2: `inspect` output (the rehearsal FINDING's narrative home)
+
+`ssds inspect --ledger ssdp-shadow-3-rehearsal` at position 1 printed, apart from the wrapper's lines:
+
+```json
+{
+  "answer": {
+    "digest": [],
+    "entries": [],
+    "head": {
+      "digest": "sha256:e1d4bb03316ec4862ef945e2584a451c1e6c78b8fc7252165fa29d8a72bfd36f",
+      "label": "QUALIFIED",
+      "position": 1,
+      "qualification": "QUALIFIED"
+    }
+  },
+  "head": {
+    "digest": "sha256:e1d4bb03316ec4862ef945e2584a451c1e6c78b8fc7252165fa29d8a72bfd36f",
+    "label": "QUALIFIED",
+    "position": 1,
+    "qualification": "QUALIFIED"
+  },
+  "query": "inspect"
+}
+```
+
+The finding: `inspect` names the head and nothing of the effective structure. It shows no units, kinds, reserved
+leaves, policy object or quarantine, which the derivation holds (the helper's `state` reads them through the same
+owner). That is an inspectability gap on `orchestrator.program` (the command) and on `ssds.manifest` and
+`ssds.policy` (what it leaves undisplayed). It is `MATERIAL`, because a human cannot confirm the effective
+structure from the inspection surface, and non-blocking. In the real run this section is replaced by
+`ssdp-shadow-3`'s own W2 output.
 
 ## Real run (`--mode real`, `ssdp-shadow-3`)
 
