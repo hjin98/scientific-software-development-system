@@ -4,9 +4,11 @@ Governing SSDP: 7.2.1; Phase F revision 57, F123–F124; SD-55, SD-64.
 Asserter: AI implementing agent, Codex family, 2026-10-29 (preliminary attempts); Claude family, 2026-11-01 (frozen
 11b). Infrastructure evidence only.
 
-**Frozen 11b ran COMPLETE at `8cf829c3` (2026-11-01), and its classification is done.** It is below the preliminary
-attempts. The independent other-family review of the classification at the frozen candidate (SD-95) is still
-required before step 11b is accepted. The preliminary attempts below stay diagnostics and support no acceptance.
+**Frozen 11b ran COMPLETE at `8cf829c3` (2026-11-01), and its classification is done.** The other-family review
+(SD-95) gave NO-PASS on FR-A1 (a source defect) and FR-B1 (the classifier); both are repaired. **11b ran COMPLETE
+again at the re-frozen candidate `c8122d66` (plan revision 74)**, and its rows over the old population are
+byte-identical (last section). The narrow other-family re-check is still required before step 11b is accepted.
+The preliminary attempts below stay diagnostics and support no acceptance.
 The original append qualification gap on `ssdp-shadow-2` stays in
 `PHASE-F-10D-SHADOW-LEDGER-EVIDENCE-SSDS-8.0.md`.
 
@@ -1091,3 +1093,33 @@ obligation, an unknown check-2 code, an early protected touch and an integrity c
 Part A's FR-A1, a source defect (`NONCE_RE` with `match`), is routed in the Phase F plan. A source repair changes
 the frozen candidate, so 11b is re-run at the repaired candidate and this classification is re-made there. The
 present run and classification stay recorded as the run at `8cf829c3`.
+
+## Re-frozen 11b: `c8122d66` — COMPLETE (2026-11-01, plan revision 74)
+
+The candidate carries FR-A1 and the D-GRAMMAR-ENDPOINTS repair (plan revision 74). The run used one boundary window
+in the stakeholder's terminal: `PHASE-F-11B-REFROZEN-WINDOW.py`, the frozen run's script with only its docstring
+and candidate changed. It ran on the new scratch home `/tmp/claude-1000/ssds-phase-f-refrozen-11b-c8122d66/home`
+and read no real ledger.
+
+| fact | value |
+|---|---|
+| window | `PASS`: harness exit 0, compare exit 0 ("unchanged since before.json"), 1,860 s |
+| report | `PHASE-F-DIFFERENCE-STUDY-REFROZEN-c8122d66.json`, sha256 `1a9382228067928b9373f213a646407e55950098b3a9c6471f6d5639864b8d06`; execution `COMPLETE`, its own final boundary `PASSED` |
+| population | 341 evaluated (66 at or before the real baseline `53d5a22c`, 275 after) and 740 excluded, initialized at `09f35057` as before. The 33 new rows are exactly the 33 first-parent commits `8cf829c3..c8122d66` |
+| comparison | the first 308 rows are the frozen report's rows, in order and identical, field for field: the repaired grammars change no historical result |
+| new rows | 33: each has the two `STRUCT_RESERVED_LEAF` findings and one `AUTH_PROTECTED` on `ssds.unclassified` (each new commit writes evidence or plans). 29 `credential_values` template findings follow the same rule as before; no matched value was inspected |
+| tools | `PHASE-F-11B-REFROZEN-WINDOW.py` `08d94302d0c46661a9a97ccc929c44b7cd4d1a88d207c9716733ee86811726c6`; `difference_study.py` `cb7c8d03936529b7395c25508880999b3effb306a371bf634fb190d315dc54d7` (unchanged); `shadow_boundary.py` `79770bc29f27fe1ba773b7c98270b32c7e82f23cd04b334ae00222a33a757722` |
+| window record | `PHASE-F-DIFFERENCE-STUDY-REFROZEN-c8122d66-WINDOW.json` |
+
+**Classification.** `PHASE-F-DIFFERENCE-STUDY-CLASSIFY.py` (the FR-B1-repaired classifier, unchanged since) wrote
+`PHASE-F-DIFFERENCE-STUDY-REFROZEN-c8122d66-CLASSIFICATION.json` (sha256
+`8883364a9dde004a663a5a072590bb810214ae1c4790bb6d708b03cb0f196ac6`, status
+`REFROZEN_PENDING_OTHER_FAMILY_RECHECK`). Nothing stopped it unclassified. It found 942 observations:
+- class (iii), 696: 576 `reserved_leaf_genesis_deviation`, 104 `reserved_leaf_repair_quarantined_in_scratch` and
+  16 `reserved_leaf_repair_absorbed_as_foreign_change`;
+- class (v), 246: 192 `unmet_policy_enablement` and 54 `protected_touch_authorship_unestablished`;
+- none in class (i) or (iv).
+
+The 814 frozen observations are among them, since their rows are identical; the 128 new ones come from the 33 new
+rows. The limits stay those of the frozen classification. Accepting 11b waits for the narrow other-family re-check
+(plan revision 74) and is the stakeholder's decision.

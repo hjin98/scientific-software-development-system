@@ -27,10 +27,11 @@ CURRENT: runbook A-C executed 2026-10-31. ssdp-shadow-3 (genesis 9d404721, basel
         on 8cf829c3 (F126, W1-W9 PASS): FINDING (3) and AVAILABILITY (5) ACCEPT, SD-93's clean signed append; the
         signed ACKNOWLEDGE refused at entry (F1). No signature pending.
 BLOCKERS: the re-frozen candidate (revision 74: FR-A1 and D-GRAMMAR-ENDPOINTS repaired, full suite 1,911 OK)
-        still needs the ledger re-read (real home: the stakeholder's authorization), 11b at the candidate and the
-        narrow other-family re-check. Root regression fails one test until the stakeholder decides G2 revision 4.
+        still needs the ledger re-read (real home: the stakeholder's authorization) and the narrow
+        other-family re-check. 11b re-ran COMPLETE at c8122d66: PASS window, 942 observations, 696 (iii) and
+        246 (v); the 308 frozen rows are identical. Root regression fails one test until the stakeholder decides G2 revision 4.
         Program QUALIFIED is not full architecture conformance.
-NEXT: 11b at the re-frozen candidate (scratch window); the re-read window once authorized; the narrow Codex
+NEXT: the re-read window once authorized; the narrow Codex
       re-check of FR-A1, FR-B1 and the endpoint repair; then step 12 and acceptance. Required unexecuted work is
       not passed.
 EVIDENCE: for ssdp-shadow-2, the canonical 10d evidence owns native results and the C7 route, and the pending-
@@ -4510,3 +4511,9 @@ Rehearsal 2, from a fresh scratch home with the repaired tools of `76a283b4`, pa
   2. the re-read window (`~/.ssds`, read only), which needs the stakeholder's authorization. Its result must equal
      W9's committed `W9-c7.json` field for field;
   3. one narrow other-family re-check of FR-A1, FR-B1 and the endpoint repair.
+- **11b at `c8122d66`: COMPLETE.**
+  - The window passed: 341 commits evaluated, and the report's own boundary `PASSED`.
+  - The first 308 rows are identical to the frozen report's, so the repair changed no historical result.
+  - Classified with no unclassified stop: 942 observations, 696 in class (iii) and 246 in class (v), none (i) or
+    (iv).
+  - The study evidence file's last section owns the details.
