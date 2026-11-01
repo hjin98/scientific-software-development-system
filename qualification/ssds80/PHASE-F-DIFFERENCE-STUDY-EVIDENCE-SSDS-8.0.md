@@ -1063,3 +1063,31 @@ Its notes are taken up:
 - The rows share the harness and production owners with the program they study, so a common-mode limitation
   remains.
 - The other-family review of this classification at the frozen candidate (SD-95) is required and not yet done.
+
+### Other-family review of the frozen candidate (SD-95): NO-PASS on A and B, PASS on C
+
+The record is `PHASE-F-FROZEN-REVIEW-SSDS-8.0-8CF829C3-DIFFERENT-FAMILY.md` (Codex family, 2026-11-01, from the
+handoff at `26f34516`). For this study (part B) it independently reproduced:
+- the population, from Git and the real `baseline_structure`;
+- every comparison claim;
+- all 814 identities, reasons and classes.
+
+It found nothing to convert to class (i) or (iv). Its blocker **FR-B1** concerns the classifier, not the run or the
+observations. The consequence rule checked only the kind, detail and first `about` element of an intake obligation
+and the unit of a quarantine key. So a discharged obligation, an unknown declaration field or an unrelated key
+value would still have been classed (iii).
+
+**FR-B1 repaired** (classifier sha256 `ca490718…1144`). The rule now accepts consequence changes only at
+`11ec88e4`, and only in their exact shape:
+- the eight declaration keys `{ssds.manifest, ssds.policy} x {kind, role, scope, subject}` quarantined, each once,
+  each with its value equal to its key;
+- one `OPEN` INTAKE "quarantined delta" obligation per key, whose id is its key;
+- no other group or change.
+
+Anything else stops the run unclassified. The repaired classifier reproduces the 784 preliminary and 814 frozen
+observations exactly. Seven mutations stop it unclassified: the reviewer's three counterexamples, a missing
+obligation, an unknown check-2 code, an early protected touch and an integrity change.
+
+Part A's FR-A1, a source defect (`NONCE_RE` with `match`), is routed in the Phase F plan. A source repair changes
+the frozen candidate, so 11b is re-run at the repaired candidate and this classification is re-made there. The
+present run and classification stay recorded as the run at `8cf829c3`.

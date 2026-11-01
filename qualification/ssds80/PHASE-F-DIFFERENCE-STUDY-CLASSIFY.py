@@ -30,6 +30,40 @@ def identity(source: dict, finding) -> str:
     return "sha256:" + hashlib.sha256(body).hexdigest()
 
 
+def repair_consequences(changes: dict) -> bool:
+    """The exact consequence of absorbing 11ec88e4 with no adoption (Manual §18.2-§18.5; review FR-B1): the eight
+    declaration keys of the two reserved leaves quarantined, each once, its value the key itself, and one OPEN
+    INTAKE obligation per key, its id its key; nothing else added, changed or removed."""
+
+    expected = {(unit, field) for unit in ("ssds.manifest", "ssds.policy")
+                for field in ("kind", "role", "scope", "subject")}
+    groups = {"drift", "ill_formed", "integrity", "obligations", "quarantine"}
+    if set(changes) != groups or any(set(c) != {"added", "changed", "removed"} for c in changes.values()):
+        return False
+    if any(items for group, c in changes.items() for change, items in c.items()
+           if (group, change) not in (("obligations", "added"), ("quarantine", "added"))):
+        return False
+    keys = []
+    for item in changes["quarantine"]["added"]:
+        try:
+            key = json.loads(item["key"])
+        except (KeyError, TypeError, ValueError):
+            return False
+        if set(item) != {"key", "value"} or not isinstance(key, list) or item["value"] != key:
+            return False
+        keys.append(tuple(key))
+    abouts = []
+    for item in changes["obligations"]["added"]:
+        value = item.get("value")
+        if set(item) != {"key", "value"} or not isinstance(value, dict) \
+                or set(value) != {"about", "detail", "discharge", "id", "kind"} or value["id"] != item["key"] \
+                or (value["kind"], value["detail"], value["discharge"]) != ("INTAKE", "quarantined delta", "OPEN") \
+                or not isinstance(value["about"], list):
+            return False
+        abouts.append(tuple(value["about"]))
+    return sorted(keys) == sorted(expected) and sorted(abouts) == sorted(expected)
+
+
 def classify(report: dict) -> list[dict]:
     order = [row["commit"] for row in report["commits"]]
     after_repair = set(order[order.index(REPAIR) + 1:]) if REPAIR in order else set()
@@ -69,24 +103,13 @@ def classify(report: dict) -> list[dict]:
             if finding["code"] != "credential_values" or finding["applicability"] != CREDENTIAL:
                 raise SystemExit(f"{row['commit']}: check 1 finding {finding['code']}: unclassified")
             add(row, "1.credential_template", index, finding, finding["code"], "unmet_policy_enablement")
-        for group, changes in row["consequence_changes"].items():
-            for change, items in changes.items():
-                for index, item in enumerate(items):
-                    value = item.get("value") or {}
-                    intake = group == "obligations" and change == "added" and value.get("kind") == "INTAKE" \
-                        and value.get("detail") == "quarantined delta" \
-                        and value.get("about", [None])[0] in ("ssds.manifest", "ssds.policy")
-                    key = None
-                    if group == "quarantine" and isinstance(item.get("key"), str):
-                        try:
-                            key = json.loads(item["key"])  # a quarantine key is the JSON text of (unit, field)
-                        except ValueError:
-                            key = None
-                    quarantined = group == "quarantine" and change == "added" and isinstance(key, list) \
-                        and key[:1] in (["ssds.manifest"], ["ssds.policy"])
-                    if row["commit"] != REPAIR or not (intake or quarantined):
-                        raise SystemExit(f"{row['commit']}: consequence {group}.{change}: unclassified")
-                    add(row, f"consequences.{group}.{change}", index, item, None,
+        changes = row["consequence_changes"]
+        if any(items for groups in changes.values() for items in groups.values()):
+            if row["commit"] != REPAIR or not repair_consequences(changes):
+                raise SystemExit(f"{row['commit']}: consequence changes outside the reserved-leaf repair: unclassified")
+            for group in ("obligations", "quarantine"):
+                for index, item in enumerate(changes[group]["added"]):
+                    add(row, f"consequences.{group}.added", index, item, None,
                         "reserved_leaf_repair_absorbed_as_foreign_change")
     return out
 
