@@ -1133,7 +1133,7 @@ Until it is answered, both stay unbuilt and are disclosed: Admission appends not
 **Resolved by SD-89 (stakeholder decision record item 72):** recommendation (a), as stated below.
 
 **Q-F30. The true records of 10d's signed append on `ssdp-shadow-3` (F126 W4-W5; SD-93).** F122 asks for a records-only `report` and `submit`, each a true record, and this choice was the stakeholder's on `ssdp-shadow-2` too. Nothing is carried between ledgers (F44), so each record is observed again at its admission head; none is imported.
-- **Recommended:** (a) the same two observations, made again on `ssdp-shadow-3` if each is still true at W5's head:
+- **Recommended:** (a) the same two observations, made again on `ssdp-shadow-3` if each is still true at its admission head:
   - a `report`: a `MATERIAL`, non-blocking FINDING with reason `INSPECTABILITY_GAP` (that `inspect` does not display the effective structure), targeting `orchestrator.program`, `ssds.manifest` and `ssds.policy`, with provenance `null`. Its narrative home is the new evidence file's W2 section, which shows `ssdp-shadow-3`'s own `inspect` output; it is committed and absorbed before W4, so the reference is reachable. The narrative is not `ssdp-shadow-2`'s old blob, which describes the retired ledger;
   - a `submit`: the policy object's AVAILABILITY, with provenance `null`.
 
