@@ -132,7 +132,7 @@ This rehearsal uses a fresh scratch home, `/tmp/claude-1000/ssds-10d-rehearsal/h
 | W8 | PASS | candidate refused at entry, nothing appended, one line logged |
 | W9 | PASS | extract matched (133 files); both reads give 5 entries, `QUALIFIED`, no record violation; output checks met (in the rehearsal the retired ledgers are not read) |
 | READ | PASS | `status` and `state`, read-only (runner `ec59ce6b…`) |
-| READ-2 | see below | after the re-check's note, `state` runs before `status`, so that READ still reports when `status` exits 1 (no current assertion); runner `49d6c98b…` |
+| READ-2 | PASS | after the re-check's note, `state` runs before `status`, so that READ still reports when `status` exits 1 (no current assertion); runner `49d6c98b…` |
 
 **Re-check of `2ef1c5d0`: PASS.** No blockers. Its notes:
 - READ's order is changed, as above.
