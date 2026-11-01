@@ -3,7 +3,7 @@ Governing SSDP version: 7.2.1.
 # SSDS 8 Phase F — retirement of `ssdp-shadow-2` and genesis of `ssdp-shadow-3`: runbook
 
 ```text
-STATUS: step A EXECUTED 2026-10-31, as expected (execution record below); B-D not executed. Nothing in this
+STATUS: steps A and B EXECUTED 2026-10-31 (execution record below); C and D not executed. Nothing in this
         runbook is signed or appended by the author.
 AUTHORITY: SD-92 (item 79): retire ssdp-shadow-2 and start a fresh shadow genesis after C7 enforcement is
            qualified; SD-96 (item 80): ssdp-shadow-3 is approved with a new human key, so SD-89 (one human key
@@ -87,6 +87,27 @@ worktree (`.claude/worktrees/friendly-euler-4610a1`, whose commit `401d66bb` sta
 `claude/friendly-euler-4610a1`) was registered. With the stakeholder's approval it was removed and pruned; the
 sensor was not changed. Any linked worktree registered later will stop a window the same way until Git is 2.36 or
 newer.
+
+**B, 2026-10-31: `ssdp-shadow-3` admitted, `QUALIFIED` at 0.** The candidate was frozen at
+`8cf829c34020ebffb5ad50ad7ba5b03343c005ce` first (plan revision 67). The stakeholder created `ssds-genesis-3`.
+`prepare` and `admit` each ran in their own boundary window, and each compare reported the product repository
+unchanged.
+- `prepare` (current program, `--baseline` the frozen candidate): valid, no findings or problems; genesis digest
+  `sha256:3fbf6a91…57a6`, which the program's `genesis_digest` reproduces from the workspace proposal and which binds
+  the approval message.
+- Author review against `ssdp-shadow-2`'s genesis:
+  - The units are the same, plus the reserved leaves `ssds.manifest` and `ssds.policy` (now declared at genesis,
+    so SD-69's repair is moot). `ssds.unclassified` is declared.
+  - The ruleset (analyzer and policy digests), the policy object (`schema = 1`), the modes (LEGACY 7.2.1, which
+    matches `PROTOCOL-RELEASE-STATE.yaml`, and `*` UNGOVERNED) and the witness model are unchanged.
+  - The human key is `human:SHA256:gLJS5DKM…xxI`, distinct from the SD-57 key `Xar4qv2h…6lw` (SD-89 holds). The
+    Admission host key is new (`ed25519:11992330…`).
+  - Provenance is null.
+- The stakeholder signed with `ssds-genesis-3`. `admit`: entry commit `9d404721a17748f8cb1ec14c5e20b2cedc33745c`,
+  entry digest `sha256:13063316a050b7423cfd77ed9eebb205105eccca28be848f6a3e5acc378020e4`.
+- Qualification is `QUALIFIED` at 0, with a current assertion and no findings, critical items or obligations. The
+  C7 reader, read back independently, finds 1 entry, no halt and no record violations; the approval key is the new
+  human key.
 
 ## What stays recorded
 
