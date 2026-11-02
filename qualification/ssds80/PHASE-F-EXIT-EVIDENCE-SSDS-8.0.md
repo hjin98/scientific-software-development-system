@@ -5,7 +5,8 @@ Governing SSDP version: 7.2.1.
 This file assembles Phase F's exit for the G2 workplan's Phase F row (§5.2): acceptance group 4, the admission halves
 of groups 2, 3 and 5, the end-to-end shadow run, and the classified differences from document control. It assembles
 evidence recorded elsewhere and names each owner. Plan revision 78 updated it after the other-family exit Review of
-`c8122d66` (NO-PASS: XR-C1, XR-B1 to XR-B3), whose record stays as written. It accepts nothing: the independent implementation Review (plan §3,
+`c8122d66` (NO-PASS: XR-C1, XR-B1 to XR-B3), and revision 80 after the re-check of `f97251af` (NO-PASS: RR-1 to
+RR-3; SD-102); both records stay as written. It accepts nothing: the independent implementation Review (plan §3,
 G2 workplan §5.1 item 5) judges it, and acceptance is the stakeholder's. A case not executed is reported as
 unexecuted, never as passed (Manual §31.2; plan §4).
 
@@ -62,12 +63,13 @@ Test ids are under `orchestrator/tests/ssds/`.
 | 5c55d4b N6 | executed | `test_phase_f_step9d_iii.Group2Discriminators.test_a_failure_whose_only_reproductions_are_unbounded_stays_counting` |
 | 798b2b4 B4: each link traversed is recorded | executed | `Group2Discriminators.test_each_link_traversed_is_recorded` |
 | 29da56e N5, first case: an upheld challenge of the realization disposes | executed | `Group2Discriminators.test_an_upheld_challenge_of_the_realization_disposes` |
-| 29da56e N5 (B1 (a)): a counter-challenge; only an independent counter-upholding restores the dispute | executed | `test_phase_f_step12.CounterChallengeAndDismissal.test_counter_challenge_only_an_independent_counter_upholding_restores_the_dispute` (a second human registered; the root is a realization, not an `ACCEPTANCE`, `REVIEW`, `CONFORMANCE` or `GATE_DECISION`) |
+| 29da56e N5 (B1 (a)): a revoked passing acceptance; only an independent counter-upholding restores it | executed | `test_phase_f_step12.TripleAndSupportRoute.test_counter_challenge_only_an_independent_counter_upholding_restores_a_revoked_acceptance`: `valid(code)` `T`, revoked to `F` with `ACCEPT(code)` derived, kept `F` through a refused counter-upholding, `T` again after an independent one (revision 80, review RR-2). Run for `ACCEPTANCE`, not the `REVIEW`, `CONFORMANCE`, `PLAN_ACCEPTANCE`, `EQUIVALENCE`, `COMPLETENESS` or `GATE_DECISION` siblings |
+| 29da56e N5 (B1 (a)), on a realization's disposal | executed | `test_phase_f_step12.CounterChallengeAndDismissal.test_counter_challenge_only_an_independent_counter_upholding_restores_the_dispute`: an adverse dispute restored, not passing support |
 | 29da56e N5 (B1 (d)): a contested resolution; only an independent dismissal ends the objection | executed | `.test_contested_resolution_only_an_independent_dismissal_ends_the_objection` |
 | 29da56e N5 (B1 (b)): observation dismissal | executed | `.test_observation_dismissal_a_non_independent_dismissal_leaves_it_not_standing` |
 | 29da56e N5 (B1 (c)): triple dismissal | executed | `test_phase_f_step12.TripleAndSupportRoute.test_triple_dismissal_only_an_independent_dismissal_lifts_the_block` |
 | 29da56e N5 (B1 (g)): support route | executed | `.test_support_route_a_non_independent_acceptance_supports_nothing` |
-| 29da56e N5 (N1): adjudication recovery, a refused adjudication answers nothing | executed | in each of the above, `ADJUDICATE(c)` stays derived |
+| 29da56e N5 (N1): adjudication recovery, a refused adjudication answers nothing | executed | `ADJUDICATE(c)` stays derived after each refusal in the five adjudication tests above: (a) twice, (b), (c), (d); the support-route test has no adjudication |
 | 29da56e N5 (B1 (e)): chain class | **unexecuted** | not discriminable at Admission in Phase F: authorship comes only from admitted integrations (none under SD-70), and unknown authorship is never disjoint from an agent's lineage, so every agent adjudication is refused for independence with the same code before the class rule acts. Owner level: `test_phase_f_step4b.AdjudicationEligibility`. Q-F31 |
 | Phase D's half of these cases | disclosed | `test_assessment` carries only the counter-challenge and one dismissal of the six named cases |
 | 124b0b7 N2 | executed | `test_phase_f_step9d_iii.CountingFailure`, `.ProvisionalDischarge` |
@@ -80,11 +82,12 @@ The plan places these at step 4b-ii (row 4b-ii); revision 78 added Admission cas
 |---|---|---|
 | 51070e5 N3: an upheld challenge needs independence and class | executed | `test_phase_f_step4b.AdjudicationEligibility` |
 | f03b15e N5: the assessor's and the owner's reassessments admitted and disposing; another reading `AUTH_SUPERSEDES`; an `EQUIVALENCE` of another class `AUTH_SUPERSEDES`, the same class admitted | executed | `test_phase_f_step12.AssessmentSupersession`; owner level `test_phase_f_step4b.Supersession`, `.SupersessionTargets` |
-| f03b15e N5: another obligation `AUTH_SUPERSEDES` | executed at the owner only | at Admission this fixture's realization serves one obligation, so another is refused `REF_TARGET` (`.test_another_obligation_is_refused`); the key's obligation member is `SupersessionTargets`' |
+| f03b15e N5: another obligation `AUTH_SUPERSEDES` | executed | `test_phase_f_step12.TwoObligations.test_another_obligation_is_refused`: one realization claims `code` and `other`, so it serves two obligations; a `PASS` for the other is admitted alone, refused `AUTH_SUPERSEDES` naming the first's `FAIL`, which stands, and admitted on the first's own key (revision 80, review RR-1). `SupersessionTargets` varies only the reading |
 | f03b15e N5: the `PLAN_ACCEPTANCE` overlap | **unexecuted** | the kind's supersession fails closed, `SCHEMA_UNSUPPORTED` whatever its items (plan review 8a41539 B2; `.test_plan_acceptance_supersession_fails_closed`). Q-F31 |
 | 6b986de N6: one definition of each independence input at Admission | executed | `test_phase_f_step4b.OneAuthorshipRule` |
-| S1 `OWNER`: `author_owner_failing_disposition` (admitted under the owner exception, common-mode recorded), `non_author_owner`, and `author_owner`'s shape on a subject review (refused alone; the objection waits) | executed | `test_phase_f_step12.OwnerRoutes`, through the real `authorize` |
-| S1 `OWNER`: `policy_names_resolver`, `unknown_lineage_owner_agent` | **unexecuted** | reachable but not discriminating without a known author (as chain class); owner level `test_phase_f_step4b.AdjudicationEligibility`. Q-F31 |
+| S1 `OWNER`: `author_owner_failing_disposition` (admitted under the owner exception, common-mode recorded), `non_author_owner`, and `author_owner`'s shape on a subject review (refused alone; the objection waits) | executed | `test_phase_f_step12.OwnerRoutes`, through the real `authorize`, at route 4 |
+| S1 `OWNER`: `policy_names_resolver`, its subject-review analogue | executed | `OwnerRoutes.test_policy_names_resolver_owner_supersession_open_author_upholding_closed`: route 2, the owner's supersession, admitted and ending the adverse review, while an attested non-owner peer's and the owner's unattested supersession are each refused `AUTH_SUPERSEDES` and leave it standing (§5.10 (e)); route 4 refused alone to the author adjudicator (revision 80, review RR-3, same-family SF-R1). Route 3, relief by the owner, and the transformation-review form (a task result, SD-70) are not run |
+| S1 `OWNER`: `unknown_lineage_owner_agent` | **unexecuted** | reachable but not discriminating: with every root of unknown authorship an attested-fresh agent is refused with the same `AUTH_ACTOR`, so the lineage cannot be told apart without a known author (SD-70); owner level `test_phase_f_step4b.AdjudicationEligibility`. Q-F31 |
 | RR-11's resolver and Dispatcher half | executed | `test_phase_f_step4b.OneAuthorshipRule.test_nb1_judge_selection_and_classification_read_the_same_authors`, `.test_nb1_a_reviewer_dispatched_is_one_admission_would_find_independent` |
 
 ### Group 5: workflow, contracts, conformance, routing, admission half
