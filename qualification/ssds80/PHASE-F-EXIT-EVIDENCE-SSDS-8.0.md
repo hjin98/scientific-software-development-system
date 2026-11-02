@@ -1,6 +1,6 @@
 Governing SSDP version: 7.2.1.
 
-# SSDS 8 Phase F exit evidence (step 12) at `f97251af`
+# SSDS 8 Phase F exit evidence (step 12) at `36b0ab5f`
 
 This file assembles Phase F's exit for the G2 workplan's Phase F row (§5.2): acceptance group 4, the admission halves
 of groups 2, 3 and 5, the end-to-end shadow run, and the classified differences from document control. It assembles
@@ -12,15 +12,16 @@ unexecuted, never as passed (Manual §31.2; plan §4).
 
 ## 1. The candidate
 
-- **Candidate:** `f97251af91477b9a66ff29bc7d871c326a7dff26` (plan revision 78; the previous one, `c8122d66`, plan
-  revision 74). `orchestrator/` at the evidence commits equals it.
+- **Candidate:** `36b0ab5f89a9b99c6979a81050e55fc3198a6c24` (plan revision 80; before it `f97251af`, revision 78,
+  and `c8122d66`, revision 74). `orchestrator/` at the evidence commits equals it.
 - **Repairs since `c8122d66`:** XR-C1, Admission's commit path (`admission/engine.py`): after an absorption the
   request is revalidated from the held head, so nothing is appended after a retirement or over a provisional entry
   and a request decided meanwhile is found, not appended twice; absorptions and lost compare-and-swaps are bounded
-  separately. Tests `test_phase_f_step12.PostAbsorption`, each failing against `c8122d66`. XR-B1 to XR-B3 are the
-  tests and citations of §2.
-- **Program suite at the candidate:** 1,930 tests OK, 10 skipped, on the pinned runtime: the SSDS suite (1,535) and
-  the Core modules (395), the installed-product build reaching PyPI.
+  separately. Tests `test_phase_f_step12.PostAbsorption`, each failing against `c8122d66`. XR-B1 to XR-B3 (revision
+  78) and RR-1 to RR-3 (revision 80, SD-102) are the tests and citations of §2; revision 80 changed tests only.
+- **Program suite at the candidate:** the whole orchestrator suite, 1,932 tests OK, 10 skipped, on the pinned
+  runtime (rebuilt after the 2026-11-02 reboot with the recorded versions), the installed-product build reaching
+  PyPI.
 - **Repository acceptance:** release state, PEM, protocol snapshot, skill packages built and validated, dist
   parity, root regression (435 OK) and `git diff --check` pass.
 - **Focused re-run for this file** (2026-11-02, the pinned runtime, `-B`): the modules cited in §2 below, run
@@ -122,21 +123,23 @@ check). They are executed, but not against a Stage S expectation.
 - **At the re-frozen candidate:** the FR-A1-repaired reader re-read all three ledgers in one boundary window (SD-98,
   attempt 2): every field equals W9's, compare 0. So 10d's closure on `8cf829c3` stands at `c8122d66` for every
   record on the ledgers. Owner: plan revision 75; `PHASE-F-FR-A1-REREAD-WINDOWS/attempt-2/`.
-- **Limit:** no new command ran against `ssdp-shadow-3` at `c8122d66` or `f97251af`. The delta from `8cf829c3` is
-  the grammar repair, which the re-read shows changes no record's reading, and XR-C1's commit-path repair, which
-  changes what Admission does only when another writer appends between an absorption and the revalidation; 10d's
-  windows had one writer and no absorption between their commands.
+- **Limit:** no new command ran against `ssdp-shadow-3` at `c8122d66`, `f97251af` or `36b0ab5f`. The source delta
+  from `8cf829c3` is the grammar repair, which the re-read shows changes no record's reading, and XR-C1's
+  commit-path repair, which changes what Admission does only when another writer appends between an absorption and
+  the revalidation; 10d's windows had one writer and no absorption between their commands. Revision 80 changed
+  tests only.
 
 ## 4. Differences from document control
 
-- **11b at `f97251af`** (F123, F124; plan revision 78): window `PASS`, 349 commits evaluated, 740 excluded, 977
-  observations: 712 in class (iii) and 265 in class (v), none in class (i) or (iv). The first 341 rows equal
-  `c8122d66`'s field for field and its 942 observations are among them; the 8 new rows are the first-parent commits
-  `c8122d66..f97251af`. Owner: the study evidence file's last section.
+- **11b at `36b0ab5f`** (F123, F124; plan revision 80): window `PASS`, 353 commits evaluated, 740 excluded, 994
+  observations: 720 in class (iii) and 274 in class (v), none in class (i) or (iv). The first 349 rows equal
+  `f97251af`'s field for field, whose first 341 equal `c8122d66`'s; the earlier 977 observations are an unchanged
+  prefix, and the 4 new rows (the first-parent commits `f97251af..36b0ab5f`) add 17. Owner: the study evidence
+  file's last sections.
 - **Other-family review:** the narrow re-check of `c8122d66` independently rebuilt the population, the 308
   unchanged rows and all 942 classifications, and passed them; the exit Review passed its repaired classifier (part
-  A), with the limit that the classifier is no completeness oracle for the harness. The 35 new observations at
-  `f97251af` are not yet other-family checked.
+  A), with the limit that the classifier is no completeness oracle for the harness; the re-check of `f97251af`
+  rebuilt its 35 new observations and all 977. The 17 new at `36b0ab5f` are not yet other-family checked.
 - **Limits, as the survey found them:** checks (1) and (3) are conditional (a credential template whose policy
   enablement is absent; a protected touch whose agent authorship is not established), and check (4) is vacuous.
   Record-dependent effects need an authorized campaign. The consequences are the scratch ledger's. The rows share
@@ -169,7 +172,7 @@ Each fails toward "not supported" (plan §6).
 
 ## 6. Focused re-run
 
-The fifteen modules cited in §2, at `f97251af`, on 2026-11-02: **344 tests OK** in 164 s, no bytecode written under
+The fifteen modules cited in §2, at `36b0ab5f`, on 2026-11-02: **346 tests OK** in 169 s, no bytecode written under
 `orchestrator/src`. Command, from `orchestrator/`:
 
 ```bash

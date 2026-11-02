@@ -1157,3 +1157,29 @@ script with only its docstring and candidate changed. It ran on the new scratch 
 
 `c8122d66`'s 942 observations are among them; the 35 new ones (16, 11 and 8) come from the 8 new rows. The limits
 stay those of the frozen classification. Accepting 11b is the stakeholder's decision.
+
+## 11b at `36b0ab5f` — COMPLETE (2026-11-02, plan revision 80)
+
+The candidate carries the test-only repairs of RR-1 to RR-3 (plan revision 80, SD-102). One boundary window in the
+stakeholder's terminal: `PHASE-F-11B-36B0AB5F-WINDOW.py`, revision 74's script with only its docstring and candidate
+changed, on the new scratch home `/tmp/claude-1000/ssds-phase-f-11b-36b0ab5f/home`; no real ledger was read. The
+runtime was rebuilt after the 2026-11-02 reboot with the recorded CPython 3.12.16 and package versions.
+
+| fact | value |
+|---|---|
+| window | `PASS`: harness exit 0, compare exit 0 ("unchanged since before.json"), 1,950 s |
+| report | `PHASE-F-DIFFERENCE-STUDY-REFROZEN-36b0ab5f.json`, sha256 `a7394627c28c071d6b5e18db9fe37ac844f5f075373fd5f4ecff27a37c0c8d5d`; execution `COMPLETE`, its own final boundary `PASSED` |
+| population | 353 evaluated (66 at or before the real baseline, 287 after) and 740 excluded; initialization and exclusions unchanged. The 4 new rows are exactly the first-parent commits `f97251af..36b0ab5f` |
+| comparison | the first 349 rows are `f97251af`'s, in order and identical, field for field |
+| tools | `PHASE-F-11B-36B0AB5F-WINDOW.py` `3281564d4d210acb52319570cbc000f95073a5fcbdfd2fad3aebb6cc70368472`; `difference_study.py` and `shadow_boundary.py` unchanged (sha256 as above) |
+| window record | `PHASE-F-DIFFERENCE-STUDY-REFROZEN-36b0ab5f-WINDOW.json` |
+
+**Classification.** The unchanged classifier wrote `PHASE-F-DIFFERENCE-STUDY-REFROZEN-36b0ab5f-CLASSIFICATION.json`
+(sha256 `a324c40aa1cdd2d561530e94d1889b152c91bc1577e0be8b94d7ec99f9303447`, status
+`REFROZEN_PENDING_OTHER_FAMILY_RECHECK`). Nothing stopped it unclassified. 994 observations:
+- class (iii), 720: 576 `reserved_leaf_genesis_deviation`, 128 `reserved_leaf_repair_quarantined_in_scratch`, 16
+  `reserved_leaf_repair_absorbed_as_foreign_change`;
+- class (v), 274: 208 `unmet_policy_enablement`, 66 `protected_touch_authorship_unestablished`;
+- none in class (i) or (iv).
+
+The 977 observations at `f97251af` are an unchanged prefix; the 17 new ones (8, 5 and 4) come from the 4 new rows.

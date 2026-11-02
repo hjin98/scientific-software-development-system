@@ -47,7 +47,8 @@ NEXT: the other-family re-check of f97251af is NO-PASS (revision 79): XR-C1 and 
       obligation member of assessment supersession is not discriminated, the owner-level claim false), RR-2
       (B1 (a)'s revoked passing support not restored in the test) and RR-3 (Q-F31 unanswered; the resolver
       case's reason wrong). Under SD-102 revision 80 repairs RR-1 to RR-3 in tests and its commit is the
-      re-frozen candidate: 11b on it, the exit evidence, one narrow other-family round; Q-F31 stays open. Then the
+      re-frozen candidate 36b0ab5f: 11b COMPLETE (994 observations, 720 (iii), 274 (v)); the exit evidence
+      updated; one narrow other-family round (PHASE-F-RECHECK-HANDOFF-SSDS-8.0-36B0AB5F.md); Q-F31 stays open. Then the
       stakeholder's acceptance. Required unexecuted work is not passed.
 EVIDENCE: for ssdp-shadow-2, the canonical 10d evidence owns native results and the C7 route, and the pending-
         requests record its (closed) signatures; for ssdp-shadow-3, the retirement runbook owns A-C and F126's new
@@ -4735,3 +4736,7 @@ four tools (SD-100).
   and again at 03:17:58, each inside a full-suite run; tests that spawn a Python subprocess are the likely source).
   It was removed each time before a window. It is existing behaviour, not this change's.
 - **Re-freeze (SD-94).** This revision's commit is the candidate.
+- **11b at `36b0ab5f`:** window `PASS` (1,950 s); 353 evaluated, 740 excluded; the first 349 rows equal
+  `f97251af`'s; 994 observations, 720 (iii), 274 (v), none in (i) or (iv); the earlier 977 an unchanged prefix, 17 new
+  from the 4 new rows. Exit evidence at the candidate; focused re-run of the fifteen cited modules 346 tests OK.
+  Narrow re-check handoff: `qualification/ssds80/PHASE-F-RECHECK-HANDOFF-SSDS-8.0-36B0AB5F.md`.
