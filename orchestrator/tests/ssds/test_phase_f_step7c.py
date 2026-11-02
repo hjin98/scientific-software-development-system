@@ -114,6 +114,7 @@ class Loss(LossFixture):
         self.assertNotIn((proposal["id"],), [o.about for o in Consequences(after).obligations if o.kind == "REQUALIFY"])
 
     def test_a_fork_takes_a_loss_naming_the_admitted_side(self) -> None:
+        # S5 qualification_states: FORK (G2 §5.3 group 4)
         """§23.6: abandoning a known-admitted head is a loss, whichever state it is recorded in."""
 
         lost = self.admit_finding("witnessed")
@@ -277,6 +278,7 @@ class TeamLoss(TeamLedger):
         self.assertEqual((held.state, held.head), ("QUALIFIED", position))
 
     def test_only_proved_never_admitted_heads_are_a_fork_resolution(self) -> None:
+        # S5 loss_bounds: proved-never-admitted iff h + m + f < q_a (G2 §5.3 group 4)
         one = self.append(self.genesis, 1, "1")
         self.checkpoint(one, "w0")
         self.rewind_to_genesis()

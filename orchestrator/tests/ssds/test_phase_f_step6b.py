@@ -42,6 +42,7 @@ class CommitPoint(RequestFixture):
         self.assertEqual(mark.entry_digest, self.entries()[-1].digest)
 
     def test_an_unwitnessed_head_is_not_qualified_and_nothing_is_appended(self) -> None:
+        # S5 qualification_states: too few responses, UNQUALIFIED (G2 §5.3 group 4)
         shutil.rmtree(self.home.witness_root / "demo")
         before = len(self.entries())
         with self.assertRaises(AdmissionHalted):

@@ -39,6 +39,7 @@ class Resolution(TeamLedger):
             os.chmod(self.roots[w] / "team", 0o700)
 
     def test_a_lost_sub_quorum_entry_is_resolved_and_resubmitted_by_identity(self) -> None:
+        # S5 loss_bounds: proved-never-admitted, resubmitted by identity (G2 §5.3 group 4)
         """§23.8: only proved-never-admitted entries lost; no boundary; the request resubmitted by identity."""
 
         admission = self.team()
@@ -94,6 +95,7 @@ class Resolution(TeamLedger):
         self.assertEqual((held.state, held.head, position), ("QUALIFIED", 2, 2))
 
     def test_a_possibly_or_known_admitted_head_is_a_loss(self) -> None:
+        # S5 loss_bounds: possibly- and known-admitted (G2 §5.3 group 4)
         one = self.append(self.genesis, 1, "1")
         self.checkpoint(one, "w0", "w1")  # held by q_a
         self.rewind_to_genesis()

@@ -401,19 +401,24 @@ class Admission:
     # -- one request --------------------------------------------------------------------------------------------
 
     def admit(self, request: Any, obs: str) -> Decision:
-        """Decide ``request`` at the held head; a writer that loses the ledger's compare-and-swap re-reads and
-        revalidates (§21.3; step 6b), a bounded number of times before it halts. The entry policy refuses first,
-        before validation, on every route (F120)."""
+        """Decide ``request`` at the held head; a writer that absorbs the observed head or loses the ledger's
+        compare-and-swap re-reads from the held head and revalidates (§8.3 step 9, §21.3; step 6b), a bounded number
+        of times before it halts. The entry policy refuses first, before validation, on every route (F120)."""
 
         self._entry(request)
-        for _ in range(_CAS_ATTEMPTS):
+        lost = absorbed = 0  # each bounded on its own: an absorption spends no compare-and-swap retry
+        while lost < _CAS_ATTEMPTS and absorbed < _CAS_ATTEMPTS:
             try:
-                return self._admit_once(request, obs)
+                decision = self._admit_once(request, obs)
             except AppendRefused:
+                lost += 1
                 continue
+            if decision is not None:
+                return decision
+            absorbed += 1
         raise AdmissionHalted("the ledger kept moving under this writer (§21.3)")
 
-    def _admit_once(self, request: Any, obs: str) -> Decision:
+    def _admit_once(self, request: Any, obs: str) -> Decision | None:
         chain = self.held_head()
         entries = chain.entries[: chain.readable_through + 1]
         rid = request_id(request)
@@ -427,9 +432,9 @@ class Admission:
         expected = self.expected_head(entries)
         if obs != expected:  # §8.3 step 9: first absorb obs, then revalidate at the new head (step 6a)
             self.absorb(entries, obs)
-            chain = self.chain()
-            entries = chain.entries[: chain.readable_through + 1]
-            expected = self.expected_head(entries)
+            # from the held head again: another writer may have appended, retired the ledger or left a provisional
+            # entry since the absorption, and nothing is appended after those (§22.4, §24.2; review XR-C1)
+            return None
 
         reasons, refused, passing, auth, alone, salvage, integrating = self.validate(request, chain, entries)
         decision = "REJECT" if reasons or blocking(refused, alone) else "ACCEPT"

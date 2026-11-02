@@ -173,6 +173,7 @@ class Gate(RequestFixture):
 
 
 class Trial(RequestFixture):
+    # S5 deployment_classes_sound: TEAM (3,2,2,0) and HARDENED (4,3,3,1) (G2 §5.3 group 4)
     """The trial qualification on ledgers whose genesis declares TEAM or HARDENED fixture witnesses (F53)."""
 
     def ledger(self, ledger_id: str, cls: str, n: int, q_a: int, r: int, f: int):

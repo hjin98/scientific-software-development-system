@@ -147,6 +147,7 @@ class Targets(RequestFixture):
 
 
 class Supersession(RequestFixture):
+    # f03b15e N5: supersession authority by kind (G2 §5.3 group 3; Admission cases in test_phase_f_step12)
     def test_a_report_is_superseded_only_by_its_raiser(self) -> None:
         issued = self.issue()
         first = self.bind(finding(materiality="MATERIAL"), issued)
@@ -403,6 +404,7 @@ class Recheck(RequestFixture):
 
 
 class SupersessionTargets(unittest.TestCase):
+    # f03b15e N5: supersession target by kind (G2 §5.3 group 3; Admission cases in test_phase_f_step12)
     """Catalogue §5.10 (b), "Supersession target", per kind (plan review 8a41539 B2)."""
 
     def authorized(self, original, again):
@@ -462,9 +464,11 @@ class SupersessionTargets(unittest.TestCase):
 
 
 class OneAuthorshipRule(unittest.TestCase):
+    # 6b986de N6: one definition of each independence input (G2 §5.3 group 3)
     """Routing reads authorship by the rule classification reads (§5.10 (b); plan review 6e0fa9e NB-1, N3)."""
 
     def test_nb1_judge_selection_and_classification_read_the_same_authors(self) -> None:
+        # RR-11, the resolver and Dispatcher half (G2 §5.3 group 3)
         from ssds.derivation import Workflow
 
         from ._scenario import agent, submit
@@ -487,6 +491,7 @@ class OneAuthorshipRule(unittest.TestCase):
         self.assertIn(HUMAN, d.j.transformation_authors(x))
 
     def test_nb1_a_reviewer_dispatched_is_one_admission_would_find_independent(self) -> None:
+        # RR-11, the resolver and Dispatcher half (G2 §5.3 group 3)
         """Re-check d0f1044 B1: judge selection for REVIEW(X) reads the one authorship rule, so an earlier producer
         of content X restores is never chosen (SD-51)."""
 
@@ -601,6 +606,7 @@ class OneAuthorshipRule(unittest.TestCase):
 
 
 class AdjudicationEligibility(unittest.TestCase):
+    # 51070e5 N3: an upheld challenge needs independence and class (G2 §5.3 group 3)
     """Step 4b-ii: an adjudication is independent of its chain's root and of a class not lower than the chain's
     (catalogue §5.10 (e), §12.4, §3.5), refused alone otherwise. Its engine path opens once challenges are
     admissible (4d); the decision functions are checked over derivation histories."""

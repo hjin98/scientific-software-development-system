@@ -75,6 +75,7 @@ class Segments(unittest.TestCase):
         self.assertEqual([s for s, _ in segments(same)], [0], "a loss keeping the set starts no segment")
 
     def test_a_held_redesignation_qualifies_under_the_new_set(self) -> None:
+        # S5 qualification_states: the highest quorum-held head (G2 §5.3 group 4)
         reports = {**self.old_through(P), **{f"n{i}": self.holds(P, 4, 5) for i in range(3)}, "n3": None}
         held = self.qualify(self.chain(6), reports)
         self.assertEqual((held.state, held.head, held.provisional), ("QUALIFIED", 5, None))
@@ -132,6 +133,7 @@ class Segments(unittest.TestCase):
         self.assertEqual((held.state, held.head, held.provisional), ("QUALIFIED", P - 1, P))
 
     def test_an_unreachable_new_set_is_unqualified(self) -> None:
+        # S5 qualification_states: too few responses, UNQUALIFIED (G2 §5.3 group 4)
         reports = {**self.old_through(P), **{f"n{i}": None for i in range(4)}}
         self.assertEqual(self.qualify(self.chain(P + 2), reports).state, "UNQUALIFIED")
 
@@ -339,6 +341,8 @@ class LocalRedesign(RequestFixture):
         self.assertEqual((self.held().state, self.held().head), ("QUALIFIED", position))
 
     def test_content_refusals(self) -> None:
+        # S5 deployment_classes_sound at redesignation (G2 §5.3 group 4): a set that is not its class's tuple is
+        # refused; every declared class's tuple meets q_a + r > N + f, so the unsound (3,2,1,0) is refused this way
         head = self.engine.chain().entries[-1]
         genesis_model = self.engine.chain().genesis["fields"]["witnesses"]
         unsound = {**TEAM_NEW, "N": 2, "witnesses": TEAM_NEW["witnesses"][:2]}
@@ -435,6 +439,7 @@ class TeamRedesign(TeamLedger):
         self.assertTrue(any("not sound" in p for p in controls_problems(bad, fields["controls"])))
 
     def test_a_loss_changing_the_set_is_held_by_the_reachable_old_set_too(self) -> None:
+        # S5 deployment_classes_sound at redesignation (G2 §5.3 group 4)
         """F61 for a loss (F62): the old set responds but only one witness can write, so it cannot hold the loss."""
 
         import os
