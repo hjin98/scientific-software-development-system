@@ -177,7 +177,7 @@ class AdmittedRuns(GenesisFixture):
         return self.completeness[head]
 
     def realize(self, head: str, outcome: dict, *, pins=("p1",), attributes=(), unpinnable=False, bounded=True,
-                class_attributes=()) -> dict:
+                class_attributes=(), claims=("code",)) -> dict:
         s = self.derive().s
         k = max(p for p in range(s.n + 1) if s.h.head(p) == head)
         view, t = s.h.view(k), self.trees(head)
@@ -201,7 +201,7 @@ class AdmittedRuns(GenesisFixture):
                      "class_attributes": list(class_attributes), "observes_outside_reads": True}
         self.attempts += 1
         real = with_id({**record("REALIZATION", target={"spec": {"unit": "spec", "rev": view.rev("spec")},
-                                                        "claim": [{"unit": "code", "rev": view.rev("code")}]},
+                                                        "claim": [{"unit": u, "rev": view.rev(u)} for u in claims]},
                                  outcome="COMPLETE", actor=f"machinery:dispatcher@{self.runner.key_id}",
                                  actor_class="MACHINERY",
                                  fields={"execution": execution, "configuration": {"regime": "default"},

@@ -143,10 +143,10 @@ class Objections(test_phase_f_step9d_iii.AdmittedRuns):
     """Review XR-B1: 29da56e N5 at Admission, the records ending an objection signed by the genesis human or a second
     one."""
 
-    def second_human(self) -> tuple[str, object]:
+    def second_human(self, name: str = "second-human") -> tuple[str, object]:
         from ssds.ledger.read import human_key_id
 
-        private, public = human_key(self.root, "second-human")
+        private, public = human_key(self.root, name)
         actor = human_key_id(public)
         self.lifecycle("REGISTER", {"role": "HUMAN", "id": actor, "public_key": public})
         return actor, private
@@ -158,6 +158,22 @@ class Objections(test_phase_f_step9d_iii.AdmittedRuns):
         req = self.request(records)
         req["binding"] = {"human": {"actor": actor, "signature": sshsig(private, request_message(req))}}
         return self.admission.admit(req, self.head())
+
+    def assessment(self, realization: dict, outcome: str, actor: str, *, reading=None, obligation=OBL,
+                   supersedes=()) -> dict:
+        fields = {"mode": "ORDINARY", "reading": reading or realization["target"]["spec"]}
+        if outcome == "FAIL":
+            fields["failing_outputs"] = ["x"]
+        return record("EVIDENCE_ASSESSMENT", target={"realization": realization["id"], "obligation": obligation},
+                      outcome=outcome, actor=actor, supersedes=supersedes, fields=fields,
+                      basis=[{"mode": "record", "target": {"record": realization["id"]}, "class": "EXACT"}])
+
+    def attested(self, rec: dict) -> list[dict]:
+        return [rec, record("NON_AUTHORSHIP_ATTESTATION", target={"record": rec["id"]}, outcome="NOT_AUTHOR",
+                            actor=rec["actor"])]
+
+    def codes(self, decision, rec: dict) -> tuple:
+        return dict(decision.refused).get(rec["id"], ())
 
     def genesis_human(self) -> tuple[str, object]:
         return self.human(), self.private
@@ -275,22 +291,6 @@ class NativeCode(Objections):
     def content(self) -> list[dict]:
         return [{"mode": "content", "target": {"unit": "code", "rev": self.triple["rev"]}, "class": "EXACT"}]
 
-    def assessment(self, realization: dict, outcome: str, actor: str, *, reading=None, obligation=OBL,
-                   supersedes=()) -> dict:
-        fields = {"mode": "ORDINARY", "reading": reading or realization["target"]["spec"]}
-        if outcome == "FAIL":
-            fields["failing_outputs"] = ["x"]
-        return record("EVIDENCE_ASSESSMENT", target={"realization": realization["id"], "obligation": obligation},
-                      outcome=outcome, actor=actor, supersedes=supersedes, fields=fields,
-                      basis=[{"mode": "record", "target": {"record": realization["id"]}, "class": "EXACT"}])
-
-    def attested(self, rec: dict) -> list[dict]:
-        return [rec, record("NON_AUTHORSHIP_ATTESTATION", target={"record": rec["id"]}, outcome="NOT_AUTHOR",
-                            actor=rec["actor"])]
-
-    def codes(self, decision, rec: dict) -> tuple:
-        return dict(decision.refused).get(rec["id"], ())
-
 
 class TripleAndSupportRoute(NativeCode):
     """29da56e B1 (c) and (g)."""
@@ -316,6 +316,34 @@ class TripleAndSupportRoute(NativeCode):
         self.assertTrue(d.j.nonind(a["id"]))
         self.assertEqual(d.valid("code"), F)
         self.assertTrue(self.accept_derived())
+
+    def test_counter_challenge_only_an_independent_counter_upholding_restores_a_revoked_acceptance(self) -> None:
+        # 29da56e B1 (a), its own trajectory (review RR-2): an independent upholding of a non-blocking challenge
+        # revokes the acceptance; a counter-upholding restores it only when independent; each human is a separate
+        # one, so no adjudicator judges its own challenge or upholding
+        a = self.acceptance(attested=True)
+        self.assertEqual(self.derive().valid("code"), T)
+        raiser, upholder, counter_judge = (self.second_human(n) for n in ("second-human", "third-human", "fourth"))
+        c1 = self.challenge(a["id"], raiser[0], blocking=False)
+        self.assertEqual(self.send(raiser, c1).refused, ())
+        self.assertEqual(self.derive().valid("code"), T, "a non-blocking challenge revokes nothing yet")
+        decision = self.send(upholder, *self.adjudication(c1, "UPHELD", upholder[0], attested=True))
+        self.assertEqual((decision.decision, decision.refused), ("ACCEPT", ()))
+        self.assertEqual(self.derive().valid("code"), F, "the acceptance is revoked")
+        self.assertTrue(self.accept_derived())
+        upheld = decision.admitted[0]
+        c2 = self.challenge(upheld, raiser[0], blocking=False)
+        self.assertEqual(self.send(raiser, c2).refused, ())
+        (a2,) = self.adjudication(c2, "UPHELD", counter_judge[0], attested=False)
+        self.refused_alone(self.send(counter_judge, a2), a2)
+        self.assertEqual(self.derive().valid("code"), F, "a refused counter-upholding restores nothing")
+        self.assertTrue(self.accept_derived())
+        self.assertTrue(self.adjudicate_open(c2), "29da56e N1: a refused adjudication answers nothing")
+        decision = self.send(counter_judge, *self.adjudication(c2, "UPHELD", counter_judge[0], attested=True))
+        self.assertEqual((decision.decision, decision.refused), ("ACCEPT", ()))
+        self.assertEqual(self.derive().valid("code"), T, "the revocation is undone: the acceptance supports again")
+        self.assertFalse(self.accept_derived())
+        self.assertFalse(self.adjudicate_open(c2))
 
     def test_triple_dismissal_only_an_independent_dismissal_lifts_the_block(self) -> None:
         # 29da56e B1 (c): a blocking challenge of the accepted triple, dismissed by the revision's unknown author
@@ -393,16 +421,6 @@ class AssessmentSupersession(NativeCode):
         self.assertEqual(self.disposition(self.failing), 0, "the failure stands: keyed on the realization alone, "
                                                            "the reassessment would have disposed of it")
 
-    def test_another_obligation_is_refused(self) -> None:
-        # this fixture's realization serves one obligation, so another one is no target of it (REF_TARGET): the
-        # rejection is executed, the key's obligation member only at the owner (step 4b SupersessionTargets)
-        rec = self.assessment(self.bad, "PASS", self.second[0], obligation=obligation_token("code", "other"),
-                              supersedes=[self.failing["id"]])
-        decision = self.send(self.second, *self.attested(rec))
-        self.assertIn("REF_TARGET", self.codes(decision, rec))
-        self.assertNotIn(rec["id"], decision.admitted)
-        self.assertEqual(self.disposition(self.failing), 0)
-
     def test_plan_acceptance_supersession_fails_closed(self) -> None:
         # f03b15e N5's overlap case is not executed: in Phase F a PLAN_ACCEPTANCE's supersession is refused as
         # unsupported whatever its items (its conditional target has no built owner, plan review 8a41539 B2), so this
@@ -437,13 +455,48 @@ class AssessmentSupersession(NativeCode):
         self.assertEqual((decision.refused, decision.admitted[0]), ((), same_class["id"]), "the owner, on the key")
 
 
+class TwoObligations(Objections):
+    """Review RR-1: f03b15e N5's "a PASS of the same realization for another obligation, naming a⁻ in supersedes, is
+    rejected (AUTH_SUPERSEDES)". The specification evidences ``code`` and ``other``, and one realization claims both
+    (its target's claim list, F89 (a)), so it serves two obligations under one reading. It is unbounded (the whole
+    tree, §6.3): the fixture's bounded basis lists terms of ``code`` and ``spec`` only; the key reads no bound."""
+
+    def setUp(self) -> None:
+        unit = '[[unit]]\nid = "other"\nkind = "D4"\nscope = [{ path = "other.txt" }]\n'
+        manifest = test_phase_f_step9d_iii.MANIFEST.replace("[[unit]]\nid = \"ssds.manifest\"",
+                                                             unit + "[[unit]]\nid = \"ssds.manifest\"")
+        spec = "# ssds:rel EVIDENCES other\n" + test_phase_f_step9d_iii.SPEC
+        with mock.patch.object(test_phase_f_step9d_iii, "MANIFEST", manifest), \
+                mock.patch.object(test_phase_f_step9d_iii, "SPEC", spec):
+            super().setUp()
+        self.second = self.second_human()
+        self.real = self.realize(self.tree("T0"), BAD, claims=("code", "other"), bounded=False)
+        self.failing = self.assessment(self.real, "FAIL", self.second[0])
+        self.assertEqual(self.send(self.second, self.failing).admitted, (self.failing["id"],))
+
+    def test_another_obligation_is_refused(self) -> None:
+        other = obligation_token("other", "spec")
+        alone = self.assessment(self.real, "PASS", self.second[0], obligation=other)
+        decision = self.send(self.second, *self.attested(alone))
+        self.assertEqual((decision.refused, alone["id"] in decision.admitted), ((), True),
+                         "the other obligation is one of this realization's")
+        cross = self.assessment(self.real, "PASS", self.second[0], obligation=other, supersedes=[self.failing["id"]])
+        decision = self.send(self.second, *self.attested(cross))
+        self.assertEqual(self.codes(decision, cross), ("AUTH_SUPERSEDES",))
+        self.assertEqual(self.disposition(self.failing), 0, "the failure stands")
+        same = self.assessment(self.real, "PASS", self.second[0], supersedes=[self.failing["id"]])
+        decision = self.send(self.second, *self.attested(same))
+        self.assertEqual((decision.decision, decision.refused), ("ACCEPT", ()), "on its own key it is admitted")
+        self.assertEqual(self.disposition(self.failing), 2)
+
+
 class OwnerRoutes(NativeCode):
-    """Review XR-B2 (1): three of S1's ``OWNER`` cases (``qualification/ssds80/models/cases.py``) at their
-    ``4:upheld-challenge`` route, through the real ``authorize``: ``author_owner_failing_disposition``,
-    ``non_author_owner``, and ``author_owner``'s shape on a subject review. The genesis human is the owner, of unknown
-    authorship unless attested. ``policy_names_resolver`` and ``unknown_lineage_owner_agent`` are reachable but not
-    run here: with every root of unknown authorship, an attested-fresh agent is refused with the same ``AUTH_ACTOR``,
-    so neither case can discriminate without a known author (an admitted integration, SD-70)."""
+    """Reviews XR-B2 (1) and RR-3: four of S1's ``OWNER`` cases (``qualification/ssds80/models/cases.py``) through the
+    real ``authorize``, on their subject-review analogue: ``author_owner_failing_disposition``, ``non_author_owner``
+    and ``author_owner`` at route 4, and ``policy_names_resolver`` at routes 2 and 4. The genesis human is the owner,
+    of unknown authorship unless attested. ``unknown_lineage_owner_agent`` is reachable but not discriminating: with
+    every root of unknown authorship an attested-fresh agent is refused with the same ``AUTH_ACTOR``, so the
+    lineage cannot be told apart without a known author (an admitted integration, SD-70)."""
 
     OWNED = True
 
@@ -474,6 +527,34 @@ class OwnerRoutes(NativeCode):
         (upheld,) = self.adjudication(c, "UPHELD", self.human(), attested=False)
         self.refused_alone(self.send(self.genesis_human(), upheld), upheld)
         self.assertTrue(self.adjudicate_open(c))
+
+    def test_policy_names_resolver_owner_supersession_open_author_upholding_closed(self) -> None:
+        # policy_names_resolver, its subject-review analogue (review RR-3): policy names a non-author owner; route
+        # 2, the owner's supersession, is open and ends the adverse judgment; route 4 stays closed to the author
+        # adjudicator (here a human of unknown authorship who presents no attestation). Route 3, relief by the
+        # owner, and the transformation-review form (a task result, SD-70) are not run
+        adverse = record("REVIEW", target=self.triple, outcome="NO_PASS", actor=self.second[0], basis=self.content())
+        c = self.objection(adverse)
+        self.assertTrue(self.derive().j.stands_adverse(adverse["id"]))
+        author = self.second_human("author-adjudicator")
+        (upheld,) = self.adjudication(c, "UPHELD", author[0], attested=False)
+        self.refused_alone(self.send(author, upheld), upheld)
+        self.assertTrue(self.derive().j.stands_adverse(adverse["id"]), "route 4 is closed to the author")
+        peer = self.second_human("peer")  # "no qualified peer supersedes another actor's judgment" (§5.10 (e))
+        by_peer = record("REVIEW", target=self.triple, outcome="PASS", actor=peer[0], basis=self.content(),
+                         supersedes=[adverse["id"]])
+        unattested = record("REVIEW", target=self.triple, outcome="PASS", actor=self.human(), basis=self.content(),
+                            supersedes=[adverse["id"]], reason=["unattested"])
+        for name, signer, records in (("an attested peer", peer, self.attested(by_peer)),
+                                      ("the owner, not independent", self.genesis_human(), [unattested])):
+            with self.subTest(name):
+                self.assertEqual(self.codes(self.send(signer, *records), records[0]), ("AUTH_SUPERSEDES",))
+                self.assertTrue(self.derive().j.stands_adverse(adverse["id"]))
+        again = record("REVIEW", target=self.triple, outcome="PASS", actor=self.human(), basis=self.content(),
+                       supersedes=[adverse["id"]])
+        decision = self.send(self.genesis_human(), *self.attested(again))
+        self.assertEqual((decision.decision, decision.refused), ("ACCEPT", ()), "route 2, the owner's")
+        self.assertFalse(self.derive().j.stands_adverse(adverse["id"]))
 
     def test_non_author_owner_ends_the_objection(self) -> None:
         # non_author_owner: routes include 4:upheld-challenge
