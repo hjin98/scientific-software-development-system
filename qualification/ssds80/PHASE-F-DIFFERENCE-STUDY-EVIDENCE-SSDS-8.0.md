@@ -1128,3 +1128,32 @@ rows. The limits stay those of the frozen classification. Accepting 11b waits fo
 population, the 308 unchanged rows and all 942 actual classifications. Its RC-C1 found that the classifier did not
 bind each obligation id to its target. That is now repaired (plan revision 75), and the repaired classifier
 reproduces the preliminary, frozen and re-frozen classifications exactly.
+
+## 11b at `f97251af` — COMPLETE (2026-11-02, plan revision 78)
+
+The candidate carries the repairs of the other-family exit Review of `c8122d66` (XR-C1 to XR-B3; plan revision 78).
+The run used one boundary window in the stakeholder's terminal: `PHASE-F-11B-F97251AF-WINDOW.py`, revision 74's
+script with only its docstring and candidate changed. It ran on the new scratch home
+`/tmp/claude-1000/ssds-phase-f-11b-f97251af/home` and read no real ledger.
+
+| fact | value |
+|---|---|
+| window | `PASS`: harness exit 0, compare exit 0 ("unchanged since before.json"), 1,950 s |
+| report | `PHASE-F-DIFFERENCE-STUDY-REFROZEN-f97251af.json`, sha256 `aabe7f13992bd44ad7629e42b24c2b23f1a7a4ba6f17f33bc220491276a9b42b`; execution `COMPLETE`, its own final boundary `PASSED` |
+| population | 349 evaluated (66 at or before the real baseline, 283 after) and 740 excluded. The 8 new rows are exactly the 8 first-parent commits `c8122d66..f97251af` |
+| comparison | the first 341 rows are `c8122d66`'s report's rows, in order and identical, field for field: the repairs change no historical result |
+| new rows | 8: each has the two `STRUCT_RESERVED_LEAF` findings and one `AUTH_PROTECTED` on `ssds.unclassified`; 11 `credential_values` template findings follow the same rule as before; no matched value was inspected |
+| tools | `PHASE-F-11B-F97251AF-WINDOW.py` `ef29b61dcad2879a2140accafbbba389b867d57d8eeb6aeb86e0d0fd7f36d024`; `difference_study.py` `cb7c8d03936529b7395c25508880999b3effb306a371bf634fb190d315dc54d7` (unchanged); `shadow_boundary.py` `79770bc29f27fe1ba773b7c98270b32c7e82f23cd04b334ae00222a33a757722` (unchanged) |
+| window record | `PHASE-F-DIFFERENCE-STUDY-REFROZEN-f97251af-WINDOW.json` |
+
+**Classification.** `PHASE-F-DIFFERENCE-STUDY-CLASSIFY.py` (unchanged since revision 75's RC-C1 repair) wrote
+`PHASE-F-DIFFERENCE-STUDY-REFROZEN-f97251af-CLASSIFICATION.json` (sha256
+`87e248da885d60eb7aac41106d35c06b13f3b7bf42466b41fd00f15220f610e0`, status
+`REFROZEN_PENDING_OTHER_FAMILY_RECHECK`). Nothing stopped it unclassified. It found 977 observations:
+- class (iii), 712: 576 `reserved_leaf_genesis_deviation`, 120 `reserved_leaf_repair_quarantined_in_scratch` and
+  16 `reserved_leaf_repair_absorbed_as_foreign_change`;
+- class (v), 265: 203 `unmet_policy_enablement` and 62 `protected_touch_authorship_unestablished`;
+- none in class (i) or (iv).
+
+`c8122d66`'s 942 observations are among them; the 35 new ones (16, 11 and 8) come from the 8 new rows. The limits
+stay those of the frozen classification. Accepting 11b is the stakeholder's decision.

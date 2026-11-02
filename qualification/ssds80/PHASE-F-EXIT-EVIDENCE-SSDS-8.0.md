@@ -1,31 +1,38 @@
 Governing SSDP version: 7.2.1.
 
-# SSDS 8 Phase F exit evidence (step 12) at `c8122d66`
+# SSDS 8 Phase F exit evidence (step 12) at `f97251af`
 
 This file assembles Phase F's exit for the G2 workplan's Phase F row (§5.2): acceptance group 4, the admission halves
 of groups 2, 3 and 5, the end-to-end shadow run, and the classified differences from document control. It assembles
-evidence recorded elsewhere and names each owner. It accepts nothing: the independent implementation Review (plan §3,
+evidence recorded elsewhere and names each owner. Plan revision 78 updated it after the other-family exit Review of
+`c8122d66` (NO-PASS: XR-C1, XR-B1 to XR-B3), whose record stays as written. It accepts nothing: the independent implementation Review (plan §3,
 G2 workplan §5.1 item 5) judges it, and acceptance is the stakeholder's. A case not executed is reported as
 unexecuted, never as passed (Manual §31.2; plan §4).
 
 ## 1. The candidate
 
-- **Candidate:** `c8122d66edbf7d19320f7b155e0c31033566b854` (plan revision 74). `orchestrator/` at the evidence
-  commits equals it.
-- **Program suite at the candidate:** 1,911 tests OK, 10 skipped, on the pinned runtime, with the installed-product
-  build reaching PyPI (plan revision 74).
+- **Candidate:** `f97251af91477b9a66ff29bc7d871c326a7dff26` (plan revision 78; the previous one, `c8122d66`, plan
+  revision 74). `orchestrator/` at the evidence commits equals it.
+- **Repairs since `c8122d66`:** XR-C1, Admission's commit path (`admission/engine.py`): after an absorption the
+  request is revalidated from the held head, so nothing is appended after a retirement or over a provisional entry
+  and a request decided meanwhile is found, not appended twice; absorptions and lost compare-and-swaps are bounded
+  separately. Tests `test_phase_f_step12.PostAbsorption`, each failing against `c8122d66`. XR-B1 to XR-B3 are the
+  tests and citations of §2.
+- **Program suite at the candidate:** 1,930 tests OK, 10 skipped, on the pinned runtime: the SSDS suite (1,535) and
+  the Core modules (395), the installed-product build reaching PyPI.
 - **Repository acceptance:** release state, PEM, protocol snapshot, skill packages built and validated, dist
-  parity and `git diff --check` pass (revision 74). The root regression passes since SD-99 (revision 75).
-- **Focused re-run for this file** (2026-11-01, the pinned runtime, `-B`): the modules cited in §2 below, run
+  parity, root regression (435 OK) and `git diff --check` pass.
+- **Focused re-run for this file** (2026-11-02, the pinned runtime, `-B`): the modules cited in §2 below, run
   together. Result in §6.
 
 ## 2. Acceptance groups
 
 Status words:
 - **executed:** a test at the real owner asserts the case's stated outcome;
-- **executed, uncited:** as executed, but the test does not cite the case or discriminator by name, which plan §4
-  asks for. The mapping comes from the plan's step record and is for the Review to confirm;
-- **unexecuted:** not run, with the decision that defers it.
+- **unexecuted:** not run, with the decision that defers it, or the reason it cannot discriminate in Phase F and
+  the stakeholder question that asks for its disposition (Q-F31, plan revision 78).
+
+Since revision 78 every executed test cites its case or discriminator by name (XR-B3).
 
 Test ids are under `orchestrator/tests/ssds/`.
 
@@ -35,9 +42,9 @@ Test ids are under `orchestrator/tests/ssds/`.
 |---|---|---|
 | S5 §22 `publication_classification` | executed | `test_phase_f_step6d.Classification`, `.Integration` |
 | S5 §23 `qualification_states`, Admission side: `ROLLBACK` | executed (441cf5c N7 cites it) | `test_phase_f_step6b.CommitPoint.test_a_rewind_is_rollback`, `.test_a_high_water_mark_beyond_the_ledger_is_rollback` |
-| `qualification_states`: `UNQUALIFIED`, `FORK`, a quorum-held head | executed, uncited | `test_phase_f_step6b.CommitPoint.test_an_unwitnessed_head_is_not_qualified_and_nothing_is_appended`; `test_phase_f_step7e.Segments.test_an_unreachable_new_set_is_unqualified`; `test_phase_f_step7c.Loss.test_a_fork_takes_a_loss_naming_the_admitted_side`; `test_phase_f_step7e.Segments.test_a_held_redesignation_qualifies_under_the_new_set` |
-| S5 §23 `loss_bounds`, Admission side | executed, uncited | `test_phase_f_step7c.TeamLoss.test_only_proved_never_admitted_heads_are_a_fork_resolution`; `test_phase_f_step7d.Resolution.test_a_possibly_or_known_admitted_head_is_a_loss`, `.test_a_lost_sub_quorum_entry_is_resolved_and_resubmitted_by_identity` |
-| `deployment_classes_sound` at redesignation (step 7e) | executed, uncited | `test_phase_f_step7e.LocalRedesign.test_content_refusals` (an unsound set refused "not sound"), `TeamRedesign.test_a_loss_changing_the_set_is_held_by_the_reachable_old_set_too`; `test_phase_f_step7b.Trial` (`TEAM` and `HARDENED` quorums) |
+| `qualification_states`: `UNQUALIFIED`, `FORK`, a quorum-held head | executed | `test_phase_f_step6b.CommitPoint.test_an_unwitnessed_head_is_not_qualified_and_nothing_is_appended`; `test_phase_f_step7e.Segments.test_an_unreachable_new_set_is_unqualified`; `test_phase_f_step7c.Loss.test_a_fork_takes_a_loss_naming_the_admitted_side`; `test_phase_f_step7e.Segments.test_a_held_redesignation_qualifies_under_the_new_set` |
+| S5 §23 `loss_bounds`, Admission side | executed | `test_phase_f_step7c.TeamLoss.test_only_proved_never_admitted_heads_are_a_fork_resolution`; `test_phase_f_step7d.Resolution.test_a_possibly_or_known_admitted_head_is_a_loss`, `.test_a_lost_sub_quorum_entry_is_resolved_and_resubmitted_by_identity` |
+| `deployment_classes_sound` at redesignation (step 7e) | executed | `test_phase_f_step7e.LocalRedesign.test_content_refusals` (a set that is not its class's tuple is refused; every declared class's tuple is sound, so the unsound (3,2,1,0) is refused that way, never at the q_a + r > N + f check), `TeamRedesign.test_a_loss_changing_the_set_is_held_by_the_reachable_old_set_too`; `test_phase_f_step7b.Trial` (`TEAM` and `HARDENED` quorums) |
 | 441cf5c N7: a rewind is `ROLLBACK` | executed | `test_phase_f_step6b.CommitPoint.test_a_rewind_is_rollback` |
 | 8a75346 N2, ledger form: a crash before the checkpoint | executed | `test_phase_f_step6b.CommitPoint.test_a_crash_before_the_checkpoint_is_recovered_by_request_identity` |
 | 8a75346 N2, publication form: a crash after the integration-ref compare-and-swap | **unexecuted** | step 6g, deferred with SD-70's gate (SD-73); no publication exists in Phase F |
@@ -55,26 +62,36 @@ Test ids are under `orchestrator/tests/ssds/`.
 | 5c55d4b N6 | executed | `test_phase_f_step9d_iii.Group2Discriminators.test_a_failure_whose_only_reproductions_are_unbounded_stays_counting` |
 | 798b2b4 B4: each link traversed is recorded | executed | `Group2Discriminators.test_each_link_traversed_is_recorded` |
 | 29da56e N5, first case: an upheld challenge of the realization disposes | executed | `Group2Discriminators.test_an_upheld_challenge_of_the_realization_disposes` |
-| 29da56e N5, the rest (counter-challenge, observation dismissal, triple dismissal, chain class, support route, adjudication recovery) | **at derivation only** | `test_assessment` (Phase D). At Admission they need further human trust roots; the plan's step 9d-iii record says so |
+| 29da56e N5 (B1 (a)): a counter-challenge; only an independent counter-upholding restores the dispute | executed | `test_phase_f_step12.CounterChallengeAndDismissal.test_counter_challenge_only_an_independent_counter_upholding_restores_the_dispute` (a second human registered; the root is a realization, not an `ACCEPTANCE`, `REVIEW`, `CONFORMANCE` or `GATE_DECISION`) |
+| 29da56e N5 (B1 (d)): a contested resolution; only an independent dismissal ends the objection | executed | `.test_contested_resolution_only_an_independent_dismissal_ends_the_objection` |
+| 29da56e N5 (B1 (b)): observation dismissal | executed | `.test_observation_dismissal_a_non_independent_dismissal_leaves_it_not_standing` |
+| 29da56e N5 (B1 (c)): triple dismissal | executed | `test_phase_f_step12.TripleAndSupportRoute.test_triple_dismissal_only_an_independent_dismissal_lifts_the_block` |
+| 29da56e N5 (B1 (g)): support route | executed | `.test_support_route_a_non_independent_acceptance_supports_nothing` |
+| 29da56e N5 (N1): adjudication recovery, a refused adjudication answers nothing | executed | in each of the above, `ADJUDICATE(c)` stays derived |
+| 29da56e N5 (B1 (e)): chain class | **unexecuted** | not discriminable at Admission in Phase F: authorship comes only from admitted integrations (none under SD-70), and unknown authorship is never disjoint from an agent's lineage, so every agent adjudication is refused for independence with the same code before the class rule acts. Owner level: `test_phase_f_step4b.AdjudicationEligibility`. Q-F31 |
+| Phase D's half of these cases | disclosed | `test_assessment` carries only the counter-challenge and one dismissal of the six named cases |
 | 124b0b7 N2 | executed | `test_phase_f_step9d_iii.CountingFailure`, `.ProvisionalDischarge` |
 
 ### Group 3: judgment disagreement, admission half
 
-The plan places these at step 4b-ii (row 4b-ii). The tests there do not cite the discriminators.
+The plan places these at step 4b-ii (row 4b-ii); revision 78 added Admission cases in `test_phase_f_step12`.
 
 | Case or discriminator | Status | Where |
 |---|---|---|
-| 51070e5 N3: an upheld challenge needs independence and class | executed, uncited | `test_phase_f_step4b.AdjudicationEligibility` |
-| f03b15e N5: supersession after the key change, by kind and target | executed, uncited | `test_phase_f_step4b.Supersession`, `.SupersessionTargets` |
-| 6b986de N6: one definition of each independence input at Admission | executed, uncited | `test_phase_f_step4b.OneAuthorshipRule` |
-| S1 `OWNER` cases whose distinguishing step is an Admission refusal | executed, uncited | `test_phase_f_step4b.AdjudicationEligibility`, `.RefusedAlone` |
-| RR-11's resolver and Dispatcher half | executed, uncited | `test_phase_f_step4b.OneAuthorshipRule.test_nb1_judge_selection_and_classification_read_the_same_authors`, `.test_nb1_a_reviewer_dispatched_is_one_admission_would_find_independent` |
+| 51070e5 N3: an upheld challenge needs independence and class | executed | `test_phase_f_step4b.AdjudicationEligibility` |
+| f03b15e N5: the assessor's and the owner's reassessments admitted and disposing; another reading `AUTH_SUPERSEDES`; an `EQUIVALENCE` of another class `AUTH_SUPERSEDES`, the same class admitted | executed | `test_phase_f_step12.AssessmentSupersession`; owner level `test_phase_f_step4b.Supersession`, `.SupersessionTargets` |
+| f03b15e N5: another obligation `AUTH_SUPERSEDES` | executed at the owner only | at Admission this fixture's realization serves one obligation, so another is refused `REF_TARGET` (`.test_another_obligation_is_refused`); the key's obligation member is `SupersessionTargets`' |
+| f03b15e N5: the `PLAN_ACCEPTANCE` overlap | **unexecuted** | the kind's supersession fails closed, `SCHEMA_UNSUPPORTED` whatever its items (plan review 8a41539 B2; `.test_plan_acceptance_supersession_fails_closed`). Q-F31 |
+| 6b986de N6: one definition of each independence input at Admission | executed | `test_phase_f_step4b.OneAuthorshipRule` |
+| S1 `OWNER`: `author_owner_failing_disposition` (admitted under the owner exception, common-mode recorded), `non_author_owner`, and `author_owner`'s shape on a subject review (refused alone; the objection waits) | executed | `test_phase_f_step12.OwnerRoutes`, through the real `authorize` |
+| S1 `OWNER`: `policy_names_resolver`, `unknown_lineage_owner_agent` | **unexecuted** | reachable but not discriminating without a known author (as chain class); owner level `test_phase_f_step4b.AdjudicationEligibility`. Q-F31 |
+| RR-11's resolver and Dispatcher half | executed | `test_phase_f_step4b.OneAuthorshipRule.test_nb1_judge_selection_and_classification_read_the_same_authors`, `.test_nb1_a_reviewer_dispatched_is_one_admission_would_find_independent` |
 
 ### Group 5: workflow, contracts, conformance, routing, admission half
 
 | Case or discriminator | Status | Where |
 |---|---|---|
-| S5 §8 `rejected_request_salvages_never_lost` | executed, uncited | `test_admission_requests.SalvageAndQueue.test_an_authenticated_rejected_request_salvages_its_never_lost_records`; `test_phase_f_step5a.Salvage` |
+| S5 §8 `rejected_request_salvages_never_lost` | executed | `test_phase_f_step12.RejectedRequestSalvage`: exactly `{rep, fail, adv}` admitted; the passing judgment, refused by nothing, not admitted; the case's `tr` left out (SD-70) |
 | S5 §8 `unclean_result_refuses_passing_judgments` | **unexecuted** | the case needs a `TASK_RESULT` in the request. Under SD-70 such a request is `SCHEMA_UNSUPPORTED` (`test_phase_f_step6c.Accepting.test_a_task_result_or_a_runners_evidence_is_not_yet_accepted`) until A10's D4 |
 | S5 §8 `clean_request_admits_all` | **unexecuted** | likewise (SD-70) |
 | the refusal of a candidate bound to an obligation no longer derived | executed | `test_phase_f_step5b.RequestLevel.test_the_bound_obligation_exists_at_the_head` (`OBLIGATION_NOT_DERIVED`); `test_phase_f_step5b_iii.Decisions` |
@@ -102,16 +119,21 @@ check). They are executed, but not against a Stage S expectation.
 - **At the re-frozen candidate:** the FR-A1-repaired reader re-read all three ledgers in one boundary window (SD-98,
   attempt 2): every field equals W9's, compare 0. So 10d's closure on `8cf829c3` stands at `c8122d66` for every
   record on the ledgers. Owner: plan revision 75; `PHASE-F-FR-A1-REREAD-WINDOWS/attempt-2/`.
-- **Limit:** no new command ran against `ssdp-shadow-3` at `c8122d66` itself. Its source delta from `8cf829c3` is
-  the grammar repair, which the re-read shows changes no record's reading.
+- **Limit:** no new command ran against `ssdp-shadow-3` at `c8122d66` or `f97251af`. The delta from `8cf829c3` is
+  the grammar repair, which the re-read shows changes no record's reading, and XR-C1's commit-path repair, which
+  changes what Admission does only when another writer appends between an absorption and the revalidation; 10d's
+  windows had one writer and no absorption between their commands.
 
 ## 4. Differences from document control
 
-- **11b at `c8122d66`** (F123, F124): 341 commits evaluated, 740 excluded, 942 observations: 696 in class (iii)
-  and 246 in class (v), none in class (i) or (iv). Owner: the study evidence file's last section.
+- **11b at `f97251af`** (F123, F124; plan revision 78): window `PASS`, 349 commits evaluated, 740 excluded, 977
+  observations: 712 in class (iii) and 265 in class (v), none in class (i) or (iv). The first 341 rows equal
+  `c8122d66`'s field for field and its 942 observations are among them; the 8 new rows are the first-parent commits
+  `c8122d66..f97251af`. Owner: the study evidence file's last section.
 - **Other-family review:** the narrow re-check of `c8122d66` independently rebuilt the population, the 308
-  unchanged rows and all 942 classifications, and passed them. Its RC-C1, on the classifier's fail-closed guard and
-  not on any classification, is repaired (plan revision 75) and is part A of the exit Review.
+  unchanged rows and all 942 classifications, and passed them; the exit Review passed its repaired classifier (part
+  A), with the limit that the classifier is no completeness oracle for the harness. The 35 new observations at
+  `f97251af` are not yet other-family checked.
 - **Limits, as the survey found them:** checks (1) and (3) are conditional (a credential template whose policy
   enablement is absent; a protected touch whose agent authorship is not established), and check (4) is vacuous.
   Record-dependent effects need an authorized campaign. The consequences are the scratch ledger's. The rows share
@@ -144,20 +166,17 @@ Each fails toward "not supported" (plan §6).
 
 ## 6. Focused re-run
 
-The fourteen modules cited in §2, at `c8122d66`, on 2026-11-01: **325 tests OK** in 138 s, no bytecode written under
+The fifteen modules cited in §2, at `f97251af`, on 2026-11-02: **344 tests OK** in 164 s, no bytecode written under
 `orchestrator/src`. Command, from `orchestrator/`:
 
 ```bash
-PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 /tmp/claude-1000/ssds-runtime-20261030/bin/python -B -m unittest tests.ssds.test_phase_f_step6b tests.ssds.test_phase_f_step6c tests.ssds.test_phase_f_step6d tests.ssds.test_phase_f_step7b tests.ssds.test_phase_f_step7c tests.ssds.test_phase_f_step7d tests.ssds.test_phase_f_step7e tests.ssds.test_phase_f_step9d_iii tests.ssds.test_phase_f_step9f_i tests.ssds.test_phase_f_step4b tests.ssds.test_phase_f_step5a tests.ssds.test_phase_f_step5b tests.ssds.test_phase_f_step5b_iii tests.ssds.test_admission_requests
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 /tmp/claude-1000/ssds-runtime-20261030/bin/python -B -m unittest tests.ssds.test_phase_f_step6b tests.ssds.test_phase_f_step6c tests.ssds.test_phase_f_step6d tests.ssds.test_phase_f_step7b tests.ssds.test_phase_f_step7c tests.ssds.test_phase_f_step7d tests.ssds.test_phase_f_step7e tests.ssds.test_phase_f_step9d_iii tests.ssds.test_phase_f_step9f_i tests.ssds.test_phase_f_step4b tests.ssds.test_phase_f_step5a tests.ssds.test_phase_f_step5b tests.ssds.test_phase_f_step5b_iii tests.ssds.test_admission_requests tests.ssds.test_phase_f_step12
 ```
 
 This confirms that the cited tests pass. It does not confirm that each one asserts the case it is mapped to; that
 check belongs to the Review.
 
-## 7. The citation shortfall
+## 7. The citation shortfall: closed
 
-Plan §4 asks that each test cite its case by name. The rows marked "executed, uncited" do not. The behaviour is
-tested at the real owner, but the trace from case to test lives in this file and the plan's step records, not in the
-tests. Adding the citations, or a named assembly test, changes `orchestrator/` and so the candidate (SD-94), which
-would mean a new freeze and an 11b re-run. This file does not do that. The exit Review judges whether it blocks the
-exit, and the stakeholder decides.
+The exit Review judged the trace in this file insufficient (XR-B3). Revision 78 put the case names in the tests
+themselves, in the same change as the XR-C1 repair, so one re-freeze covers both.

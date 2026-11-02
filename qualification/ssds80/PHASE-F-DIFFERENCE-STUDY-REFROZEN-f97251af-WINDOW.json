@@ -1,0 +1,29 @@
+{
+  "at": "2026-11-02T03:54:55.349838+00:00",
+  "candidate": "f97251af91477b9a66ff29bc7d871c326a7dff26",
+  "home": "/tmp/claude-1000/ssds-phase-f-11b-f97251af/home",
+  "ignored_under_src": [
+    "!! orchestrator/src/ssds.egg-info/"
+  ],
+  "tools_sha256": {
+    "PHASE-F-11B-F97251AF-WINDOW.py": "ef29b61dcad2879a2140accafbbba389b867d57d8eeb6aeb86e0d0fd7f36d024",
+    "difference_study.py": "cb7c8d03936529b7395c25508880999b3effb306a371bf634fb190d315dc54d7",
+    "shadow_boundary.py": "79770bc29f27fe1ba773b7c98270b32c7e82f23cd04b334ae00222a33a757722"
+  },
+  "command": [
+    "timeout",
+    "7200",
+    "/tmp/claude-1000/ssds-runtime-20261030/bin/python",
+    "-I",
+    "-B",
+    "/home/samjin/agent-skills/scientific-software-development-system/orchestrator/scripts/difference_study.py",
+    "--repository",
+    "/home/samjin/agent-skills/scientific-software-development-system",
+    "--candidate",
+    "f97251af91477b9a66ff29bc7d871c326a7dff26"
+  ],
+  "harness_exit": 0,
+  "elapsed_seconds": 1950,
+  "compare_exit": 0,
+  "result": "PASS"
+}

@@ -43,8 +43,10 @@ BLOCKERS: the other-family exit Review at c8122d66 (SD-101; revision 77) is NO-P
         SD-101, RC-C1 and RC-D1 are checked inside the exit Review.
         G2 revision 4 accepted (SD-99); root regression passes. Program QUALIFIED is not full architecture
         conformance.
-NEXT: revision 78 repaired XR-C1 to XR-B3 and its commit is the re-frozen candidate (SD-94): re-run 11b on
-      it in a scratch window, reclassify, update the exit evidence, then one other-family check of the repairs. Then the
+NEXT: revision 78 repaired XR-C1 to XR-B3; its commit f97251af is the re-frozen candidate (SD-94). 11b at
+      it COMPLETE (window PASS; 977 observations, 712 (iii), 265 (v)); the exit evidence is updated. Then one
+      other-family re-check of the repairs (handoff PHASE-F-RECHECK-HANDOFF-SSDS-8.0-F97251AF.md), Q-F31, and the
+      stakeholder's acceptance. Then the
       stakeholder's acceptance. Required unexecuted work is not passed.
 EVIDENCE: for ssdp-shadow-2, the canonical 10d evidence owns native results and the C7 route, and the pending-
         requests record its (closed) signatures; for ssdp-shadow-3, the retirement runbook owns A-C and F126's new
@@ -4676,3 +4678,8 @@ four tools (SD-100).
   and `unknown_lineage_owner_agent` are not discriminable at Admission until an admitted integration gives a known
   author (SD-70), with owner-level evidence in step 4b; and that f03b15e N5's `PLAN_ACCEPTANCE` overlap stays
   unexecuted while the kind fails closed?
+- **11b at `f97251af`:** window `PASS` (1,950 s, compare unchanged), 349 evaluated, 740 excluded; the first 341
+  rows equal `c8122d66`'s field for field; classification 977 observations, 712 in class (iii), 265 in class (v),
+  none in (i) or (iv); the 35 new from the 8 new rows. Owner: the study evidence's last section.
+- **Exit evidence** updated at `f97251af`: every executed row cites its test by case name; focused re-run of the
+  fifteen cited modules 344 tests OK. Re-check handoff: `qualification/ssds80/PHASE-F-RECHECK-HANDOFF-SSDS-8.0-F97251AF.md`.
